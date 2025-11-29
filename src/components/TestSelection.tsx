@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -20,11 +20,22 @@ import {
 	Tag,
 } from 'lucide-react';
 
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from './store/main/store';
 import { Exam, Question, Section, TestType } from '../types/client';
+import { useAppSelector } from './store/main/hook';
+import { useNavigate } from 'react-router-dom';
 
 export function TestSelection() {
+	const currentUser = useAppSelector((state) => state.currUser.current);
+	const navigate = useNavigate();
+	const dispatch = useDispatch();
+
+	useEffect(() => {
+		if (!currentUser) {
+			navigate('/auth'); // redirect if not logged in
+		}
+	}, [currentUser, navigate]);
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic' | 'practice'>('ielts');
 
 	const exams = useSelector((state: RootState) => state.exams.list);
