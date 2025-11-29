@@ -7,12 +7,15 @@ import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Brain, Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAppDispatch } from '../components/store/hook';
+import { setUser } from '../components/store/userSlice';
 
 export function AuthForm() {
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
 	const mode = params.get('mode') === 'register' ? 'register' : 'login';
 	const isLogin = mode === 'login';
+	const dispatch = useAppDispatch();
 
 	const [formData, setFormData] = useState({
 		email: '',
@@ -20,19 +23,14 @@ export function AuthForm() {
 		fullName: '',
 		confirmPassword: '',
 	});
-
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 	const [error, setError] = useState('');
 
-	/* ---------------------------------------- *
-	 * VALIDATION
-	 * ---------------------------------------- */
 	const validate = () => {
 		const errors: Record<string, string> = {};
-
 		if (!formData.email) errors.email = 'Email là bắt buộc';
 		else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email không hợp lệ';
 
@@ -41,7 +39,6 @@ export function AuthForm() {
 
 		if (!isLogin) {
 			if (!formData.fullName.trim()) errors.fullName = 'Họ tên là bắt buộc';
-
 			if (!formData.confirmPassword) errors.confirmPassword = 'Xác nhận mật khẩu là bắt buộc';
 			else if (formData.confirmPassword !== formData.password) errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
 		}
@@ -50,9 +47,6 @@ export function AuthForm() {
 		return Object.keys(errors).length === 0;
 	};
 
-	/* ---------------------------------------- *
-	 * SUBMIT
-	 * ---------------------------------------- */
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
@@ -61,13 +55,18 @@ export function AuthForm() {
 		setError('');
 
 		try {
-			// your API calls go here
-			// await login() or register()
-
-			// simulate API waiting
+			// simulate API call
 			await new Promise((res) => setTimeout(res, 700));
 
-			// after success
+			// after "successful" login/register, update Redux
+			const fakeUser = {
+				id: '123',
+				email: formData.email,
+				fullName: isLogin ? 'John Doe' : formData.fullName,
+				createdAt: new Date(),
+			};
+			dispatch(setUser(fakeUser));
+
 			navigate('/dashboard');
 		} catch (err: any) {
 			setError(err.message || 'Đã xảy ra lỗi');
@@ -76,15 +75,19 @@ export function AuthForm() {
 		}
 	};
 
-	/* ---------------------------------------- *
-	 * SOCIAL LOGIN
-	 * ---------------------------------------- */
 	const socialLogin = async (provider: 'google' | 'facebook') => {
 		setLoading(true);
 		try {
-			console.log('social login with', provider);
-			// fake wait
 			await new Promise((res) => setTimeout(res, 600));
+
+			const fakeSocialUser = {
+				id: 'social-456',
+				email: 'social@example.com',
+				fullName: provider === 'google' ? 'Google User' : 'Facebook User',
+				createdAt: new Date(),
+			};
+			dispatch(setUser(fakeSocialUser));
+
 			navigate('/dashboard');
 		} catch (e) {
 			setError('Đăng nhập thất bại');
@@ -93,16 +96,8 @@ export function AuthForm() {
 		}
 	};
 
-	/* ---------------------------------------- *
-	 * TOGGLE MODE
-	 * ---------------------------------------- */
-	const toggleMode = () => {
-		setParams({ mode: isLogin ? 'register' : 'login' });
-	};
+	const toggleMode = () => setParams({ mode: isLogin ? 'register' : 'login' });
 
-	/* ---------------------------------------- *
-	 * RENDER
-	 * ---------------------------------------- */
 	return (
 		<div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4'>
 			<Card className='w-full max-w-md'>
@@ -116,7 +111,6 @@ export function AuthForm() {
 							<p className='text-sm text-muted-foreground'>Hệ thống luyện thi AI</p>
 						</div>
 					</div>
-
 					<div>
 						<CardTitle>{isLogin ? 'Đăng nhập' : 'Đăng ký tài khoản'}</CardTitle>
 						<CardDescription>
@@ -192,12 +186,7 @@ export function AuthForm() {
 									<Input
 										type={showConfirmPassword ? 'text' : 'password'}
 										value={formData.confirmPassword}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												confirmPassword: e.target.value,
-											})
-										}
+										onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
 										className='pl-10 pr-10'
 									/>
 									<Button
@@ -222,7 +211,6 @@ export function AuthForm() {
 						</Button>
 					</form>
 
-					{/* Social Login */}
 					<div className='relative'>
 						<div className='absolute inset-0 flex items-center'>
 							<Separator />
@@ -235,7 +223,6 @@ export function AuthForm() {
 					<Button variant='outline' className='w-full' onClick={() => socialLogin('google')} disabled={loading}>
 						Login with Google
 					</Button>
-
 					<Button variant='outline' className='w-full' onClick={() => socialLogin('facebook')} disabled={loading}>
 						Login with Facebook
 					</Button>
