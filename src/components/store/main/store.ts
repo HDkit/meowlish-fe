@@ -16,7 +16,6 @@ import reportsReducer from '../reportSlice';
 import sectionsReducer from '../sectionSlice';
 import tagsReducer from '../tagSlice';
 import usersReducer from '../userSlice';
-import { createDateTransform } from './dateTransform';
 
 // Persist configuration
 const persistConfig = {
@@ -25,7 +24,7 @@ const persistConfig = {
 	whitelist: [
 		'users',
 		'goals',
-		'user',
+		'currUser',
 		'exams',
 		'questions',
 		'flashCards',
@@ -37,12 +36,6 @@ const persistConfig = {
 		'comments',
 		'replies',
 		'blogs',
-	],
-	transforms: [
-		createDateTransform('goals'),
-		createDateTransform('user'),
-		createDateTransform('exams'),
-		createDateTransform('currUser'),
 	],
 };
 
@@ -65,7 +58,7 @@ const rootReducer = combineReducers({
 });
 
 // Persisted reducer
-const persistedReducer = persistReducer(persistConfig, rootReducer as Reducer<ReturnType<typeof rootReducer>>);
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 // Configure store
 export const store = configureStore({

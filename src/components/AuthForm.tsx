@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,9 +6,14 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Brain, Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAppDispatch } from './store/main/hook';
+import { useAppDispatch, useAppSelector } from './store/main/hook';
 import { setUser } from './store/currUserSlice';
+import { v4 as uuidv4 } from 'uuid';
+
+import { RootState } from './store/main/store';
+import { addUser } from './store/userSlice';
 
 export function AuthForm() {
 	const navigate = useNavigate();
@@ -28,7 +33,9 @@ export function AuthForm() {
 	const [loading, setLoading] = useState(false);
 	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 	const [error, setError] = useState('');
+	const users = useAppSelector((state: RootState) => state.users.list);
 
+	// Common validation
 	const validate = () => {
 		const errors: Record<string, string> = {};
 		if (!formData.email) errors.email = 'Email là bắt buộc';
@@ -47,53 +54,96 @@ export function AuthForm() {
 		return Object.keys(errors).length === 0;
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!validate()) return;
-
+	// Login handler
+	const handleLoginSubmit = async () => {
 		setLoading(true);
 		setError('');
 
 		try {
-			// simulate API call
+			// simulate API delay
 			await new Promise((res) => setTimeout(res, 700));
 
-			// after "successful" login/register, update Redux
-			const fakeUser = {
-				id: '123',
-				email: formData.email,
-				fullName: isLogin ? 'John Doe' : formData.fullName,
-				createdAt: new Date(),
-			};
-			dispatch(setUser(fakeUser));
+			// get all users from Redux
+
+			const foundUser = users.find((u) => u.email === formData.email && u.password === formData.password);
+
+			if (!foundUser) {
+				setError('Email hoặc mật khẩu không đúng');
+				return;
+			}
+
+			// dispatch current user to store
+			dispatch(setUser(foundUser));
 
 			navigate('/dashboard');
 		} catch (err: any) {
-			setError(err.message || 'Đã xảy ra lỗi');
+			setError(err.message || 'Đăng nhập thất bại');
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	const socialLogin = async (provider: 'google' | 'facebook') => {
+	// Register handler
+	const handleRegisterSubmit = async () => {
 		setLoading(true);
+		setError('');
 		try {
-			await new Promise((res) => setTimeout(res, 600));
-
-			const fakeSocialUser = {
-				id: 'social-456',
-				email: 'social@example.com',
-				fullName: provider === 'google' ? 'Google User' : 'Facebook User',
-				createdAt: new Date(),
-			};
-			dispatch(setUser(fakeSocialUser));
+			await new Promise((res) => setTimeout(res, 700));
+			dispatch(
+				setUser({
+					id: uuidv4(),
+					email: formData.email,
+					fullName: formData.fullName,
+					password: formData.password,
+					createdAt: Date.now(),
+				})
+			);
+			dispatch(
+				addUser({
+					id: uuidv4(),
+					email: formData.email,
+					fullName: formData.fullName,
+					password: formData.password,
+					createdAt: Date.now(),
+				})
+			);
 
 			navigate('/dashboard');
-		} catch (e) {
-			setError('Đăng nhập thất bại');
+		} catch (err: any) {
+			setError(err.message || 'Đăng ký thất bại');
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	// Main submit
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!validate()) return;
+		if (isLogin) await handleLoginSubmit();
+		else await handleRegisterSubmit();
+	};
+
+	// Social login (Google/Facebook)
+	const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+		// setLoading(true);
+		// setError('');
+		// try {
+		// 	await new Promise((res) => setTimeout(res, 600));
+		// 	dispatch(
+		// 		setUser({
+		// 			id: 'social-456',
+		// 			email: 'social@example.com',
+		// 			fullName: provider === 'google' ? 'Google User' : 'Facebook User',
+		// 			createdAt: new Date(),
+		// 		})
+		// 	);
+		// 	navigate('/dashboard');
+		// } catch (e) {
+		// 	setError('Đăng nhập thất bại');
+		// } finally {
+		// 	setLoading(false);
+		// }
 	};
 
 	const toggleMode = () => setParams({ mode: isLogin ? 'register' : 'login' });
@@ -220,11 +270,13 @@ export function AuthForm() {
 						</div>
 					</div>
 
-					<Button variant='outline' className='w-full' onClick={() => socialLogin('google')} disabled={loading}>
-						Login with Google
+					<Button variant='outline' className='w-full' onClick={() => handleSocialLogin('google')} disabled={loading}>
+						<FaGoogle className='w-5 h-5' />
+						{isLogin ? 'Đăng ký bằng Google' : 'Đăng nhập Google'}
 					</Button>
-					<Button variant='outline' className='w-full' onClick={() => socialLogin('facebook')} disabled={loading}>
-						Login with Facebook
+					<Button variant='outline' className='w-full' onClick={() => handleSocialLogin('facebook')} disabled={loading}>
+						<FaFacebook className='w-5 h-5' />
+						{isLogin ? 'Đăng ký bằng Facebook' : 'Đăng nhập Facebook'}
 					</Button>
 
 					<p className='text-center text-sm mt-2'>

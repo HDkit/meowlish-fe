@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 
 export function LandingPage() {
 	const navigate = useNavigate();
-	const onGetStarted = () => navigate('/auth');
+	const onGetStarted = () => navigate('/auth?mode=register');
 	const onLogin = () => navigate('/auth');
 
 	return (

@@ -5,14 +5,14 @@ export interface User extends MockDbType {
 	email: string;
 	password: string;
 	fullName: string;
-	createdAt: Date;
+	createdAt: number;
 }
 
 export interface Goal extends MockDbType {
 	userId: string;
 	testType: TestType;
 	target: number;
-	dueDate: Date;
+	dueDate: number;
 }
 
 export enum TestType {
@@ -73,7 +73,7 @@ export interface Question extends MockDbType {
 export interface Attempt extends MockDbType {
 	userId: string; //User.id
 	examId: string; //Exam.id
-	startTime: Date;
+	startTime: number;
 	timeLeft: number; //seconds
 	isPaused: boolean;
 	score?: number;

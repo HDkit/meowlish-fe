@@ -1,26 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
-
-import { Plus } from 'lucide-react'; // your icon
-import { addGoal, Goal } from './store/goalSlice';
+import { Plus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { useNavigate } from 'react-router-dom';
+
+import { addGoal } from './store/goalSlice';
+import { Goal, TestType } from '../types/client';
+import { useAppSelector } from './store/main/hook';
 
 export function AddGoalButton({ className }: { className?: string }) {
+	const currentUser = useAppSelector((state) => state.currUser.current);
+	const navigate = useNavigate();
 	const dispatch = useDispatch();
-	const [open, setOpen] = useState(false);
 
+	useEffect(() => {
+		if (!currentUser) {
+			navigate('/auth'); // redirect if not logged in
+		}
+	}, [currentUser, navigate]);
+
+	const [open, setOpen] = useState(false);
 	const [target, setTarget] = useState(0);
-	const [label, setLabel] = useState<Goal['label']>('IELTS Score');
+	const [testType, setTestType] = useState<Goal['testType']>(TestType.IELTS);
+	const [dueDate, setDueDate] = useState<string>(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
 
 	const handleAdd = () => {
+		if (!currentUser) return;
+
 		dispatch(
 			addGoal({
 				id: uuidv4(),
-				targetExam: label,
-				target: Number(target),
+				userId: currentUser.id,
+				testType,
+				target,
+				dueDate: new Date(dueDate).getTime(), // convert to timestamp
 			})
 		);
-		setOpen(false); // close modal
+
+		// reset form and close modal
+		setOpen(false);
+		setTarget(0);
+		setTestType(TestType.IELTS);
+		setDueDate(new Date().toISOString().slice(0, 10));
 	};
 
 	return (
@@ -36,25 +57,25 @@ export function AddGoalButton({ className }: { className?: string }) {
 
 			{/* Modal */}
 			{open && (
-				<div className='fixed inset-0 bg-black/40 flex items-center justify-center z-50 '>
+				<div className='fixed inset-0 bg-black/40 flex items-center justify-center z-50'>
 					<div className='bg-white rounded-md shadow-2xl p-6 w-80 max-w-full mx-4 animate-fadeIn border border-gray-300'>
 						<h2 className='text-lg font-semibold mb-5 text-center'>Add New Goal</h2>
 
-						{/* Goal Type */}
+						{/* Goal Test Type */}
 						<div className='mb-4'>
-							<label className='block text-sm font-medium mb-1'>Goal Label</label>
+							<label className='block text-sm font-medium mb-1'>Goal Test Type</label>
 							<select
-								value={label}
-								onChange={(e) => setLabel(e.target.value as Goal['label'])}
+								value={testType}
+								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
 								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 							>
-								<option value='IELTS Score'>IELTS</option>
-								<option value='TOEIC Score'>TOEIC</option>
+								<option value={TestType.IELTS}>IELTS</option>
+								<option value={TestType.TOEIC}>TOEIC</option>
 							</select>
 						</div>
 
 						{/* Target Score */}
-						<div className='mb-6'>
+						<div className='mb-4'>
 							<label className='block text-sm font-medium mb-1'>Target Score</label>
 							<input
 								type='number'
@@ -62,6 +83,17 @@ export function AddGoalButton({ className }: { className?: string }) {
 								onChange={(e) => setTarget(Number(e.target.value))}
 								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 								placeholder='Enter target score'
+							/>
+						</div>
+
+						{/* Due Date */}
+						<div className='mb-6'>
+							<label className='block text-sm font-medium mb-1'>Due Date</label>
+							<input
+								type='date'
+								value={dueDate}
+								onChange={(e) => setDueDate(e.target.value)}
+								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 							/>
 						</div>
 

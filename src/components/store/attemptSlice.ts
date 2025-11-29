@@ -6,8 +6,8 @@ const attempts: Attempt[] = [
 		id: 'a1',
 		userId: 'u1',
 		examId: 'e1',
-		startTime: new Date(),
-		timeLeft: 3600,
+		startTime: Date.now(),
+		timeLeft: 0,
 		isPaused: false,
 		score: 85,
 		choices: [

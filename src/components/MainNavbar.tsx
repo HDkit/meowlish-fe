@@ -12,7 +12,7 @@ import {
 } from './ui/dropdown-menu';
 
 export function MainNavbar() {
-	const user = useAppSelector((state) => state.user.currentUser);
+	const user = useAppSelector((state) => state.currUser.current);
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 
@@ -111,7 +111,7 @@ export function MainNavbar() {
 							<Button variant='ghost' onClick={() => navigate('/auth')}>
 								Đăng nhập
 							</Button>
-							<Button onClick={() => navigate('/auth')}>Đăng ký</Button>
+							<Button onClick={() => navigate('/auth?mode=register')}>Đăng ký</Button>
 						</>
 					)}
 				</div>

@@ -7,14 +7,14 @@ const goals: Goal[] = [
 		userId: 'u1',
 		testType: TestType.IELTS,
 		target: 7,
-		dueDate: new Date('2025-12-31'),
+		dueDate: new Date('2025-12-31').getTime(),
 	},
 	{
 		id: 'g2',
 		userId: 'u2',
 		testType: TestType.TOEIC,
 		target: 900,
-		dueDate: new Date('2025-11-30'),
+		dueDate: new Date('2025-11-30').getTime(),
 	},
 ];
 

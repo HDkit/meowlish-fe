@@ -7,14 +7,14 @@ const users: User[] = [
 		email: 'alice@example.com',
 		password: 'password123',
 		fullName: 'Alice Johnson',
-		createdAt: new Date('2025-01-01'),
+		createdAt: new Date('2025-01-01').getTime(),
 	},
 	{
 		id: 'u2',
 		email: 'bob@example.com',
 		password: 'secret456',
 		fullName: 'Bob Smith',
-		createdAt: new Date('2025-02-15'),
+		createdAt: new Date('2025-02-15').getTime(),
 	},
 ];
 

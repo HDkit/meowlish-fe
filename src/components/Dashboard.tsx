@@ -1,11 +1,10 @@
-import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Target, BookOpen, Headphones, Mic, PenTool, TrendingUp } from 'lucide-react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from './store/main/store';
+import { useDispatch } from 'react-redux';
 import { AddGoalButton } from './AddGoalBtn';
 import { EditGoalButton } from './EditGoalBtn';
+import { useAppSelector } from './store/main/hook';
 
 const skillIcons = {
 	reading: BookOpen,
@@ -16,7 +15,7 @@ const skillIcons = {
 
 export function Dashboard() {
 	const dispatch = useDispatch();
-	const goals = useSelector((state: RootState) => state.goals.list);
+	const goals = useAppSelector((state) => state.goals.list);
 
 	const handleStartTest = (testType: 'ielts' | 'toeic', skill: keyof typeof skillIcons) => {
 		// TODO: start test logic
@@ -45,7 +44,7 @@ export function Dashboard() {
 						<CardHeader className='pb-3'>
 							<CardTitle className='text-sm font-medium flex items-center gap-1'>
 								<Target className='h-4 w-4' />
-								<span>{goal.targetExam}</span>
+								<span>{goal.testType}</span>
 							</CardTitle>
 						</CardHeader>
 						<CardContent>

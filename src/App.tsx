@@ -73,17 +73,17 @@ export default function App() {
 				<Routes>
 					<Route path='/' element={<LandingPage />} />
 					<Route path='/auth' element={<AuthForm />} />
-					<Route path='/dashboard' element={<Dashboard />} />
+					{/* <Route path='/dashboard' element={<Dashboard />} />
 					<Route path='/tests' element={<TestsPage />} />
-					<Route path='/test-selection' element={<TestSelection />} />
+					<Route path='/test-selection' element={<TestSelection />} /> */}
 					{/* <Route path='/test/:id' element={<TestInterface />} /> */}
 					{/* <Route path='/results' element={<ResultsView />} /> */}
-					<Route path='/progress' element={<ProgressTracker />} />
+					{/* <Route path='/progress' element={<ProgressTracker />} />
 					<Route path='/history' element={<History />} />
-					<Route path='/user' element={<UserPage />} />
+					<Route path='/user' element={<UserPage />} /> */}
 
 					{/* Edit later, DO NOT DEMO */}
-					<Route path='/speaking-test' element={<SpeakingTest />} />
+					{/* <Route path='/speaking-test' element={<SpeakingTest />} /> */}
 				</Routes>
 			</main>
 		</div>
