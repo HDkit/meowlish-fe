@@ -44,10 +44,10 @@ export function MainNavbar() {
 							<FileText className='h-4 w-4 mr-2' />
 							Exam Selection
 						</Button>
-						<Button variant='ghost' onClick={() => navigate('/speaking-test')}>
+						{/* <Button variant='ghost' onClick={() => navigate('/speaking-test')}>
 							<Mic className='h-4 w-4 mr-2' />
 							Speaking Test
-						</Button>
+						</Button> */}
 					</nav>
 				)}
 
@@ -80,10 +80,10 @@ export function MainNavbar() {
 											<Home className='mr-2 h-4 w-4' />
 											Dashboard
 										</DropdownMenuItem>
-										<DropdownMenuItem onClick={() => navigate('/speaking-test')}>
+										{/* <DropdownMenuItem onClick={() => navigate('/speaking-test')}>
 											<FileText className='mr-2 h-4 w-4' />
 											Speaking Test
-										</DropdownMenuItem>
+										</DropdownMenuItem> */}
 										<DropdownMenuItem onClick={() => navigate('/progress')}>
 											<TrendingUp className='mr-2 h-4 w-4' />
 											Tiến độ học tập

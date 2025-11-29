@@ -215,28 +215,34 @@ export function UserPage() {
 				</div>
 			</div>
 
-			{/* Stats */}
-			<div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
-				<Card>
-					<CardContent>
-						<p>Tổng số bài: {mockUser.progress.totalTests}</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardContent>
-						<p>IELTS: {mockUser.progress.ieltsScore}</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardContent>
-						<p>TOEIC: {mockUser.progress.toeicScore}</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardContent>
-						<p>Chuỗi học: {mockUser.progress.studyStreak} ngày</p>
-					</CardContent>
-				</Card>
+			{/* Goals Section */}
+			<div className='text-center space-y-4'>
+				{' '}
+				<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>
+				<div className='max-h-[600px] overflow-y-auto p-2 border rounded-md'>
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+						{goals.map((goal) => (
+							<Card key={goal.id}>
+								<CardHeader className='pb-3'>
+									<CardTitle className='text-sm font-medium flex flex-col items-start gap-1'>
+										<div>
+											<Target className='h-4 w-4' />
+											<span className='text-sm text-gray-500'>{new Date(goal.dueDate).toDateString()}</span>
+										</div>
+										<span className='text-base font-medium'>{goal.testType.toUpperCase()} Goal</span>
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className='flex items-center justify-between w-full'>
+										<span className='text-2xl font-semibold'>{goal.target}</span>
+										<EditGoalButton goal={goal} />
+									</div>
+								</CardContent>
+							</Card>
+						))}
+						<AddGoalButton className='h-full flex items-center justify-center' />
+					</div>
+				</div>
 			</div>
 
 			{/* Tabs */}
@@ -288,31 +294,6 @@ export function UserPage() {
 						</Card>
 					))}
 				</TabsContent>
-
-				{/* Goals Section */}
-				<div className='text-center space-y-4'>
-					{' '}
-					<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>
-					<div className='grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr'>
-						{goals.map((goal) => (
-							<Card key={goal.id}>
-								<CardHeader className='pb-3'>
-									<CardTitle className='text-sm font-medium flex items-center gap-1'>
-										<Target className='h-4 w-4' />
-										<span>{goal.testType}</span>
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className='flex items-center justify-between w-full'>
-										<span className='text-2xl font-semibold'>{goal.target}</span>
-										<EditGoalButton goal={goal} />
-									</div>
-								</CardContent>
-							</Card>
-						))}
-						<AddGoalButton className='h-full flex items-center justify-center' />
-					</div>
-				</div>
 
 				{/* History */}
 				<TabsContent value='history'>
