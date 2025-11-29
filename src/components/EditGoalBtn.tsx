@@ -1,64 +1,89 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-
-import { Pencil, Plus } from 'lucide-react'; // your icon
-import { Goal, updateGoal } from './store/goalSlice';
+import { Pencil } from 'lucide-react';
+import { updateGoal } from './store/goalSlice';
+import { Goal, TestType } from '../types/client';
+import { useAppSelector } from './store/main/hook';
+import { useNavigate } from 'react-router-dom';
 
 interface EditGoalButtonProps {
-	goal: Goal; // pass in the goal object
+	goal: Goal;
 	className?: string;
 }
 
 export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
+	const currentUser = useAppSelector((state) => state.currUser.current);
+	const navigate = useNavigate();
 	const dispatch = useDispatch();
+
+	useEffect(() => {
+		if (!currentUser) {
+			navigate('/auth'); // redirect if not logged in
+		}
+	}, [currentUser, navigate]);
+
 	const [open, setOpen] = useState(false);
-	const [goalId, setGoalId] = useState<Goal['id']>('ielts');
-	const [target, setTarget] = useState(0);
-	const [label, setLabel] = useState<Goal['label']>('IELTS Score');
+	const [target, setTarget] = useState(goal.target);
+	const [testType, setTestType] = useState<Goal['testType']>(goal.testType);
+	const [dueDate, setDueDate] = useState<string>('');
+
+	// Initialize dueDate when modal opens
+	useEffect(() => {
+		if (open) {
+			const date = new Date(goal.dueDate);
+			if (!isNaN(date.getTime())) {
+				setDueDate(date.toISOString().slice(0, 10));
+			} else {
+				setDueDate(new Date().toISOString().slice(0, 10));
+			}
+			setTarget(goal.target);
+			setTestType(goal.testType);
+		}
+	}, [open, goal]);
 
 	const handleUpdate = () => {
 		dispatch(
 			updateGoal({
+				userId: currentUser!.id,
 				id: goal.id,
-				targetExam: label,
-				target: Number(target),
+				testType,
+				target,
+				dueDate: new Date(dueDate).getTime(),
 			})
 		);
-		setOpen(false); // close modal
+		setOpen(false);
 	};
 
 	return (
 		<>
-			{/* Add Goal Button */}
 			<button
 				onClick={() => setOpen(true)}
-				className='w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:bg-accent/20 transition shadow-sm'
+				className='w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:bg-accent/20 transition'
 				title='Edit Goal'
 			>
-				<Pencil className='h-4 w-4 text-gray-700' />
+				<Pencil className='w-4 h-4 text-gray-700' />
 			</button>
 
-			{/* Modal */}
 			{open && (
-				<div className='fixed inset-0 bg-black/40 flex items-center justify-center z-50 '>
+				<div className='fixed inset-0 bg-black/40 flex items-center justify-center z-50'>
 					<div className='bg-white rounded-md shadow-2xl p-6 w-80 max-w-full mx-4 animate-fadeIn border border-gray-300'>
-						<h2 className='text-lg font-semibold mb-5 text-center'>Add New Goal</h2>
+						<h2 className='text-lg font-semibold mb-5 text-center'>Edit Goal</h2>
 
-						{/* Goal Type */}
+						{/* Goal Test Type */}
 						<div className='mb-4'>
-							<label className='block text-sm font-medium mb-1'>Goal Label</label>
+							<label className='block text-sm font-medium mb-1'>Goal Test Type</label>
 							<select
-								value={label}
-								onChange={(e) => setLabel(e.target.value as Goal['label'])}
+								value={testType}
+								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
 								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 							>
-								<option value='IELTS Score'>IELTS</option>
-								<option value='TOEIC Score'>TOEIC</option>
+								<option value={TestType.IELTS}>IELTS</option>
+								<option value={TestType.TOEIC}>TOEIC</option>
 							</select>
 						</div>
 
 						{/* Target Score */}
-						<div className='mb-6'>
+						<div className='mb-4'>
 							<label className='block text-sm font-medium mb-1'>Target Score</label>
 							<input
 								type='number'
@@ -66,6 +91,17 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 								onChange={(e) => setTarget(Number(e.target.value))}
 								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 								placeholder='Enter target score'
+							/>
+						</div>
+
+						{/* Due Date */}
+						<div className='mb-6'>
+							<label className='block text-sm font-medium mb-1'>Due Date</label>
+							<input
+								type='date'
+								value={dueDate}
+								onChange={(e) => setDueDate(e.target.value)}
+								className='w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none'
 							/>
 						</div>
 

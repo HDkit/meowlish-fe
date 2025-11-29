@@ -5,6 +5,8 @@ import { useDispatch } from 'react-redux';
 import { AddGoalButton } from './AddGoalBtn';
 import { EditGoalButton } from './EditGoalBtn';
 import { useAppSelector } from './store/main/hook';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const skillIcons = {
 	reading: BookOpen,
@@ -14,7 +16,15 @@ const skillIcons = {
 };
 
 export function Dashboard() {
+	const currentUser = useAppSelector((state) => state.currUser.current);
+	const navigate = useNavigate();
 	const dispatch = useDispatch();
+
+	useEffect(() => {
+		if (!currentUser) {
+			navigate('/auth'); // redirect if not logged in
+		}
+	}, [currentUser, navigate]);
 	const goals = useAppSelector((state) => state.goals.list);
 
 	const handleStartTest = (testType: 'ielts' | 'toeic', skill: keyof typeof skillIcons) => {
@@ -35,27 +45,6 @@ export function Dashboard() {
 					Hãy tiếp tục hành trình chinh phục IELTS và TOEIC với hệ thống AI thông minh. Nhận câu hỏi cá nhân hóa và phản
 					hồi tức thì.
 				</p>
-			</div>
-
-			{/* Goals Section */}
-			<div className='grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr'>
-				{goals.map((goal) => (
-					<Card key={goal.id}>
-						<CardHeader className='pb-3'>
-							<CardTitle className='text-sm font-medium flex items-center gap-1'>
-								<Target className='h-4 w-4' />
-								<span>{goal.testType}</span>
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className='flex items-center justify-between w-full'>
-								<span className='text-2xl font-semibold'>{goal.target}</span>
-								<EditGoalButton goal={goal} />
-							</div>
-						</CardContent>
-					</Card>
-				))}
-				<AddGoalButton className='h-full flex items-center justify-center' />
 			</div>
 
 			{/* Test Selection */}
@@ -134,7 +123,6 @@ export function Dashboard() {
 					</CardContent>
 				</Card>
 			</div>
-
 			{/* AI Features */}
 			<Card>
 				<CardHeader>

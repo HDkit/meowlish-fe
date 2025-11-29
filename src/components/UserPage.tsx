@@ -26,6 +26,9 @@ import {
 	Filter,
 	Star,
 } from 'lucide-react';
+import { EditGoalButton } from './EditGoalBtn';
+import { AddGoalButton } from './AddGoalBtn';
+import { useAppSelector } from './store/main/hook';
 
 type TestType = 'ielts' | 'toeic';
 type Skill = 'reading' | 'listening' | 'writing' | 'speaking';
@@ -173,6 +176,8 @@ export function UserPage() {
 		return 0;
 	});
 
+	const goals = useAppSelector((state) => state.goals.list);
+
 	return (
 		<div className='space-y-6'>
 			{/* Header */}
@@ -283,6 +288,31 @@ export function UserPage() {
 						</Card>
 					))}
 				</TabsContent>
+
+				{/* Goals Section */}
+				<div className='text-center space-y-4'>
+					{' '}
+					<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr'>
+						{goals.map((goal) => (
+							<Card key={goal.id}>
+								<CardHeader className='pb-3'>
+									<CardTitle className='text-sm font-medium flex items-center gap-1'>
+										<Target className='h-4 w-4' />
+										<span>{goal.testType}</span>
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className='flex items-center justify-between w-full'>
+										<span className='text-2xl font-semibold'>{goal.target}</span>
+										<EditGoalButton goal={goal} />
+									</div>
+								</CardContent>
+							</Card>
+						))}
+						<AddGoalButton className='h-full flex items-center justify-center' />
+					</div>
+				</div>
 
 				{/* History */}
 				<TabsContent value='history'>
