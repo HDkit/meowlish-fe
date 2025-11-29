@@ -18,12 +18,11 @@ import {
 	Info,
 } from 'lucide-react';
 import { TestType, Skill, User } from '../App';
+import { useAppSelector } from './store/hook';
+import { useNavigate } from 'react-router-dom';
 
 interface TestsPageProps {
-	onStartTest: (testType: TestType, skill: Skill, testId?: string) => void;
 	preselectedTestType?: TestType | null;
-	currentUser?: User | null;
-	onRequestLogin?: () => void;
 }
 
 interface TestSuite {
@@ -71,7 +70,10 @@ const mockTestSuites: TestSuite[] = [
 	// ...add other tests as needed
 ];
 
-export function TestsPage({ onStartTest, preselectedTestType, currentUser, onRequestLogin }: TestsPageProps) {
+export function TestsPage({ preselectedTestType }: TestsPageProps) {
+	const currentUser = useAppSelector((state) => state.user.currentUser);
+	const navigate = useNavigate();
+
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTestType, setSelectedTestType] = useState<TestType | 'all'>(preselectedTestType || 'all');
 	const [selectedDifficulty, setSelectedDifficulty] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
@@ -113,7 +115,10 @@ export function TestsPage({ onStartTest, preselectedTestType, currentUser, onReq
 					<AlertTitle className='text-blue-900 dark:text-blue-100'>Bạn chưa đăng nhập</AlertTitle>
 					<AlertDescription className='text-blue-800 dark:text-blue-200'>
 						Bạn cần đăng nhập để làm bài thi và theo dõi tiến độ học tập của mình.{' '}
-						<button onClick={onRequestLogin} className='underline hover:text-blue-600 dark:hover:text-blue-300'>
+						<button
+							onClick={() => navigate('/login')}
+							className='underline hover:text-blue-600 dark:hover:text-blue-300'
+						>
 							Đăng nhập ngay
 						</button>
 						.
@@ -298,8 +303,7 @@ export function TestsPage({ onStartTest, preselectedTestType, currentUser, onReq
 							<Button
 								className='w-full'
 								onClick={() => {
-									if (!currentUser) return onRequestLogin?.();
-									onStartTest(test.testType, test.skills[0], test.id);
+									if (!currentUser) return navigate('/login');
 								}}
 							>
 								<Play className='h-4 w-4 mr-2' />
