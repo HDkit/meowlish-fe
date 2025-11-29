@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Target, BookOpen, Headphones, Mic, PenTool, TrendingUp } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from './store/store';
+import { RootState } from './store/main/store';
 import { AddGoalButton } from './AddGoalBtn';
 import { EditGoalButton } from './EditGoalBtn';
 
@@ -45,7 +45,7 @@ export function Dashboard() {
 						<CardHeader className='pb-3'>
 							<CardTitle className='text-sm font-medium flex items-center gap-1'>
 								<Target className='h-4 w-4' />
-								<span>{goal.label}</span>
+								<span>{goal.targetExam}</span>
 							</CardTitle>
 						</CardHeader>
 						<CardContent>

@@ -1,38 +1,29 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Goal, TestType } from '../../types/client';
+import { createGenericSlice } from './main/genericSlice';
 
-export interface Goal {
-	id: string;
-	label: 'IELTS Score' | 'TOEIC Score';
-	target: number;
-}
-
-interface GoalsState {
-	list: Goal[];
-}
-
-const initialState: GoalsState = {
-	list: [
-		{ id: 'ielts', label: 'IELTS Score', target: 7 },
-		{ id: 'toeic', label: 'TOEIC Score', target: 900 },
-	],
-};
-
-export const goalsSlice = createSlice({
-	name: 'goals',
-	initialState,
-	reducers: {
-		addGoal: (state, action: PayloadAction<Goal>) => {
-			state.list.push(action.payload);
-		},
-		updateGoal: (state, action: PayloadAction<Goal>) => {
-			const index = state.list.findIndex((g) => g.id === action.payload.id);
-			if (index !== -1) state.list[index] = action.payload;
-		},
-		removeGoal: (state, action: PayloadAction<string>) => {
-			state.list = state.list.filter((g) => g.id !== action.payload);
-		},
+const goals: Goal[] = [
+	{
+		id: 'g1',
+		userId: 'u1',
+		testType: TestType.IELTS,
+		target: 7,
+		dueDate: new Date('2025-12-31'),
 	},
-});
+	{
+		id: 'g2',
+		userId: 'u2',
+		testType: TestType.TOEIC,
+		target: 900,
+		dueDate: new Date('2025-11-30'),
+	},
+];
 
-export const { addGoal, updateGoal, removeGoal } = goalsSlice.actions;
+const goalsSlice = createGenericSlice<Goal>('goals', goals);
+
+export const {
+	addItem: addGoal,
+	updateItem: updateGoal,
+	removeItem: removeGoal,
+	setList: setGoals,
+} = goalsSlice.actions;
 export default goalsSlice.reducer;

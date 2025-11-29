@@ -1,5 +1,5 @@
-import { useAppSelector, useAppDispatch } from '../components/store/hook';
-import { clearUser } from '../components/store/userSlice';
+import { useAppSelector, useAppDispatch } from './store/main/hook';
+import { clearUser } from './store/currUserSlice';
 import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';

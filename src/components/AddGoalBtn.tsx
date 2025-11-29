@@ -16,7 +16,7 @@ export function AddGoalButton({ className }: { className?: string }) {
 		dispatch(
 			addGoal({
 				id: uuidv4(),
-				label: label,
+				targetExam: label,
 				target: Number(target),
 			})
 		);

@@ -7,8 +7,8 @@ import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Brain, Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAppDispatch } from '../components/store/hook';
-import { setUser } from '../components/store/userSlice';
+import { useAppDispatch } from './store/main/hook';
+import { setUser } from './store/currUserSlice';
 
 export function AuthForm() {
 	const navigate = useNavigate();

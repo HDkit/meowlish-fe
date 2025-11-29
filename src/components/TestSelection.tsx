@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 import type { TestType, Skill } from '../App';
 import { useSelector } from 'react-redux';
-import { RootState } from './store/store';
-import { TestOption } from './store/testSlice';
+import { RootState } from './store/main/store';
+import { TestOption } from './store/examSlice';
 
 interface TestSelectionProps {
 	onStartTest: (testType: TestType, skill: Skill, testId?: string) => void;

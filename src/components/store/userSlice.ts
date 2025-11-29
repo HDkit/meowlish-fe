@@ -1,45 +1,29 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { User } from '../../types/client';
+import { createGenericSlice } from './main/genericSlice';
 
-// Your User type
-export interface User {
-	id: string;
-	email: string;
-	fullName: string;
-	createdAt: Date;
-}
-
-// Define the initial state
-interface UserState {
-	currentUser: User | null;
-}
-
-const initialState: UserState = {
-	currentUser: null,
-};
-
-const userSlice = createSlice({
-	name: 'user',
-	initialState,
-	reducers: {
-		// Set user info (login)
-		setUser(state, action: PayloadAction<User>) {
-			state.currentUser = action.payload;
-		},
-		// Update user info partially
-		updateUser(state, action: PayloadAction<Partial<User>>) {
-			if (state.currentUser) {
-				state.currentUser = { ...state.currentUser, ...action.payload };
-			}
-		},
-		// Clear user info (logout)
-		clearUser(state) {
-			state.currentUser = null;
-		},
+const users: User[] = [
+	{
+		id: 'u1',
+		email: 'alice@example.com',
+		password: 'password123',
+		fullName: 'Alice Johnson',
+		createdAt: new Date('2025-01-01'),
 	},
-});
+	{
+		id: 'u2',
+		email: 'bob@example.com',
+		password: 'secret456',
+		fullName: 'Bob Smith',
+		createdAt: new Date('2025-02-15'),
+	},
+];
 
-// Export actions
-export const { setUser, updateUser, clearUser } = userSlice.actions;
+const usersSlice = createGenericSlice<User>('users', users);
 
-// Export reducer to add to the store
-export default userSlice.reducer;
+export const {
+	addItem: addUser,
+	updateItem: updateUser,
+	removeItem: removeUser,
+	setList: setUsers,
+} = usersSlice.actions;
+export default usersSlice.reducer;

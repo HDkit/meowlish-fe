@@ -20,7 +20,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 		dispatch(
 			updateGoal({
 				id: goal.id,
-				label: label,
+				targetExam: label,
 				target: Number(target),
 			})
 		);

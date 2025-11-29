@@ -18,7 +18,7 @@ import {
 	Info,
 } from 'lucide-react';
 import { TestType, Skill, User } from '../App';
-import { useAppSelector } from './store/hook';
+import { useAppSelector } from './store/main/hook';
 import { useNavigate } from 'react-router-dom';
 
 interface TestsPageProps {
