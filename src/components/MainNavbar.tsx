@@ -1,6 +1,6 @@
 import { useAppSelector, useAppDispatch } from '../components/store/hook';
 import { clearUser } from '../components/store/userSlice';
-import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu } from 'lucide-react';
+import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import {
@@ -34,16 +34,22 @@ export function MainNavbar() {
 				</button>
 
 				{/* Desktop Navigation */}
-				<nav className='hidden md:flex items-center space-x-6'>
-					<Button variant='ghost' onClick={() => navigate('/dashboard')}>
-						<Home className='h-4 w-4 mr-2' />
-						Dashboard
-					</Button>
-					<Button variant='ghost' onClick={() => navigate('/test-selection')}>
-						<FileText className='h-4 w-4 mr-2' />
-						Speaking Test
-					</Button>
-				</nav>
+				{user && (
+					<nav className='hidden md:flex items-center space-x-6'>
+						<Button variant='ghost' onClick={() => navigate('/dashboard')}>
+							<Home className='h-4 w-4 mr-2' />
+							Dashboard
+						</Button>
+						<Button variant='ghost' onClick={() => navigate('/test-selection')}>
+							<FileText className='h-4 w-4 mr-2' />
+							Exam Selection
+						</Button>
+						<Button variant='ghost' onClick={() => navigate('/speaking-test')}>
+							<Mic className='h-4 w-4 mr-2' />
+							Speaking Test
+						</Button>
+					</nav>
+				)}
 
 				{/* User / Auth Buttons */}
 				<div className='flex items-center space-x-4'>
