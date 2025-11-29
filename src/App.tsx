@@ -80,11 +80,13 @@ export default function App() {
 					{/* <Route path='/tests' element={<TestsPage />} /> */}
 					{/* <Route path='/test-selection' element={<TestSelection />} /> */}
 					{/* <Route path='/test/:id' element={<TestInterface />} /> */}
-					<Route path='/speaking-test' element={<SpeakingTest />} />
 					{/* <Route path='/results' element={<ResultsView />} /> */}
 					<Route path='/progress' element={<ProgressTracker />} />
 					<Route path='/history' element={<History />} />
 					<Route path='/user' element={<UserPage />} />
+
+					{/* Edit later, DO NOT DEMO */}
+					<Route path='/speaking-test' element={<SpeakingTest />} />
 				</Routes>
 			</main>
 		</div>
