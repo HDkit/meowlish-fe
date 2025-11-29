@@ -3,7 +3,8 @@ import { persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage
 
 import goalsReducer from './goalSlice';
-import userReducer from './userSlice'; // <-- your new user slice
+import userReducer from './userSlice';
+import testsReducer from './testSlice';
 
 // Persist configuration
 const persistConfig = {
@@ -14,8 +15,9 @@ const persistConfig = {
 
 // Combine reducers
 const rootReducer = combineReducers({
-	goals: goalsReducer,
 	user: userReducer,
+	goals: goalsReducer,
+	tests: testsReducer,
 });
 
 // Persisted reducer

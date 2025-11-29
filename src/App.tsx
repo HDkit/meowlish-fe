@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 // import { TestInterface } from './components/TestInterface';
 // import { ResultsView } from './components/ResultsView';
 import { ProgressTracker } from './components/ProgressTracker';
-import { Header } from './components/Header';
 import { AuthForm } from './components/AuthForm';
-// import { TestSelection } from './components/TestSelection';
+import { TestSelection } from './components/TestSelection';
 import { LandingPage } from './components/LandingPage';
 import { MainNavbar } from './components/MainNavbar';
 import { History } from './components/History';
@@ -77,7 +75,7 @@ export default function App() {
 					<Route path='/auth' element={<AuthForm />} />
 					<Route path='/dashboard' element={<Dashboard />} />
 					{/* <Route path='/tests' element={<TestsPage />} /> */}
-					{/* <Route path='/test-selection' element={<TestSelection />} /> */}
+					<Route path='/test-selection' element={<TestSelection />} />
 					{/* <Route path='/test/:id' element={<TestInterface />} /> */}
 					{/* <Route path='/results' element={<ResultsView />} /> */}
 					<Route path='/progress' element={<ProgressTracker />} />
