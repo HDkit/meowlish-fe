@@ -17,24 +17,20 @@ import {
 	TrendingUp,
 	Target,
 	ChevronRight,
+	Tag,
 } from 'lucide-react';
-import type { TestType, Skill } from '../App';
+
 import { useSelector } from 'react-redux';
 import { RootState } from './store/main/store';
-import { TestOption } from './store/examSlice';
-
-interface TestSelectionProps {
-	onStartTest: (testType: TestType, skill: Skill, testId?: string) => void;
-	userProgress?: {
-		ieltsScore: number;
-		toeicScore: number;
-		completedTests: number;
-	};
-	preselectedTestType?: TestType | null;
-}
+import { Exam, Question, Section, TestType } from '../types/client';
 
 export function TestSelection() {
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic' | 'practice'>('ielts');
+
+	const exams = useSelector((state: RootState) => state.exams.list);
+	const sections = useSelector((state: RootState) => state.sections.list);
+	const questions = useSelector((state: RootState) => state.questions.list);
+	const tags = useSelector((state: RootState) => state.tags.list);
 
 	const skillIcons = {
 		reading: BookOpen,
@@ -42,8 +38,6 @@ export function TestSelection() {
 		speaking: Mic,
 		writing: PenTool,
 	};
-
-	const mockTests = useSelector((state: RootState) => state.tests.tests);
 
 	const getDifficultyColor = (difficulty: string) => {
 		switch (difficulty) {
@@ -71,17 +65,34 @@ export function TestSelection() {
 		}
 	};
 
-	const filterTests = (testType: TestType) => {
-		return mockTests.filter((test) => test.testType === testType);
+	const filterExams = (testType: TestType) => {
+		return exams.filter((exam) => exam.testType === testType && exam.status === 'approved');
 	};
 
-	const getRecommendedTests = () => {
-		// Return top 3 most popular tests across all types
-		return [...mockTests].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 3);
-	};
+	const ExamCard = ({ exam }: { exam: Exam }) => {
+		const Icon = skillIcons[exam.skill];
 
-	const TestCard = ({ test }: { test: TestOption }) => {
-		const Icon = skillIcons[test.skill];
+		function countQuestionsInExam(examId: string, sections: Section[], questions: Question[]): number {
+			// Collect all section IDs under this exam (including nested sections)
+			const sectionIds: Set<string> = new Set();
+
+			// Helper: recursively add section IDs
+			function addSections(parentId: string) {
+				for (const sec of sections) {
+					if (sec.parentId === parentId) {
+						sectionIds.add(sec.id);
+						addSections(sec.id); // recurse into nested sections
+					}
+				}
+			}
+
+			addSections(examId);
+
+			// Count questions whose sectionId is in our set
+			const count = questions.filter((q) => sectionIds.has(q.sectionId)).length;
+
+			return count;
+		}
 
 		return (
 			<Card className='hover:shadow-md transition-shadow'>
@@ -90,11 +101,11 @@ export function TestSelection() {
 						<div className='space-y-2'>
 							<div className='flex items-center gap-2'>
 								<Icon className='h-5 w-5 text-primary' />
-								<CardTitle className='text-lg'>{test.title}</CardTitle>
+								<CardTitle className='text-lg'>{exam.title}</CardTitle>
 							</div>
-							<CardDescription>{test.description}</CardDescription>
+							<CardDescription>{exam.description}</CardDescription>
 						</div>
-						<Badge className={getDifficultyColor(test.difficulty)}>{getDifficultyText(test.difficulty)}</Badge>
+						<Badge className={getDifficultyColor(exam.difficulty)}>{getDifficultyText(exam.difficulty)}</Badge>
 					</div>
 				</CardHeader>
 
@@ -103,36 +114,22 @@ export function TestSelection() {
 						<div className='text-center'>
 							<div className='flex items-center justify-center gap-1 text-muted-foreground'>
 								<Clock className='h-4 w-4' />
-								<span>{test.duration} phút</span>
+								<span>{exam.duration} phút</span>
 							</div>
 						</div>
 						<div className='text-center'>
 							<div className='flex items-center justify-center gap-1 text-muted-foreground'>
 								<Target className='h-4 w-4' />
-								<span>{test.questions} câu</span>
+								<span>{countQuestionsInExam(exam.id, sections, questions)} câu</span>
 							</div>
 						</div>
 						<div className='text-center'>
 							<div className='flex items-center justify-center gap-1 text-muted-foreground'>
-								<Users className='h-4 w-4' />
-								<span>{test.popularity}%</span>
+								<Tag className='h-4 w-4' />
+								<span>{exam.tagIds.map((tagId) => tags.find((tag) => tag.id === tagId)?.name).join(', ')}</span>
 							</div>
 						</div>
 					</div>
-
-					{test.averageScore && (
-						<div className='bg-muted/50 p-3 rounded-lg'>
-							<div className='flex items-center justify-between text-sm'>
-								<span>Điểm trung bình:</span>
-								<div className='flex items-center gap-1'>
-									<Star className='h-4 w-4 text-yellow-500' />
-									<span className='font-medium'>
-										{test.testType === 'ielts' ? `${test.averageScore}/9.0` : `${test.averageScore}/990`}
-									</span>
-								</div>
-							</div>
-						</div>
-					)}
 
 					<Button className='w-full' onClick={() => {}}>
 						<Play className='h-4 w-4 mr-2' />
@@ -154,89 +151,38 @@ export function TestSelection() {
 				</p>
 			</div>
 
-			{/* Test Selection */}
+			{/* Exam Selection */}
 			<Tabs value={selectedTab} onValueChange={(value: any) => setSelectedTab(value)}>
-				<TabsList className='grid w-full grid-cols-3'>
+				<TabsList className='grid w-full grid-cols-2'>
 					<TabsTrigger value='ielts'>IELTS</TabsTrigger>
 					<TabsTrigger value='toeic'>TOEIC</TabsTrigger>
-					<TabsTrigger value='practice'>Đề xuất</TabsTrigger>
+					{/* <TabsTrigger value='practice'>Đề xuất</TabsTrigger> */}
 				</TabsList>
 
 				<TabsContent value='ielts' className='space-y-6'>
 					<div className='text-center space-y-2'>
-						<h3 className='text-xl font-semibold'>IELTS - International English Language Testing System</h3>
+						<h3 className='text-xl font-semibold'>IELTS - International English Language Examing System</h3>
 						<p className='text-muted-foreground'>Kiểm tra năng lực tiếng Anh quốc tế cho du học và định cư</p>
 					</div>
 
 					<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-						{filterTests('ielts').map((test) => (
-							<TestCard key={test.id} test={test} />
+						{filterExams(TestType.IELTS).map((exam) => (
+							<ExamCard key={exam.id} exam={exam} />
 						))}
 					</div>
 				</TabsContent>
 
 				<TabsContent value='toeic' className='space-y-6'>
 					<div className='text-center space-y-2'>
-						<h3 className='text-xl font-semibold'>TOEIC - Test of English for International Communication</h3>
+						<h3 className='text-xl font-semibold'>TOEIC - Exam of English for International Communication</h3>
 						<p className='text-muted-foreground'>Đánh giá khả năng sử dụng tiếng Anh trong môi trường công việc</p>
 					</div>
 
 					<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-						{filterTests('toeic').map((test) => (
-							<TestCard key={test.id} test={test} />
+						{filterExams(TestType.TOEIC).map((exam) => (
+							<ExamCard key={exam.id} exam={exam} />
 						))}
 					</div>
-				</TabsContent>
-
-				<TabsContent value='practice' className='space-y-6'>
-					<div className='text-center space-y-2'>
-						<h3 className='text-xl font-semibold'>Đề thi được đề xuất</h3>
-						<p className='text-muted-foreground'>Những bài kiểm tra phổ biến và phù hợp với trình độ của bạn</p>
-					</div>
-
-					<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-						{getRecommendedTests().map((test) => (
-							<TestCard key={test.id} test={test} />
-						))}
-					</div>
-
-					<Separator />
-
-					<Card>
-						<CardHeader>
-							<CardTitle className='flex items-center gap-2'>
-								<Trophy className='h-5 w-5 text-yellow-500' />
-								Luyện tập theo kỹ năng
-							</CardTitle>
-							<CardDescription>Tập trung vào từng kỹ năng cụ thể để cải thiện điểm số</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-								{(['reading', 'listening', 'writing', 'speaking'] as Skill[]).map((skill) => {
-									const Icon = skillIcons[skill];
-									const skillNames = {
-										reading: 'Đọc hiểu',
-										listening: 'Nghe hiểu',
-										writing: 'Viết',
-										speaking: 'Nói',
-									};
-
-									return (
-										<Button
-											key={skill}
-											variant='outline'
-											className='h-auto p-4 flex flex-col items-center gap-3'
-											onClick={() => {}}
-										>
-											<Icon className='h-8 w-8' />
-											<span>{skillNames[skill]}</span>
-											<ChevronRight className='h-4 w-4' />
-										</Button>
-									);
-								})}
-							</div>
-						</CardContent>
-					</Card>
 				</TabsContent>
 			</Tabs>
 		</div>

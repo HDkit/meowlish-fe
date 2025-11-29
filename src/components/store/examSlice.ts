@@ -12,7 +12,7 @@ const exams: Exam[] = [
 		difficulty: Difficulty.Intermediate,
 		skill: Skill.Reading,
 		testType: TestType.IELTS,
-		tagIds: ['t1'],
+		tagIds: ['t1', 't2'],
 	},
 	{
 		id: 'e2',
