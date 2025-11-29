@@ -17,13 +17,13 @@ import {
 	ArrowRight,
 	Play,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-interface LandingPageProps {
-	onGetStarted: () => void;
-	onLogin: () => void;
-}
+export function LandingPage() {
+	const navigate = useNavigate();
+	const onGetStarted = () => navigate('/auth');
+	const onLogin = () => navigate('/auth');
 
-export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
 	return (
 		<div className='min-h-screen bg-background'>
 			{/* Hero Section */}
