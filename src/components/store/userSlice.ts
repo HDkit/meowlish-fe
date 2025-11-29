@@ -1,4 +1,3 @@
-// store/userSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // Your User type
