@@ -110,8 +110,16 @@ export interface Tag extends MockDbType {
 	tagType: TagType;
 }
 
+export interface FlashcardList extends MockDbType {
+	userId: string;
+	name: string;
+	description?: string;
+	createdAt: number;
+}
+
 export interface FlashCard extends MockDbType {
 	userId: string;
+	listId: string; // FlashcardList.id
 	content: string;
 	notes?: string;
 	tagId: string;
@@ -122,9 +130,20 @@ export interface Note extends MockDbType {
 	content: string;
 }
 
+export enum BlogCategory {
+	WebUsage = 'web-usage', // Cách sử dụng web
+	LanguageLearning = 'language-learning', // Học ngôn ngữ
+	ExamTips = 'exam-tips', // Cách làm bài thi
+	StudentReview = 'student-review', // Review của học viên
+	StudyAbroad = 'study-abroad', // Du học
+}
+
 export interface Blog extends MockDbType {
 	createdBy: string;
 	summary: string;
 	title: string;
 	content: string;
+	category: BlogCategory;
+	createdAt: number;
+	views?: number;
 }

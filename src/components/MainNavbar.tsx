@@ -1,6 +1,6 @@
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { clearUser } from './store/currUserSlice';
-import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu, Mic } from 'lucide-react';
+import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu, Mic, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import {
@@ -44,6 +44,14 @@ export function MainNavbar() {
 							<FileText className='h-4 w-4 mr-2' />
 							Exam Selection
 						</Button>
+						<Button variant='ghost' onClick={() => navigate('/flashcards')}>
+							<BookOpen className='h-4 w-4 mr-2' />
+							Flashcards
+						</Button>
+						<Button variant='ghost' onClick={() => navigate('/blog')}>
+							<FileText className='h-4 w-4 mr-2' />
+							Blog
+						</Button>
 						{/* <Button variant='ghost' onClick={() => navigate('/speaking-test')}>
 							<Mic className='h-4 w-4 mr-2' />
 							Speaking Test
@@ -79,6 +87,18 @@ export function MainNavbar() {
 										<DropdownMenuItem onClick={() => navigate('/dashboard')}>
 											<Home className='mr-2 h-4 w-4' />
 											Dashboard
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => navigate('/test-selection')}>
+											<FileText className='mr-2 h-4 w-4' />
+											Exam Selection
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => navigate('/flashcards')}>
+											<BookOpen className='mr-2 h-4 w-4' />
+											Flashcards
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => navigate('/blog')}>
+											<FileText className='mr-2 h-4 w-4' />
+											Blog
 										</DropdownMenuItem>
 										{/* <DropdownMenuItem onClick={() => navigate('/speaking-test')}>
 											<FileText className='mr-2 h-4 w-4' />
