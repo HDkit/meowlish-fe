@@ -18,12 +18,19 @@ export default function App() {
 
 			<main className='container mx-auto px-4 py-6'>
 				<Routes>
+					{/* trang lúc mới vào có cái banner */}
 					<Route path='/' element={<LandingPage />} />
+					{/* trang đăng nhập, đăng ký /auth là đăng nhập /auth?mode=register là đăng ký */}
 					<Route path='/auth' element={<AuthForm />} />
+					{/* dashboard */}
 					<Route path='/dashboard' element={<Dashboard />} />
+					{/* trang tìm kiếm đề thi */}
 					<Route path='/test-selection' element={<TestSelection />} />
+					{/* trang làm bài đang đc sửa */}
 					{/* <Route path='/test/do/:id' element={<TestInterface />} /> */}
+					{/* trang xem kq làm bài đang đc sửa */}
 					{/* <Route path='/results' element={<ResultsView />} /> */}
+					{/* 3 trang dưới chỉ quan tâm /user th */}
 					<Route path='/progress' element={<ProgressTracker />} />
 					<Route path='/history' element={<History />} />
 					<Route path='/user' element={<UserPage />} />
