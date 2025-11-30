@@ -6,14 +6,20 @@ const sections: Section[] = [
 		id: 's1',
 		lastEditedBy: 'u1',
 		parentId: 'e1', // parent is exam
-		direction: 'LTR',
+		direction: 'Read the passage and answer the following questions.',
 		difficulty: Difficulty.Intermediate,
 	},
 	{
 		id: 's1-1',
 		lastEditedBy: 'u1',
 		parentId: 's1', // nested under s1
-		direction: 'LTR',
+		difficulty: Difficulty.Intermediate,
+	},
+	{
+		id: 's1-2',
+		lastEditedBy: 'u1',
+		parentId: 's1', // nested under s1
+		direction: 'Choose the correct response based on the dialogue.',
 		difficulty: Difficulty.Intermediate,
 	},
 	{

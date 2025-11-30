@@ -53,14 +53,14 @@ export interface Exam extends MockDbType {
 export interface Section extends MockDbType {
 	lastEditedBy: string; //User.id
 	parentId: string; //Exam.id or Section.id
-	direction: string;
+	direction?: string;
 	difficulty: Difficulty;
 }
 
 export interface Question extends MockDbType {
 	lastEditedBy: string; //User.id
 	sectionId: string; //Section.id
-	type: 'multiple-choice' | 'fill-blank' | 'essay' | 'speaking';
+	type: 'multiple-choice' | 'fill-blank' | 'essay' | 'speaking' | 'multiple-correct-answers';
 	content: string;
 	options?: string[];
 	correctAnswer?: string[];

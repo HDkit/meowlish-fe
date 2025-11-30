@@ -103,6 +103,17 @@ export const questions: Question[] = [
 		points: 3,
 		tagIds: ['q-t43', 'q-t47'], // Thì + Phân từ
 	},
+	{
+		id: 'q11',
+		lastEditedBy: 'u1',
+		sectionId: 's1-2',
+		type: 'multiple-choice',
+		content: 'Select the correct form: "He ___ already left when I arrived."',
+		options: ['has', 'have', 'had', 'having'],
+		correctAnswer: ['had'],
+		points: 3,
+		tagIds: ['q-t43', 'q-t47'], // Thì + Phân từ
+	},
 ];
 
 const questionsSlice = createGenericSlice<Question>('questions', questions);
