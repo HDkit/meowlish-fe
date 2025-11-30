@@ -8,6 +8,7 @@ import commentsReducer from '../commentSlice';
 import currUserReducer from '../currUserSlice';
 import examsReducer from '../examSlice';
 import flashCardsReducer from '../flashCardSlice';
+import flashcardListsReducer from '../flashcardListSlice';
 import goalsReducer from '../goalSlice';
 import notesReducer from '../noteSlice';
 import questionsReducer from '../questionSlice';
@@ -28,6 +29,7 @@ const persistConfig = {
 		'exams',
 		'questions',
 		'flashCards',
+		'flashcardLists',
 		'attempts',
 		'notes',
 		'reports',
@@ -47,6 +49,7 @@ const rootReducer = combineReducers({
 	currUser: currUserReducer,
 	questions: questionsReducer,
 	flashCards: flashCardsReducer,
+	flashcardLists: flashcardListsReducer,
 	attempts: attemptsReducer,
 	notes: notesReducer,
 	reports: reportsReducer,

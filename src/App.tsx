@@ -10,6 +10,8 @@ import { History } from './components/History';
 import { UserPage } from './components/UserPage';
 import { Routes, Route } from 'react-router-dom';
 import { ExamDetailPage } from './components/TestDetail';
+import { FlashcardPage } from './components/FlashcardPage';
+import { BlogPage } from './components/BlogPage';
 
 export default function App() {
 	return (
@@ -37,6 +39,8 @@ export default function App() {
 
 					{/* New pages added here  */}
 					<Route path='/test/:id' element={<ExamDetailPage />} />
+					<Route path='/flashcards' element={<FlashcardPage />} />
+					<Route path='/blog' element={<BlogPage />} />
 
 					{/* Edit later, DO NOT DEMO */}
 					{/* <Route path='/speaking-test' element={<SpeakingTest />} /> */}
