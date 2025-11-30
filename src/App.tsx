@@ -9,6 +9,7 @@ import { MainNavbar } from './components/MainNavbar';
 import { History } from './components/History';
 import { UserPage } from './components/UserPage';
 import { Routes, Route } from 'react-router-dom';
+import { ExamDetailPage } from './components/TestDetail';
 
 export default function App() {
 	return (
@@ -21,11 +22,14 @@ export default function App() {
 					<Route path='/auth' element={<AuthForm />} />
 					<Route path='/dashboard' element={<Dashboard />} />
 					<Route path='/test-selection' element={<TestSelection />} />
-					{/* <Route path='/test/:id' element={<TestInterface />} /> */}
+					{/* <Route path='/test/do/:id' element={<TestInterface />} /> */}
 					{/* <Route path='/results' element={<ResultsView />} /> */}
 					<Route path='/progress' element={<ProgressTracker />} />
 					<Route path='/history' element={<History />} />
 					<Route path='/user' element={<UserPage />} />
+
+					{/* New pages added here  */}
+					<Route path='/test/:id' element={<ExamDetailPage />} />
 
 					{/* Edit later, DO NOT DEMO */}
 					{/* <Route path='/speaking-test' element={<SpeakingTest />} /> */}

@@ -142,9 +142,14 @@ export function TestSelection() {
 						</div>
 					</div>
 
-					<Button className='w-full' onClick={() => {}}>
+					<Button
+						className='w-full'
+						onClick={() => {
+							navigate('/test/' + exam.id);
+						}}
+					>
 						<Play className='h-4 w-4 mr-2' />
-						Bắt đầu làm bài
+						Chi tiết
 					</Button>
 				</CardContent>
 			</Card>
