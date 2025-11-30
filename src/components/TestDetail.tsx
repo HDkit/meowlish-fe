@@ -102,8 +102,8 @@ export function ExamDetailPage() {
       timer: timerValue
     });
     
-    // TODO: Navigate to test interface
-    // navigate(`/test/do/${examId}`, { state: { sections: sectionsToUse, timer: timerValue } });
+    // Navigate to test interface
+    navigate(`/test/do/${examId}`, { state: { sections: sectionsToUse, timer: timerValue } });
   };
 
   // Helper functions

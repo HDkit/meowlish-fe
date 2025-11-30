@@ -12,6 +12,7 @@ import { Routes, Route } from 'react-router-dom';
 import { ExamDetailPage } from './components/TestDetail';
 import { FlashcardPage } from './components/FlashcardPage';
 import { BlogPage } from './components/BlogPage';
+import { TestResult } from './components/TestResult';
 
 export default function App() {
 	return (
@@ -30,6 +31,7 @@ export default function App() {
 					<Route path='/test-selection' element={<TestSelection />} />
 					{/* trang làm bài đang đc sửa */}
 					<Route path='/test/do/:id' element={<TestInterface />} />
+					<Route path="/results/:id" element={<TestResult />} />
 					{/* trang xem kq làm bài đang đc sửa */}
 					{/* <Route path='/results' element={<ResultsView />} /> */}
 					{/* 3 trang dưới chỉ quan tâm /user th */}

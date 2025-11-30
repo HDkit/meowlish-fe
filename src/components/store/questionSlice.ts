@@ -20,6 +20,7 @@ export const questions: Question[] = [
 		sectionId: 's1-1',
 		type: 'fill-blank',
 		content: 'The capital of France is ____.',
+		correctAnswer: ['Paris'],
 		points: 3,
 		tagIds: ['q-t2', 'q-t5'], // Part 1 & Part 2
 	},
@@ -49,6 +50,7 @@ export const questions: Question[] = [
 		sectionId: 's1-1',
 		type: 'fill-blank',
 		content: 'She ___ playing tennis every Sunday.',
+		correctAnswer: ['is'],
 		points: 3,
 		tagIds: ['q-t43'], // Part 5 Grammar + Thì
 	},
@@ -80,6 +82,7 @@ export const questions: Question[] = [
 		sectionId: 's1-2',
 		type: 'fill-blank',
 		content: 'Water freezes at ____ degrees Celsius.',
+		correctAnswer: ['0'],
 		points: 3,
 		tagIds: ['q-t39', 'q-t40'], // Part 5 Vocabulary + Danh từ
 	},
