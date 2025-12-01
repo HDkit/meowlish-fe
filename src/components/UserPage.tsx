@@ -225,6 +225,7 @@ export function UserPage() {
 		return 0;
 	});
 
+
 	const goals = useAppSelector((state) => state.goals.list);
 	const userGoals = goals.filter((goal) => goal.userId === currUser?.id);
 
@@ -362,7 +363,8 @@ export function UserPage() {
 											<Target className='h-4 w-4' />
 											<span className='text-sm text-gray-500'>{new Date(goal.dueDate).toDateString()}</span>
 										</div>
-										<span className='text-base font-medium'>{goal.testType.toUpperCase()} Goal</span>
+										
+										<span className='text-base font-medium'>{goal.testType?.toUpperCase()} Goal</span>
 									</CardTitle>
 								</CardHeader>
 								<CardContent>

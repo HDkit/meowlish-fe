@@ -50,9 +50,9 @@ export function LandingPage() {
 					</div>
 
 					{/* Hero Image */}
-					<div className='w-full'>
+					<div className='w-full mx-auto max-w-5xl'>
 						<ImageWithFallback
-							src='https://han02.vstorage.vngcloud.vn/public/Default/Media/Images/bb0c9fc2-374e-4be7-82f3-ba70c1205768/default_image_bb0c9fc2-374e-4be7-82f3-ba70c1205768_1921-x-641-4-(7)_1727235891010.jpg'
+							src='https://vinuni.edu.vn/wp-content/uploads/2024/08/bang-toeic-va-ielts-cai-nao-tot-hon-su-phu-hop-voi-muc-tieu-cua-ban.jpg'
 							alt='Students studying for English exams'
 							className='w-full rounded-none'
 						/>

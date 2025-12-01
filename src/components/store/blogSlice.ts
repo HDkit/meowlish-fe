@@ -250,12 +250,12 @@ Xin chào! Mình là Lan, hiện đang là sinh viên năm 2 tại University of
 
 ## Giai đoạn chuẩn bị
 
-### 1. IELTS
+
+
+### 2. Hồ sơ### 1. IELTS
 - Cần tối thiểu 6.5 overall, không band nào dưới 6.0
 - Mình đã dùng EnglishAI Pro để luyện thi
 - Đạt 7.5 sau 4 tháng ôn tập
-
-### 2. Hồ sơ
 - Personal Statement: Viết về động lực, kinh nghiệm
 - Reference Letters: Xin từ giáo viên, người giám sát
 - Academic Transcript: Dịch và công chứng
