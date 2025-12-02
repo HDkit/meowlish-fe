@@ -49,10 +49,9 @@ export function AddGoalButton({ className }: { className?: string }) {
 			{/* Add Goal Button */}
 			<button
 				onClick={() => setOpen(true)}
-				className={`border rounded-xl flex flex-col items-center justify-center p-6 hover:bg-accent/50 transition shadow-sm ${className}`}
+				className={` flex flex-col items-center justify-center p-6 hover:bg-accent/50 transition ${className}`}
 			>
 				<Plus className='h-6 w-6 mb-2 text-gray-700' />
-				<span className='text-sm font-medium text-gray-800'>Add Goal</span>
 			</button>
 
 			{/* Modal */}

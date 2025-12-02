@@ -1,6 +1,20 @@
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { clearUser } from './store/currUserSlice';
-import { Brain, User as UserIcon, LogOut, Home, History, TrendingUp, FileText, Menu, Mic, BookOpen } from 'lucide-react';
+import {
+	Brain,
+	User as UserIcon,
+	LogOut,
+	Home,
+	History,
+	TrendingUp,
+	FileText,
+	Menu,
+	Mic,
+	BookOpen,
+	Star,
+	StarHalf,
+	Stars,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import {
@@ -52,10 +66,10 @@ export function MainNavbar() {
 							<FileText className='h-4 w-4 mr-2' />
 							Blog
 						</Button>
-						{/* <Button variant='ghost' onClick={() => navigate('/speaking-test')}>
-							<Mic className='h-4 w-4 mr-2' />
-							Speaking Test
-						</Button> */}
+						<Button variant='ghost' onClick={() => {}}>
+							<Stars className='h-4 w-4 mr-2' />
+							AI Speaking Test
+						</Button>
 					</nav>
 				)}
 

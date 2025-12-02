@@ -10,7 +10,7 @@ import {
 	Mail,
 	Calendar,
 	Trophy,
-	Target,	
+	Target,
 	Clock,
 	TrendingUp,
 	BookOpen,
@@ -31,6 +31,12 @@ import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector } from './store/main/hook';
 import { Attempt, Exam, Skill, TestType } from '../types/client';
 import { useNavigate } from 'react-router-dom';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/autoplay';
+
+import { Autoplay, Mousewheel, Navigation } from 'swiper/modules';
 
 interface UserType {
 	fullName: string;
@@ -175,7 +181,7 @@ export function UserPage() {
 			const accuracy = attempt.score !== undefined ? Math.round(attempt.score) : 0;
 
 			// Calculate completed time
-			const completedAt = new Date(attempt.startTime + (duration * 60 * 1000) - (attempt.timeLeft * 1000));
+			const completedAt = new Date(attempt.startTime + duration * 60 * 1000 - attempt.timeLeft * 1000);
 
 			return {
 				attempt,
@@ -187,13 +193,13 @@ export function UserPage() {
 			};
 		})
 		.filter(Boolean) as Array<{
-			attempt: Attempt;
-			exam: Exam;
-			timeSpent: number;
-			accuracy: number;
-			completedAt: Date;
-			totalQuestions: number;
-		}>;
+		attempt: Attempt;
+		exam: Exam;
+		timeSpent: number;
+		accuracy: number;
+		completedAt: Date;
+		totalQuestions: number;
+	}>;
 
 	const formatDate = (date: Date | number) => {
 		const dateObj = typeof date === 'number' ? new Date(date) : date;
@@ -224,7 +230,6 @@ export function UserPage() {
 		if (sortBy === 'accuracy') return b.accuracy - a.accuracy;
 		return 0;
 	});
-
 
 	const goals = useAppSelector((state) => state.goals.list);
 	const userGoals = goals.filter((goal) => goal.userId === currUser?.id);
@@ -312,7 +317,7 @@ export function UserPage() {
 	return (
 		<div className='space-y-6'>
 			{/* Header */}
-			<div className='flex items-center space-x-4'>
+			<div className='flex items-center space-x-4  p-4'>
 				<Avatar className='h-16 w-16'>
 					<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
 					<AvatarFallback>
@@ -346,27 +351,45 @@ export function UserPage() {
 						<Settings className='h-4 w-4 mr-2' />
 						Cài đặt
 					</Button>
+					<Button variant='outline'>
+						<Settings className='h-4 w-4 mr-2' />
+						Phân tích điểm yếu
+					</Button>
 				</div>
 			</div>
 
 			{/* Goals Section */}
-			<div className='text-center space-y-4'>
-				{' '}
-				<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>
-				<div className='max-h-[600px] overflow-y-auto p-2 border rounded-md'>
-					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-						{goals.map((goal) => (
-							<Card key={goal.id}>
+			<div className='relative w-full bg-gray-100 p-4'>
+				<div className='flex items-center gap-2'>
+					{' '}
+					<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>{' '}
+					<AddGoalButton className='h-full flex items-center justify-center ' />{' '}
+				</div>
+				<Swiper
+					modules={[Navigation, Autoplay, Mousewheel]}
+					slidesPerView={3}
+					spaceBetween={16}
+					loop={true}
+					autoplay={{
+						delay: 25000,
+						disableOnInteraction: false,
+					}}
+					mousewheel={true} // <--- enables vertical scroll to move slides
+					className='w-full cursor-grab'
+				>
+					{goals.map((goal) => (
+						<SwiperSlide key={goal.id} className='flex-shrink-0'>
+							<Card>
 								<CardHeader className='pb-3'>
 									<CardTitle className='text-sm font-medium flex flex-col items-start gap-1'>
-										<div>
+										<div className='flex items-center gap-1'>
 											<Target className='h-4 w-4' />
 											<span className='text-sm text-gray-500'>{new Date(goal.dueDate).toDateString()}</span>
 										</div>
-										
 										<span className='text-base font-medium'>{goal.testType?.toUpperCase()} Goal</span>
 									</CardTitle>
 								</CardHeader>
+
 								<CardContent>
 									<div className='flex items-center justify-between w-full'>
 										<span className='text-2xl font-semibold'>{goal.target}</span>
@@ -374,10 +397,9 @@ export function UserPage() {
 									</div>
 								</CardContent>
 							</Card>
-						))}
-						<AddGoalButton className='h-full flex items-center justify-center' />
-					</div>
-				</div>
+						</SwiperSlide>
+					))}
+				</Swiper>
 			</div>
 
 			{/* Tabs */}
@@ -403,11 +425,11 @@ export function UserPage() {
 								const displayScore =
 									testType === TestType.IELTS
 										? hasAttempts
-											? Math.round(((stats.averageScore / 100) * 9) * 10) / 10
+											? Math.round((stats.averageScore / 100) * 9 * 10) / 10
 											: 0
 										: hasAttempts
-											? Math.round((stats.averageScore / 100) * 990)
-											: 0;
+										? Math.round((stats.averageScore / 100) * 990)
+										: 0;
 
 								const maxScore = testType === TestType.IELTS ? 9 : 990;
 
@@ -431,27 +453,18 @@ export function UserPage() {
 														{hasAttempts ? displayScore : '--'} / {maxScore}
 													</span>
 												</div>
-												{hasAttempts && (
-													<Progress
-														value={(displayScore / maxScore) * 100}
-														className='h-3'
-													/>
-												)}
+												{hasAttempts && <Progress value={(displayScore / maxScore) * 100} className='h-3' />}
 											</div>
 
 											{goal && (
 												<div className='space-y-2 pt-2 border-t'>
 													<div className='flex justify-between items-center'>
 														<span className='text-sm text-muted-foreground'>Tiến độ mục tiêu</span>
-														<span className='text-lg font-semibold'>
-															{progress !== null ? `${progress}%` : '0%'}
-														</span>
+														<span className='text-lg font-semibold'>{progress !== null ? `${progress}%` : '0%'}</span>
 													</div>
 													<Progress
 														value={progress !== null ? progress : 0}
-														className={`h-3 ${
-															progress && progress >= 100 ? 'bg-green-500' : ''
-														}`}
+														className={`h-3 ${progress && progress >= 100 ? 'bg-green-500' : ''}`}
 													/>
 													{progress !== null && progress < 100 && (
 														<p className='text-xs text-muted-foreground'>
@@ -489,7 +502,7 @@ export function UserPage() {
 										const averageScore = hasAttempts ? Math.round(stats.averageScore) : 0;
 
 										// Get average score in IELTS band scale (0-9) for display
-										const displayScore = hasAttempts ? Math.round(((averageScore / 100) * 9) * 10) / 10 : 0;
+										const displayScore = hasAttempts ? Math.round((averageScore / 100) * 9 * 10) / 10 : 0;
 
 										return (
 											<div key={skill} className='space-y-2'>
@@ -506,21 +519,15 @@ export function UserPage() {
 													<div className='flex items-center space-x-4'>
 														{hasAttempts ? (
 															<>
-																<span className='text-lg font-semibold'>
-																	{displayScore} / 9.0
-																</span>
-																<span className='text-sm text-muted-foreground'>
-																	({averageScore}%)
-																</span>
+																<span className='text-lg font-semibold'>{displayScore} / 9.0</span>
+																<span className='text-sm text-muted-foreground'>({averageScore}%)</span>
 															</>
 														) : (
 															<span className='text-sm text-muted-foreground'>Chưa có dữ liệu</span>
 														)}
 													</div>
 												</div>
-												{hasAttempts && (
-													<Progress value={(displayScore / 9) * 100} className='h-2' />
-												)}
+												{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2' />}
 												{!hasAttempts && (
 													<div className='h-2 bg-muted rounded-full'>
 														<div className='h-full w-0 bg-primary rounded-full' />
@@ -559,10 +566,9 @@ export function UserPage() {
 															(attemptsWithExam
 																.filter((item) => item.attempt.score !== undefined)
 																.reduce((sum, item) => sum + (item.attempt.score || 0), 0) /
-																attemptsWithExam.filter((item) => item.attempt.score !== undefined)
-																	.length) *
+																attemptsWithExam.filter((item) => item.attempt.score !== undefined).length) *
 																10
-														) / 10
+													  ) / 10
 													: '--'}
 											</p>
 										</div>
@@ -620,7 +626,10 @@ export function UserPage() {
 								<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
 									<div className='space-y-2'>
 										<label className='text-sm font-medium'>Loại thi</label>
-										<Select value={filterTestType} onValueChange={(value) => setFilterTestType(value as TestType | 'all')}>
+										<Select
+											value={filterTestType}
+											onValueChange={(value) => setFilterTestType(value as TestType | 'all')}
+										>
 											<SelectTrigger>
 												<SelectValue />
 											</SelectTrigger>
@@ -673,10 +682,7 @@ export function UserPage() {
 							<CardContent>
 								<div className='space-y-4'>
 									{sortedHistory.map((item) => (
-										<div
-											key={item.attempt.id}
-											className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'
-										>
+										<div key={item.attempt.id} className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'>
 											<div className='flex items-center justify-between flex-wrap gap-4'>
 												<div className='flex items-center space-x-4 flex-1'>
 													<div className='flex items-center space-x-2'>
@@ -702,13 +708,13 @@ export function UserPage() {
 																		? item.attempt.score >= 7
 																			? 'text-green-600'
 																			: item.attempt.score >= 6
-																				? 'text-yellow-600'
-																				: 'text-red-600'
+																			? 'text-yellow-600'
+																			: 'text-red-600'
 																		: item.attempt.score >= 785
-																			? 'text-green-600'
-																			: item.attempt.score >= 605
-																				? 'text-yellow-600'
-																				: 'text-red-600'
+																		? 'text-green-600'
+																		: item.attempt.score >= 605
+																		? 'text-yellow-600'
+																		: 'text-red-600'
 																	: 'text-muted-foreground'
 															}`}
 														>
@@ -731,11 +737,7 @@ export function UserPage() {
 														<p className='font-semibold'>{formatDate(item.completedAt)}</p>
 													</div>
 
-													<Button
-														variant='outline'
-														size='sm'
-														onClick={() => navigate(`/test/${item.exam.id}`)}
-													>
+													<Button variant='outline' size='sm' onClick={() => navigate(`/test/${item.exam.id}`)}>
 														Xem chi tiết
 													</Button>
 												</div>
