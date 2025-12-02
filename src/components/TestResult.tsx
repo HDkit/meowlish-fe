@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from './store/main/hook';
 import { Button } from './ui/button';
 import { Question, Attempt, Section } from '../types/client';
+import { Stars } from 'lucide-react';
+import { QuestionCard } from './QuestionCard';
 
 export function TestResult() {
 	const { id } = useParams(); // Đây là attemptId
@@ -89,12 +91,11 @@ export function TestResult() {
 			<div className='max-w-4xl mx-auto space-y-8'>
 				{/* --- PHẦN 1: TỔNG KẾT --- */}
 				<div className='bg-white rounded-xl shadow-md p-8 text-center border border-gray-200 p-4'>
-					<h1 className='text-3xl font-bold text-gray-800 mb-2'>Result: {examInfo?.title}</h1>
-					<p className='text-gray-500 mb-6'>Attempt ID: {currentAttempt.id}</p>
+					<h1 className='text-3xl font-bold text-gray-800 mb-2'>Kết quả làm bài {examInfo?.title}</h1>
 
 					<div className='flex justify-center gap-12 mb-8'>
 						<div className='text-center p-4'>
-							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Total Score</div>
+							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Tổng điểm</div>
 							<div className='text-6xl font-extrabold text-blue-600 mt-2'>
 								{currentAttempt.score !== undefined ? currentAttempt.score.toFixed(1) : 0}
 								<span className='text-xl text-gray-400 font-normal ml-1'>/ 100</span>
@@ -102,7 +103,7 @@ export function TestResult() {
 						</div>
 
 						<div className='text-center border-l pl-12 border-gray-200 p-4'>
-							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Time Taken</div>
+							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Thời gian làm bài</div>
 							<div className='text-6xl font-extrabold text-gray-700 mt-2'>
 								{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
 							</div>
@@ -126,7 +127,7 @@ export function TestResult() {
 
 				{/* --- PHẦN 2: CHI TIẾT TỪNG CÂU --- */}
 				<div className='space-y-6'>
-					<h2 className='text-2xl font-bold text-gray-800 border-b pb-2'>Detailed Review</h2>
+					<h2 className='text-2xl font-bold text-gray-800 border-b pb-2'>Kết quả chi tiết</h2>
 
 					{examQuestions.map((q, index) => {
 						// Lấy câu trả lời của user từ attempt
@@ -156,7 +157,7 @@ export function TestResult() {
 							<div key={q.id} className={`bg-white rounded-lg border-l-8 shadow-sm overflow-hidden ${borderClass}`}>
 								<div className={`px-6 py-4 flex justify-between items-start ${bgHeaderClass}`}>
 									<div>
-										<span className='font-bold text-gray-700 mr-2'>Question {index + 1}:</span>
+										<span className='font-bold text-gray-700 mr-2'>Câu {index + 1}:</span>
 										<span
 											className={`font-bold uppercase text-sm px-2 py-1 rounded ${
 												status === 'correct' ? 'bg-green-200' : status === 'incorrect' ? 'bg-red-200' : 'bg-gray-200'
@@ -166,6 +167,9 @@ export function TestResult() {
 										</span>
 									</div>
 									<span className='text-sm text-gray-500 font-medium'>{q.points} Points</span>
+									<Button variant='outline'>
+										<Stars /> Giải thích bằng AI
+									</Button>
 								</div>
 
 								<div className='p-6'>
@@ -189,12 +193,7 @@ export function TestResult() {
 										</div>
 
 										{/* Đáp án đúng (Chỉ hiện nếu user sai hoặc bỏ qua) */}
-										{status !== 'correct' && status !== 'manual' && (
-											<div className='bg-green-50 p-4 rounded-md border border-green-100'>
-												<p className='text-xs text-green-600 uppercase font-bold mb-1'>Correct Answer</p>
-												<p className='font-medium text-gray-800'>{q.correctAnswer?.join(', ') || 'N/A'}</p>
-											</div>
-										)}
+										<QuestionCard q={q} status={status}></QuestionCard>
 									</div>
 
 									{/* Hiển thị Options nếu là trắc nghiệm để dễ đối chiếu */}

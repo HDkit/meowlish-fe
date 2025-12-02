@@ -12,7 +12,8 @@ export const questions: Question[] = [
 		options: ['Option A', 'Option B', 'Option C', 'Option D'],
 		correctAnswer: ['Option C'],
 		points: 5,
-		tagIds: ['q-t1', 'q-t3'], // Part 1 & Part 2
+		tagIds: ['q-t1', 'q-t3'], // Part 1 & Part 2,
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q2',
@@ -22,7 +23,8 @@ export const questions: Question[] = [
 		content: 'The capital of France is ____.',
 		correctAnswer: ['Paris'],
 		points: 3,
-		tagIds: ['q-t2', 'q-t5'], // Part 1 & Part 2
+		tagIds: ['q-t2', 'q-t5'], // Part 1 & Part 2,
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q5',
@@ -31,7 +33,8 @@ export const questions: Question[] = [
 		type: 'speaking',
 		content: 'Describe a memorable holiday experience.',
 		points: 8,
-		tagIds: ['q-t1'], // Part 1
+		tagIds: ['q-t1'], // Part 1,
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q7',
@@ -43,6 +46,7 @@ export const questions: Question[] = [
 		correctAnswer: ['ran'],
 		points: 2,
 		tagIds: ['q-t38', 'q-t43'], // Part 5 Grammar + Thì
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q8',
@@ -53,6 +57,7 @@ export const questions: Question[] = [
 		correctAnswer: ['is'],
 		points: 3,
 		tagIds: ['q-t43'], // Part 5 Grammar + Thì
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 
 	// Leaf section s1-2
@@ -64,6 +69,7 @@ export const questions: Question[] = [
 		content: 'Explain your opinion on remote work benefits.',
 		points: 10,
 		tagIds: ['q-t14', 'q-t15'], // Part 3
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q4',
@@ -75,6 +81,7 @@ export const questions: Question[] = [
 		correctAnswer: ['went'],
 		points: 2,
 		tagIds: ['q-t38', 'q-t43'], // Part 5 Grammar + Thì
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q6',
@@ -85,6 +92,7 @@ export const questions: Question[] = [
 		correctAnswer: ['0'],
 		points: 3,
 		tagIds: ['q-t39', 'q-t40'], // Part 5 Vocabulary + Danh từ
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q9',
@@ -94,6 +102,7 @@ export const questions: Question[] = [
 		content: 'Describe a situation where you helped someone at work.',
 		points: 8,
 		tagIds: ['q-t19', 'q-t21'], // Part 3 Company topics
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q10',
@@ -105,6 +114,7 @@ export const questions: Question[] = [
 		correctAnswer: ['had'],
 		points: 3,
 		tagIds: ['q-t43', 'q-t47'], // Thì + Phân từ
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 	{
 		id: 'q11',
@@ -116,6 +126,7 @@ export const questions: Question[] = [
 		correctAnswer: ['had'],
 		points: 3,
 		tagIds: ['q-t43', 'q-t47'], // Thì + Phân từ
+		explanation: 'Đây là giải thích câu hỏi',
 	},
 ];
 

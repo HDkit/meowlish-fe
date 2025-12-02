@@ -66,6 +66,7 @@ export interface Question extends MockDbType {
 	correctAnswer?: string[];
 	points: number;
 	tagIds: string[];
+	explanation: string;
 }
 
 // handle closing tab
