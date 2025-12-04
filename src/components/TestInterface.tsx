@@ -4,6 +4,7 @@ import { Question, Section, Attempt } from '../types/client';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { addAttempt, updateAttempt } from './store/attemptSlice';
+import { TextHighlighter } from './TextHighlighter';
 
 export function TestInterface() {
 	const { id } = useParams();
@@ -313,7 +314,7 @@ export function TestInterface() {
 					</div>
 				</div>
 
-				{/* Passage Content */}
+				{/* Passage Content with Text Highlighter */}
 				<div className='flex-1 overflow-y-auto p-6 scroll-smooth'>
 					{currentSectionAncestors.map((section) => {
 						if (!section.direction) return null;
@@ -323,13 +324,22 @@ export function TestInterface() {
 						const title = lines[0];
 						const content = lines.slice(1).join('\n');
 
+						const handleNewWord = (word: string) => {
+							// Here you can implement the logic to add the word to the "Từ mới" form
+							console.log('New word to add to flashcard:', word);
+							// You can update your state or call a function to show the flashcard creation form
+						};
+
 						return (
 							<div key={section.id} className='mb-8'>
 								{/* Title - Hiển thị to, đậm giống ảnh mẫu */}
 								<h2 className='text-2xl font-bold text-gray-900 mb-4 leading-tight'>{title}</h2>
-								{/* Nội dung bài đọc */}
-								<div className='text-gray-800 leading-7 text-justify whitespace-pre-wrap font-serif text-lg'>
-									{content}
+								{/* Nội dung bài đọc với chức năng highlight */}
+								<div className='text-gray-800 leading-7 text-justify font-serif text-lg'>
+									<TextHighlighter 
+										text={content} 
+										onNewWord={handleNewWord}
+									/>
 								</div>
 							</div>
 						);
