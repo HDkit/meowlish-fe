@@ -132,6 +132,67 @@ export const questions: Question[] = [
 		tagIds: ['q-t43', 'q-t47'], // Thì + Phân từ
 		explanation: 'Đây là giải thích câu hỏi',
 	},
+
+	// --- QUESTIONS CHO EXAM MOCK MỚI e7 (sections s7-1, s7-2) ---
+	// s7-1 – Studying abroad
+	{
+		id: 'q200',
+		lastEditedBy: 'u1',
+		sectionId: 's7-1',
+		type: 'multiple-choice',
+		content: 'What is one main reason students choose to study abroad?',
+		options: [
+			'To avoid learning new languages',
+			'To experience a different education system and culture',
+			'To stay closer to their families',
+			'To reduce their independence',
+		],
+		correctAnswer: ['To experience a different education system and culture'],
+		points: 3,
+		tagIds: [],
+		explanation: 'Trong đoạn, lý do chính là trải nghiệm hệ thống giáo dục và văn hóa khác.',
+	},
+	{
+		id: 'q201',
+		lastEditedBy: 'u1',
+		sectionId: 's7-1',
+		type: 'fill-blank',
+		content: 'Living in another country helps students become more ____.',
+		correctAnswer: ['independent'],
+		points: 2,
+		tagIds: [],
+		explanation: 'Đoạn văn nêu rõ: "Living in another country helps them become more independent."',
+	},
+
+	// s7-2 – Daily exercise
+	{
+		id: 'q202',
+		lastEditedBy: 'u1',
+		sectionId: 's7-2',
+		type: 'multiple-choice',
+		content: 'According to the passage, how much exercise do experts recommend?',
+		options: [
+			'10 minutes once a week',
+			'30 minutes most days of the week',
+			'2 hours every day',
+			'Only when you feel tired',
+		],
+		correctAnswer: ['30 minutes most days of the week'],
+		points: 3,
+		tagIds: [],
+		explanation: 'Đoạn văn nói: "Experts recommend at least 30 minutes of moderate exercise most days of the week."',
+	},
+	{
+		id: 'q203',
+		lastEditedBy: 'u1',
+		sectionId: 's7-2',
+		type: 'fill-blank',
+		content: 'Regular exercise is important for maintaining good ____.',
+		correctAnswer: ['health'],
+		points: 2,
+		tagIds: [],
+		explanation: 'Câu đầu tiên nêu rõ: "Regular exercise is important for maintaining good health."',
+	},
 ];
 
 const questionsSlice = createGenericSlice<Question>('questions', questions);

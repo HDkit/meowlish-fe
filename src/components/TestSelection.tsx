@@ -22,7 +22,7 @@ import {
 
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from './store/main/store';
-import { Exam, Question, Section, TestType } from '../types/client';
+import { Exam, Question, Section, TestType, ExamStatus } from '../types/client';
 import { useAppSelector } from './store/main/hook';
 import { useNavigate } from 'react-router-dom';
 
@@ -77,7 +77,7 @@ export function TestSelection() {
 	};
 
 	const filterExams = (testType: TestType) => {
-		return exams.filter((exam) => exam.testType === testType && exam.status === 'approved');
+		return exams.filter((exam) => exam.testType === testType && exam.status === ExamStatus.Approved);
 	};
 
 	const ExamCard = ({ exam }: { exam: Exam }) => {
