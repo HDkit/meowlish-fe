@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Question } from '../types/client';
+import { Button } from './ui/button';
+import { Stars } from 'lucide-react';
 
 export function QuestionCardModal({
 	isOpen,
@@ -46,5 +48,26 @@ export function QuestionCard({ q, status }: { q: Question; status: string }) {
 				<p className='text-gray-700'>{q.explanation || 'Chưa có giải thích cho câu hỏi này.'}</p>
 			</QuestionCardModal>
 		</>
+	);
+}
+
+export function AICard({ q }: { q: Question }) {
+	const [isOpen, setIsOpen] = useState(false);
+
+	return (
+		<div>
+			<Button variant='outline' onClick={() => setIsOpen(true)}>
+				<Stars /> Giải thích bằng AI
+			</Button>
+
+			<QuestionCardModal isOpen={isOpen} onClose={() => setIsOpen(false)} title='Giải thích của AI'>
+				<p
+					className='text-gray-700'
+					dangerouslySetInnerHTML={{
+						__html: q.aiExplanation?.replace(/\n/g, '<br />') || 'Lỗi khi gọi API. Vui lòng thử lại sau.',
+					}}
+				></p>
+			</QuestionCardModal>
+		</div>
 	);
 }

@@ -4,7 +4,7 @@ import { useAppSelector } from './store/main/hook';
 import { Button } from './ui/button';
 import { Question, Attempt, Section } from '../types/client';
 import { Stars } from 'lucide-react';
-import { QuestionCard } from './QuestionCard';
+import { AICard, QuestionCard } from './QuestionCard';
 
 export function TestResult() {
 	const { id } = useParams(); // Đây là attemptId
@@ -167,9 +167,7 @@ export function TestResult() {
 										</span>
 									</div>
 									<span className='text-sm text-gray-500 font-medium'>{q.points} Points</span>
-									<Button variant='outline'>
-										<Stars /> Giải thích bằng AI
-									</Button>
+									<AICard q={q}></AICard>
 								</div>
 
 								<div className='p-6'>

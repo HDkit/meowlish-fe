@@ -14,6 +14,9 @@ export const questions: Question[] = [
 		tagIds: ['q-t2', 'q-t5'], // Part 1 & Part 2,
 		explanation:
 			'France’s capital city is Paris, which has been the political and administrative center of the country for centuries. It is where major government institutions are located, including the presidential residence and parliament.',
+		aiExplanation:
+			"Paris, the capital of France, has served as the nation's political and administrative hub for over a millennium. Historically, it became the central power seat during the medieval period, with the establishment of the monarchy and later, the French Republic. Key government institutions, such as the Élysée Palace (the presidential residence) and the National Assembly, are located in Paris. The city's prominence grew with the French Revolution (1789) and continued through the modern era as the heart of French governance and diplomacy.\n" +
+			'Source: Encyclopædia Britannica(2021)',
 	},
 	{
 		id: 'q2',

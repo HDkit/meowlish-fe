@@ -67,6 +67,9 @@ export interface Question extends MockDbType {
 	points: number;
 	tagIds: string[];
 	explanation: string;
+
+	// dummy fields exisiting to replace API calls only
+	aiExplanation?: string;
 }
 
 // handle closing tab
