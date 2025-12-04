@@ -114,10 +114,7 @@ export function SpeakingTest() {
         {/* Header */}
         <div className="text-center space-y-3 py-6">
           <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl">
-              <Mic className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">
               Speaking Test
             </h1>
           </div>
@@ -203,7 +200,7 @@ export function SpeakingTest() {
                 {/* Start Button */}
                 <Button 
                   onClick={() => handleStartPart(part.part)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="w-full"
                 >
                   <Mic className="h-4 w-4 mr-2" />
                   Bắt đầu Part {part.part}

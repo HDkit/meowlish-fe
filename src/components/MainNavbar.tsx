@@ -66,9 +66,9 @@ export function MainNavbar() {
 							<FileText className='h-4 w-4 mr-2' />
 							Blog
 						</Button>
-						<Button variant='ghost' onClick={() => {}}>
+						<Button variant='ghost' onClick={() => navigate('/speaking-writing')}>
 							<Stars className='h-4 w-4 mr-2' />
-							AI Speaking Test
+							AI Speaking & Writing
 						</Button>
 					</nav>
 				)}

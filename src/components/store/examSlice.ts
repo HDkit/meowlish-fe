@@ -74,6 +74,19 @@ const exams: Exam[] = [
 		testType: TestType.TOEIC,
 		tagIds: ['t2'],
 	},
+	// Exam mock mới để dễ test làm bài
+	{
+		id: 'e7',
+		createdBy: 'u1',
+		status: ExamStatus.Approved,
+		title: 'IELTS Reading – Mock Test 1',
+		description: 'Full mock test for IELTS Reading with two passages and various question types.',
+		duration: 30,
+		difficulty: Difficulty.Beginner,
+		skill: Skill.Reading,
+		testType: TestType.IELTS,
+		tagIds: ['t1'],
+	},
 ];
 
 const examsSlice = createGenericSlice<Exam>('exams', exams);
