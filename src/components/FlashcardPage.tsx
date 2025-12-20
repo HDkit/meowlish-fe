@@ -201,7 +201,7 @@ function ListDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent hideCloseButton>
 				<DialogHeader>
 					<DialogTitle>
 						{list ? 'Sửa List' : 'Tạo List mới'}
@@ -299,7 +299,7 @@ function FlashcardDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent hideCloseButton>
 				<DialogHeader>
 					<DialogTitle>
 						{flashcard ? 'Sửa Flashcard' : 'Thêm Flashcard vào List'}
@@ -640,220 +640,227 @@ export function FlashcardPage() {
 
 				{/* My Lists Tab */}
 				<TabsContent value="my" className="space-y-6">
-					{!selectedListId ? (
-						// Hiển thị danh sách các list
-						<div className="space-y-4">
-							<h2 className="text-xl font-semibold text-gray-900">
-								Danh sách của tôi ({myLists.length})
-							</h2>
-							{myLists.length === 0 ? (
-								<Card>
-									<CardContent className="py-12 text-center">
-										<Folder className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-										<p className="text-gray-500 mb-4">
-											Bạn chưa có list nào. Hãy tạo list đầu tiên!
-										</p>
-										<Button
-											onClick={() => {
-												setEditingList(undefined);
-												setListDialogOpen(true);
-											}}
-										>
-											<Plus className="h-4 w-4 mr-2" />
-											Tạo List
-										</Button>
-									</CardContent>
-								</Card>
-							) : (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					{myLists.length === 0 ? (
+						<Card>
+							<CardContent className="py-12 text-center">
+								<Folder className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+								<p className="text-gray-500 mb-4">
+									Bạn chưa có list nào. Hãy tạo list đầu tiên!
+								</p>
+								<Button
+									onClick={() => {
+										setEditingList(undefined);
+										setListDialogOpen(true);
+									}}
+								>
+									<Plus className="h-4 w-4 mr-2" />
+									Tạo List
+								</Button>
+							</CardContent>
+						</Card>
+					) : (
+						<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+							{/* Sidebar - Danh sách các list */}
+							<div className="lg:col-span-3 space-y-3">
+								<div className="flex items-center justify-between mb-2">
+									<h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+										Danh sách của tôi
+									</h3>
+									<span className="text-xs text-gray-500">({myLists.length})</span>
+								</div>
+								<div className="space-y-2">
 									{myLists.map((list) => (
 										<Card
 											key={list.id}
-											className="cursor-pointer hover:shadow-lg transition-all group"
+											className={`cursor-pointer transition-all group ${
+												selectedListId === list.id
+													? 'bg-blue-50 border-blue-300 shadow-md'
+													: 'hover:bg-gray-50 hover:border-gray-300'
+											}`}
 											onClick={() => setSelectedListId(list.id)}
 										>
-											<CardHeader>
-												<div className="flex items-start justify-between">
-													<div className="flex-1">
-														<CardTitle className="flex items-center gap-2">
-															<Folder className="h-5 w-5 text-blue-600" />
-															{list.name}
-														</CardTitle>
+											<CardContent className="p-4">
+												<div className="flex items-start justify-between gap-2">
+													<div className="flex-1 min-w-0">
+														<div className="flex items-center gap-2 mb-1">
+															<Folder className={`h-4 w-4 flex-shrink-0 ${
+																selectedListId === list.id ? 'text-blue-600' : 'text-gray-400'
+															}`} />
+															<h4 className={`font-medium text-sm truncate ${
+																selectedListId === list.id ? 'text-blue-900' : 'text-gray-900'
+															}`}>
+																{list.name}
+															</h4>
+														</div>
 														{list.description && (
-															<p className="text-sm text-gray-600 mt-1">
+															<p className="text-xs text-gray-500 line-clamp-2 ml-6">
 																{list.description}
 															</p>
 														)}
+														<p className="text-xs text-gray-400 mt-2 ml-6">
+															{getFlashcardCount(list.id)} flashcard
+														</p>
 													</div>
-												</div>
-											</CardHeader>
-											<CardContent>
-												<div className="flex items-center justify-between">
-													<span className="text-sm text-gray-500">
-														{getFlashcardCount(list.id)} flashcard
-													</span>
-													<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+													<div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 														<Button
 															variant="ghost"
 															size="sm"
-															className="h-8 w-8 p-0"
+															className="h-7 w-7 p-0"
 															onClick={(e) => {
 																e.stopPropagation();
 																handleEditList(list);
 															}}
 														>
-															<Edit className="h-4 w-4" />
+															<Edit className="h-3 w-3" />
 														</Button>
 														<Button
 															variant="ghost"
 															size="sm"
-															className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+															className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
 															onClick={(e) => {
 																e.stopPropagation();
 																handleDeleteList(list.id);
 															}}
 														>
-															<Trash2 className="h-4 w-4" />
+															<Trash2 className="h-3 w-3" />
 														</Button>
 													</div>
 												</div>
-												<Button
-													className="w-full mt-4"
-													onClick={(e) => {
-														e.stopPropagation();
-														setSelectedListId(list.id);
-													}}
-												>
-													Xem flashcard
-													<ChevronRight className="h-4 w-4 ml-2" />
-												</Button>
 											</CardContent>
 										</Card>
 									))}
 								</div>
-							)}
-						</div>
-					) : (
-						// Hiển thị flashcard trong list đã chọn
-						<div className="space-y-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => setSelectedListId(null)}
-									>
-										<ChevronRight className="h-4 w-4 mr-1 rotate-180" />
-										Quay lại
-									</Button>
-									<div>
-										<h2 className="text-xl font-semibold text-gray-900">
-											{selectedList?.name}
-										</h2>
-										{selectedList?.description && (
-											<p className="text-sm text-gray-600">
-												{selectedList.description}
-											</p>
-										)}
-									</div>
-								</div>
-								<Dialog open={flashcardDialogOpen} onOpenChange={setFlashcardDialogOpen}>
-									<DialogTrigger asChild>
-										<Button
-											onClick={() => {
-												setEditingFlashcard(undefined);
-											}}
-											className="bg-blue-600 hover:bg-blue-700"
-										>
-											<Plus className="h-4 w-4 mr-2" />
-											Thêm Flashcard
-										</Button>
-									</DialogTrigger>
-									<FlashcardDialog
-										open={flashcardDialogOpen}
-										onOpenChange={setFlashcardDialogOpen}
-										flashcard={editingFlashcard}
-										selectedListId={selectedListId}
-										onSave={handleAddFlashcard}
-									/>
-								</Dialog>
 							</div>
 
-							{/* Search and Filter */}
-							<div className="flex items-center gap-4">
-								<div className="flex-1 relative">
-									<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-									<Input
-										placeholder="Tìm kiếm flashcard..."
-										value={searchQuery}
-										onChange={(e) => setSearchQuery(e.target.value)}
-										className="pl-10"
-									/>
-								</div>
-								<Select value={selectedTagId} onValueChange={setSelectedTagId}>
-									<SelectTrigger className="w-48">
-										<Filter className="h-4 w-4 mr-2" />
-										<SelectValue placeholder="Lọc theo chủ đề" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__all__">Tất cả chủ đề</SelectItem>
-										{flashcardTags.map((tag) => (
-											<SelectItem key={tag.id} value={tag.id}>
-												{tag.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{(searchQuery || (selectedTagId && selectedTagId !== '__all__')) && (
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => {
-											setSearchQuery('');
-											setSelectedTagId('__all__');
-										}}
-									>
-										<X className="h-4 w-4 mr-1" />
-										Xóa bộ lọc
-									</Button>
+							{/* Main Content - Hiển thị flashcard */}
+							<div className="lg:col-span-9 space-y-4">
+								{!selectedListId ? (
+									<Card>
+										<CardContent className="py-16 text-center">
+											<ChevronRight className="h-12 w-12 mx-auto mb-4 text-gray-400 rotate-180" />
+											<h3 className="text-lg font-semibold text-gray-900 mb-2">
+												Chọn một list để bắt đầu
+											</h3>
+											<p className="text-gray-500">
+												Chọn list từ danh sách bên trái để xem và quản lý flashcard
+											</p>
+										</CardContent>
+									</Card>
+								) : (
+									<>
+										{/* Header của list đã chọn */}
+										<div className="flex items-center justify-between">
+											<div>
+												<h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+													<Folder className="h-6 w-6 text-blue-600" />
+													{selectedList?.name}
+												</h2>
+												{selectedList?.description && (
+													<p className="text-sm text-gray-600 mt-1">
+														{selectedList.description}
+													</p>
+												)}
+											</div>
+											<Dialog open={flashcardDialogOpen} onOpenChange={setFlashcardDialogOpen}>
+												<DialogTrigger asChild>
+													<Button
+														onClick={() => {
+															setEditingFlashcard(undefined);
+														}}
+														className="bg-blue-600 hover:bg-blue-700"
+													>
+														<Plus className="h-4 w-4 mr-2" />
+														Thêm Flashcard
+													</Button>
+												</DialogTrigger>
+												<FlashcardDialog
+													open={flashcardDialogOpen}
+													onOpenChange={setFlashcardDialogOpen}
+													flashcard={editingFlashcard}
+													selectedListId={selectedListId}
+													onSave={handleAddFlashcard}
+												/>
+											</Dialog>
+										</div>
+
+										{/* Search and Filter */}
+										<div className="flex items-center gap-4 flex-wrap">
+											<div className="flex-1 min-w-[200px] relative">
+												<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+												<Input
+													placeholder="Tìm kiếm flashcard..."
+													value={searchQuery}
+													onChange={(e) => setSearchQuery(e.target.value)}
+													className="pl-10"
+												/>
+											</div>
+											<Select value={selectedTagId} onValueChange={setSelectedTagId}>
+												<SelectTrigger className="w-48">
+													<Filter className="h-4 w-4 mr-2" />
+													<SelectValue placeholder="Lọc theo chủ đề" />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="__all__">Tất cả chủ đề</SelectItem>
+													{flashcardTags.map((tag) => (
+														<SelectItem key={tag.id} value={tag.id}>
+															{tag.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											{(searchQuery || (selectedTagId && selectedTagId !== '__all__')) && (
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => {
+														setSearchQuery('');
+														setSelectedTagId('__all__');
+													}}
+												>
+													<X className="h-4 w-4 mr-1" />
+													Xóa bộ lọc
+												</Button>
+											)}
+										</div>
+
+										{/* Flashcard Grid */}
+										{filteredFlashcardsInList.length === 0 ? (
+											<Card>
+												<CardContent className="py-12 text-center">
+													<BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+													<p className="text-gray-500 mb-4">
+														{searchQuery || (selectedTagId && selectedTagId !== '__all__')
+															? 'Không tìm thấy flashcard nào'
+															: 'List này chưa có flashcard nào. Hãy thêm flashcard đầu tiên!'}
+													</p>
+													<Button
+														onClick={() => {
+															setEditingFlashcard(undefined);
+															setFlashcardDialogOpen(true);
+														}}
+													>
+														<Plus className="h-4 w-4 mr-2" />
+														Thêm Flashcard
+													</Button>
+												</CardContent>
+											</Card>
+										) : (
+											<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+												{filteredFlashcardsInList.map((flashcard) => (
+													<FlashcardCard
+														key={flashcard.id}
+														flashcard={flashcard}
+														tag={getTag(flashcard.tagId)}
+														isOwned={true}
+														onEdit={() => handleEditFlashcard(flashcard)}
+														onDelete={() => handleDeleteFlashcard(flashcard.id)}
+													/>
+												))}
+											</div>
+										)}
+									</>
 								)}
 							</div>
-
-							{/* Flashcard Grid */}
-							{filteredFlashcardsInList.length === 0 ? (
-								<Card>
-									<CardContent className="py-12 text-center">
-										<BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-										<p className="text-gray-500 mb-4">
-											{searchQuery || (selectedTagId && selectedTagId !== '__all__')
-												? 'Không tìm thấy flashcard nào'
-												: 'List này chưa có flashcard nào. Hãy thêm flashcard đầu tiên!'}
-										</p>
-										<Button
-											onClick={() => {
-												setEditingFlashcard(undefined);
-												setFlashcardDialogOpen(true);
-											}}
-										>
-											<Plus className="h-4 w-4 mr-2" />
-											Thêm Flashcard
-										</Button>
-									</CardContent>
-								</Card>
-							) : (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-									{filteredFlashcardsInList.map((flashcard) => (
-										<FlashcardCard
-											key={flashcard.id}
-											flashcard={flashcard}
-											tag={getTag(flashcard.tagId)}
-											isOwned={true}
-											onEdit={() => handleEditFlashcard(flashcard)}
-											onDelete={() => handleDeleteFlashcard(flashcard.id)}
-										/>
-									))}
-								</div>
-							)}
 						</div>
 					)}
 				</TabsContent>
@@ -1048,7 +1055,7 @@ export function FlashcardPage() {
 
 			{/* Dialog chọn list để copy flashcard */}
 			<Dialog open={selectListDialogOpen} onOpenChange={setSelectListDialogOpen}>
-				<DialogContent>
+				<DialogContent hideCloseButton>
 					<DialogHeader>
 						<DialogTitle>Chọn List để thêm Flashcard</DialogTitle>
 						<DialogDescription>
