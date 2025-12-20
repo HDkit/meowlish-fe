@@ -58,11 +58,11 @@ export function AddGoalButton({ className }: { className?: string }) {
 			{open && (
 				<div className='fixed inset-0 bg-black/40 flex items-center justify-center z-50'>
 					<div className='bg-white rounded-md shadow-2xl p-6 w-80 max-w-full mx-4 animate-fadeIn border border-gray-300'>
-						<h2 className='text-lg font-semibold mb-5 text-center'>Add New Goal</h2>
+						<h2 className='text-lg font-semibold mb-5 text-center'>Thêm Mục Tiêu Mới</h2>
 
 						{/* Goal Test Type */}
 						<div className='mb-4'>
-							<label className='block text-sm font-medium mb-1'>Goal Test Type</label>
+							<label className='block text-sm font-medium mb-1'>Loại Bài Kiểm Tra</label>
 							<select
 								value={testType}
 								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
@@ -75,7 +75,7 @@ export function AddGoalButton({ className }: { className?: string }) {
 
 						{/* Target Score */}
 						<div className='mb-4'>
-							<label className='block text-sm font-medium mb-1'>Target Score</label>
+							<label className='block text-sm font-medium mb-1'>Điểm Mục Tiêu</label>
 							<input
 								type='number'
 								value={target}
@@ -87,7 +87,7 @@ export function AddGoalButton({ className }: { className?: string }) {
 
 						{/* Due Date */}
 						<div className='mb-6'>
-							<label className='block text-sm font-medium mb-1'>Due Date</label>
+							<label className='block text-sm font-medium mb-1'>Ngày dự thi</label>
 							<input
 								type='date'
 								value={dueDate}
@@ -102,13 +102,13 @@ export function AddGoalButton({ className }: { className?: string }) {
 								onClick={() => setOpen(false)}
 								className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition'
 							>
-								Cancel
+								Hủy
 							</button>
 							<button
 								onClick={handleAdd}
 								className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition'
 							>
-								Add
+								Thêm
 							</button>
 						</div>
 					</div>

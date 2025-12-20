@@ -39,7 +39,7 @@ export function QuestionCard({ q, status }: { q: Question; status: string }) {
 					className='bg-green-50 p-4 rounded-md border border-green-100 cursor-pointer'
 					onClick={() => setIsOpen(true)}
 				>
-					<p className='text-xs text-green-600 uppercase font-bold mb-1'>Correct Answer</p>
+					<p className='text-xs text-green-600 uppercase font-bold mb-1'>Đáp án đúng</p>
 					<p className='font-medium text-gray-800'>{q.correctAnswer?.join(', ') || 'N/A'}</p>
 				</div>
 			)}

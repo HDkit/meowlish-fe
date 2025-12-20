@@ -56,7 +56,7 @@ export function MainNavbar() {
 						</Button>
 						<Button variant='ghost' onClick={() => navigate('/test-selection')}>
 							<FileText className='h-4 w-4 mr-2' />
-							Exam Selection
+							Chọn đề thi
 						</Button>
 						<Button variant='ghost' onClick={() => navigate('/flashcards')}>
 							<BookOpen className='h-4 w-4 mr-2' />
@@ -104,7 +104,7 @@ export function MainNavbar() {
 										</DropdownMenuItem>
 										<DropdownMenuItem onClick={() => navigate('/test-selection')}>
 											<FileText className='mr-2 h-4 w-4' />
-											Exam Selection
+											Chọn đề thi
 										</DropdownMenuItem>
 										<DropdownMenuItem onClick={() => navigate('/flashcards')}>
 											<BookOpen className='mr-2 h-4 w-4' />

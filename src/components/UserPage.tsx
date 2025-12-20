@@ -384,9 +384,9 @@ export function UserPage() {
 									<CardTitle className='text-sm font-medium flex flex-col items-start gap-1'>
 										<div className='flex items-center gap-1'>
 											<Target className='h-4 w-4' />
-											<span className='text-sm text-gray-500'>{new Date(goal.dueDate).toDateString()}</span>
+											<span className='text-sm text-gray-500'>Ngày dự thi {formatDate(goal.dueDate)}</span>
 										</div>
-										<span className='text-base font-medium'>{goal.testType?.toUpperCase()} Goal</span>
+										<span className='text-base font-medium'>Mục tiêu điểm {goal.testType?.toUpperCase()}</span>
 									</CardTitle>
 								</CardHeader>
 

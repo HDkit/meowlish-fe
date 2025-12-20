@@ -52,24 +52,29 @@ export function Dashboard() {
 				{/* IELTS */}
 				<Card>
 					<CardHeader>
-						<CardTitle className='flex items-center gap-2'>IELTS Practice</CardTitle>
+						<CardTitle className='flex items-center gap-2'>Luyện thi IELTS</CardTitle>
 						<CardDescription>
-							International English Language Testing System for academic and general purposes
+							Hệ thống kiểm tra tiếng Anh quốc tế cho mục đích học thuật và tổng quát
 						</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						<div className='grid grid-cols-2 gap-3'>
-							{(['reading', 'listening', 'writing', 'speaking'] as const).map((skill) => {
-								const Icon = skillIcons[skill];
+							{([
+								{ key: 'reading', label: 'Đọc' },
+								{ key: 'listening', label: 'Nghe' },
+								{ key: 'writing', label: 'Viết' },
+								{ key: 'speaking', label: 'Nói' },
+							] as const).map(({ key, label }) => {
+								const Icon = skillIcons[key];
 								return (
 									<Button
-										key={skill}
+										key={key}
 										variant='outline'
 										className='h-auto p-4 flex flex-col items-center gap-2'
-										onClick={() => handleStartTest('ielts', skill)}
+										onClick={() => handleStartTest('ielts', key)}
 									>
 										<Icon className='h-6 w-6' />
-										<span className='capitalize'>{skill}</span>
+										<span>{label}</span>
 									</Button>
 								);
 							})}
@@ -85,22 +90,25 @@ export function Dashboard() {
 				{/* TOEIC */}
 				<Card>
 					<CardHeader>
-						<CardTitle className='flex items-center gap-2'>TOEIC Practice</CardTitle>
-						<CardDescription>Test of English for International Communication for workplace English</CardDescription>
+						<CardTitle className='flex items-center gap-2'>Luyện thi TOEIC</CardTitle>
+						<CardDescription>Bài kiểm tra tiếng Anh giao tiếp quốc tế trong môi trường công sở</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						<div className='grid grid-cols-2 gap-3'>
-							{(['reading', 'listening'] as const).map((skill) => {
-								const Icon = skillIcons[skill];
+							{([
+								{ key: 'reading', label: 'Đọc' },
+								{ key: 'listening', label: 'Nghe' },
+							] as const).map(({ key, label }) => {
+								const Icon = skillIcons[key];
 								return (
 									<Button
-										key={skill}
+										key={key}
 										variant='outline'
 										className='h-auto p-4 flex flex-col items-center gap-2'
-										onClick={() => handleStartTest('toeic', skill)}
+										onClick={() => handleStartTest('toeic', key)}
 									>
 										<Icon className='h-6 w-6' />
-										<span className='capitalize'>{skill}</span>
+										<span>{label}</span>
 									</Button>
 								);
 							})}
@@ -108,11 +116,11 @@ export function Dashboard() {
 						<div className='grid grid-cols-2 gap-3'>
 							<Button variant='outline' className='h-auto p-4 flex flex-col items-center gap-2'>
 								<PenTool className='h-6 w-6' />
-								Writing
+								Viết
 							</Button>
 							<Button variant='outline' className='h-auto p-4 flex flex-col items-center gap-2'>
 								<Mic className='h-6 w-6' />
-								Speaking
+								Nói
 							</Button>
 						</div>
 						<div className='pt-4 border-t'>
@@ -126,26 +134,26 @@ export function Dashboard() {
 			{/* AI Features */}
 			<Card>
 				<CardHeader>
-					<CardTitle>AI-Powered Features</CardTitle>
-					<CardDescription>Experience personalized learning with our advanced AI technology</CardDescription>
+					<CardTitle>Tính năng AI thông minh</CardTitle>
+					<CardDescription>Trải nghiệm học tập cá nhân hóa với công nghệ AI tiên tiến</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
 						{[
 							{
 								icon: Target,
-								title: 'Adaptive Questions',
-								desc: 'Questions automatically adjust to your skill level for optimal learning',
+								title: 'Câu hỏi thích ứng',
+								desc: 'Câu hỏi tự động điều chỉnh theo trình độ của bạn để tối ưu hóa việc học',
 							},
 							{
 								icon: TrendingUp,
-								title: 'Instant Feedback',
-								desc: 'Get detailed explanations and improvement suggestions immediately',
+								title: 'Phản hồi tức thì',
+								desc: 'Nhận giải thích chi tiết và gợi ý cải thiện ngay lập tức',
 							},
 							{
 								icon: BookOpen,
-								title: 'Personalized Path',
-								desc: 'AI creates custom study plans based on your strengths and weaknesses',
+								title: 'Lộ trình cá nhân hóa',
+								desc: 'AI tạo kế hoạch học tập riêng dựa trên điểm mạnh và điểm yếu của bạn',
 							},
 						].map(({ icon: Icon, title, desc }) => (
 							<div key={title} className='text-center space-y-2'>

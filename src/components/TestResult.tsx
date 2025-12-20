@@ -56,7 +56,7 @@ export function TestResult() {
 
 	// Loading state
 	if (!currentAttempt) {
-		return <div className='p-10 text-center'>Loading result...</div>;
+		return <div className='p-10 text-center'>Đang tải kết quả...</div>;
 	}
 
 	const examInfo = exams.find((e) => e.id === currentAttempt.examId);
@@ -138,18 +138,18 @@ export function TestResult() {
 						// Xác định màu sắc dựa trên trạng thái
 						let borderClass = 'border-gray-200';
 						let bgHeaderClass = 'bg-gray-50';
-						let statusText = 'Skipped';
+						let statusText = 'Bỏ qua';
 						let statusColor = 'text-gray-500';
 
 						if (status === 'correct') {
 							borderClass = 'border-green-500';
 							bgHeaderClass = 'bg-green-50';
-							statusText = 'Correct';
+							statusText = 'Chính xác';
 							statusColor = 'text-green-700';
 						} else if (status === 'incorrect') {
 							borderClass = 'border-red-500';
 							bgHeaderClass = 'bg-red-50';
-							statusText = 'Incorrect';
+							statusText = 'Không chính xác';
 							statusColor = 'text-red-700';
 						}
 
@@ -163,20 +163,20 @@ export function TestResult() {
 												status === 'correct' ? 'bg-green-200' : status === 'incorrect' ? 'bg-red-200' : 'bg-gray-200'
 											} ${statusColor}`}
 										>
-											{statusText}
-										</span>
-									</div>
-									<span className='text-sm text-gray-500 font-medium'>{q.points} Points</span>
-									<AICard q={q}></AICard>
+										{statusText}
+									</span>
+								</div>
+								<span className='text-sm text-gray-500 font-medium'>{q.points} Điểm</span>
+								<AICard q={q}></AICard>
 								</div>
 
 								<div className='p-6'>
 									<p className='text-gray-800 text-lg mb-4 font-medium'>{q.content}</p>
 
 									<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-										{/* Đáp án của User */}
-										<div className='bg-gray-50 p-4 rounded-md border'>
-											<p className='text-xs text-gray-500 uppercase font-bold mb-1'>Your Answer</p>
+								{/* Đáp án của User */}
+								<div className='bg-gray-50 p-4 rounded-md border'>
+									<p className='text-xs text-gray-500 uppercase font-bold mb-1'>Câu trả lời của bạn</p>
 											<p
 												className={`font-medium ${
 													status === 'correct'
@@ -194,10 +194,10 @@ export function TestResult() {
 										<QuestionCard q={q} status={status}></QuestionCard>
 									</div>
 
-									{/* Hiển thị Options nếu là trắc nghiệm để dễ đối chiếu */}
-									{q.options && (
-										<div className='mt-4 pt-4 border-t text-sm text-gray-500'>
-											<p className='mb-2 font-semibold'>Options:</p>
+								{/* Hiển thị Options nếu là trắc nghiệm để dễ đối chiếu */}
+								{q.options && (
+									<div className='mt-4 pt-4 border-t text-sm text-gray-500'>
+										<p className='mb-2 font-semibold'>Các lựa chọn:</p>
 											<ul className='list-disc pl-5 space-y-1'>
 												{q.options.map((op, i) => (
 													<li key={i} className={op === userAnswer ? 'font-bold text-gray-800' : ''}>
