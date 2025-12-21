@@ -212,6 +212,12 @@ export function ExamCreationPage() {
                     <Plus size={16} className="mr-1" /> Thêm phương án
                   </Button>
                 </div>
+                <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
+                  Click vào ô tròn để đánh dấu đáp án đúng 
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-500 text-white">
+                    <Check size={10} />
+                  </span>
+                </p>
                 
                 <div className="space-y-2">
                   {questions[currentQuestion].options.map((option) => (
