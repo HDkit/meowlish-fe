@@ -15,6 +15,7 @@ import { BlogPage } from './components/BlogPage';
 import { TestResult } from './components/TestResult';
 import { SpeakingWritingPage } from './components/SpeakingWritingPage';
 import { ExamApproval } from './components/ExamApproval';
+import { ExamCreationPage } from './components/ExamCreationPage';
 
 export default function App() {
 	return (
@@ -50,6 +51,8 @@ export default function App() {
 					<Route path='/speaking-writing' element={<SpeakingWritingPage />} />
 					{/* Exam Approval */}
 					<Route path='/exam-approval' element={<ExamApproval />} />
+					{/* Exam Creation */}
+					<Route path='/exam-creation' element={<ExamCreationPage />} />
 				</Routes>
 			</main>
 		</div>
