@@ -404,9 +404,8 @@ export function UserPage() {
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab} className='space-y-6'>
-				<TabsList className='grid w-full grid-cols-3'>
+				<TabsList className='grid w-full grid-cols-2'>
 					<TabsTrigger value='overview'>Tổng quan</TabsTrigger>
-					<TabsTrigger value='achievements'>Thành tích</TabsTrigger>
 					<TabsTrigger value='history'>Lịch sử</TabsTrigger>
 				</TabsList>
 
@@ -589,26 +588,6 @@ export function UserPage() {
 							</Card>
 						</div>
 					</div>
-				</TabsContent>
-
-				{/* Achievements */}
-				<TabsContent value='achievements' className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-					{mockAchievements.map((a) => (
-						<Card key={a.id} className={a.earned ? 'border-green-200 bg-green-50' : ''}>
-							<CardContent className='flex space-x-3'>
-								<div className='p-2 rounded-full'>{a.icon}</div>
-								<div className='flex-1'>
-									<div className='flex justify-between'>
-										<h3>{a.title}</h3>
-										{a.earned && <Badge variant='default'>Đã đạt</Badge>}
-									</div>
-									<p>{a.description}</p>
-									{a.earned && a.earnedDate && <p className='text-xs'>Đạt vào {formatDate(a.earnedDate)}</p>}
-									{!a.earned && a.progress && a.maxProgress && <Progress value={(a.progress / a.maxProgress) * 100} />}
-								</div>
-							</CardContent>
-						</Card>
-					))}
 				</TabsContent>
 
 				{/* History */}
