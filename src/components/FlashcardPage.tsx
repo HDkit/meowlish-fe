@@ -629,14 +629,6 @@ export function FlashcardPage() {
 
 			{/* Tabs */}
 			<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'my' | 'discover')}>
-				<TabsList>
-					<TabsTrigger value="my">
-						Flashcard của tôi
-					</TabsTrigger>
-					<TabsTrigger value="discover">
-						Khám phá ({otherFlashcards.length})
-					</TabsTrigger>
-				</TabsList>
 
 				{/* My Lists Tab */}
 				<TabsContent value="my" className="space-y-6">
