@@ -14,6 +14,7 @@ import { FlashcardPage } from './components/FlashcardPage';
 import { BlogPage } from './components/BlogPage';
 import { TestResult } from './components/TestResult';
 import { SpeakingWritingPage } from './components/SpeakingWritingPage';
+import { ExamApproval } from './components/ExamApproval';
 
 export default function App() {
 	return (
@@ -47,6 +48,8 @@ export default function App() {
 
 					{/* Speaking & Writing Test */}
 					<Route path='/speaking-writing' element={<SpeakingWritingPage />} />
+					{/* Exam Approval */}
+					<Route path='/exam-approval' element={<ExamApproval />} />
 				</Routes>
 			</main>
 		</div>
