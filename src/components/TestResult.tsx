@@ -1,14 +1,15 @@
+'use client';
+
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAppSelector } from './store/main/hook';
+import { useParams, useRouter } from 'next/navigation';
+import { useAppSelector } from '@/lib/store/hooks';
 import { Button } from './ui/button';
 import { Question, Attempt, Section } from '../types/client';
-import { Stars } from 'lucide-react';
 import { AICard, QuestionCard } from './QuestionCard';
 
 export function TestResult() {
 	const { id } = useParams(); // Đây là attemptId
-	const navigate = useNavigate();
+	const router = useRouter();
 
 	// 1. Lấy dữ liệu từ Redux Store
 	const attempts = useAppSelector((state) => state.attempts.list);
@@ -111,14 +112,18 @@ export function TestResult() {
 					</div>
 
 					<div className='flex justify-center gap-4'>
-						<Button onClick={() => navigate('/')} variant='outline' className='px-6'>
-							Quay về trang chủ
-						</Button>
+					<Button onClick={() => router.push('/')} variant='outline' className='px-6'>
+						Quay về trang chủ
+					</Button>
 
-						{/* QUAN TRỌNG: Gửi state { retake: true } để TestInterface reset timer */}
-						<Button
-							onClick={() => navigate(`/test/${currentAttempt.examId}`, { state: { retake: true } })}
-							className='px-6 bg-blue-600 hover:bg-blue-700'
+					{/* QUAN TRỌNG: Gửi state { retake: true } để TestInterface reset timer */}
+					<Button
+						onClick={() => {
+							// Store retake flag in sessionStorage since Next.js doesn't support state in router.push
+							sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
+							router.push(`/test/${currentAttempt.examId}`);
+						}}
+						className='px-6 bg-blue-600 hover:bg-blue-700 !text-white'
 						>
 							Làm lại bài kiểm tra
 						</Button>

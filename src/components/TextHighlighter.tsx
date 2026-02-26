@@ -21,6 +21,7 @@ type Highlight = {
 type TextHighlighterProps = {
   text: string;
   onNewWord?: (word: string) => void;
+  highlightEnabled?: boolean;
 };
 
 type FlashcardFormData = {
@@ -271,12 +272,16 @@ const FlashcardFormModal = ({
 };
 
 // --- MAIN COMPONENT ---
-export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
+export function TextHighlighter({ text, onNewWord, highlightEnabled }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedColor, setSelectedColor] = useState<string>('yellow');
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
   const [selectedRange, setSelectedRange] = useState<Range | null>(null);
+  
+  // State for editing existing highlights
+  const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   
   // Flashcard State
   const [showFlashcardForm, setShowFlashcardForm] = useState(false);
@@ -293,6 +298,11 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
 
   // --- HIGHLIGHT HANDLERS ---
   const handleMouseUp = () => {
+    // Don't show toolbar if highlight mode is disabled
+    if (highlightEnabled === false) {
+      return;
+    }
+
     const selection = window.getSelection();
     if (!selection || selection.toString().trim() === '') {
       setShowToolbar(false);
@@ -307,13 +317,41 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     
+    // Center the toolbar above the selection
     setToolbarPosition({
-      x: rect.left + window.scrollX,
+      x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY - 10,
     });
     
     setSelectedRange(range);
+    setIsEditMode(false);
+    setEditingHighlight(null);
     setShowToolbar(true);
+  };
+
+  // Handler for clicking on existing highlight
+  const handleHighlightClick = (e: MouseEvent, highlight: Highlight) => {
+    // Don't show toolbar if highlight mode is disabled
+    if (highlightEnabled === false) {
+      return;
+    }
+    
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    
+    setToolbarPosition({
+      x: rect.left + window.scrollX + rect.width / 2,
+      y: rect.top + window.scrollY - 10,
+    });
+    
+    setEditingHighlight(highlight);
+    setIsEditMode(true);
+    setShowToolbar(true);
+    
+    // Clear any text selection
+    const selection = window.getSelection();
+    if (selection) selection.removeAllRanges();
   };
 
   const addHighlight = (underline = false, strikethrough = false, replaceExisting = true, decorationOnly = false) => {
@@ -380,6 +418,21 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
     setShowToolbar(false);
   };
 
+  // Remove highlight by ID (for edit mode)
+  const removeHighlightById = (highlightId: string) => {
+    setHighlights(prev => prev.filter(h => h.id !== highlightId));
+    setShowToolbar(false);
+    setEditingHighlight(null);
+    setIsEditMode(false);
+  };
+
+  // Update highlight color (for edit mode)
+  const updateHighlightColor = (highlightId: string, newColor: string) => {
+    setHighlights(prev => prev.map(h => 
+      h.id === highlightId ? { ...h, color: newColor } : h
+    ));
+  };
+
   // --- FLASHCARD HANDLERS ---
   const handleCreateFlashcard = () => {
     const selection = window.getSelection();
@@ -395,13 +448,33 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
     if (onNewWord) onNewWord(word);
   };
 
+  // Close toolbar on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.highlight-toolbar') && 
+          !target.classList.contains('highlight') &&
+          !textRef.current?.contains(target)) {
+        setShowToolbar(false);
+        setIsEditMode(false);
+        setEditingHighlight(null);
+      }
+    };
+
+    if (showToolbar) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showToolbar]);
+
   // --- EFFECT: RENDER HIGHLIGHTS ---
   useEffect(() => {
     if (!textRef.current) return;
     const container = textRef.current;
     container.innerHTML = text;
 
-    highlights.forEach(({ id, text: hlText, color, underline, strikethrough, matchIndex }) => {
+    highlights.forEach((highlight) => {
+      const { id, text: hlText, color, underline, strikethrough, matchIndex } = highlight;
       const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
       let currentNode: Node | null;
       let currentMatch = 0;
@@ -418,9 +491,13 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
             const afterText = nodeValue.substring(index + hlText.length);
             const highlightSpan = document.createElement('span');
             const backgroundClass = color ? color : '';
-            highlightSpan.className = `highlight ${backgroundClass} ${underline ? 'underline' : ''} ${strikethrough ? 'line-through' : ''} cursor-pointer hover:opacity-80`.trim();
+            const interactiveClasses = highlightEnabled !== false ? 'cursor-pointer hover:opacity-80' : '';
+            highlightSpan.className = `highlight ${backgroundClass} ${underline ? 'underline' : ''} ${strikethrough ? 'line-through' : ''} ${interactiveClasses} transition-opacity`.trim();
             highlightSpan.textContent = hlText;
-            highlightSpan.onclick = (e) => e.stopPropagation();
+            highlightSpan.setAttribute('data-highlight-id', id);
+            
+            // Add click handler to show toolbar
+            highlightSpan.onclick = (e) => handleHighlightClick(e, highlight);
 
             const parent = currentNode.parentNode;
             if (parent) {
@@ -438,7 +515,7 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
         }
       }
     });
-  }, [highlights, text]);
+  }, [highlights, text, highlightEnabled]);
 
   // --- RENDER ---
   return (
@@ -447,6 +524,18 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
         ref={textRef}
         className="whitespace-pre-wrap text-justify leading-relaxed selection:bg-blue-100 selection:text-blue-900"
         onMouseUp={handleMouseUp}
+        onClick={(e) => {
+          // Only close toolbar if no text is selected and not clicking on highlight or toolbar
+          const selection = window.getSelection();
+          const hasSelection = selection && selection.toString().trim() !== '';
+          const target = e.target as HTMLElement;
+          
+          if (!hasSelection && !target.classList.contains('highlight') && !target.closest('.highlight-toolbar')) {
+            setShowToolbar(false);
+            setIsEditMode(false);
+            setEditingHighlight(null);
+          }
+        }}
       />
 
       {/* Toolbar */}
@@ -456,13 +545,20 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
           style={{
             left: toolbarPosition.x,
             top: toolbarPosition.y,
-            transform: 'translateY(-100%)',
+            transform: 'translateX(-50%) translateY(-100%)',
           }}
           onMouseDown={(e) => e.preventDefault()} 
         >
+          {/* Delete button */}
           <button 
-            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-red-500 transition-colors"
-            onClick={removeSelectedHighlight}
+            className="p-1.5 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors"
+            onClick={() => {
+              if (isEditMode && editingHighlight) {
+                removeHighlightById(editingHighlight.id);
+              } else {
+                removeSelectedHighlight();
+              }
+            }}
             title="Xóa highlight"
           >
             <Trash2 size={16} />
@@ -475,29 +571,96 @@ export function TextHighlighter({ text, onNewWord }: TextHighlighterProps) {
             {HIGHLIGHT_COLORS.map((c) => (
               <button
                 key={c.name}
-                className={`w-6 h-6 rounded-full border border-gray-200 transition-transform hover:scale-110 ${c.class} ${selectedColor === c.class ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+                className={`w-6 h-6 rounded-full border border-gray-200 transition-all hover:scale-110 ${c.class} ${
+                  (isEditMode && editingHighlight?.color === c.class) || 
+                  (!isEditMode && selectedColor === c.class) 
+                    ? 'ring-2 ring-blue-500 ring-offset-1' 
+                    : ''
+                }`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  setSelectedColor(c.class);
+                  if (!isEditMode) setSelectedColor(c.class);
                 }}
                 onClick={() => {
-                  setSelectedColor(c.class);
-                  addHighlight(false, false, true, false); 
+                  if (isEditMode && editingHighlight) {
+                    updateHighlightColor(editingHighlight.id, c.class);
+                    setShowToolbar(false);
+                    setIsEditMode(false);
+                    setEditingHighlight(null);
+                  } else {
+                    setSelectedColor(c.class);
+                    addHighlight(false, false, true, false);
+                  }
                 }}
-                title={c.name}
+                title={isEditMode ? `Đổi màu thành ${c.name}` : c.name}
               />
             ))}
           </div>
 
           <div className="w-px h-5 bg-gray-200 mx-1" />
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={() => addHighlight(true, false, true, true)} title="Gạch chân">
+          {/* Underline button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 hover:bg-gray-100" 
+            onClick={() => {
+              if (isEditMode && editingHighlight) {
+                setHighlights(prev => prev.map(h => 
+                  h.id === editingHighlight.id ? { ...h, underline: !h.underline } : h
+                ));
+                setShowToolbar(false);
+                setIsEditMode(false);
+                setEditingHighlight(null);
+              } else {
+                addHighlight(true, false, true, true);
+              }
+            }} 
+            title="Gạch chân"
+          >
             <Underline size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100" onClick={() => addHighlight(false, true, true, true)} title="Gạch ngang">
+
+          {/* Strikethrough button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 hover:bg-gray-100" 
+            onClick={() => {
+              if (isEditMode && editingHighlight) {
+                setHighlights(prev => prev.map(h => 
+                  h.id === editingHighlight.id ? { ...h, strikethrough: !h.strikethrough } : h
+                ));
+                setShowToolbar(false);
+                setIsEditMode(false);
+                setEditingHighlight(null);
+              } else {
+                addHighlight(false, true, true, true);
+              }
+            }} 
+            title="Gạch ngang"
+          >
             <Strikethrough size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleCreateFlashcard} title="Tạo Flashcard">
+
+          {/* Add to flashcard button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" 
+            onClick={() => {
+              if (isEditMode && editingHighlight) {
+                setWordForForm(editingHighlight.text);
+                setShowFlashcardForm(true);
+                setShowToolbar(false);
+                setIsEditMode(false);
+                setEditingHighlight(null);
+              } else {
+                handleCreateFlashcard();
+              }
+            }} 
+            title="Tạo Flashcard"
+          >
             <Plus size={18} />
           </Button>
         </div>

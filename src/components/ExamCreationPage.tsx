@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, ChevronDown, ChevronRight, Upload, X, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, ChevronDown, ChevronRight, Upload, X, Check, Save, FileText, Image as ImageIcon, File } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Card } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { useToast } from './ui/use-toast';
 
 type Section = {
   id: string;
@@ -33,6 +34,19 @@ type Question = {
 };
 
 export function ExamCreationPage() {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [examTitle, setExamTitle] = useState('Đề thi mới');
+  const [sectionContent, setSectionContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{
+    name: string;
+    type: string;
+    size: number;
+    url: string;
+  } | null>(null);
+  
   const [sections, setSections] = useState<Section[]>([
     {
       id: '1',
@@ -68,6 +82,182 @@ export function ExamCreationPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedOptionForFeedback, setSelectedOptionForFeedback] = useState<string | null>(null);
+
+  const validateExam = () => {
+    const errors: string[] = [];
+
+    // Validate exam title
+    if (!examTitle.trim()) {
+      errors.push('Vui lòng nhập tên đề thi');
+    }
+
+    // Validate questions
+    if (questions.length === 0) {
+      errors.push('Đề thi phải có ít nhất 1 câu hỏi');
+    }
+
+    questions.forEach((question, index) => {
+      // Check question content
+      if (!question.content.trim()) {
+        errors.push(`Câu hỏi ${index + 1}: Nội dung câu hỏi không được để trống`);
+      }
+
+      // Check if has options
+      if (question.options.length < 2) {
+        errors.push(`Câu hỏi ${index + 1}: Phải có ít nhất 2 phương án`);
+      }
+
+      // Check if has at least one correct answer
+      const hasCorrectAnswer = question.options.some(opt => opt.isCorrect);
+      if (!hasCorrectAnswer) {
+        errors.push(`Câu hỏi ${index + 1}: Phải có ít nhất 1 đáp án đúng`);
+      }
+
+      // Check if all options have content
+      question.options.forEach((option, optIndex) => {
+        if (!option.content.trim()) {
+          errors.push(`Câu hỏi ${index + 1}, Phương án ${optIndex + 1}: Nội dung không được để trống`);
+        }
+      });
+    });
+
+    return errors;
+  };
+
+  const handleSave = async () => {
+    // Validate before saving
+    const errors = validateExam();
+    
+    if (errors.length > 0) {
+      toast({
+        title: "Lỗi khi lưu đề thi",
+        description: (
+          <div className="space-y-1">
+            {errors.slice(0, 3).map((error, index) => (
+              <div key={index}>• {error}</div>
+            ))}
+            {errors.length > 3 && <div>... và {errors.length - 3} lỗi khác</div>}
+          </div>
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Prepare exam data
+      const examData = {
+        title: examTitle,
+        sections: sections,
+        sectionContent: sectionContent,
+        uploadedFile: uploadedFile,
+        questions: questions,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Simulate API call - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Save to localStorage for now (replace with API call later)
+      const savedExams = JSON.parse(localStorage.getItem('exams') || '[]');
+      const examId = `exam_${Date.now()}`;
+      savedExams.push({ id: examId, ...examData });
+      localStorage.setItem('exams', JSON.stringify(savedExams));
+
+      toast({
+        title: "Lưu thành công!",
+        description: `Đề thi "${examTitle}" đã được lưu thành công với ${questions.length} câu hỏi.`,
+        variant: "default",
+      });
+
+      console.log('Exam saved:', examData);
+    } catch (error) {
+      toast({
+        title: "Lỗi khi lưu",
+        description: "Có lỗi xảy ra khi lưu đề thi. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+      console.error('Error saving exam:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File quá lớn",
+        description: "Vui lòng chọn file nhỏ hơn 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Định dạng file không hợp lệ",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Create file URL for preview
+    const fileUrl = URL.createObjectURL(file);
+
+    setUploadedFile({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: fileUrl,
+    });
+
+    toast({
+      title: "Upload thành công",
+      description: `File "${file.name}" đã được tải lên.`,
+    });
+  };
+
+  const handleRemoveFile = () => {
+    if (uploadedFile?.url) {
+      URL.revokeObjectURL(uploadedFile.url);
+    }
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <ImageIcon size={20} />;
+    if (type === 'application/pdf') return <FileText size={20} />;
+    return <File size={20} />;
+  };
 
   const toggleSection = (id: string) => {
     const updateSections = (sections: Section[]): Section[] => {
@@ -144,7 +334,15 @@ export function ExamCreationPage() {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
-        <h2 className="font-semibold text-lg mb-4">Tên đề thi</h2>
+        <div className="mb-4">
+          <Label className="text-xs text-gray-500 uppercase">Tên đề thi</Label>
+          <Input 
+            value={examTitle}
+            onChange={(e) => setExamTitle(e.target.value)}
+            className="mt-1 font-semibold"
+            placeholder="Nhập tên đề thi"
+          />
+        </div>
         <div className="space-y-1">
           {sections.map(section => renderSection(section))}
         </div>
@@ -158,7 +356,19 @@ export function ExamCreationPage() {
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
           <h1 className="text-xl font-semibold">Tạo đề thi</h1>
-          <Button>LƯU</Button>
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-gray-500">
+              {questions.length} câu hỏi
+            </div>
+            <Button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Save size={16} className="mr-2" />
+              {isSaving ? 'Đang lưu...' : 'LƯU'}
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -172,14 +382,79 @@ export function ExamCreationPage() {
                   placeholder="Nhập nội dung section"
                   className="mt-1"
                   rows={6}
+                  value={sectionContent}
+                  onChange={(e) => setSectionContent(e.target.value)}
                 />
               </div>
-              <Card className="p-4 h-32 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
-                <div className="text-center">
-                  <Upload className="mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-500">Tải lên tập tin</p>
-                </div>
-              </Card>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={handleFileUpload}
+              />
+              
+              {!uploadedFile ? (
+                <Card 
+                  className="p-4 h-32 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="text-center">
+                    <Upload className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-500">Tải lên tập tin</p>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-4 border border-gray-300 rounded-lg">
+                  {uploadedFile.type.startsWith('image/') ? (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <img 
+                          src={uploadedFile.url} 
+                          alt={uploadedFile.name}
+                          className="w-full h-48 object-contain bg-gray-50 rounded"
+                        />
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          className="absolute top-2 right-2"
+                          onClick={handleRemoveFile}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          {getFileIcon(uploadedFile.type)}
+                          <span className="font-medium truncate max-w-[300px]">{uploadedFile.name}</span>
+                        </div>
+                        <span className="text-gray-500">{formatFileSize(uploadedFile.size)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-100 rounded">
+                          {getFileIcon(uploadedFile.type)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{uploadedFile.name}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(uploadedFile.size)}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={handleRemoveFile}
+                      >
+                        <X size={20} />
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              )}
             </div>
           </div>
 

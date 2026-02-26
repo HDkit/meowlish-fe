@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -20,22 +22,22 @@ import {
 	Tag,
 } from 'lucide-react';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from './store/main/store';
 import { Exam, Question, Section, TestType, ExamStatus } from '../types/client';
-import { useAppSelector } from './store/main/hook';
-import { useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { useRouter } from 'next/navigation';
 
 export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
-	const navigate = useNavigate();
-	const dispatch = useDispatch();
+	const router = useRouter();
+	const dispatch = useAppDispatch();
 
 	useEffect(() => {
 		if (!currentUser) {
-			navigate('/auth'); // redirect if not logged in
+			router.push('/auth'); // redirect if not logged in
 		}
-	}, [currentUser, navigate]);
+	}, [currentUser, router]);
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic' | 'practice'>('ielts');
 
 	const exams = useSelector((state: RootState) => state.exams.list);
@@ -53,13 +55,13 @@ export function TestSelection() {
 	const getDifficultyColor = (difficulty: string) => {
 		switch (difficulty) {
 			case 'beginner':
-				return 'bg-green-100 text-green-800';
+				return 'bg-green-500 text-white';
 			case 'intermediate':
-				return 'bg-yellow-100 text-yellow-800';
+				return 'bg-yellow-500 text-gray-900';
 			case 'advanced':
-				return 'bg-red-100 text-red-800';
+				return 'bg-red-500 text-white';
 			default:
-				return 'bg-gray-100 text-gray-800';
+				return 'bg-gray-400 text-white';
 		}
 	};
 
@@ -116,7 +118,9 @@ export function TestSelection() {
 							</div>
 							<CardDescription>{exam.description}</CardDescription>
 						</div>
-						<Badge className={getDifficultyColor(exam.difficulty)}>{getDifficultyText(exam.difficulty)}</Badge>
+						<span className={`px-3 py-1 rounded-md text-xs font-semibold ${getDifficultyColor(exam.difficulty)}`}>
+							{getDifficultyText(exam.difficulty)}
+						</span>
 					</div>
 				</CardHeader>
 
@@ -143,9 +147,9 @@ export function TestSelection() {
 					</div>
 
 					<Button
-						className='w-full'
+						className='w-full bg-black hover:bg-gray-800 text-white'
 						onClick={() => {
-							navigate('/test/' + exam.id);
+							router.push('/test/' + exam.id);
 						}}
 					>
 						<Play className='h-4 w-4 mr-2' />

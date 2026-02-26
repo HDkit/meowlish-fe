@@ -16,6 +16,7 @@ import { TestResult } from './components/TestResult';
 import { SpeakingWritingPage } from './components/SpeakingWritingPage';
 import { ExamApproval } from './components/ExamApproval';
 import { ExamCreationPage } from './components/ExamCreationPage';
+import { Toaster } from './components/ui/toaster';
 
 export default function App() {
 	return (
@@ -55,6 +56,7 @@ export default function App() {
 					<Route path='/exam-creation' element={<ExamCreationPage />} />
 				</Routes>
 			</main>
+			<Toaster />
 		</div>
 	);
 }

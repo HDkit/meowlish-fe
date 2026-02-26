@@ -1,10 +1,12 @@
+'use client';
+
 import React, { useMemo, useState } from 'react';
 import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from './store/main/hook';
+import { useParams, useRouter } from 'next/navigation';
+import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { addComment } from './store/commentSlice';
-import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import {
@@ -26,7 +28,7 @@ import {
 
 export function ExamDetailPage() {
 	const { id } = useParams();
-	const navigate = useNavigate();
+	const router = useRouter();
 	const dispatch = useAppDispatch();
 	if (!id) return <div>Invalid Exam ID</div>;
 
@@ -108,28 +110,30 @@ export function ExamDetailPage() {
 		});
 
 		// Navigate to test interface
-		navigate(`/test/do/${examId}`, { state: { sections: sectionsToUse, timer: timerValue } });
+	// Store state in sessionStorage since Next.js doesn't support state in router.push
+	sessionStorage.setItem('testState', JSON.stringify({ sections: sectionsToUse, timer: timerValue }));
+	router.push(`/test/do/${examId}`);
+};
+
+const handleCommentSubmit = () => {
+	if (!commentInput.trim() || !currentUser) return;
+
+	const newComment: Comment = {
+		id: 'comment_' + Date.now(),
+		userId: currentUser.id,
+		examId: examId,
+		content: commentInput.trim(),
+		examRating: examRating,
 	};
 
-	const handleCommentSubmit = () => {
-		if (!commentInput.trim() || !currentUser) return;
+	dispatch(addComment(newComment));
+	setCommentInput('');
+	
+	// Switch to discuss tab to show the comment
+	setActiveTab('discuss');
+};
 
-		const newComment: Comment = {
-			id: 'comment_' + Date.now(),
-			userId: currentUser.id,
-			examId: examId,
-			content: commentInput.trim(),
-			examRating: examRating,
-		};
-
-		dispatch(addComment(newComment));
-		setCommentInput('');
-		
-		// Switch to discuss tab to show the comment
-		setActiveTab('discuss');
-	};
-
-	// Filter comments for this exam
+// Filter comments for this exam
 	const examComments = useMemo(() => {
 		return comments.filter((c) => c.examId === examId);
 	}, [comments, examId]);
@@ -437,13 +441,12 @@ export function ExamDetailPage() {
 							<CardTitle>Thảo luận về đề thi</CardTitle>
 						</CardHeader>
 						<CardContent>
-							{/* Comment Form */}
 							<div className='mb-6 pb-6 border-b border-gray-200'>
 								<h3 className='font-semibold text-lg mb-4 text-gray-900'>Thêm bình luận</h3>
 								<div className='space-y-3'>
-									<Input
+									<Textarea
 										placeholder='Chia sẻ cảm nghĩ của bạn về đề thi này...'
-										className='flex-1'
+										className='flex-1 min-h-[80px]'
 										value={commentInput}
 										onChange={(e) => setCommentInput(e.target.value)}
 										onKeyDown={(e) => {
@@ -467,7 +470,7 @@ export function ExamDetailPage() {
 									</div>
 									<Button
 										onClick={handleCommentSubmit}
-										className='bg-blue-600 hover:bg-blue-700'
+									className='bg-blue-600 hover:bg-blue-700 !text-white'
 										disabled={!commentInput.trim() || !currentUser}
 									>
 										Gửi bình luận
@@ -531,27 +534,19 @@ export function ExamDetailPage() {
 				<div className='pt-8 border-t border-gray-200'>
 					<h3 className='font-bold text-xl mb-4 text-gray-900'>Bình luận</h3>
 					<div className='space-y-3 mb-6'>
-						<div className='flex gap-2'>
-							<Input
-								placeholder='Chia sẻ cảm nghĩ của bạn về đề thi này...'
-								className='flex-1'
-								value={commentInput}
-								onChange={(e) => setCommentInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter' && !e.shiftKey) {
-										e.preventDefault();
-										handleCommentSubmit();
-									}
-								}}
-							/>
-							<Button
-								onClick={handleCommentSubmit}
-								className='bg-blue-600 hover:bg-blue-700'
-								disabled={!commentInput.trim() || !currentUser}
-							>
-								Gửi
-							</Button>
-						</div>
+					<Textarea
+						placeholder='Chia sẻ cảm nghĩ của bạn về đề thi này...'
+						className='flex-1 min-h-[80px]'
+						value={commentInput}
+						onChange={(e) => setCommentInput(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' && !e.shiftKey) {
+								e.preventDefault();
+								handleCommentSubmit();
+							}
+						}}
+					/>
+					<div className='flex items-center justify-between gap-3'>
 						<div className='flex items-center gap-3'>
 							<label className='text-sm font-medium text-gray-700'>Đánh giá độ khó:</label>
 							<select
@@ -564,7 +559,15 @@ export function ExamDetailPage() {
 								<option value={Difficulty.Advanced}>Nâng cao</option>
 							</select>
 						</div>
+						<Button
+							onClick={handleCommentSubmit}
+							className='bg-blue-600 hover:bg-blue-700 !text-white'
+							disabled={!commentInput.trim() || !currentUser}
+						>
+							Gửi
+						</Button>
 					</div>
+				</div>
 					<div className='space-y-4'>
 						{examComments.length === 0 ? (
 							<div className='text-center py-8 text-gray-400 text-sm'>

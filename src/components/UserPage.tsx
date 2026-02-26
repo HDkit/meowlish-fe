@@ -11,7 +11,6 @@ import {
 	Calendar,
 	Trophy,
 	Target,
-	Clock,
 	TrendingUp,
 	BookOpen,
 	GraduationCap,
@@ -24,19 +23,12 @@ import {
 	PenTool,
 	Mic,
 	Filter,
-	Star,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector } from './store/main/hook';
 import { Attempt, Exam, Skill, TestType } from '../types/client';
-import { useNavigate } from 'react-router-dom';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import 'swiper/css';
-import 'swiper/css/navigation';
-import 'swiper/css/autoplay';
-
-import { Autoplay, Mousewheel, Navigation } from 'swiper/modules';
+import { useRouter } from 'next/navigation';
 
 interface UserType {
 	fullName: string;
@@ -52,16 +44,6 @@ interface UserType {
 	};
 }
 
-interface TestSession {
-	id: string;
-	testType: TestType;
-	skill: Skill;
-	startTime: Date;
-	completedAt: Date;
-	score: number;
-	accuracy: number;
-}
-
 interface Achievement {
 	id: string;
 	title: string;
@@ -73,68 +55,9 @@ interface Achievement {
 	maxProgress?: number;
 }
 
-// Mock user
-const mockUser: UserType = {
-	fullName: 'Nguyen Hai Dang',
-	email: 'hai.dang@example.com',
-	createdAt: new Date('2024-01-01'),
-	progress: {
-		totalTests: 12,
-		ieltsScore: 6.5,
-		toeicScore: 780,
-		studyStreak: 7,
-		totalStudyTime: 480, // minutes
-		skillScores: { reading: 7, listening: 6, writing: 6.5, speaking: 7 },
-	},
-};
-
-// Mock achievements
-const mockAchievements: Achievement[] = [
-	{
-		id: 'first-test',
-		title: 'Bước đầu tiên',
-		description: 'Hoàn thành bài test đầu tiên',
-		icon: <Trophy className='h-5 w-5 text-yellow-500' />,
-		earned: true,
-		earnedDate: new Date('2024-01-15'),
-	},
-	{
-		id: 'week-streak',
-		title: 'Học liên tục',
-		description: 'Học 7 ngày liên tiếp',
-		icon: <Flame className='h-5 w-5 text-orange-500' />,
-		earned: true,
-		earnedDate: new Date('2024-01-22'),
-	},
-	{
-		id: 'ielts-6',
-		title: 'IELTS 6.0+',
-		description: 'Đạt điểm IELTS 6.0 trở lên',
-		icon: <GraduationCap className='h-5 w-5 text-blue-500' />,
-		earned: true,
-		earnedDate: new Date('2024-02-01'),
-	},
-	{
-		id: 'reading-master',
-		title: 'Bậc thầy đọc hiểu',
-		description: 'Hoàn thành 50 bài Reading',
-		icon: <Award className='h-5 w-5 text-purple-500' />,
-		earned: false,
-		progress: 32,
-		maxProgress: 50,
-	},
-];
-
-// Helper function to calculate accuracy from attempt
-const calculateAccuracy = (attempt: Attempt, exam: Exam | undefined): number => {
-	if (!exam || !attempt.score) return 0;
-	// This is a simplified calculation - you might need to adjust based on your scoring logic
-	return attempt.score;
-};
-
 export function UserPage() {
-	const navigate = useNavigate();
-	const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history'>('overview');
+	const router = useRouter();
+	const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history'>('history');
 	const [filterTestType, setFilterTestType] = useState<TestType | 'all'>('all');
 	const [filterSkill, setFilterSkill] = useState<Skill | 'all'>('all');
 	const [sortBy, setSortBy] = useState<'date' | 'score' | 'accuracy'>('date');
@@ -315,98 +238,89 @@ export function UserPage() {
 	};
 
 	return (
-		<div className='space-y-6'>
+		<div className='space-y-6 bg-gray-50 min-h-screen p-6'>
 			{/* Header */}
-			<div className='flex items-center space-x-4  p-4'>
-				<Avatar className='h-16 w-16'>
-					<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
-					<AvatarFallback>
-						{(currUser?.fullName || 'User')
-							.split(' ')
-							.map((n) => n[0])
-							.join('')
-							.slice(0, 2)
-							.toUpperCase()}
-					</AvatarFallback>
-				</Avatar>
-				<div>
-					<h1 className='text-3xl font-bold'>{currUser?.fullName || 'Người dùng'}</h1>
-					<p className='text-muted-foreground flex items-center'>
-						<Mail className='h-4 w-4 mr-2' />
-						{currUser?.email || 'Chưa có email'}
-					</p>
-					{currUser?.createdAt && (
-						<p className='text-sm text-muted-foreground flex items-center mt-1'>
-							<Calendar className='h-4 w-4 mr-2' />
-							Tham gia từ {formatDate(currUser.createdAt)}
+			<div className='bg-white rounded-lg shadow-sm p-6'>
+				<div className='flex items-center space-x-4'>
+					<Avatar className='h-20 w-20'>
+						<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
+						<AvatarFallback className='bg-red-500 text-white text-2xl'>
+							{(currUser?.fullName || 'User')
+								.split(' ')
+								.map((n) => n[0])
+								.join('')
+								.slice(0, 2)
+								.toUpperCase()}
+						</AvatarFallback>
+					</Avatar>
+					<div className='flex-1'>
+						<h1 className='text-2xl font-bold'>{currUser?.fullName || 'Người dùng'}</h1>
+						<p className='text-gray-600 flex items-center gap-2 text-sm'>
+							<Mail className='h-4 w-4' />
+							{currUser?.email || 'Chưa có email'}
 						</p>
-					)}
-				</div>
-				<div className='ml-auto flex space-x-2'>
-					<Button variant='outline'>
-						<Edit className='h-4 w-4 mr-2' />
-						Chỉnh sửa hồ sơ
-					</Button>
-					<Button variant='outline'>
-						<Settings className='h-4 w-4 mr-2' />
-						Cài đặt
-					</Button>
-					<Button variant='outline'>
-						<Settings className='h-4 w-4 mr-2' />
-						Phân tích điểm yếu
-					</Button>
+						{currUser?.createdAt && (
+							<p className='text-sm text-gray-500 flex items-center gap-2 mt-1'>
+								<Calendar className='h-4 w-4' />
+								Tham gia từ {formatDate(currUser.createdAt)}
+							</p>
+						)}
+					</div>
+					<div className='flex space-x-2'>
+						<Button variant='outline' size='sm'>
+							<Edit className='h-4 w-4 mr-2' />
+							Chỉnh sửa hồ sơ
+						</Button>
+						<Button variant='outline' size='sm'>
+							<Settings className='h-4 w-4 mr-2' />
+							Cài đặt
+						</Button>
+						<Button variant='outline' size='sm'>
+							<BarChart3 className='h-4 w-4 mr-2' />
+							Phân tích điểm yếu
+						</Button>
+					</div>
 				</div>
 			</div>
 
 			{/* Goals Section */}
-			<div className='relative w-full bg-gray-100 p-4'>
-				<div className='flex items-center gap-2'>
-					{' '}
-					<h2 className='text-3xl font-semibold'>Mục tiêu bản thân</h2>{' '}
-					<AddGoalButton className='h-full flex items-center justify-center ' />{' '}
+			<div className='bg-white rounded-lg shadow-sm p-6'>
+				<div className='flex items-center justify-between mb-4'>
+					<h2 className='text-xl font-semibold'>Mục tiêu bản thân</h2>
+					<AddGoalButton />
 				</div>
-				<Swiper
-					modules={[Navigation, Autoplay, Mousewheel]}
-					slidesPerView={3}
-					spaceBetween={16}
-					loop={true}
-					autoplay={{
-						delay: 25000,
-						disableOnInteraction: false,
-					}}
-					mousewheel={true} // <--- enables vertical scroll to move slides
-					className='w-full cursor-grab'
-				>
-					{goals.map((goal) => (
-						<SwiperSlide key={goal.id} className='flex-shrink-0'>
-							<Card>
-								<CardHeader className='pb-3'>
-									<CardTitle className='text-sm font-medium flex flex-col items-start gap-1'>
-										<div className='flex items-center gap-1'>
+				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+					{userGoals.map((goal) => (
+						<Card key={goal.id} className='border-gray-200'>
+							<CardHeader className='pb-3'>
+								<div className='flex items-center justify-between'>
+									<div className='space-y-1'>
+										<p className='text-sm text-gray-500 flex items-center gap-1'>
 											<Target className='h-4 w-4' />
-											<span className='text-sm text-gray-500'>Ngày dự thi {formatDate(goal.dueDate)}</span>
-										</div>
-										<span className='text-base font-medium'>Mục tiêu điểm {goal.testType?.toUpperCase()}</span>
-									</CardTitle>
-								</CardHeader>
-
-								<CardContent>
-									<div className='flex items-center justify-between w-full'>
-										<span className='text-2xl font-semibold'>{goal.target}</span>
-										<EditGoalButton goal={goal} />
+											Ngày dự thi {formatDate(goal.dueDate)}
+										</p>
+										<p className='text-base font-medium'>Mục tiêu điểm {goal.testType?.toUpperCase()}</p>
 									</div>
-								</CardContent>
-							</Card>
-						</SwiperSlide>
+									<EditGoalButton goal={goal} />
+								</div>
+							</CardHeader>
+							<CardContent>
+								<p className='text-3xl font-bold'>{goal.target}</p>
+							</CardContent>
+						</Card>
 					))}
-				</Swiper>
+				</div>
 			</div>
 
 			{/* Tabs */}
-			<Tabs value={activeTab} onValueChange={setActiveTab} className='space-y-6'>
-				<TabsList className='grid w-full grid-cols-2'>
-					<TabsTrigger value='overview'>Tổng quan</TabsTrigger>
-					<TabsTrigger value='history'>Lịch sử</TabsTrigger>
+			<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'overview' | 'achievements' | 'history')}>
+				<TabsList className='grid w-full grid-cols-2 bg-white'>
+					<TabsTrigger value='overview' className='data-[state=active]:bg-black data-[state=active]:text-white'>
+						Tổng quan
+					</TabsTrigger>
+					<TabsTrigger value='history' className='data-[state=active]:bg-black data-[state=active]:text-white'>
+						Lịch sử
+					</TabsTrigger>
 				</TabsList>
 
 				{/* Overview */}
@@ -452,7 +366,9 @@ export function UserPage() {
 														{hasAttempts ? displayScore : '--'} / {maxScore}
 													</span>
 												</div>
-												{hasAttempts && <Progress value={(displayScore / maxScore) * 100} className='h-3' />}
+												{hasAttempts && (
+													<Progress value={(displayScore / maxScore) * 100} className='h-3 [&>div]:bg-black' />
+												)}
 											</div>
 
 											{goal && (
@@ -463,7 +379,7 @@ export function UserPage() {
 													</div>
 													<Progress
 														value={progress !== null ? progress : 0}
-														className={`h-3 ${progress && progress >= 100 ? 'bg-green-500' : ''}`}
+														className='h-3 [&>div]:bg-black'
 													/>
 													{progress !== null && progress < 100 && (
 														<p className='text-xs text-muted-foreground'>
@@ -526,7 +442,7 @@ export function UserPage() {
 														)}
 													</div>
 												</div>
-												{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2' />}
+												{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2 [&>div]:bg-black' />}
 												{!hasAttempts && (
 													<div className='h-2 bg-muted rounded-full'>
 														<div className='h-full w-0 bg-primary rounded-full' />
@@ -591,147 +507,146 @@ export function UserPage() {
 				</TabsContent>
 
 				{/* History */}
-				<TabsContent value='history'>
-					<div className='space-y-6'>
-						{/* Filters */}
-						<Card>
-							<CardHeader>
-								<CardTitle className='flex items-center gap-2'>
-									<Filter className='h-5 w-5' />
-									Bộ lọc và sắp xếp
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Loại thi</label>
-										<Select
-											value={filterTestType}
-											onValueChange={(value) => setFilterTestType(value as TestType | 'all')}
-										>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='all'>Tất cả</SelectItem>
-												<SelectItem value={TestType.IELTS}>IELTS</SelectItem>
-												<SelectItem value={TestType.TOEIC}>TOEIC</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Kỹ năng</label>
-										<Select value={filterSkill} onValueChange={(value) => setFilterSkill(value as Skill | 'all')}>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='all'>Tất cả</SelectItem>
-												<SelectItem value={Skill.Reading}>Reading</SelectItem>
-												<SelectItem value={Skill.Listening}>Listening</SelectItem>
-												<SelectItem value={Skill.Writing}>Writing</SelectItem>
-												<SelectItem value={Skill.Speaking}>Speaking</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Sắp xếp theo</label>
-										<Select value={sortBy} onValueChange={(value) => setSortBy(value as 'date' | 'score' | 'accuracy')}>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='date'>Ngày làm bài</SelectItem>
-												<SelectItem value='score'>Điểm số</SelectItem>
-												<SelectItem value='accuracy'>Độ chính xác</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
+				<TabsContent value='history' className='space-y-4 mt-6'>
+					{/* Filters */}
+					<Card className='border-gray-200'>
+						<CardHeader>
+							<CardTitle className='flex items-center gap-2 text-lg'>
+								<Filter className='h-5 w-5' />
+								Bộ lọc và sắp xếp
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+								<div className='space-y-2'>
+									<label className='text-sm font-medium'>Loại thi</label>
+									<Select
+										value={filterTestType}
+										onValueChange={(value) => setFilterTestType(value as TestType | 'all')}
+									>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value='all'>Tất cả</SelectItem>
+											<SelectItem value={TestType.IELTS}>IELTS</SelectItem>
+											<SelectItem value={TestType.TOEIC}>TOEIC</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
-							</CardContent>
-						</Card>
 
-						{/* History List */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Lịch sử làm đề ({sortedHistory.length} bài)</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className='space-y-4'>
-									{sortedHistory.map((item) => (
-										<div key={item.attempt.id} className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'>
-											<div className='flex items-center justify-between flex-wrap gap-4'>
-												<div className='flex items-center space-x-4 flex-1'>
-													<div className='flex items-center space-x-2'>
-														{getSkillIcon(item.exam.skill)}
-														<Badge variant={item.exam.testType === TestType.IELTS ? 'default' : 'secondary'}>
-															{item.exam.testType.toUpperCase()}
-														</Badge>
-														<span className='font-medium capitalize'>{item.exam.skill}</span>
-													</div>
-													<div className='text-sm text-muted-foreground'>
-														<p className='font-medium'>{item.exam.title}</p>
-														<p className='text-xs'>{item.exam.description}</p>
-													</div>
-												</div>
+								<div className='space-y-2'>
+									<label className='text-sm font-medium'>Kỹ năng</label>
+									<Select value={filterSkill} onValueChange={(value) => setFilterSkill(value as Skill | 'all')}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value='all'>Tất cả</SelectItem>
+											<SelectItem value={Skill.Reading}>Reading</SelectItem>
+											<SelectItem value={Skill.Listening}>Listening</SelectItem>
+											<SelectItem value={Skill.Writing}>Writing</SelectItem>
+											<SelectItem value={Skill.Speaking}>Speaking</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
 
-												<div className='flex items-center space-x-6 flex-wrap'>
-													<div className='text-right'>
-														<p className='text-sm text-muted-foreground'>Điểm số</p>
-														<p
-															className={`font-semibold ${
-																item.attempt.score !== undefined
-																	? item.exam.testType === TestType.IELTS
-																		? item.attempt.score >= 7
-																			? 'text-green-600'
-																			: item.attempt.score >= 6
-																			? 'text-yellow-600'
-																			: 'text-red-600'
-																		: item.attempt.score >= 785
-																		? 'text-green-600'
-																		: item.attempt.score >= 605
-																		? 'text-yellow-600'
-																		: 'text-red-600'
-																	: 'text-muted-foreground'
-															}`}
-														>
-															{item.attempt.score !== undefined ? item.attempt.score : 'Chưa có điểm'}
-														</p>
-													</div>
+								<div className='space-y-2'>
+									<label className='text-sm font-medium'>Sắp xếp theo</label>
+									<Select value={sortBy} onValueChange={(value) => setSortBy(value as 'date' | 'score' | 'accuracy')}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value='date'>Ngày làm bài</SelectItem>
+											<SelectItem value='score'>Điểm số</SelectItem>
+											<SelectItem value='accuracy'>Độ chính xác</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
 
-													<div className='text-right'>
-														<p className='text-sm text-muted-foreground'>Độ chính xác</p>
-														<p className='font-semibold'>{item.accuracy}%</p>
-													</div>
-
-													<div className='text-right'>
-														<p className='text-sm text-muted-foreground'>Thời gian</p>
-														<p className='font-semibold'>{item.timeSpent} phút</p>
-													</div>
-
-													<div className='text-right'>
-														<p className='text-sm text-muted-foreground'>Ngày làm</p>
-														<p className='font-semibold'>{formatDate(item.completedAt)}</p>
-													</div>
-
-													<Button variant='outline' size='sm' onClick={() => navigate(`/test/${item.exam.id}`)}>
-														Xem chi tiết
-													</Button>
-												</div>
+					{/* History List */}
+					<div className='bg-white rounded-lg shadow-sm'>
+						<div className='p-6 border-b'>
+							<h3 className='font-semibold'>Lịch sử làm đề ({sortedHistory.length} bài)</h3>
+						</div>
+						<div className='divide-y'>
+							{sortedHistory.map((item) => (
+								<div key={item.attempt.id} className='p-6 hover:bg-gray-50 transition-colors'>
+									<div className='flex items-center justify-between gap-4'>
+										<div className='flex items-center gap-4 flex-1'>
+											<Badge
+												variant='outline'
+												className={`${
+													item.exam.testType === TestType.IELTS
+														? 'border-blue-500 text-blue-700 bg-blue-50'
+														: 'border-orange-500 text-orange-700 bg-orange-50'
+												} font-semibold`}
+											>
+												{item.exam.testType.toUpperCase()}
+											</Badge>
+											<div className='flex items-center gap-2'>
+												{getSkillIcon(item.exam.skill)}
+												<span className='font-medium capitalize'>{item.exam.skill}</span>
+											</div>
+											<div className='flex-1'>
+												<p className='font-medium text-gray-900'>{item.exam.title}</p>
+												<p className='text-sm text-gray-500'>{item.exam.description}</p>
 											</div>
 										</div>
-									))}
 
-									{sortedHistory.length === 0 && (
-										<div className='text-center py-8'>
-											<p className='text-muted-foreground'>Không tìm thấy bài kiểm tra nào phù hợp với bộ lọc.</p>
+										<div className='flex items-center gap-8'>
+											<div className='text-center'>
+												<p className='text-sm text-gray-500'>Điểm số</p>
+												<p
+													className={`text-lg font-bold ${
+														item.attempt.score !== undefined && item.attempt.score >= 70
+															? 'text-green-600'
+															: item.attempt.score !== undefined && item.attempt.score >= 50
+															? 'text-yellow-600'
+															: 'text-red-600'
+													}`}
+												>
+													{item.attempt.score !== undefined ? Math.round(item.attempt.score) : '--'}
+												</p>
+											</div>
+
+											<div className='text-center'>
+												<p className='text-sm text-gray-500'>Độ chính xác</p>
+												<p className='text-lg font-bold'>{item.accuracy}%</p>
+											</div>
+
+											<div className='text-center'>
+												<p className='text-sm text-gray-500'>Thời gian</p>
+												<p className='text-lg font-bold'>{item.timeSpent} phút</p>
+											</div>
+
+											<div className='text-center'>
+												<p className='text-sm text-gray-500'>Ngày làm</p>
+												<p className='text-lg font-bold'>{formatDate(item.completedAt)}</p>
+											</div>
+
+											<Button
+												variant='outline'
+												size='sm'
+												onClick={() => router.push(`/results/${item.attempt.id}`)}
+											>
+												Xem chi tiết
+											</Button>
 										</div>
-									)}
+									</div>
 								</div>
-							</CardContent>
-						</Card>
+							))}
+
+							{sortedHistory.length === 0 && (
+								<div className='text-center py-12'>
+									<p className='text-gray-500'>Không tìm thấy bài kiểm tra nào phù hợp với bộ lọc.</p>
+								</div>
+							)}
+						</div>
 					</div>
 				</TabsContent>
 			</Tabs>

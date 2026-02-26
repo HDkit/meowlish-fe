@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Plus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 import { addGoal } from './store/goalSlice';
 import { Goal, TestType } from '../types/client';
@@ -10,14 +10,14 @@ import { useAppSelector } from './store/main/hook';
 
 export function AddGoalButton({ className }: { className?: string }) {
 	const currentUser = useAppSelector((state) => state.currUser.current);
-	const navigate = useNavigate();
+	const router = useRouter();
 	const dispatch = useDispatch();
 
 	useEffect(() => {
 		if (!currentUser) {
-			navigate('/auth'); // redirect if not logged in
+			router.push('/auth'); // redirect if not logged in
 		}
-	}, [currentUser, navigate]);
+	}, [currentUser, router]);
 
 	const [open, setOpen] = useState(false);
 	const [target, setTarget] = useState(0);

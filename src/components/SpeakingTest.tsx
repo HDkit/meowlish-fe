@@ -109,16 +109,14 @@ export function SpeakingTest() {
 
   // Main Menu View
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="text-center space-y-3 py-6">
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">
-              Speaking Test
-            </h1>
-          </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <div className="text-center space-y-3 py-8">
+          <h1 className="text-4xl font-bold text-gray-900">
+            Speaking Test
+          </h1>
+          <p className="text-base text-gray-600 max-w-2xl mx-auto">
             Luyện tập kỹ năng nói với AI - Nhận phản hồi và đánh giá chi tiết theo từng part
           </p>
         </div>
@@ -127,15 +125,21 @@ export function SpeakingTest() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
             { icon: MessageCircle, title: 'Trò chuyện với AI', desc: 'Tương tác tự nhiên' },
-            { icon: Volume2, title: 'Nhận diện giọng nói', desc: 'Real-time transcription' },
+            { icon: Volume2, title: 'Nhận điểm giọng nói', desc: 'Real-time transcription' },
             { icon: TrendingUp, title: 'Câu hỏi thích ứng', desc: 'Theo ngữ cảnh' },
             { icon: CheckCircle2, title: 'Nhận xét chi tiết', desc: 'Feedback cá nhân hóa' }
           ].map((feature, idx) => (
-            <Card key={idx} className="border-2 hover:shadow-lg transition-all">
-              <CardContent className="pt-6 text-center space-y-2">
-                <feature.icon className="h-8 w-8 mx-auto text-blue-600" />
-                <h3 className="font-semibold">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground">{feature.desc}</p>
+            <Card key={idx} className="bg-white border hover:shadow-md transition-all">
+              <CardContent className="pt-6 pb-6 text-center space-y-3">
+                <div className="flex justify-center">
+                  <div className="p-3 bg-blue-50 rounded-full">
+                    <feature.icon className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">{feature.title}</h3>
+                  <p className="text-xs text-gray-500">{feature.desc}</p>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -146,51 +150,49 @@ export function SpeakingTest() {
           {SPEAKING_PARTS.map((part) => (
             <Card 
               key={part.part}
-              className="border-2 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer group"
+              className="bg-white border hover:shadow-lg transition-all"
             >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant="outline" 
-                        className={`bg-${part.color}-100 text-${part.color}-700 border-${part.color}-300 dark:bg-${part.color}-900 dark:text-${part.color}-300`}
-                      >
-                        Part {part.part}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
+              <CardHeader className="space-y-4">
+                <div className="space-y-3">
+                  <Badge 
+                    variant="outline" 
+                    className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-2 py-1"
+                  >
+                    Part {part.part}
+                  </Badge>
+                  <div>
+                    <CardTitle className="text-xl font-bold text-gray-900 mb-2">
                       {part.title.split(': ')[1]}
                     </CardTitle>
-                    <CardDescription className="text-sm">
+                    <CardDescription className="text-sm text-gray-600">
                       {part.description}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {/* Info Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{part.duration}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">{part.duration}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Target className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{part.questions}</span>
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">{part.questions}</span>
                   </div>
                 </div>
 
                 {/* Topics */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">Chủ đề:</span>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium text-sm text-gray-700">Chủ đề:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {part.topics.map((topic, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
+                      <Badge key={idx} variant="secondary" className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200">
                         {topic}
                       </Badge>
                     ))}
@@ -200,7 +202,7 @@ export function SpeakingTest() {
                 {/* Start Button */}
                 <Button 
                   onClick={() => handleStartPart(part.part)}
-                  className="w-full"
+                  className="w-full bg-black hover:bg-gray-800 text-white"
                 >
                   <Mic className="h-4 w-4 mr-2" />
                   Bắt đầu Part {part.part}
@@ -211,26 +213,26 @@ export function SpeakingTest() {
         </div>
 
         {/* Instructions */}
-        <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+        <Card className="bg-blue-50 border-blue-100">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <BookOpen className="h-5 w-5" />
               Hướng dẫn sử dụng
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Chuẩn bị:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <h4 className="font-semibold text-sm text-gray-900">Chuẩn bị:</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
                   <li>Kiểm tra microphone và cho phép truy cập</li>
                   <li>Tìm nơi yên tĩnh để luyện tập</li>
                   <li>Sẵn sàng nói trong 4-5 phút</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Trong khi nói:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <h4 className="font-semibold text-sm text-gray-900">Trong khi nói:</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
                   <li>Nói rõ ràng và tự nhiên</li>
                   <li>Trả lời đầy đủ, phát triển ý</li>
                   <li>Sử dụng từ vựng và ngữ pháp đa dạng</li>

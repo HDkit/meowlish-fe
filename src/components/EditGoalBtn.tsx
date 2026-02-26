@@ -4,7 +4,7 @@ import { Pencil } from 'lucide-react';
 import { updateGoal } from './store/goalSlice';
 import { Goal, TestType } from '../types/client';
 import { useAppSelector } from './store/main/hook';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface EditGoalButtonProps {
 	goal: Goal;
@@ -13,14 +13,14 @@ interface EditGoalButtonProps {
 
 export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 	const currentUser = useAppSelector((state) => state.currUser.current);
-	const navigate = useNavigate();
+	const router = useRouter();
 	const dispatch = useDispatch();
 
 	useEffect(() => {
 		if (!currentUser) {
-			navigate('/auth'); // redirect if not logged in
+			router.push('/auth'); // redirect if not logged in
 		}
-	}, [currentUser, navigate]);
+	}, [currentUser, router]);
 
 	const [open, setOpen] = useState(false);
 	const [target, setTarget] = useState(goal.target);

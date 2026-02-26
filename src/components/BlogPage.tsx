@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useState, useMemo } from 'react';
-import { useAppSelector } from './store/main/hook';
+import { useAppSelector } from '@/lib/store/hooks';
 import { Blog, BlogCategory } from '../types/client';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -17,8 +19,6 @@ import {
 	Globe,
 	Star,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 
 // Component hiển thị từng blog card
 function BlogCard({
@@ -213,7 +213,6 @@ function BlogDetail({
 }
 
 export function BlogPage() {
-	const navigate = useNavigate();
 	const blogs = useAppSelector((state) => state.blogs.list);
 	const users = useAppSelector((state) => state.users.list);
 

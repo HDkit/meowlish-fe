@@ -1,18 +1,34 @@
+'use client';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from './ui/button';
 import { Question, Section, Attempt } from '../types/client';
-import { useAppSelector, useAppDispatch } from './store/main/hook';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { useParams, useRouter } from 'next/navigation';
 import { addAttempt, updateAttempt } from './store/attemptSlice';
 import { TextHighlighter } from './TextHighlighter';
 
+
+/**
+ * TestInterface - The main component for the test interface page.
+ * 
+ * Provides a grid of questions with answer options and a tracker for the user's progress.
+ * 
+ * The component also includes a timer and a submit button to submit the test.
+ * 
+ * @param {Object} props - The props object passed to the component.
+ * @param {string} id - The ID of the exam to be taken.
+ * @param {string} currentQuestionId - The ID of the currently selected question.
+ * @param {number} timeLeft - The number of seconds left in the test.
+ * @param {Function} handleSubmit - The function to call when the user submits the test.
+ * @param {Function} scrollToQuestion - The function to call when the user clicks on a question.
+ */
 export function TestInterface() {
 	const { id } = useParams();
-	const location = useLocation();
-	const navigate = useNavigate();
+	const router = useRouter();
 	const dispatch = useAppDispatch();
 
-	// --- REDUX SELECTORS ---
+	// --- REDUX SELECTORS ---a
 	const allExams = useAppSelector((state) => state.exams.list);
 	const allSections = useAppSelector((state) => state.sections.list);
 	const allQuestions = useAppSelector((state) => state.questions.list);
@@ -35,15 +51,23 @@ export function TestInterface() {
 	const [isResizing, setIsResizing] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
+	// State Highlight Mode
+	const [highlightEnabled, setHighlightEnabled] = useState(true);
+
 	// --- REFS ---
 	const currentAttemptRef = useRef<Attempt | null>(null);
 	const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 	const isSubmittingRef = useRef(false);
 	const lastSavedTimeRef = useRef<number>(0);
+	const orderedQuestionsRef = useRef<Question[]>([]);
 
 	useEffect(() => {
 		currentAttemptRef.current = currentAttempt;
 	}, [currentAttempt]);
+
+	useEffect(() => {
+		orderedQuestionsRef.current = orderedQuestions;
+	}, [orderedQuestions]);
 
 	// --- 1. DATA LOGIC ---
 	useEffect(() => {
@@ -103,8 +127,10 @@ export function TestInterface() {
 		isSubmittingRef.current = false;
 		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-		const isRetake = location.state?.retake;
-		const { timer } = location.state || {};
+		// Read state from sessionStorage (set in TestDetail.tsx)
+		const testState = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('testState') || '{}') : {};
+		const isRetake = testState.retake;
+		const { timer } = testState;
 
 		let attemptToLoad: Attempt | undefined;
 
@@ -143,9 +169,50 @@ export function TestInterface() {
 				setCurrentQuestionId(orderedQuestions[0].id);
 			}
 		}
-	}, [id, currentUser, allAttempts, allExams, location.state, dispatch, currentAttempt, orderedQuestions]);
+	}, [id, currentUser, allAttempts, allExams, dispatch, currentAttempt, orderedQuestions]);
 
-	// --- 3. TIMER ---
+	// --- 3. HANDLERS (moved before timer to avoid closure issues) ---
+	const performSubmit = useCallback((isAuto: boolean) => {
+		if (isSubmittingRef.current) return;
+		const finalAttempt = currentAttemptRef.current;
+		if (!finalAttempt) return;
+
+		isSubmittingRef.current = true;
+		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+		let correctCount = 0;
+		let totalPoints = 0;
+		const questions = orderedQuestionsRef.current;
+		questions.forEach((q) => {
+			totalPoints += q.points;
+			const userChoice = finalAttempt.choices.find((c) => c.questionId === q.id);
+			const userAnswer = userChoice?.answerIdx || '';
+			if (q.correctAnswer && q.correctAnswer.length > 0) {
+				if (q.type === 'multiple-correct-answers') {
+					const userArr = userAnswer.split(',').filter(Boolean).sort();
+					const correctArr = [...q.correctAnswer].sort();
+					if (JSON.stringify(userArr) === JSON.stringify(correctArr)) correctCount += q.points;
+				} else {
+					if (q.correctAnswer.includes(userAnswer)) correctCount += q.points;
+				}
+			}
+		});
+
+		const finalScore = totalPoints > 0 ? (correctCount / totalPoints) * 100 : 0;
+		// Use lastSavedTimeRef instead of timeLeft state to avoid stale closure
+		const completedAttempt: Attempt = {
+			...finalAttempt,
+			timeLeft: isAuto ? 0 : lastSavedTimeRef.current,
+			score: finalScore,
+		};
+		dispatch(updateAttempt(completedAttempt));
+		router.push(`/results/${completedAttempt.id}`);
+	}, [dispatch, router]);
+
+	const handleAutoSubmit = useCallback(() => performSubmit(true), [performSubmit]);
+	const handleSubmit = useCallback(() => performSubmit(false), [performSubmit]);
+
+	// --- 4. TIMER ---
 	useEffect(() => {
 		if (!currentAttempt && !currentAttemptRef.current) return;
 		if (isSubmittingRef.current) return;
@@ -159,11 +226,17 @@ export function TestInterface() {
 					return 0;
 				}
 				const newTime = prevTime - 1;
+				// Update ref immediately
+				lastSavedTimeRef.current = newTime;
+				
+				// Save to Redux every 5 seconds
 				if (newTime % 5 === 0) {
 					const latestState = currentAttemptRef.current;
 					if (latestState && typeof latestState.score === 'undefined') {
-						dispatch(updateAttempt({ ...latestState, timeLeft: newTime }));
-						lastSavedTimeRef.current = newTime;
+						const updatedAttempt = { ...latestState, timeLeft: newTime };
+						dispatch(updateAttempt(updatedAttempt));
+						// Update the ref to keep in sync
+						setCurrentAttempt(updatedAttempt);
 					}
 				}
 				return newTime;
@@ -173,9 +246,9 @@ export function TestInterface() {
 		return () => {
 			if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 		};
-	}, [dispatch, currentAttempt?.id]);
+	}, [dispatch, currentAttempt?.id, handleAutoSubmit]);
 
-	// --- 4. HANDLERS ---
+	// --- 5. ANSWER HANDLERS ---
 	const handleAnswerChange = useCallback(
 		(questionId: string, answer: string) => {
 			setCurrentAttempt((prev) => {
@@ -201,51 +274,13 @@ export function TestInterface() {
 		[currentAttempt]
 	);
 
-	const performSubmit = (isAuto: boolean) => {
-		if (isSubmittingRef.current) return;
-		const finalAttempt = currentAttemptRef.current;
-		if (!finalAttempt) return;
-
-		isSubmittingRef.current = true;
-		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-		let correctCount = 0;
-		let totalPoints = 0;
-		orderedQuestions.forEach((q) => {
-			totalPoints += q.points;
-			const userChoice = finalAttempt.choices.find((c) => c.questionId === q.id);
-			const userAnswer = userChoice?.answerIdx || '';
-			if (q.correctAnswer && q.correctAnswer.length > 0) {
-				if (q.type === 'multiple-correct-answers') {
-					const userArr = userAnswer.split(',').filter(Boolean).sort();
-					const correctArr = [...q.correctAnswer].sort();
-					if (JSON.stringify(userArr) === JSON.stringify(correctArr)) correctCount += q.points;
-				} else {
-					if (q.correctAnswer.includes(userAnswer)) correctCount += q.points;
-				}
-			}
-		});
-
-		const finalScore = totalPoints > 0 ? (correctCount / totalPoints) * 100 : 0;
-		const completedAttempt: Attempt = {
-			...finalAttempt,
-			timeLeft: isAuto ? 0 : timeLeft,
-			score: finalScore,
-		};
-		dispatch(updateAttempt(completedAttempt));
-		navigate(`/results/${completedAttempt.id}`);
-	};
-
-	const handleSubmit = () => performSubmit(false);
-	const handleAutoSubmit = () => performSubmit(true);
-
-	const scrollToQuestion = (qId: string) => {
+	const scrollToQuestion = useCallback((qId: string) => {
 		setCurrentQuestionId(qId);
 		const element = document.getElementById(`question-${qId}`);
 		if (element) {
 			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}
-	};
+	}, []);
 
 	const getAncestors = useCallback(
 		(pId: string): Section[] => {
@@ -308,9 +343,18 @@ export function TestInterface() {
 
 					<div className='flex items-center gap-2'>
 						<span className='text-xs text-gray-500'>Highlight mode</span>
-						<div className='w-8 h-4 bg-blue-600 rounded-full relative cursor-pointer'>
-							<div className='w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5'></div>
-						</div>
+						<button
+							onClick={() => setHighlightEnabled(!highlightEnabled)}
+							className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors duration-200 ${
+								highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'
+							}`}
+						>
+							<div
+								className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
+									highlightEnabled ? 'right-0.5' : 'left-0.5'
+								}`}
+							></div>
+						</button>
 					</div>
 				</div>
 
@@ -339,6 +383,7 @@ export function TestInterface() {
 									<TextHighlighter 
 										text={content} 
 										onNewWord={handleNewWord}
+										highlightEnabled={highlightEnabled}
 									/>
 								</div>
 							</div>
