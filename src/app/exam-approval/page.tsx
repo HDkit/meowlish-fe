@@ -1,7 +1,7 @@
 'use client';
 
-import { ExamApproval } from '@/components/ExamApproval';
+import ExamApprovalPage from '@/components/ExamApprovalPage';
 
-export default function ExamApprovalPage() {
-	return <ExamApproval />;
+export default function ExamApprovalRoute() {
+	return <ExamApprovalPage />;
 }

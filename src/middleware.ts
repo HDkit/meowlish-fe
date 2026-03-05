@@ -9,11 +9,14 @@ const protectedRoutes = [
 	'/progress',
 	'/history',
 	'/user',
+	'/user-management',
 	'/flashcards',
 	'/blog',
 	'/speaking-writing',
 	'/exam-approval',
 	'/exam-creation',
+	'/exam-management',
+	'/blog-management',
 ];
 
 // Define public routes
@@ -27,7 +30,7 @@ export function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	// Check if the route is protected
-	const isProtectedRoute = protectedRoutes.some(route => 
+	const isProtectedRoute = protectedRoutes.some(route =>
 		pathname.startsWith(route)
 	);
 

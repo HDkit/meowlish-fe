@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
 	typescript: {
 		ignoreBuildErrors: true, // Temporary during migration
 	},
+	// Optimize dev server
+	experimental: {
+		optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+	},
+	// Reduce initial load time
+	modularizeImports: {
+		'lucide-react': {
+			transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+		},
+	},
 };
 
 export default nextConfig;

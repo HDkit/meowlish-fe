@@ -79,7 +79,7 @@ export function TestSelection() {
 	};
 
 	const filterExams = (testType: TestType) => {
-		return exams.filter((exam) => exam.testType === testType && exam.status === ExamStatus.Approved);
+		return exams.filter((exam) => exam.testType === testType && (exam.status === ExamStatus.Published || exam.status === ExamStatus.Approved));
 	};
 
 	const ExamCard = ({ exam }: { exam: Exam }) => {

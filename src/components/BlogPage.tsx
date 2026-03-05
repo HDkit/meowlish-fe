@@ -223,12 +223,12 @@ export function BlogPage() {
 	// Lọc blogs
 	const filteredBlogs = useMemo(() => {
 		let filtered = blogs;
-		
+
 		// Lọc theo category
 		if (selectedCategory !== '__all__') {
 			filtered = filtered.filter((b) => b.category === selectedCategory);
 		}
-		
+
 		// Lọc theo search
 		if (searchQuery) {
 			filtered = filtered.filter(
@@ -238,9 +238,9 @@ export function BlogPage() {
 					b.content.toLowerCase().includes(searchQuery.toLowerCase())
 			);
 		}
-		
+
 		// Sắp xếp theo ngày tạo (mới nhất trước)
-		return filtered.sort((a, b) => b.createdAt - a.createdAt);
+		return [...filtered].sort((a, b) => b.createdAt - a.createdAt);
 	}, [blogs, selectedCategory, searchQuery]);
 
 	const getAuthorName = (userId: string) => {
@@ -299,11 +299,10 @@ export function BlogPage() {
 							<CardContent className="space-y-2">
 								<button
 									onClick={() => setSelectedCategory('__all__')}
-									className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
-										selectedCategory === '__all__'
+									className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${selectedCategory === '__all__'
 											? 'bg-blue-100 text-blue-800 font-medium'
 											: 'hover:bg-gray-100 text-gray-700'
-									}`}
+										}`}
 								>
 									<span>Tất cả</span>
 									<Badge variant="secondary">{blogs.length}</Badge>
@@ -315,11 +314,10 @@ export function BlogPage() {
 										<button
 											key={category}
 											onClick={() => setSelectedCategory(category)}
-											className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
-												selectedCategory === category
+											className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${selectedCategory === category
 													? 'bg-blue-100 text-blue-800 font-medium'
 													: 'hover:bg-gray-100 text-gray-700'
-											}`}
+												}`}
 										>
 											<div className="flex items-center gap-2">
 												<Icon className="h-4 w-4" />

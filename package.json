@@ -70,7 +70,8 @@
             "vite": "6.3.5"
       },
       "scripts": {
-            "dev": "next dev",
+            "dev": "powershell -Command \"$p = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; npx next dev\"",
+            "dev:plain": "next dev",
             "build": "next build",
             "start": "next start",
             "lint": "next lint",

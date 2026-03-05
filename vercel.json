@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev:plain",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "regions": ["sin1", "hnd1"],
+  "env": {
+    "NEXT_PUBLIC_GEMINI_API_KEY": "@gemini-api-key",
+    "NEXT_PUBLIC_GEMINI_MODEL": "@gemini-model"
+  }
+}
