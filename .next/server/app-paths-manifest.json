@@ -1,10 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/test/[id]/page": "app/test/[id]/page.js",
+  "/blog/page": "app/blog/page.js",
+  "/speaking-writing/page": "app/speaking-writing/page.js",
+  "/flashcards/page": "app/flashcards/page.js",
+  "/user/page": "app/user/page.js",
   "/auth/page": "app/auth/page.js",
-  "/landing/page": "app/landing/page.js",
-  "/test/do/[id]/page": "app/test/do/[id]/page.js",
-  "/results/[id]/page": "app/results/[id]/page.js",
-  "/test-selection/page": "app/test-selection/page.js"
+  "/landing/page": "app/landing/page.js"
 }

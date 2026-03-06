@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { 
-  Mic, 
-  MessageCircle, 
-  Clock, 
-  Target, 
+import {
+  Mic,
+  MessageCircle,
+  Clock,
+  Target,
   BookOpen,
   TrendingUp,
   Volume2,
@@ -89,7 +89,7 @@ export function SpeakingTest() {
   // Active Session View
   if (isSessionActive && selectedPart) {
     return (
-      <SpeakingSession 
+      <SpeakingSession
         part={selectedPart}
         onEnd={handleEndSession}
         onCancel={handleBackToMenu}
@@ -100,7 +100,7 @@ export function SpeakingTest() {
   // Results View
   if (showResults && testData) {
     return (
-      <SpeakingResults 
+      <SpeakingResults
         data={testData}
         onBack={handleBackToMenu}
       />
@@ -109,36 +109,26 @@ export function SpeakingTest() {
 
   // Main Menu View
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="w-full">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-3 py-8">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Speaking Test
-          </h1>
-          <p className="text-base text-gray-600 max-w-2xl mx-auto">
-            Luyện tập kỹ năng nói với AI - Nhận phản hồi và đánh giá chi tiết theo từng part
-          </p>
-        </div>
-
         {/* Feature Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { icon: MessageCircle, title: 'Trò chuyện với AI', desc: 'Tương tác tự nhiên' },
-            { icon: Volume2, title: 'Nhận điểm giọng nói', desc: 'Real-time transcription' },
-            { icon: TrendingUp, title: 'Câu hỏi thích ứng', desc: 'Theo ngữ cảnh' },
-            { icon: CheckCircle2, title: 'Nhận xét chi tiết', desc: 'Feedback cá nhân hóa' }
+            { icon: MessageCircle, title: 'Trò chuyện tự nhiên', desc: 'Với AI bản xứ' },
+            { icon: Volume2, title: 'Nhận diện giọng nói', desc: 'Real-time chi tiết' },
+            { icon: TrendingUp, title: 'Đánh giá phát âm', desc: 'Cải thiện tức thì' },
+            { icon: CheckCircle2, title: 'Nhận xét IELTS/TOEIC', desc: 'Theo tiêu chuẩn mới' }
           ].map((feature, idx) => (
-            <Card key={idx} className="bg-white border hover:shadow-md transition-all">
+            <Card key={idx} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 rounded-2xl">
               <CardContent className="pt-6 pb-6 text-center space-y-3">
                 <div className="flex justify-center">
-                  <div className="p-3 bg-blue-50 rounded-full">
+                  <div className="p-3 bg-blue-100 rounded-xl">
                     <feature.icon className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{feature.title}</h3>
-                  <p className="text-xs text-gray-500">{feature.desc}</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{feature.title}</h3>
+                  <p className="text-sm text-gray-500 font-medium">{feature.desc}</p>
                 </div>
               </CardContent>
             </Card>
@@ -146,53 +136,54 @@ export function SpeakingTest() {
         </div>
 
         {/* Speaking Parts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {SPEAKING_PARTS.map((part) => (
-            <Card 
+            <Card
               key={part.part}
-              className="bg-white border hover:shadow-lg transition-all"
+              className="bg-white border-0 hover:shadow-xl shadow-md transition-all rounded-2xl overflow-hidden group"
             >
-              <CardHeader className="space-y-4">
+              <div className="h-1.5 w-full bg-gradient-to-r from-blue-400 to-indigo-500" />
+              <CardHeader className="space-y-4 bg-gray-50/50 pb-4">
                 <div className="space-y-3">
-                  <Badge 
-                    variant="outline" 
-                    className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-2 py-1"
+                  <Badge
+                    variant="outline"
+                    className="bg-blue-100 text-blue-700 border-0 text-xs font-bold px-3 py-1 uppercase tracking-wider"
                   >
                     Part {part.part}
                   </Badge>
                   <div>
-                    <CardTitle className="text-xl font-bold text-gray-900 mb-2">
+                    <CardTitle className="text-xl font-extrabold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                       {part.title.split(': ')[1]}
                     </CardTitle>
-                    <CardDescription className="text-sm text-gray-600">
+                    <CardDescription className="text-sm text-gray-600 font-medium">
                       {part.description}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              
-              <CardContent className="space-y-6">
+
+              <CardContent className="space-y-6 pt-6">
                 {/* Info Grid */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">{part.duration}</span>
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-semibold text-gray-700">{part.duration}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">{part.questions}</span>
+                    <Target className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm font-semibold text-gray-700">{part.questions}</span>
                   </div>
                 </div>
 
                 {/* Topics */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium text-sm text-gray-700">Chủ đề:</span>
+                    <BookOpen className="h-4 w-4 text-purple-500" />
+                    <span className="font-bold text-sm text-gray-800">Chủ đề thường gặp:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {part.topics.map((topic, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200">
+                      <Badge key={idx} variant="secondary" className="text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 border-0">
                         {topic}
                       </Badge>
                     ))}
@@ -200,11 +191,11 @@ export function SpeakingTest() {
                 </div>
 
                 {/* Start Button */}
-                <Button 
+                <Button
                   onClick={() => handleStartPart(part.part)}
-                  className="w-full bg-black hover:bg-gray-800 text-white"
+                  className="w-full bg-slate-900 hover:bg-blue-600 text-white font-bold h-12 rounded-xl transition-colors"
                 >
-                  <Mic className="h-4 w-4 mr-2" />
+                  <Mic className="h-5 w-5 mr-2" />
                   Bắt đầu Part {part.part}
                 </Button>
               </CardContent>
@@ -213,29 +204,30 @@ export function SpeakingTest() {
         </div>
 
         {/* Instructions */}
-        <Card className="bg-blue-50 border-blue-100">
+        <Card className="bg-blue-50/80 border-0 shadow-sm rounded-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900">
+            <CardTitle className="flex items-center gap-2 text-blue-900 font-bold">
               <BookOpen className="h-5 w-5" />
-              Hướng dẫn sử dụng
+              Hướng dẫn sử dụng phòng Speaking
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-gray-900">Chuẩn bị:</h4>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>Kiểm tra microphone và cho phép truy cập</li>
-                  <li>Tìm nơi yên tĩnh để luyện tập</li>
-                  <li>Sẵn sàng nói trong 4-5 phút</li>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+              <div className="space-y-3">
+                <h4 className="font-bold text-sm text-blue-800 uppercase tracking-wider">Chuẩn bị trước khi nói:</h4>
+                <ul className="text-sm font-medium text-gray-700 space-y-2">
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Kiểm tra microphone và cấp quyền truy cập trình duyệt</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Tìm nơi yên tĩnh để luyện tập tránh tạp âm</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Sẵn sàng trả lời liên tục trong 4-5 phút</li>
                 </ul>
               </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-gray-900">Trong khi nói:</h4>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>Nói rõ ràng và tự nhiên</li>
-                  <li>Trả lời đầy đủ, phát triển ý</li>
-                  <li>Sử dụng từ vựng và ngữ pháp đa dạng</li>
+              <div className="space-y-3">
+                <h4 className="font-bold text-sm text-blue-800 uppercase tracking-wider">Trong khi nói:</h4>
+                <ul className="text-sm font-medium text-gray-700 space-y-2">
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Nói rõ ràng, tốc độ vừa phải và tự nhiên</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Trả lời đầy đủ câu, sử dụng từ nối để phát triển ý</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Dùng đa dạng từ vựng và ngữ pháp để ghi điểm cao</li>
                 </ul>
               </div>
             </div>

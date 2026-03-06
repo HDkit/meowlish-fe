@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Target, BookOpen, Clock, CheckCircle, Trophy, ChevronRight, Sparkles, TrendingUp, PlayCircle } from 'lucide-react';
 import { useAppSelector } from '@/lib/store/hooks';
@@ -151,7 +151,7 @@ export function Dashboard() {
 							<Sparkles className="h-5 w-5 text-purple-500" />
 							<h2 className="text-xl font-bold">Đề xuất cho bạn</h2>
 						</div>
-						<Button variant="ghost" className="text-blue-600 hover:text-blue-800" onClick={() => router.push('/test')}>
+						<Button variant="ghost" className="text-blue-600 hover:text-blue-800" onClick={() => router.push('/test-selection')}>
 							Xem tất cả <ChevronRight className="h-4 w-4 ml-1" />
 						</Button>
 					</div>
