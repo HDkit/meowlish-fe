@@ -11,8 +11,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from './ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { PenTool, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PenTool, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WritingEvaluationResult {
@@ -200,7 +199,7 @@ export function WritingTest() {
 	const handleTestWithMockData = () => {
 		setIsEvaluating(true);
 		setResults(null);
-		
+
 		// Set some sample data
 		if (!question.trim()) {
 			setQuestion('Some people think that technology has made our lives more complicated. Others believe it has made our lives easier. Discuss both views and give your own opinion.');
@@ -225,26 +224,18 @@ export function WritingTest() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
-			<div className="max-w-12xl mx-auto space-y-6">
-				{/* Header */}
-				<div className="text-center space-y-3 py-6">
-					<div className="flex items-center justify-center gap-3">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">
-              Writing Test
-            </h1>
-          </div>
-					<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-						Luyện tập kỹ năng viết với AI - Nhận phản hồi và đánh giá chi tiết theo tiêu chí IELTS/TOEIC
-					</p>
-				</div>
-
+		<div className="w-full">
+			<div className="max-w-7xl mx-auto space-y-8">
 				{/* Main Content */}
-				<Card className="border-2 shadow-lg">
-					<CardHeader>
-						<CardTitle className="text-2xl">Luyện Writing</CardTitle>
-						<CardDescription>
-							Chọn dạng bài, nhập câu hỏi và bài viết để được chấm điểm & góp ý chi tiết.
+				<Card className="border-0 shadow-xl shadow-gray-200/50 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm -mt-4">
+					<div className="h-1.5 w-full bg-gradient-to-r from-purple-400 to-pink-500" />
+					<CardHeader className="bg-gray-50/50 pb-4 border-b border-gray-100">
+						<CardTitle className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+							<PenTool className="h-6 w-6 text-purple-600" />
+							Phòng thi Writing
+						</CardTitle>
+						<CardDescription className="text-gray-500 font-medium">
+							Chọn dạng bài, nhập câu hỏi và bài viết để AI phân tích & góp ý chi tiết.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">

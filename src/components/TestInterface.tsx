@@ -7,7 +7,7 @@ import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { useParams, useRouter } from 'next/navigation';
 import { addAttempt, updateAttempt } from './store/attemptSlice';
 import { TextHighlighter } from './TextHighlighter';
-
+import { Clock, Send, Lightbulb } from 'lucide-react';
 
 /**
  * TestInterface - The main component for the test interface page.
@@ -24,7 +24,8 @@ import { TextHighlighter } from './TextHighlighter';
  * @param {Function} scrollToQuestion - The function to call when the user clicks on a question.
  */
 export function TestInterface() {
-	const { id } = useParams();
+	const params = useParams();
+	const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
 	const router = useRouter();
 	const dispatch = useAppDispatch();
 
@@ -228,7 +229,7 @@ export function TestInterface() {
 				const newTime = prevTime - 1;
 				// Update ref immediately
 				lastSavedTimeRef.current = newTime;
-				
+
 				// Save to Redux every 5 seconds
 				if (newTime % 5 === 0) {
 					const latestState = currentAttemptRef.current;
@@ -331,28 +332,27 @@ export function TestInterface() {
 
 	// --- RENDER ---
 	return (
-		<div className='inset-0 flex flex-row bg-gray-100 font-sans overflow-hidden p-3 gap-3' ref={containerRef}>
+		<div className='inset-0 flex flex-row bg-slate-50 font-sans overflow-hidden p-4 gap-4' ref={containerRef}>
 			{/* --- KHỐI 1: PASSAGE (TRÁI) --- */}
 			<div
 				style={{ width: `${leftWidth}%` }}
-				className='h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 shrink-0'
+				className='h-full flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200 shrink-0'
 			>
 				{/* Passage Header */}
-				<div className='h-12 border-b bg-gray-50 flex items-center justify-between px-4 shrink-0'>
+				<div className='h-14 border-b bg-white flex items-center justify-between px-5 shrink-0 sticky top-0 z-10 shadow-sm'>
 					{/* Hiển thị tiêu đề Section hiện tại */}
 
-					<div className='flex items-center gap-2'>
-						<span className='text-xs text-gray-500'>Highlight mode</span>
+					<div className='flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full'>
+						<Lightbulb className="w-4 h-4 text-yellow-500" />
+						<span className='text-xs font-bold uppercase tracking-wider text-slate-600'>Highlight mode</span>
 						<button
 							onClick={() => setHighlightEnabled(!highlightEnabled)}
-							className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors duration-200 ${
-								highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'
-							}`}
+							className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'
+								}`}
 						>
 							<div
-								className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${
-									highlightEnabled ? 'right-0.5' : 'left-0.5'
-								}`}
+								className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'
+									}`}
 							></div>
 						</button>
 					</div>
@@ -375,13 +375,13 @@ export function TestInterface() {
 						};
 
 						return (
-							<div key={section.id} className='mb-8'>
+							<div key={section.id} className='mb-10'>
 								{/* Title - Hiển thị to, đậm giống ảnh mẫu */}
-								<h2 className='text-2xl font-bold text-gray-900 mb-4 leading-tight'>{title}</h2>
+								<h2 className='text-2xl font-extrabold text-slate-800 mb-5 leading-tight'>{title}</h2>
 								{/* Nội dung bài đọc với chức năng highlight */}
 								<div className='text-gray-800 leading-7 text-justify font-serif text-lg'>
-									<TextHighlighter 
-										text={content} 
+									<TextHighlighter
+										text={content}
 										onNewWord={handleNewWord}
 										highlightEnabled={highlightEnabled}
 									/>
@@ -401,37 +401,42 @@ export function TestInterface() {
 			</div>
 
 			{/* --- KHỐI 2: QUESTIONS (GIỮA) --- */}
-			<div className='flex-1 h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden border border-gray-200'>
+			<div className='flex-1 h-full flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200'>
 				{/* Questions Header */}
-				<div className='h-12 border-b bg-gray-50 px-4 flex items-center shrink-0 justify-between'>
-					<h2 className='text-sm font-bold text-gray-700 uppercase tracking-wide'>Questions</h2>
+				<div className='h-14 border-b bg-white px-5 flex items-center shrink-0 justify-between sticky top-0 z-10 shadow-sm'>
+					<div className="flex items-center gap-2">
+						<div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+						<h2 className='text-sm font-extrabold text-slate-700 uppercase tracking-widest'>Nội dung câu hỏi</h2>
+					</div>
 				</div>
 
 				{/* Questions Content */}
 				<div className='flex-1 overflow-y-auto p-6 bg-white'>
 					<div className='space-y-6'>
 						{orderedQuestions
-							.filter((q) => q.sectionId === questions.findLast((q) => q.id === currentQuestionId)?.sectionId)
-							.map((q, index) => {
+							.filter((q) => {
+								const currentActive = questions.find((item) => item.id === currentQuestionId);
+								return q.sectionId === currentActive?.sectionId;
+							})
+							.map((q) => {
 								return (
 									<div
 										key={q.id}
 										id={`question-${q.id}`}
-										className={`flex gap-4 p-5 rounded-lg transition-all p-4 `}
+										className={`flex gap-5 p-6 rounded-xl transition-all border border-transparent hover:border-blue-100 hover:bg-slate-50/50 ${q.id === currentQuestionId ? 'bg-blue-50/30 border-blue-200 shadow-sm ring-1 ring-blue-500/20' : ''}`}
 										onClick={() => setCurrentQuestionId(q.id)}
 									>
 										{/* Số thứ tự câu hỏi */}
 										<div
-											className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mt-1 shadow-sm ${
-												q.id === currentQuestionId ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-											}`}
+											className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shadow-sm ${q.id === currentQuestionId ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0' : 'bg-white border border-slate-200 text-slate-600'
+												}`}
 										>
 											{orderedQuestions.indexOf(q) + 1}
 										</div>
 
-										<div className='flex-1 pt-1'>
+										<div className='flex-1'>
 											{/* Nội dung câu hỏi */}
-											<p className='text-gray-900 font-medium mb-3 text-base'>{q.content}</p>
+											<p className='text-slate-800 font-semibold mb-4 text-[1.05rem] leading-relaxed'>{q.content}</p>
 
 											<div className='mt-2'>
 												{/* --- 1. MULTIPLE CHOICE (Dạng A, B, C, D) --- */}
@@ -443,18 +448,16 @@ export function TestInterface() {
 															return (
 																<label
 																	key={idx}
-																	className={`flex items-center gap-3 p-3 rounded border cursor-pointer transition-all ${
-																		isSelected
-																			? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
-																			: 'bg-white border-gray-200 hover:bg-gray-50'
-																	}`}
+																	className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${isSelected
+																		? 'bg-blue-50/80 border-blue-500 ring-1 ring-blue-200 text-blue-900 font-bold'
+																		: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+																		}`}
 																>
 																	<div
-																		className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-																			isSelected ? 'border-blue-600 bg-white' : 'border-gray-400'
-																		}`}
+																		className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-blue-600 bg-white' : 'border-slate-300'
+																			}`}
 																	>
-																		{isSelected && <div className='w-3 h-3 bg-blue-600 rounded-full'></div>}
+																		{isSelected && <div className='w-2.5 h-2.5 bg-blue-600 rounded-full'></div>}
 																	</div>
 																	<input
 																		type='radio'
@@ -464,8 +467,10 @@ export function TestInterface() {
 																		onChange={(e) => handleAnswerChange(q.id, e.target.value)}
 																		className='hidden' // Ẩn radio mặc định
 																	/>
-																	<span className='font-bold text-gray-500 w-4'>{charLabel}.</span>
-																	<span>{op}</span>
+																	<div className="flex gap-2.5 items-baseline">
+																		<span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>{charLabel}.</span>
+																		<span className="leading-relaxed text-slate-700">{op}</span>
+																	</div>
 																</label>
 															);
 														})}
@@ -482,11 +487,10 @@ export function TestInterface() {
 															return (
 																<label
 																	key={idx}
-																	className={`flex items-center gap-3 p-3 rounded border cursor-pointer transition-all ${
-																		isChecked
-																			? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
-																			: 'bg-white border-gray-200 hover:bg-gray-50'
-																	}`}
+																	className={`flex items-center gap-3 p-3 rounded border cursor-pointer transition-all ${isChecked
+																		? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
+																		: 'bg-white border-gray-200 hover:bg-gray-50'
+																		}`}
 																>
 																	<input
 																		type='checkbox'
@@ -530,39 +534,41 @@ export function TestInterface() {
 			</div>
 
 			{/* --- KHỐI 3: TRACKER (PHẢI) --- */}
-			<div className='w-80 bg-white rounded-xl shadow-md border border-gray-200 flex flex-col shrink-0 overflow-hidden'>
+			<div className='w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col shrink-0 overflow-hidden'>
 				{/* Header Cố định (TIMER) */}
-				<div className='bg-white shrink-0 z-10 shadow-sm'>
-					<div className='p-6 border-b border-gray-100 text-center bg-gray-50/30'>
-						<div className='text-xs text-gray-500 uppercase font-bold mb-2 tracking-wider'>Thời gian còn lại</div>
+				<div className='bg-white shrink-0 z-10 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)]'>
+					<div className='p-6 border-b border-slate-100 text-center bg-gradient-to-b from-blue-50/50 to-white relative overflow-hidden'>
+						<Clock className="absolute top-4 right-4 text-blue-100 w-24 h-24 -mr-8 -mt-8 rotate-12" />
+						<div className='text-xs text-blue-600/80 uppercase font-bold text-center mb-1 tracking-widest flex items-center justify-center gap-2'>
+							<Clock className="w-3.5 h-3.5" /> Thời gian còn lại
+						</div>
 						<div
-							className={`text-4xl font-bold font-mono tracking-widest ${
-								timeLeft < 300 ? 'text-red-600 animate-pulse' : 'text-gray-800'
-							}`}
+							className={`text-5xl font-black font-mono tracking-wider tabular-nums mt-2 drop-shadow-sm ${timeLeft < 300 ? 'text-rose-600 animate-pulse' : 'text-slate-800'
+								}`}
 						>
 							{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
 						</div>
 					</div>
 
-					<div className='p-4'>
+					<div className='p-5 bg-white'>
 						<Button
 							variant='default'
 							onClick={handleSubmit}
-							className='w-full bg-white text-blue-600 border border-blue-600 hover:bg-blue-600 hover:text-white font-bold h-11 uppercase tracking-wide shadow-sm transition-all'
+							className='w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold h-14 uppercase tracking-widest shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 border-0 rounded-xl flex items-center justify-center gap-2'
 						>
-							Nộp bài
+							<Send className="w-4 h-4" /> Nộp bài
 						</Button>
 					</div>
 
-					<div className='px-4 pb-2 border-b border-gray-100 bg-gray-50/50 pt-2 flex justify-between items-center'>
-						<span className='text-xs text-gray-400 font-semibold'>{orderedQuestions.length} câu</span>
+					<div className='px-5 pb-3 border-b border-slate-100 bg-white pt-1 flex justify-between items-center'>
+						<span className='text-xs text-slate-500 font-bold tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-full'>{orderedQuestions.length} câu hỏi</span>
+						<span className='text-xs text-blue-600 font-bold tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full'>Đã làm {orderedQuestions.filter(q => getCurrentAnswer(q.id) !== '').length}</span>
 					</div>
 				</div>
 
 				{/* Grid Scrollable */}
-				<div className='flex-1 overflow-y-auto px-4 py-4 bg-gray-50/30'>
-					{/* Use grid container instead of flex */}
-					<div className=' grid grid-cols-4 sm:grid-cols-5 gap-2'>
+				<div className='flex-1 overflow-y-auto px-5 py-5 bg-slate-50/50'>
+					<div className='grid grid-cols-5 gap-2.5'>
 						{orderedQuestions.map((q, i) => {
 							const hasAnswer = getCurrentAnswer(q.id) !== '';
 							const isActive = currentQuestionId === q.id;
@@ -572,17 +578,17 @@ export function TestInterface() {
 									key={q.id}
 									onClick={() => scrollToQuestion(q.id)}
 									className={`
-            h-12 w-12 rounded border text-xs font-bold transition-all shadow-sm flex items-center justify-center
-            ${
-							isActive
-								? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-200 transform scale-105 z-10'
-								: hasAnswer
-								? 'bg-white text-blue-600 border-blue-300'
-								: 'bg-white text-gray-400 border-gray-200 hover:border-gray-400 hover:text-gray-600'
-						}
+            h-10 w-10 rounded-lg text-xs font-bold transition-all flex items-center justify-center relative shadow-sm
+            ${isActive
+											? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white ring-2 ring-blue-300 ring-offset-1 transform scale-110 z-10 font-black shadow-md border-0'
+											: hasAnswer
+												? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+												: 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700'
+										}
           `}
 								>
 									{i + 1}
+									{hasAnswer && !isActive && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-slate-50 rounded-full"></div>}
 								</button>
 							);
 						})}

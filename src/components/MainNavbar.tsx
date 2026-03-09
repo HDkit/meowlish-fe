@@ -123,7 +123,7 @@ export function MainNavbar() {
 								</Button>
 								<Button variant='ghost' className={getNavClass('/speaking-writing')} onClick={() => router.push('/speaking-writing')}>
 									<Stars className='h-4 w-4 mr-2' />
-									AL Speaking &amp; Writing
+									AI Speaking &amp; Writing
 								</Button>
 							</>
 						)}

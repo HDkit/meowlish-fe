@@ -180,7 +180,7 @@ function BlogDetail({
 						Quay lại danh sách
 					</button>
 
-					<Badge className={`${categoryInfo.color.replace('bg-', 'bg-opacity-[0.15] bg-').replace('text-', 'text-white border border-')} mb-6 uppercase tracking-wider text-xs px-3 py-1.5`}>
+					<Badge className={`${categoryInfo.color} border-0 mb-6 uppercase tracking-wider text-xs px-3 py-1.5`}>
 						<CategoryIcon className="h-3.5 w-3.5 mr-2" />
 						{categoryInfo.label}
 					</Badge>

@@ -6,6 +6,7 @@ import { useAppSelector } from '@/lib/store/hooks';
 import { Button } from './ui/button';
 import { Question, Attempt, Section } from '../types/client';
 import { AICard, QuestionCard } from './QuestionCard';
+import { CheckCircle2, XCircle, Clock, Trophy, Target, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
 
 export function TestResult() {
 	const { id } = useParams(); // Đây là attemptId
@@ -28,7 +29,6 @@ export function TestResult() {
 	}, [id, attempts]);
 
 	// 3. Logic tái tạo lại đề thi (Lấy tất cả câu hỏi thuộc Exam này)
-	// Phải dùng useMemo để tính toán lại danh sách câu hỏi chuẩn của đề thi
 	const examQuestions = useMemo(() => {
 		if (!currentAttempt) return [];
 
@@ -51,24 +51,10 @@ export function TestResult() {
 		const sectionIds = new Set(examSections.map((s) => s.id));
 
 		// Lọc ra các câu hỏi thuộc các section đó
-		// Đây chính là bộ câu hỏi gốc từ questionSlice
 		return questions.filter((q) => sectionIds.has(q.sectionId));
 	}, [currentAttempt, sections, questions]);
 
-	// Loading state
-	if (!currentAttempt) {
-		return <div className='p-10 text-center'>Đang tải kết quả...</div>;
-	}
-
-	const examInfo = exams.find((e) => e.id === currentAttempt.examId);
-
-	// Tính thời gian đã làm
-	const totalTime = (examInfo?.duration || 0) * 60;
-	const timeTaken = totalTime - currentAttempt.timeLeft;
-	const minutes = Math.floor(timeTaken / 60);
-	const seconds = timeTaken % 60;
-
-	// 4. Hàm kiểm tra đúng sai (Logic hiển thị màu sắc)
+	// 4. Hàm kiểm tra đúng sai
 	const checkAnswerStatus = (q: Question, userAnswer: string) => {
 		if (!userAnswer) return 'skipped'; // Chưa làm
 		if (!q.correctAnswer || q.correctAnswer.length === 0) return 'manual'; // Câu hỏi tự luận/speaking
@@ -87,131 +73,249 @@ export function TestResult() {
 		return isCorrect ? 'correct' : 'incorrect';
 	};
 
-	return (
-		<div className='min-h-screen bg-gray-50 p-8 p-4'>
-			<div className='max-w-4xl mx-auto space-y-8'>
-				{/* --- PHẦN 1: TỔNG KẾT --- */}
-				<div className='bg-white rounded-xl shadow-md p-8 text-center border border-gray-200 p-4'>
-					<h1 className='text-3xl font-bold text-gray-800 mb-2'>Kết quả làm bài {examInfo?.title}</h1>
+	// Thống kê đúng sai
+	const stats = useMemo(() => {
+		let correct = 0;
+		let incorrect = 0;
+		let skipped = 0;
+		let manual = 0;
 
-					<div className='flex justify-center gap-12 mb-8'>
-						<div className='text-center p-4'>
-							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Tổng điểm</div>
-							<div className='text-6xl font-extrabold text-blue-600 mt-2'>
-								{currentAttempt.score !== undefined ? currentAttempt.score.toFixed(1) : 0}
-								<span className='text-xl text-gray-400 font-normal ml-1'>/ 100</span>
+		if (!currentAttempt) return { correct, incorrect, skipped, manual };
+
+		examQuestions.forEach((q) => {
+			const userChoice = currentAttempt.choices.find((c) => c.questionId === q.id);
+			const userAnswer = userChoice?.answerIdx || '';
+			const status = checkAnswerStatus(q, userAnswer);
+
+			if (status === 'correct') correct++;
+			else if (status === 'incorrect') incorrect++;
+			else if (status === 'skipped') skipped++;
+			else if (status === 'manual') manual++;
+		});
+
+		return { correct, incorrect, skipped, manual, total: examQuestions.length };
+	}, [examQuestions, currentAttempt]);
+
+	// Loading state
+	if (!currentAttempt) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+				<div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+				<p className="mt-4 text-slate-600 font-medium">Đang tải kết quả...</p>
+			</div>
+		);
+	}
+
+	const examInfo = exams.find((e) => e.id === currentAttempt.examId);
+
+	// Tính thời gian đã làm
+	const totalTime = (examInfo?.duration || 0) * 60;
+	const timeTaken = totalTime - currentAttempt.timeLeft;
+	const minutes = Math.floor(timeTaken / 60);
+	const seconds = timeTaken % 60;
+
+	const scorePercentage = currentAttempt.score !== undefined ? (currentAttempt.score / 100) * 100 : 0;
+
+	return (
+		<div className='min-h-screen bg-slate-50 pb-20'>
+			{/* Premium Header */}
+			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden'>
+				<div className='absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 pointer-events-none'></div>
+				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
+				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+
+				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
+					<Button
+						variant="ghost"
+						onClick={() => router.push(`/tests/${currentAttempt.examId}`)}
+						className="flex items-center gap-2 mb-6 -ml-2 text-blue-100 hover:text-white hover:bg-white/10 font-medium transition-colors"
+					>
+						<ArrowLeft className="h-4 w-4" />
+						Trở về chi tiết đề thi
+					</Button>
+
+					<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
+						<div className="flex-1">
+							<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
+								<Trophy className="w-4 h-4 text-yellow-300" /> KẾT QUẢ BÀI THI
 							</div>
+							<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">
+								{examInfo?.title}
+							</h1>
+							<p className="text-blue-100 font-medium text-lg max-w-2xl leading-relaxed">
+								Đã hoàn thành vào lúc {new Date(currentAttempt.createdAt).toLocaleString('vi-VN')}
+							</p>
 						</div>
 
-						<div className='text-center border-l pl-12 border-gray-200 p-4'>
-							<div className='text-sm text-gray-500 uppercase font-semibold tracking-wider'>Thời gian làm bài</div>
-							<div className='text-6xl font-extrabold text-gray-700 mt-2'>
-								{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+						{/* Score Circle / Badge */}
+						<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-48 shrink-0 relative overflow-hidden group">
+							<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+							<span className="text-sm font-bold text-blue-100 uppercase tracking-widest mb-1">Tổng điểm</span>
+							<div className="flex items-baseline gap-1">
+								<span className="text-5xl font-black text-white drop-shadow-md">{currentAttempt.score !== undefined ? currentAttempt.score.toFixed(1) : 0}</span>
+								<span className="text-xl text-blue-200 font-bold">/100</span>
 							</div>
 						</div>
 					</div>
+				</div>
+			</div>
 
-					<div className='flex justify-center gap-4'>
-					<Button onClick={() => router.push('/')} variant='outline' className='px-6'>
-						Quay về trang chủ
-					</Button>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20'>
 
-					{/* QUAN TRỌNG: Gửi state { retake: true } để TestInterface reset timer */}
-					<Button
-						onClick={() => {
-							// Store retake flag in sessionStorage since Next.js doesn't support state in router.push
-							sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
-							router.push(`/test/${currentAttempt.examId}`);
-						}}
-						className='px-6 bg-blue-600 hover:bg-blue-700 !text-white'
-						>
-							Làm lại bài kiểm tra
-						</Button>
+				{/* Stats Grid */}
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+						<div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100">
+							<Clock className="h-6 w-6" />
+						</div>
+						<span className="text-sm font-bold text-slate-500 uppercase">Thời gian</span>
+						<span className="text-2xl font-black text-slate-800">{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
+					</div>
+
+					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+						<div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-500 mb-1 border border-green-100">
+							<CheckCircle2 className="h-6 w-6" />
+						</div>
+						<span className="text-sm font-bold text-slate-500 uppercase">Đúng</span>
+						<span className="text-2xl font-black text-green-600">{stats.correct} / {stats.total}</span>
+					</div>
+
+					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+						<div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-1 border border-red-100">
+							<XCircle className="h-6 w-6" />
+						</div>
+						<span className="text-sm font-bold text-slate-500 uppercase">Sai</span>
+						<span className="text-2xl font-black text-red-600">{stats.incorrect}</span>
+					</div>
+
+					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+						<div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 mb-1 border border-orange-100">
+							<AlertCircle className="h-6 w-6" />
+						</div>
+						<span className="text-sm font-bold text-slate-500 uppercase">Bỏ qua / Tự luận</span>
+						<span className="text-2xl font-black text-orange-600">{stats.skipped + stats.manual}</span>
 					</div>
 				</div>
 
-				{/* --- PHẦN 2: CHI TIẾT TỪNG CÂU --- */}
+				<div className='flex flex-col sm:flex-row justify-center gap-4 py-4'>
+					<Button
+						onClick={() => router.push('/')}
+						className='bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 font-bold px-8 h-12 rounded-xl shadow-sm'
+					>
+						Về Trang Chủ
+					</Button>
+					<Button
+						onClick={() => {
+							sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
+							router.push(`/test/${currentAttempt.examId}`);
+						}}
+						className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
+					>
+						<RefreshCw className="w-4 h-4 mr-2" /> Làm Lại Bài Thi
+					</Button>
+				</div>
+
+				{/* Detailed Results */}
 				<div className='space-y-6'>
-					<h2 className='text-2xl font-bold text-gray-800 border-b pb-2'>Kết quả chi tiết</h2>
+					<div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-6">
+						<Target className="w-6 h-6 text-blue-600" />
+						<h2 className='text-2xl font-extrabold text-slate-800'>Đáp án chi tiết</h2>
+					</div>
 
 					{examQuestions.map((q, index) => {
-						// Lấy câu trả lời của user từ attempt
 						const userChoice = currentAttempt.choices.find((c) => c.questionId === q.id);
 						const userAnswer = userChoice?.answerIdx || '';
 						const status = checkAnswerStatus(q, userAnswer);
 
-						// Xác định màu sắc dựa trên trạng thái
-						let borderClass = 'border-gray-200';
-						let bgHeaderClass = 'bg-gray-50';
+						let borderClass = 'border-slate-200 ring-1 ring-slate-200';
+						let bgHeaderClass = 'bg-slate-50';
 						let statusText = 'Bỏ qua';
-						let statusColor = 'text-gray-500';
+						let statusColor = 'text-slate-500';
+						let statusBg = 'bg-slate-200';
+						let StatusIcon = AlertCircle;
 
 						if (status === 'correct') {
-							borderClass = 'border-green-500';
-							bgHeaderClass = 'bg-green-50';
+							borderClass = 'border-green-500 ring-1 ring-green-500/30';
+							bgHeaderClass = 'bg-green-50/50';
 							statusText = 'Chính xác';
 							statusColor = 'text-green-700';
+							statusBg = 'bg-green-100';
+							StatusIcon = CheckCircle2;
 						} else if (status === 'incorrect') {
-							borderClass = 'border-red-500';
-							bgHeaderClass = 'bg-red-50';
+							borderClass = 'border-red-500 ring-1 ring-red-500/30';
+							bgHeaderClass = 'bg-red-50/50';
 							statusText = 'Không chính xác';
 							statusColor = 'text-red-700';
+							statusBg = 'bg-red-100';
+							StatusIcon = XCircle;
 						}
 
 						return (
-							<div key={q.id} className={`bg-white rounded-lg border-l-8 shadow-sm overflow-hidden ${borderClass}`}>
-								<div className={`px-6 py-4 flex justify-between items-start ${bgHeaderClass}`}>
-									<div>
-										<span className='font-bold text-gray-700 mr-2'>Câu {index + 1}:</span>
-										<span
-											className={`font-bold uppercase text-sm px-2 py-1 rounded ${
-												status === 'correct' ? 'bg-green-200' : status === 'incorrect' ? 'bg-red-200' : 'bg-gray-200'
-											} ${statusColor}`}
-										>
-										{statusText}
-									</span>
-								</div>
-								<span className='text-sm text-gray-500 font-medium'>{q.points} Điểm</span>
-								<AICard q={q}></AICard>
-								</div>
-
-								<div className='p-6'>
-									<p className='text-gray-800 text-lg mb-4 font-medium'>{q.content}</p>
-
-									<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-								{/* Đáp án của User */}
-								<div className='bg-gray-50 p-4 rounded-md border'>
-									<p className='text-xs text-gray-500 uppercase font-bold mb-1'>Câu trả lời của bạn</p>
-											<p
-												className={`font-medium ${
-													status === 'correct'
-														? 'text-green-700'
-														: status === 'incorrect'
-														? 'text-red-600'
-														: 'text-gray-400 italic'
-												}`}
-											>
-												{userAnswer || '(No answer)'}
-											</p>
+							<div key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${borderClass}`}>
+								<div className={`px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 ${bgHeaderClass} border-b border-slate-100`}>
+									<div className="flex items-center gap-3">
+										<div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-bold text-slate-700">
+											{index + 1}
 										</div>
+										<span className={`inline-flex items-center gap-1.5 font-bold uppercase text-xs px-3 py-1.5 rounded-full ${statusBg} ${statusColor}`}>
+											<StatusIcon className="w-3.5 h-3.5" />
+											{statusText}
+										</span>
+									</div>
+									<div className="flex items-center gap-4">
+										<span className='text-sm bg-white px-3 py-1 rounded-lg border border-slate-200 text-slate-600 font-bold shadow-sm whitespace-nowrap'>{q.points} Điểm</span>
+										<AICard q={q} />
+									</div>
+								</div>
 
-										{/* Đáp án đúng (Chỉ hiện nếu user sai hoặc bỏ qua) */}
-										<QuestionCard q={q} status={status}></QuestionCard>
+								<div className='p-6 md:p-8 space-y-8'>
+									<div className="prose prose-slate max-w-none">
+										<p className='text-slate-800 text-lg font-medium leading-relaxed'>{q.content}</p>
 									</div>
 
-								{/* Hiển thị Options nếu là trắc nghiệm để dễ đối chiếu */}
-								{q.options && (
-									<div className='mt-4 pt-4 border-t text-sm text-gray-500'>
-										<p className='mb-2 font-semibold'>Các lựa chọn:</p>
-											<ul className='list-disc pl-5 space-y-1'>
+									{q.options && q.options.length > 0 && (
+										<div className='bg-slate-50 rounded-xl p-5 border border-slate-100'>
+											<p className='mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide'>Các lựa chọn:</p>
+											<div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
 												{q.options.map((op, i) => (
-													<li key={i} className={op === userAnswer ? 'font-bold text-gray-800' : ''}>
-														{op}
-													</li>
+													<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${op === userAnswer ? 'border-blue-400 shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
+														<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${op === userAnswer ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
+															{String.fromCharCode(65 + i)}
+														</div>
+														<span className={`text-sm ${op === userAnswer ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op}</span>
+													</div>
 												))}
-											</ul>
+											</div>
 										</div>
 									)}
+
+									<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+										<div className={`p-5 rounded-xl border ${status === 'correct' ? 'bg-green-50/50 border-green-200' : status === 'incorrect' ? 'bg-red-50/50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+											<div className="flex items-center gap-2 mb-2">
+												<UserIcon className={`w-4 h-4 ${status === 'correct' ? 'text-green-600' : status === 'incorrect' ? 'text-red-600' : 'text-slate-500'}`} />
+												<p className='text-xs uppercase font-bold text-slate-500 tracking-wider'>Câu trả lời của bạn</p>
+											</div>
+											<div className='min-h-[2.5rem] flex flex-wrap items-center gap-2'>
+												{userAnswer ? (
+													<span className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${status === 'correct' ? 'text-green-700 border-green-200' : status === 'incorrect' ? 'text-red-600 border-red-200' : 'text-slate-700 border-slate-300'}`}>
+														{userAnswer}
+													</span>
+												) : (
+													<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
+												)}
+											</div>
+										</div>
+
+										<div className="p-5 rounded-xl border bg-blue-50/50 border-blue-200">
+											<div className="flex items-center gap-2 mb-2">
+												<CheckCircle2 className="w-4 h-4 text-blue-600" />
+												<p className='text-xs uppercase font-bold text-blue-700 tracking-wider'>Đáp án đúng</p>
+											</div>
+											<div className='min-h-[2.5rem] flex flex-wrap items-center gap-2'>
+												<QuestionCard q={q} status={status}></QuestionCard>
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						);
@@ -220,4 +324,25 @@ export function TestResult() {
 			</div>
 		</div>
 	);
+}
+
+// Helper icon component
+function UserIcon(props: React.SVGProps<SVGSVGElement>) {
+	return (
+		<svg
+			{...props}
+			xmlns="http://www.w3.org/2000/svg"
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+			<circle cx="12" cy="7" r="4" />
+		</svg>
+	)
 }

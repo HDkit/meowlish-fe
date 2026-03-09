@@ -27,163 +27,106 @@ export function LandingPage() {
 	const onLogin = () => router.push('/auth');
 
 	return (
-		<div className='min-h-screen bg-background'>
+		<div className='min-h-screen bg-slate-50 font-sans overflow-hidden'>
 			{/* Hero Section */}
-			<section className='py-12 md:py-16 lg:py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'>
-				<div className='container mx-auto px-4 md:px-6 lg:px-8 text-center'>
-					<h1 className='text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight'>
+			<section className='relative pt-24 pb-20 md:pt-32 md:pb-32 lg:pt-40 lg:pb-40'>
+				<div className='absolute inset-0 bg-gradient-to-br from-blue-100 via-indigo-50/50 to-purple-100/50'></div>
+				{/* Animated Background Blobs */}
+				<div className='absolute top-20 left-10 w-72 h-72 bg-purple-400/20 rounded-full blur-3xl animate-blob'></div>
+				<div className='absolute top-40 right-20 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-blob animation-delay-2000'></div>
+				<div className='absolute -bottom-10 left-1/3 w-80 h-80 bg-pink-400/20 rounded-full blur-3xl animate-blob animation-delay-4000'></div>
+
+				<div className='container relative z-10 mx-auto px-4 md:px-6 lg:px-8 text-center'>
+					<h1 className='text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 tracking-tight text-slate-800 drop-shadow-sm'>
 						Chinh phục IELTS & TOEIC
 						<br />
-						với trí tuệ nhân tạo
+						với <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">trí tuệ nhân tạo</span>
 					</h1>
-					<p className='text-base md:text-lg lg:text-xl text-slate-600 mb-6 md:mb-8 max-w-3xl mx-auto px-4'>
-						Hệ thống luyện thi tiếng Anh thông minh với AI chấm điểm tự động, tạo đề thi thích ứng và phản hồi cá nhân
-						hóa. Nâng cao band điểm của bạn một cách hiệu quả.
+					<p className='text-lg md:text-xl text-slate-600 mb-10 max-w-3xl mx-auto px-4 leading-relaxed font-medium'>
+						Hệ thống luyện thi tiếng Anh chuẩn mực với công nghệ AI chấm điểm tự động. Xây dựng lộ trình cá nhân hóa, dự đoán điểm số và giúp bạn đạt mục tiêu nhanh hơn gấp 3 lần.
 					</p>
-					<div className='flex flex-col sm:flex-row gap-3 md:gap-4 justify-center mb-8 md:mb-12 px-4'>
-						<Button size='lg' onClick={onGetStarted} className='text-base md:text-lg px-6 md:px-8 py-4 md:py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all w-full sm:w-auto'>
-							Bắt đầu học miễn phí
-							<ArrowRight className='ml-2 h-4 md:h-5 w-4 md:w-5' />
+					<div className='flex flex-col sm:flex-row gap-4 justify-center mb-16 px-4'>
+						<Button size='lg' onClick={onGetStarted} className='text-lg px-8 py-7 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-[0_8px_30px_rgb(37,99,235,0.24)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.4)] transition-all hover:-translate-y-1 w-full sm:w-auto font-bold'>
+							Bắt đầu học ngay
+							<ArrowRight className='ml-2 h-5 w-5' />
 						</Button>
-						<Button size='lg' variant='outline' className='text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-purple-600 text-purple-600 hover:bg-purple-50 w-full sm:w-auto'>
-							<Play className='mr-2 h-4 md:h-5 w-4 md:w-5' />
-							Xem demo
+						<Button size='lg' variant='outline' className='text-lg px-8 py-7 rounded-2xl border-2 border-slate-200 text-slate-700 hover:border-blue-200 hover:bg-blue-50/50 hover:text-blue-700 transition-all w-full sm:w-auto font-bold bg-white/50 backdrop-blur-sm'>
+							<Play className='mr-2 h-5 w-5' />
+							Xem video demo
 						</Button>
 					</div>
 
-					{/* Hero Image */}
-					<div className='w-full mx-auto max-w-5xl px-4 md:px-0'>
-						<ImageWithFallback
-							src='https://vinuni.edu.vn/wp-content/uploads/2024/08/bang-toeic-va-ielts-cai-nao-tot-hon-su-phu-hop-voi-muc-tieu-cua-ban.jpg'
-							alt='Students studying for English exams'
-							className='w-full rounded-lg md:rounded-xl shadow-lg'
-						/>
+					{/* Hero Image / Dashboard Preview */}
+					<div className='w-full mx-auto max-w-6xl px-4 md:px-0 relative'>
+						<div className="absolute inset-0 bg-gradient-to-t from-slate-50 to-transparent z-10 h-32 bottom-0 top-auto pointer-events-none"></div>
+						<div className="relative rounded-2xl ring-1 ring-gray-900/5 bg-white shadow-2xl overflow-hidden p-2">
+							<ImageWithFallback
+								src='https://vinuni.edu.vn/wp-content/uploads/2024/08/bang-toeic-va-ielts-cai-nao-tot-hon-su-phu-hop-voi-muc-tieu-cua-ban.jpg'
+								alt='EnglishPrep Platform Dashboard'
+								className='w-full rounded-xl object-cover h-[400px] md:h-[600px] opacity-90 hover:opacity-100 transition-opacity'
+							/>
+						</div>
 					</div>
 				</div>
 			</section>
 
 			{/* Statistics */}
-			<section className='py-10 md:py-12 lg:py-16 bg-white'>
+			<section className='py-8 md:py-12 bg-slate-50 relative -mt-16 z-20'>
 				<div className='container mx-auto px-4 md:px-6 lg:px-8'>
-					<div className='grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:gap-8 text-center'>
-						<div className='p-4 md:p-6 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-lg transition-shadow'>
-							<div className='text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent mb-1 md:mb-2'>98%</div>
-							<p className='text-slate-600 font-medium'>Tỷ lệ cải thiện điểm</p>
+					<div className='grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center'>
+						<div className='p-8 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:-translate-y-1 transition-transform'>
+							<div className='text-3xl md:text-4xl lg:text-5xl font-extrabold text-blue-600 mb-2'>98%</div>
+							<p className='text-slate-600 font-medium text-sm md:text-base tracking-wide'>TỶ LỆ CẢI THIỆN ĐIỂM</p>
 						</div>
-						<div className='p-6 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-lg transition-shadow'>
-							<div className='text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent mb-2'>50K+</div>
-							<p className='text-slate-600 font-medium'>Học viên tin tưởng</p>
+						<div className='p-8 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:-translate-y-1 transition-transform'>
+							<div className='text-3xl md:text-4xl lg:text-5xl font-extrabold text-indigo-600 mb-2'>50K+</div>
+							<p className='text-slate-600 font-medium text-sm md:text-base tracking-wide'>HỌC VIÊN TÍN NHIỆM</p>
 						</div>
-						<div className='p-6 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 hover:shadow-lg transition-shadow'>
-							<div className='text-4xl font-bold bg-gradient-to-r from-pink-600 to-pink-800 bg-clip-text text-transparent mb-2'>1.2M+</div>
-							<p className='text-slate-600 font-medium'>Bài thi đã hoàn thành</p>
+						<div className='p-8 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:-translate-y-1 transition-transform'>
+							<div className='text-3xl md:text-4xl lg:text-5xl font-extrabold text-purple-600 mb-2'>1.2M+</div>
+							<p className='text-slate-600 font-medium text-sm md:text-base tracking-wide'>BÀI THI ĐÃ CHẤM</p>
 						</div>
-						<div className='p-6 rounded-xl bg-gradient-to-br from-green-50 to-green-100 hover:shadow-lg transition-shadow'>
-							<div className='text-4xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent mb-2'>8.5</div>
-							<p className='text-slate-600 font-medium'>Điểm IELTS trung bình</p>
+						<div className='p-8 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:-translate-y-1 transition-transform'>
+							<div className='text-3xl md:text-4xl lg:text-5xl font-extrabold text-pink-600 mb-2'>7.5+</div>
+							<p className='text-slate-600 font-medium text-sm md:text-base tracking-wide'>ĐIỂM TRUNG BÌNH THỰC TẾ</p>
 						</div>
 					</div>
 				</div>
 			</section>
 
 			{/* Features */}
-			<section className='py-12 md:py-16 lg:py-20 bg-gradient-to-b from-slate-50 to-white'>
+			<section className='py-20 md:py-28 bg-slate-50'>
 				<div className='container mx-auto px-4 md:px-6 lg:px-8'>
-					<div className='text-center mb-10 md:mb-12 lg:mb-16'>
-					<h2 className='text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 text-gray-900'>
-						<span className='bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>Tính năng</span>{' '}
-						<span className='bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>đột phá</span>
-					</h2>
-						<p className='text-base md:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto px-4'>
-							Công nghệ AI tiên tiến giúp bạn học hiệu quả gấp 3 lần so với phương pháp truyền thống
+					<div className='text-center mb-16 md:mb-20'>
+						<h2 className='text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-slate-900 tracking-tight'>
+							Giải pháp <span className='text-blue-600'>toàn diện</span>
+						</h2>
+						<p className='text-lg md:text-xl text-slate-600 max-w-2xl mx-auto'>
+							Công nghệ định hình lại phương pháp tự học. Mang đến cho bạn trải nghiệm luyện thi như có Gia Sư 1 kèm 1 bên cạnh.
 						</p>
 					</div>
 
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8'>
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-blue-400 bg-gradient-to-br from-blue-50 via-blue-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow animate-pulse'>
-									<Brain className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-blue-900 font-bold text-xl'>AI Chấm điểm tự động</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									Chấm điểm Speaking và Writing tức thì với độ chính xác 99%, cung cấp phản hồi chi tiết và cách cải
-									thiện.
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-purple-400 bg-gradient-to-br from-purple-50 via-purple-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-fuchsia-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow'>
-									<Target className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-purple-900 font-bold text-xl'>Đề thi thích ứng</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									AI tạo câu hỏi phù hợp với trình độ của bạn, tự động điều chỉnh độ khó để tối ưu hóa quá trình học.
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-pink-400 bg-gradient-to-br from-pink-50 via-pink-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-pink-500 via-pink-600 to-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow'>
-									<BarChart className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-pink-900 font-bold text-xl'>Phân tích chi tiết</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									Theo dõi tiến trình học tập với báo cáo chi tiết, xác định điểm mạnh và điểm cần cải thiện.
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-green-400 bg-gradient-to-br from-green-50 via-green-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow'>
-									<BookOpen className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-green-900 font-bold text-xl'>Ngân hàng đề phong phú</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									Hàng nghìn câu hỏi IELTS và TOEIC được cập nhật liên tục, mô phỏng sát với đề thi thật.
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-orange-400 bg-gradient-to-br from-orange-50 via-orange-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow'>
-									<Clock className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-orange-900 font-bold text-xl'>Luyện thi theo thời gian</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									Mô phỏng điều kiện thi thật với bộ đếm thời gian, giúp bạn làm quen và quản lý thời gian hiệu quả.
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className='text-center hover:shadow-2xl transition-all duration-300 border-2 hover:border-teal-400 bg-gradient-to-br from-teal-50 via-teal-100/50 to-white hover:scale-105 transform'>
-							<CardHeader>
-								<div className='w-20 h-20 bg-gradient-to-br from-teal-500 via-teal-600 to-cyan-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl hover:shadow-2xl transition-shadow'>
-									<Users className='h-10 w-10 text-white' />
-								</div>
-								<CardTitle className='text-teal-900 font-bold text-xl'>Cộng đồng học tập</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className='text-slate-600'>
-									Kết nối với cộng đồng học viên, chia sẻ kinh nghiệm và động lực cùng nhau chinh phục mục tiêu.
-								</p>
-							</CardContent>
-						</Card>
+					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
+						{[
+							{ icon: Brain, title: "AI Chấm Mốc Nhanh Chóng", desc: "Chấm điểm Writing & Speaking chỉ trong 5 giây với độ chính xác theo barem chuẩn.", color: "blue", bgIcon: "bg-blue-100", textIcon: "text-blue-600" },
+							{ icon: Target, title: "Cá Nhân Hóa Đề Trắc Nghiệm", desc: "Thuật toán tự động tìm ra điểm yếu và xoáy sâu bài tập vào các kỹ năng còn kém.", color: "indigo", bgIcon: "bg-indigo-100", textIcon: "text-indigo-600" },
+							{ icon: BarChart, title: "Biểu Đồ Theo Dõi Tiến Độ", desc: "Báo cáo năng lực đa chiều, dự báo điểm thi tương lai để bạn tự tin đăng ký lịch thi.", color: "pink", bgIcon: "bg-pink-100", textIcon: "text-pink-600" },
+							{ icon: BookOpen, title: "Kho Tàng Đề Khổng Lồ", desc: "+20,000 bài tập cập nhật xu hướng ra đề mới nhất từ các nhà xuất bản hàng đầu.", color: "purple", bgIcon: "bg-purple-100", textIcon: "text-purple-600" },
+							{ icon: Clock, title: "Giao Diện Giả Lập Thi Thật", desc: "Ép thời gian, tắt hỗ trợ ngôn ngữ. Vượt qua tâm lý hoảng loạn trong phòng thi thật.", color: "orange", bgIcon: "bg-orange-100", textIcon: "text-orange-600" },
+							{ icon: Users, title: "Xếp Hạng & Thi Đua", desc: "Hệ thống Bảng Xếp Hạng khơi dậy tinh thần tranh đua lành mạnh giữa hàng ngàn User.", color: "teal", bgIcon: "bg-teal-100", textIcon: "text-teal-600" },
+						].map((feature, idx) => {
+							const Icon = feature.icon;
+							return (
+								<Card key={idx} className={`p-8 border-0 bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group border-b-4 border-transparent hover:border-${feature.color}-500`}>
+									<div className={`w-14 h-14 rounded-2xl ${feature.bgIcon} flex items-center justify-center mb-6`}>
+										<Icon className={`h-7 w-7 ${feature.textIcon}`} />
+									</div>
+									<h3 className='text-xl font-bold mb-3 text-slate-800'>{feature.title}</h3>
+									<p className='text-slate-600 font-medium leading-relaxed'>{feature.desc}</p>
+									<div className={`absolute top-0 right-0 w-32 h-32 bg-${feature.color}-50 rounded-full blur-3xl -mr-10 -mt-10 transition-all duration-500 group-hover:bg-${feature.color}-100`}></div>
+								</Card>
+							)
+						})}
 					</div>
 				</div>
 			</section>
@@ -305,20 +248,24 @@ export function LandingPage() {
 			</section>
 
 			{/* CTA Section */}
-			<section className='py-12 md:py-16 lg:py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600'>
-				<div className='container px-4 md:px-6 lg:px-8 mx-auto text-center'>
-					<h2 className='text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 text-white'>Sẵn sàng chinh phục mục tiêu?</h2>
-					<p className='text-base md:text-lg lg:text-xl mb-6 md:mb-8 text-white/90 px-4'>Tham gia cùng hàng nghìn học viên đã thành công với EnglishAI Pro</p>
-					<div className='flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4'>
-						<Button size='lg' onClick={onGetStarted} className='text-base md:text-lg px-6 md:px-8 py-4 md:py-6 bg-white text-purple-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all w-full sm:w-auto'>
-							Bắt đầu học miễn phí
-							<ArrowRight className='ml-2 h-4 md:h-5 w-4 md:w-5' />
+			<section className='relative py-20 lg:py-32 bg-blue-600 overflow-hidden'>
+				<div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+				<div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500 rounded-full blur-[100px] opacity-50 translate-x-1/2 -translate-y-1/2"></div>
+				<div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-purple-500 rounded-full blur-[100px] opacity-40 -translate-x-1/3 translate-y-1/3"></div>
+
+				<div className='relative z-10 container px-4 mx-auto text-center'>
+					<h2 className='text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 text-white tracking-tight'>Tương lai của bạn bắt đầu ở đây</h2>
+					<p className='text-lg md:text-xl mb-10 text-blue-100 px-4 font-medium max-w-2xl mx-auto'>Đừng để ngoại ngữ là rào cản. Hãy đăng ký ngay hôm nay để trải nghiệm miễn phí 10 bài test toàn diện.</p>
+
+					<div className='flex flex-col sm:flex-row gap-4 justify-center'>
+						<Button size='lg' onClick={onGetStarted} className='text-lg px-8 py-7 rounded-2xl bg-white text-blue-700 hover:bg-slate-50 shadow-xl transition-all font-bold'>
+							Tạo tài khoản miễn phí
+							<ArrowRight className='ml-2 h-5 w-5' />
 						</Button>
-					<Button size='lg' variant='outline' onClick={onLogin} className='text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-white text-white hover:bg-white/20 w-full sm:w-auto'>
-							Đăng nhập ngay
+						<Button size='lg' variant='outline' onClick={onLogin} className='text-lg px-8 py-7 rounded-2xl border-white/30 text-white bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all font-bold'>
+							Đăng nhập
 						</Button>
 					</div>
-					<p className='text-xs md:text-sm text-white/75 mt-3 md:mt-4'>Miễn phí trải nghiệm</p>
 				</div>
 			</section>
 

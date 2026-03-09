@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
+import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -193,207 +193,269 @@ export function AuthForm() {
 	};
 
 	return (
-		<div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-4 relative overflow-hidden'>
-			{/* Animated background elements */}
-			<div className='absolute inset-0 overflow-hidden'>
-				<div className='absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'></div>
-				<div className='absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000'></div>
-				<div className='absolute top-1/2 left-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000'></div>
+		<div className='min-h-screen w-full flex bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 relative overflow-hidden'>
+			{/* Premium background blobs */}
+			<div className='absolute inset-0 overflow-hidden pointer-events-none'>
+				<div className='absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-3xl animate-blob'></div>
+				<div className='absolute top-1/2 -left-40 w-[25rem] h-[25rem] bg-blue-400/10 rounded-full blur-3xl animate-blob animation-delay-2000'></div>
+				<div className='absolute -bottom-40 right-1/4 w-[25rem] h-[25rem] bg-purple-400/10 rounded-full blur-3xl animate-blob animation-delay-4000'></div>
 			</div>
 
-			<Card className='w-full max-w-md shadow-2xl border-2 relative z-10 bg-white/95 backdrop-blur-sm'>
-				<CardHeader className='text-center space-y-4 pb-6'>
-					<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity'>
-						<div className='p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg'>
-							<Brain className='h-8 w-8 text-white' />
-						</div>
-						<div>
-							<h1 className='text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>AI English Prep</h1>
-							<p className='text-sm text-slate-600'>Hệ thống luyện thi AI</p>
-						</div>
-					</Link>
-					<div>
-						<CardTitle className='text-2xl font-bold text-gray-900'>{isLogin ? 'Đăng nhập' : 'Đăng ký tài khoản'}</CardTitle>
-						<CardDescription className='text-base text-slate-600'>
-							{isLogin ? 'Đăng nhập để tiếp tục luyện thi' : 'Tạo tài khoản mới để bắt đầu hành trình học tập'}
-						</CardDescription>
-					</div>
-				</CardHeader>
+			{/* Left Side: Marketing / Illustration */}
+			<div className='hidden lg:flex flex-1 flex-col justify-center items-start pl-12 lg:pl-20 xl:pl-32 relative z-10'>
+				<div className='max-w-3xl w-full'>
+					<h1 className='text-5xl lg:text-7xl font-extrabold text-slate-900 leading-[1.1] mb-6 tracking-tight'>
+						Bắt đầu <br />
+						hành trình chinh phục <br /> <span className='text-blue-600'>mục tiêu của bạn</span>
+					</h1>
+					<p className='text-xl text-slate-600 font-medium mb-12 max-w-md leading-relaxed'>
+						Hệ thống luyện thi thông minh giúp tối đa hóa điểm IELTS & TOEIC bằng sức mạnh cốt lõi của Trí Tuệ Nhân Tạo.
+					</p>
 
-				<CardContent className='space-y-4'>
-					{error && (
-						<Alert variant='destructive'>
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					)}
-
-					<form onSubmit={handleSubmit} className='space-y-4'>
-						{!isLogin && (
-							<div className='space-y-2'>
-								<Label className='text-gray-700 font-semibold'>Họ và tên</Label>
-								<div className='relative'>
-									<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-500' />
-									<Input
-										value={formData.fullName}
-										onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-										className='pl-10 border-2 focus:border-purple-400 transition-colors h-11'
-										placeholder='Nhập họ và tên'
-									/>
+					{/* Fun Floating Elements */}
+					<div className='relative w-full h-[400px]'>
+						{/* Floating Card 1 */}
+						<div className='absolute top-0 right-10 animate-blob' style={{ animationDuration: '7s' }}>
+							<div className='bg-white p-4 rounded-3xl shadow-xl border border-gray-100/50 rotate-[4deg] w-64 transform transition-transform hover:scale-105'>
+								<div className='w-full h-32 bg-blue-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
+									<Sparkles className='w-12 h-12 text-blue-400' />
 								</div>
-								{validationErrors.fullName && <p className='text-sm text-destructive'>{validationErrors.fullName}</p>}
+								<div className='flex items-center gap-3'>
+									<div className='w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full' />
+									<div>
+										<div className='h-3 w-24 bg-gray-200 rounded-full mb-2' />
+										<div className='h-2 w-16 bg-gray-100 rounded-full' />
+									</div>
+								</div>
 							</div>
+						</div>
+
+						{/* Floating Card 2 */}
+						<div className='absolute bottom-10 left-0 animate-blob animation-delay-2000' style={{ animationDuration: '8s' }}>
+							<div className='bg-white p-4 rounded-3xl shadow-xl border border-gray-100/50 rotate-[-4deg] w-56 transform transition-transform hover:scale-105'>
+								<div className='w-full h-40 bg-pink-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
+									<Target className='w-12 h-12 text-pink-400' />
+								</div>
+								<div className='space-y-2 pb-2'>
+									<div className='h-3 w-full bg-gray-200 rounded-full' />
+									<div className='h-3 w-2/3 bg-gray-100 rounded-full' />
+								</div>
+							</div>
+						</div>
+
+						{/* Floating Card 3 - Small widget */}
+						<div className='absolute top-32 left-10 animate-blob animation-delay-4000' style={{ animationDuration: '6s' }}>
+							<div className='bg-white px-5 py-3 rounded-2xl shadow-lg border border-gray-100/50 flex items-center gap-3 rotate-[-6deg] hover:scale-105 transition-transform'>
+								<div className='bg-green-100 p-2 rounded-xl text-green-600'><CheckCircle2 className='w-6 h-6' /></div>
+								<div>
+									<p className='font-bold text-gray-800 text-sm'>IELTS 7.5</p>
+									<p className='text-xs text-gray-500'>Mục tiêu hoàn thành!</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Right Side: Auth Form */}
+			<div className='w-full lg:w-[480px] xl:w-[560px] flex-shrink-0 min-h-screen flex flex-col justify-center relative z-20 bg-white shadow-2xl xl:shadow-[-20px_0_40px_rgba(0,0,0,0.08)] backdrop-blur-xl'>
+				<div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+
+				<div className='w-full max-w-[400px] mx-auto px-6 py-12 flex flex-col'>
+					{/* Header */}
+					<div className='text-center space-y-4 pb-8'>
+						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
+							<div className='p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
+								<Brain className='h-8 w-8 text-white' />
+							</div>
+							<div>
+								<h1 className='text-3xl font-extrabold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent'>EnglishAI Pro</h1>
+								<p className='text-sm font-semibold text-slate-500 mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
+							</div>
+						</Link>
+						<div className="pt-4">
+							<h2 className='text-2xl font-bold text-gray-900'>{isLogin ? 'Chào mừng bạn trở lại' : 'Tạo tài khoản mới'}</h2>
+							<p className='text-[15px] font-medium text-slate-500 mt-2'>
+								{isLogin ? 'Đăng nhập để tiếp tục hành trình luyện thi' : 'Bắt đầu hành trình chinh phục tiếng Anh cùng AI'}
+							</p>
+						</div>
+					</div>
+
+					<div className='space-y-4'>
+						{error && (
+							<Alert variant='destructive'>
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
 						)}
 
-						<div className='space-y-2'>
-							<Label className='text-gray-700 font-semibold'>Email</Label>
-							<div className='relative'>
-								<Mail className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500' />
-								<Input
-									value={formData.email}
-									onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-									className='pl-10 border-2 focus:border-blue-400 transition-colors h-11'
-									placeholder='Nhập email của bạn'
-								/>
-							</div>
-							{validationErrors.email && <p className='text-sm text-destructive'>{validationErrors.email}</p>}
-						</div>
+						<form onSubmit={handleSubmit} className='space-y-4'>
+							{!isLogin && (
+								<div className='space-y-2'>
+									<Label className='text-gray-700 font-semibold'>Họ và tên</Label>
+									<div className='relative'>
+										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-500' />
+										<Input
+											value={formData.fullName}
+											onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+											className='pl-10 border-2 focus:border-purple-400 transition-colors h-11'
+											placeholder='Nhập họ và tên'
+										/>
+									</div>
+									{validationErrors.fullName && <p className='text-sm text-destructive'>{validationErrors.fullName}</p>}
+								</div>
+							)}
 
-						<div className='space-y-2'>
-							<Label className='text-gray-700 font-semibold'>Mật khẩu</Label>
-							<div className='relative'>
-								<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
-								<Input
-									type={showPassword ? 'text' : 'password'}
-									value={formData.password}
-									onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-									className='pl-10 pr-10 border-2 focus:border-pink-400 transition-colors h-11'
-									placeholder='Nhập mật khẩu'
-								/>
-								<Button
-									type='button'
-									variant='ghost'
-									size='sm'
-									className='absolute right-0 top-0 h-full px-3'
-									onClick={() => setShowPassword(!showPassword)}
-								>
-									{showPassword ? <EyeOff /> : <Eye />}
-								</Button>
-							</div>
-							{validationErrors.password && <p className='text-sm text-destructive'>{validationErrors.password}</p>}
-						</div>
-
-						{!isLogin && (
 							<div className='space-y-2'>
-								<Label className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
+								<Label className='text-gray-700 font-semibold'>Email</Label>
+								<div className='relative'>
+									<Mail className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500' />
+									<Input
+										value={formData.email}
+										onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+										className='pl-10 border-2 focus:border-blue-400 transition-colors h-11'
+										placeholder='Nhập email của bạn'
+									/>
+								</div>
+								{validationErrors.email && <p className='text-sm text-destructive'>{validationErrors.email}</p>}
+							</div>
+
+							<div className='space-y-2'>
+								<Label className='text-gray-700 font-semibold'>Mật khẩu</Label>
 								<div className='relative'>
 									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
 									<Input
-										type={showConfirmPassword ? 'text' : 'password'}
-										value={formData.confirmPassword}
-										onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+										type={showPassword ? 'text' : 'password'}
+										value={formData.password}
+										onChange={(e) => setFormData({ ...formData, password: e.target.value })}
 										className='pl-10 pr-10 border-2 focus:border-pink-400 transition-colors h-11'
-										placeholder='Nhập lại mật khẩu'
+										placeholder='Nhập mật khẩu'
 									/>
 									<Button
 										type='button'
 										variant='ghost'
 										size='sm'
 										className='absolute right-0 top-0 h-full px-3'
-										onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+										onClick={() => setShowPassword(!showPassword)}
 									>
-										{showConfirmPassword ? <EyeOff /> : <Eye />}
+										{showPassword ? <EyeOff /> : <Eye />}
 									</Button>
 								</div>
-								{validationErrors.confirmPassword && (
-									<p className='text-sm text-destructive'>{validationErrors.confirmPassword}</p>
-								)}
+								{validationErrors.password && <p className='text-sm text-destructive'>{validationErrors.password}</p>}
+							</div>
+
+							{!isLogin && (
+								<div className='space-y-2'>
+									<Label className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
+									<div className='relative'>
+										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
+										<Input
+											type={showConfirmPassword ? 'text' : 'password'}
+											value={formData.confirmPassword}
+											onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+											className='pl-10 pr-10 border-2 focus:border-pink-400 transition-colors h-11'
+											placeholder='Nhập lại mật khẩu'
+										/>
+										<Button
+											type='button'
+											variant='ghost'
+											size='sm'
+											className='absolute right-0 top-0 h-full px-3'
+											onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+										>
+											{showConfirmPassword ? <EyeOff /> : <Eye />}
+										</Button>
+									</div>
+									{validationErrors.confirmPassword && (
+										<p className='text-sm text-destructive'>{validationErrors.confirmPassword}</p>
+									)}
+								</div>
+							)}
+
+							<Button className='w-full h-13 py-3 text-base font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all duration-200' disabled={loading}>
+								{loading ? 'Đang xử lý...' : isLogin ? 'Đăng nhập vào hệ thống' : 'Đăng ký tài khoản'}
+								<ArrowRight className='ml-2 h-5 w-5' />
+							</Button>
+						</form>
+
+						<div className='relative'>
+							<div className='absolute inset-0 flex items-center'>
+								<Separator />
+							</div>
+							<div className='relative flex justify-center text-xs uppercase'>
+								<span className='bg-background px-2 text-muted-foreground'>hoặc</span>
+							</div>
+						</div>
+
+						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={() => handleSocialLogin('google')} disabled={loading}>
+							<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
+							{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
+						</Button>
+						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={() => handleSocialLogin('facebook')} disabled={loading}>
+							<FaFacebook className='w-5 h-5 text-blue-600 mr-2' />
+							{isLogin ? 'Tiếp tục với Facebook' : 'Đăng ký bằng Facebook'}
+						</Button>
+						{/* Quick login buttons for testing (only in login mode) */}
+						{isLogin && (
+							<div className='mt-6 pt-6 border-t'>
+								<p className='text-sm text-muted-foreground mb-3 text-center'>Đăng nhập nhanh (Testing):</p>
+								<div className='space-y-2'>
+									<Button
+										variant='outline'
+										size='sm'
+										className='w-full'
+										onClick={() => {
+											setFormData({
+												...formData,
+												email: 'admin@englishprep.com',
+												password: 'admin123',
+											});
+										}}
+										type='button'
+									>
+										Head Staff (admin@englishprep.com)
+									</Button>
+									<Button
+										variant='outline'
+										size='sm'
+										className='w-full'
+										onClick={() => {
+											setFormData({
+												...formData,
+												email: 'alice@example.com',
+												password: 'password123',
+											});
+										}}
+										type='button'
+									>
+										Staff (alice@example.com)
+									</Button>
+									<Button
+										variant='outline'
+										size='sm'
+										className='w-full'
+										onClick={() => {
+											setFormData({
+												...formData,
+												email: 'bob@example.com',
+												password: 'secret456',
+											});
+										}}
+										type='button'
+									>
+										Learner (bob@example.com)
+									</Button>
+								</div>
 							</div>
 						)}
-
-						<Button className='w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all' disabled={loading}>
-							{loading ? 'Đang xử lý...' : isLogin ? 'Đăng nhập' : 'Đăng ký'}
-							<ArrowRight className='ml-2 h-5 w-5' />
-						</Button>
-					</form>
-
-					<div className='relative'>
-						<div className='absolute inset-0 flex items-center'>
-							<Separator />
-						</div>
-						<div className='relative flex justify-center text-xs uppercase'>
-							<span className='bg-background px-2 text-muted-foreground'>hoặc</span>
-						</div>
+						<p className='text-center text-sm mt-2 text-gray-600'>
+							{isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
+							<Button variant='link' className='p-0 font-semibold text-purple-600 hover:text-purple-700' onClick={toggleMode}>
+								{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+							</Button>
+						</p>
 					</div>
-
-					<Button variant='outline' className='w-full h-12 border-2 hover:bg-red-50 hover:border-red-300 transition-all font-semibold' onClick={() => handleSocialLogin('google')} disabled={loading}>
-						<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
-						{isLogin ? 'Đăng ký bằng Google' : 'Đăng nhập Google'}
-					</Button>
-					<Button variant='outline' className='w-full h-12 border-2 hover:bg-blue-50 hover:border-blue-300 transition-all font-semibold' onClick={() => handleSocialLogin('facebook')} disabled={loading}>
-						<FaFacebook className='w-5 h-5 text-blue-600 mr-2' />
-						{isLogin ? 'Đăng ký bằng Facebook' : 'Đăng nhập Facebook'}
-					</Button>
-					{/* Quick login buttons for testing (only in login mode) */}
-					{isLogin && (
-						<div className='mt-6 pt-6 border-t'>
-							<p className='text-sm text-muted-foreground mb-3 text-center'>Đăng nhập nhanh (Testing):</p>
-							<div className='space-y-2'>
-								<Button
-									variant='outline'
-									size='sm'
-									className='w-full'
-									onClick={() => {
-										setFormData({
-											...formData,
-											email: 'admin@englishprep.com',
-											password: 'admin123',
-										});
-									}}
-									type='button'
-								>
-									Head Staff (admin@englishprep.com)
-								</Button>
-								<Button
-									variant='outline'
-									size='sm'
-									className='w-full'
-									onClick={() => {
-										setFormData({
-											...formData,
-											email: 'alice@example.com',
-											password: 'password123',
-										});
-									}}
-									type='button'
-								>
-									Staff (alice@example.com)
-								</Button>
-								<Button
-									variant='outline'
-									size='sm'
-									className='w-full'
-									onClick={() => {
-										setFormData({
-											...formData,
-											email: 'bob@example.com',
-											password: 'secret456',
-										});
-									}}
-									type='button'
-								>
-									Learner (bob@example.com)
-								</Button>
-							</div>
-						</div>
-					)}
-					<p className='text-center text-sm mt-2 text-gray-600'>
-						{isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
-						<Button variant='link' className='p-0 font-semibold text-purple-600 hover:text-purple-700' onClick={toggleMode}>
-							{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
-						</Button>
-					</p>
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 		</div>
 	);
 }

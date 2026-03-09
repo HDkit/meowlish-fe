@@ -54,24 +54,28 @@ function FlashcardCard({
 
 	return (
 		<Card
-			className="group cursor-pointer hover:shadow-lg transition-all duration-300 h-64"
+			className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[18rem] h-full flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden relative ${isFlipped ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white' : 'bg-white ring-1 ring-slate-200/50'}`}
 			onClick={() => setIsFlipped(!isFlipped)}
 		>
-			<CardContent className="p-6 h-full flex flex-col relative">
+			<CardContent className="p-6 flex-1 flex flex-col relative z-10">
+				{/* Decorative elements */}
+				{!isFlipped && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>}
+				{isFlipped && <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>}
+
 				{/* Header với actions */}
-				<div className="flex items-start justify-between mb-4">
+				<div className="flex items-start justify-between mb-4 relative z-20">
 					<div className="flex items-center gap-2">
 						{tag && (
-							<Badge variant="secondary" className="text-xs">
+							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
 								{tag.name}
 							</Badge>
 						)}
 					</div>
-					<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className={`flex items-center gap-1.5 transition-opacity relative z-50 ${isFlipped ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
 						<Button
-							variant="ghost"
-							size="sm"
-							className="h-8 w-8 p-0"
+							variant={isFlipped ? 'ghost' : 'outline'}
+							size="icon"
+							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`}
 							onClick={(e) => {
 								e.stopPropagation();
 								onEdit();
@@ -80,9 +84,9 @@ function FlashcardCard({
 							<Edit className="h-4 w-4" />
 						</Button>
 						<Button
-							variant="ghost"
-							size="sm"
-							className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+							variant={isFlipped ? 'ghost' : 'outline'}
+							size="icon"
+							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-rose-200 hover:text-rose-100 hover:bg-rose-500/30' : 'bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50'}`}
 							onClick={(e) => {
 								e.stopPropagation();
 								onDelete();
@@ -94,18 +98,18 @@ function FlashcardCard({
 				</div>
 
 				{/* Card content */}
-				<div className="flex-1 flex items-center justify-center">
-					<div className="text-center w-full">
+				<div className="flex-1 flex items-center justify-center relative z-10 overflow-hidden py-4">
+					<div className="text-center w-full max-h-full overflow-y-auto custom-scrollbar">
 						{isFlipped ? (
-							<div className="space-y-2">
-								<p className="text-sm text-gray-500 mb-2">Ghi chú:</p>
-								<p className="text-lg text-gray-800 whitespace-pre-wrap">
+							<div className="space-y-3 px-2">
+								<p className="text-xs font-bold uppercase tracking-widest text-blue-200">Ghi chú & Giải nghĩa</p>
+								<p className="text-lg font-medium text-white whitespace-pre-wrap leading-relaxed">
 									{flashcard.notes || 'Không có ghi chú'}
 								</p>
 							</div>
 						) : (
-							<div>
-								<p className="text-2xl font-bold text-gray-900">
+							<div className="px-2">
+								<p className="text-3xl font-extrabold text-slate-800 tracking-tight">
 									{flashcard.content}
 								</p>
 							</div>
@@ -114,9 +118,9 @@ function FlashcardCard({
 				</div>
 
 				{/* Footer */}
-				<div className="mt-4 pt-4 border-t border-gray-200">
-					<p className="text-xs text-gray-400">
-						{isFlipped ? 'Nhấn để xem từ' : 'Nhấn để xem ghi chú'}
+				<div className={`mt-4 pt-4 text-center border-t relative z-10 ${isFlipped ? 'border-white/20' : 'border-slate-100'}`}>
+					<p className={`text-xs font-bold uppercase tracking-widest ${isFlipped ? 'text-blue-200' : 'text-slate-400'}`}>
+						{isFlipped ? 'Nhấn thẻ để lật lại' : 'Nhấn thẻ xem ghi chú'}
 					</p>
 				</div>
 			</CardContent>
@@ -170,48 +174,49 @@ function FlashcardDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white">
-				<DialogHeader>
-					<DialogTitle>
-						{flashcard ? 'Sửa Flashcard' : 'Thêm Flashcard vào List'}
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
+				<div className="h-2 w-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+				<DialogHeader className="px-6 pt-6 pb-2">
+					<DialogTitle className="text-xl font-bold text-slate-800">
+						{flashcard ? 'Cập Nhật Flashcard' : 'Thêm Flashcard Mới'}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-slate-500 font-medium">
 						{flashcard
-							? 'Chỉnh sửa thông tin flashcard của bạn'
-							: 'Thêm một flashcard mới vào list này'}
+							? 'Chỉnh sửa mặt trước và mặt sau của thẻ học.'
+							: 'Thêm một thẻ ghi nhớ mới để học từ vựng hay ngữ pháp hiệu quả.'}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-4 py-4">
+				<div className="px-6 py-4 space-y-5">
 					<div className="space-y-2">
-						<Label htmlFor="content">Từ/Cụm từ *</Label>
+						<Label htmlFor="content" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
 						<Input
 							id="content"
-							placeholder="Ví dụ: Aberration, Present Perfect..."
+							placeholder="VD: Aberration, Present Perfect..."
 							value={content}
 							onChange={(e) => setContent(e.target.value)}
-							className="bg-gray-50 border-gray-200"
+							className="bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl h-11"
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="notes">Ghi chú</Label>
+						<Label htmlFor="notes" className="text-slate-700 font-bold">Ghi chú (Mặt sau)</Label>
 						<Textarea
 							id="notes"
-							placeholder="Định nghĩa, ví dụ, cách sử dụng..."
+							placeholder="Định nghĩa, ví dụ minh hoạ, âm thanh..."
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							rows={4}
-							className="bg-gray-50 border-gray-200"
+							className="bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl resize-none"
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="tag">Chủ đề *</Label>
+						<Label htmlFor="tag" className="text-slate-700 font-bold">Chủ đề <span className="text-red-500">*</span></Label>
 						<Select value={tagId} onValueChange={setTagId}>
-							<SelectTrigger id="tag" className="bg-gray-50 border-gray-200">
-								<SelectValue placeholder="Chọn chủ đề" />
+							<SelectTrigger id="tag" className="bg-slate-50 border-slate-200 rounded-xl h-11 focus:ring-blue-500 focus:border-blue-500">
+								<SelectValue placeholder="Chọn một chủ đề" />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="rounded-xl border-slate-200">
 								{flashcardTags.map((tag) => (
-									<SelectItem key={tag.id} value={tag.id}>
+									<SelectItem key={tag.id} value={tag.id} className="cursor-pointer">
 										{tag.name}
 									</SelectItem>
 								))}
@@ -219,12 +224,12 @@ function FlashcardDialog({
 						</Select>
 					</div>
 				</div>
-				<DialogFooter>
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
+					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-black hover:bg-gray-800 !text-white">
-						{flashcard ? 'Lưu thay đổi' : 'Thêm vào List'}
+					<Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+						{flashcard ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -366,125 +371,139 @@ export function FlashcardListDetail() {
 	}
 
 	return (
-		<div className="max-w-7xl mx-auto p-6 space-y-6">
-			{/* Back Button */}
-			<Button
-				variant="ghost"
-				onClick={() => router.push('/flashcards')}
-				className="flex items-center gap-2 -ml-2"
-			>
-				<ArrowLeft className="h-4 w-4" />
-				Quay lại
-			</Button>
+		<div className="min-h-screen bg-slate-50/50 pb-20">
+			{/* Premium Header Region */}
+			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-12 relative overflow-hidden'>
+				<div className='absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-blue-50/20 to-transparent pointer-events-none'></div>
 
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-						<Folder className="h-8 w-8 text-blue-600" />
-						{currentList.name}
-					</h1>
-					{currentList.description && (
-						<p className="text-gray-600 mt-1">
-							{currentList.description}
-						</p>
-					)}
-				</div>
-				<Button
-					onClick={() => {
-						setEditingFlashcard(undefined);
-						setFlashcardDialogOpen(true);
-					}}
-					className="bg-blue-600 hover:bg-blue-700 !text-white"
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Thêm Flashcard
-				</Button>
-			</div>
-
-			{/* Stats */}
-			<div className="flex items-center gap-6 text-sm text-gray-600">
-				<div className="flex items-center gap-2">
-					<BookOpen className="h-4 w-4" />
-					<span>{flashcardsInList.length} flashcard</span>
-				</div>
-			</div>
-
-			{/* Search and Filter */}
-			<div className="flex items-center gap-4 flex-wrap">
-				<div className="flex-1 min-w-[200px] relative">
-					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-					<Input
-						placeholder="Tìm kiếm flashcard..."
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-10"
-					/>
-				</div>
-				<Select value={selectedTagId} onValueChange={setSelectedTagId}>
-					<SelectTrigger className="w-48">
-						<Filter className="h-4 w-4 mr-2" />
-						<SelectValue placeholder="Lọc theo chủ đề" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="__all__">Tất cả chủ đề</SelectItem>
-						{flashcardTags.map((tag) => (
-							<SelectItem key={tag.id} value={tag.id}>
-								{tag.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{(searchQuery || (selectedTagId && selectedTagId !== '__all__')) && (
+				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 					<Button
 						variant="ghost"
-						size="sm"
-						onClick={() => {
-							setSearchQuery('');
-							setSelectedTagId('__all__');
-						}}
+						onClick={() => router.push('/flashcards')}
+						className="flex items-center gap-2 mb-6 -ml-2 text-slate-500 hover:text-blue-600 font-semibold"
 					>
-						<X className="h-4 w-4 mr-1" />
-						Xóa bộ lọc
+						<ArrowLeft className="h-4 w-4" />
+						Trở về danh sách bộ sưu tập
 					</Button>
-				)}
+
+					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
+						<div className="flex items-center gap-5 text-center md:text-left">
+							<div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner">
+								<Folder className="h-8 w-8" strokeWidth={2.5} />
+							</div>
+							<div>
+								<h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight mb-2">
+									{currentList.name}
+								</h1>
+								<div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+									<div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+										<BookOpen className="h-4 w-4 text-blue-500" />
+										{flashcardsInList.length} thẻ ghi nhớ
+									</div>
+									{currentList.description && (
+										<p className="text-slate-500 font-medium">
+											{currentList.description}
+										</p>
+									)}
+								</div>
+							</div>
+						</div>
+						<Button
+							onClick={() => {
+								setEditingFlashcard(undefined);
+								setFlashcardDialogOpen(true);
+							}}
+							className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-6 h-auto shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all hover:-translate-y-1 font-bold text-base flex-shrink-0"
+						>
+							<Plus className="h-5 w-5 mr-2" strokeWidth={3} />
+							Thêm Flashcard
+						</Button>
+					</div>
+				</div>
 			</div>
 
-			{/* Flashcard Grid */}
-			{filteredFlashcards.length === 0 ? (
-				<Card>
-					<CardContent className="py-12 text-center">
-						<BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-						<p className="text-gray-500 mb-4">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+				{/* Search and Filter */}
+				<div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
+					<div className="flex-1 w-full relative">
+						<Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+						<Input
+							placeholder="Tìm kiếm nội dung thẻ học hoặc ghi chú..."
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+							className="pl-11 bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl h-12 text-base font-medium"
+						/>
+					</div>
+					<div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-4">
+						<Select value={selectedTagId} onValueChange={setSelectedTagId}>
+							<SelectTrigger className="w-full sm:w-56 h-12 bg-slate-50 border-slate-200 rounded-xl font-medium focus:ring-blue-500 text-slate-600">
+								<div className="flex items-center">
+									<Filter className="h-4 w-4 mr-2 text-slate-400" />
+									<SelectValue placeholder="Lọc theo chủ đề" />
+								</div>
+							</SelectTrigger>
+							<SelectContent className="rounded-xl border-slate-200">
+								<SelectItem value="__all__" className="font-semibold text-blue-600">Tất cả chủ đề</SelectItem>
+								{flashcardTags.map((tag) => (
+									<SelectItem key={tag.id} value={tag.id} className="font-medium">
+										{tag.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{(searchQuery || (selectedTagId && selectedTagId !== '__all__')) && (
+							<Button
+								variant="ghost"
+								onClick={() => {
+									setSearchQuery('');
+									setSelectedTagId('__all__');
+								}}
+								className="h-12 w-full sm:w-auto px-4 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold"
+							>
+								<X className="h-4 w-4 mr-2" />
+								Xóa lọc
+							</Button>
+						)}
+					</div>
+				</div>
+
+				{/* Flashcard Grid */}
+				{filteredFlashcards.length === 0 ? (
+					<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-16 text-center">
+						<div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+							<BookOpen className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
+						</div>
+						<h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy thẻ ghi nhớ nào.</h3>
+						<p className="text-slate-500 mb-8 max-w-sm mx-auto font-medium">
 							{searchQuery || (selectedTagId && selectedTagId !== '__all__')
-								? 'Không tìm thấy flashcard nào'
-								: 'List này chưa có flashcard nào. Hãy thêm flashcard đầu tiên!'}
+								? 'Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn chủ đề khác nhé.'
+								: 'Bộ sưu tập này đang trống. Hãy nhấn nút thêm flashcard để làm đầy sổ học tập của bạn!'}
 						</p>
 						<Button
 							onClick={() => {
 								setEditingFlashcard(undefined);
 								setFlashcardDialogOpen(true);
 							}}
-							className="bg-blue-600 hover:bg-blue-700 !text-white"
+							className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
 						>
-							<Plus className="h-4 w-4 mr-2" />
-							Thêm Flashcard
+							<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
+							Tạo thẻ ghi nhớ đầu tiên
 						</Button>
-					</CardContent>
-				</Card>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-					{filteredFlashcards.map((flashcard) => (
-						<FlashcardCard
-							key={flashcard.id}
-							flashcard={flashcard}
-							tag={getTag(flashcard.tagId)}
-							onEdit={() => handleEditFlashcard(flashcard)}
-							onDelete={() => handleDeleteFlashcard(flashcard.id)}
-						/>
-					))}
-				</div>
-			)}
+					</div>
+				) : (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+						{filteredFlashcards.map((flashcard) => (
+							<FlashcardCard
+								key={flashcard.id}
+								flashcard={flashcard}
+								tag={getTag(flashcard.tagId)}
+								onEdit={() => handleEditFlashcard(flashcard)}
+								onDelete={() => handleDeleteFlashcard(flashcard.id)}
+							/>
+						))}
+					</div>
+				)}
+			</div>
 
 			{/* Flashcard Dialog */}
 			<FlashcardDialog

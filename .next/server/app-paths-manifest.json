@@ -1,8 +1,0 @@
-{
-  "/blog/page": "app/blog/page.js",
-  "/speaking-writing/page": "app/speaking-writing/page.js",
-  "/flashcards/page": "app/flashcards/page.js",
-  "/user/page": "app/user/page.js",
-  "/auth/page": "app/auth/page.js",
-  "/landing/page": "app/landing/page.js"
-}
