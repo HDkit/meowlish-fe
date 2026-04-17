@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { RootState } from '@/lib/store/store';
-import { approveExam, rejectExam } from '@/components/store/examSlice';
+import { ExamManagementService } from '@/lib/api-client';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,45 +23,77 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, XCircle, Eye, Search, Filter, FileText, ClipboardCheck, AlertCircle, Clock } from 'lucide-react';
-import { Exam, ExamStatus } from '@/types/client';
+import { CheckCircle, XCircle, Eye, Search, Filter, FileText, ClipboardCheck, AlertCircle, Clock, RefreshCw } from 'lucide-react';
+import { useToast } from './ui/use-toast';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  [ExamStatus.Empty]: {
+  Empty: {
     label: 'Bản nháp',
     color: 'bg-gray-100 text-gray-600 border-gray-200',
     icon: <FileText className="h-3 w-3" />,
   },
-  [ExamStatus.InDraft]: {
+  InDraft: {
     label: 'Chờ duyệt',
     color: 'bg-orange-100 text-orange-700 border-orange-200',
     icon: <Clock className="h-3 w-3" />,
   },
-  [ExamStatus.NeedsRevision]: {
+  NeedsRevision: {
     label: 'Cần sửa',
     color: 'bg-red-100 text-red-700 border-red-200',
     icon: <AlertCircle className="h-3 w-3" />,
   },
-  [ExamStatus.Published]: {
+  Published: {
     label: 'Đã xuất bản',
     color: 'bg-green-100 text-green-700 border-green-200',
     icon: <CheckCircle className="h-3 w-3" />,
   },
 };
 
+interface ExamItem {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  duration?: number;
+  passScore?: number;
+  createdAt?: string;
+  createdBy?: string;
+  rejectionReason?: string;
+  reviewedBy?: string;
+}
+
 export default function ExamApprovalPage() {
-  const dispatch = useDispatch();
   const router = useRouter();
   const { currUser, isHeadStaff, canApproveExams } = useAuth();
-  const exams = useSelector((state: RootState) => state.exams.list);
-  const users = useSelector((state: RootState) => state.users.list);
+  const { toast } = useToast();
 
-  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [exams, setExams] = useState<ExamItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [selectedExam, setSelectedExam] = useState<ExamItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const fetchExams = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
+      setExams(res.data?.exams ?? []);
+    } catch (err) {
+      console.warn('ExamApproval: failed to load exams', err);
+      toast({ title: 'Lỗi tải dữ liệu', description: 'Không thể tải danh sách đề thi.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (currUser) fetchExams();
+  }, [currUser, fetchExams]);
 
   // Access check
   if (!currUser || !isHeadStaff || !canApproveExams) {
@@ -81,50 +111,61 @@ export default function ExamApprovalPage() {
     );
   }
 
-  // Filter exams
   const filteredExams = exams.filter((exam) => {
     const matchesSearch = exam.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === 'all' || exam.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || exam.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  // Sort: Pending first, then by submission date
   const sortedExams = [...filteredExams].sort((a, b) => {
     if (a.status === 'InDraft' && b.status !== 'InDraft') return -1;
     if (a.status !== 'InDraft' && b.status === 'InDraft') return 1;
-    return (b.submittedAt || 0) - (a.submittedAt || 0);
+    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
   });
 
-  const handleApprove = (examId: string) => {
-    dispatch(approveExam({ examId, reviewerId: currUser.id }));
-    setIsPreviewOpen(false);
-    setSelectedExam(null);
+  const handleApprove = async (examId: string) => {
+    setSubmitting(true);
+    try {
+      await ExamManagementService.examManagementGatewayControllerReviewExamV1({
+        id: examId,
+        requestBody: { status: 'Published' },
+      });
+      toast({ title: 'Đã phê duyệt', description: 'Đề thi đã được phê duyệt thành công.' });
+      setIsPreviewOpen(false);
+      setSelectedExam(null);
+      await fetchExams();
+    } catch (err) {
+      console.error('Failed to approve exam', err);
+      toast({ title: 'Phê duyệt thất bại', description: 'Không thể phê duyệt đề thi này.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedExam || !rejectionReason.trim()) return;
-    dispatch(
-      rejectExam({
-        examId: selectedExam.id,
-        reviewerId: currUser.id,
-        reason: rejectionReason,
-      })
-    );
-    setIsRejectDialogOpen(false);
-    setIsPreviewOpen(false);
-    setSelectedExam(null);
-    setRejectionReason('');
-  };
-
-
-
-  const openRejectDialog = () => {
-    setIsRejectDialogOpen(true);
+    setSubmitting(true);
+    try {
+      await ExamManagementService.examManagementGatewayControllerReviewExamV1({
+        id: selectedExam.id,
+        requestBody: { status: 'NeedsRevision', reason: rejectionReason } as any,
+      });
+      toast({ title: 'Đã từ chối', description: 'Đề thi đã được trả về cho tác giả chỉnh sửa.' });
+      setIsRejectDialogOpen(false);
+      setIsPreviewOpen(false);
+      setSelectedExam(null);
+      setRejectionReason('');
+      await fetchExams();
+    } catch (err) {
+      console.error('Failed to reject exam', err);
+      toast({ title: 'Từ chối thất bại', description: 'Không thể từ chối đề thi này.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getStatusConfig = (status: string) => {
-    return STATUS_CONFIG[status] || STATUS_CONFIG[ExamStatus.Empty];
+    return STATUS_CONFIG[status] || STATUS_CONFIG['Empty'];
   };
 
   const pendingCount = exams.filter((e) => e.status === 'InDraft').length;
@@ -143,10 +184,19 @@ export default function ExamApprovalPage() {
                 Duyệt đề thi
               </h1>
               <p className="text-blue-100 mt-1">
-                Xem xét và phê duyệt các đề thi do người dùng tạo ra
+                Xem xét và phê duyệt các đề thi do staff tạo ra
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchExams}
+                disabled={loading}
+                className="text-white hover:bg-white/20 border-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
               <div className="bg-orange-400/30 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-sm">
                 <Clock className="w-4 h-4" />
                 {pendingCount} đề đang chờ duyệt
@@ -177,18 +227,23 @@ export default function ExamApprovalPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
                   <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả trạng thái</SelectItem>
-                  <SelectItem value={ExamStatus.Empty} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
-                  <SelectItem value={ExamStatus.InDraft} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
-                  <SelectItem value={ExamStatus.NeedsRevision} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
-                  <SelectItem value={ExamStatus.Published} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
+                  <SelectItem value="Empty" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
+                  <SelectItem value="InDraft" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
+                  <SelectItem value="NeedsRevision" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
+                  <SelectItem value="Published" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <span className="text-sm text-gray-400">{sortedExams.length} đề thi</span>
           </div>
 
-          {/* Table UI mapped to match ExamManagementPage.tsx style */}
-          {sortedExams.length === 0 ? (
+          {/* Table */}
+          {loading ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+              <RefreshCw className="h-8 w-8 text-blue-400 mx-auto mb-4 animate-spin" />
+              <p className="text-gray-500 font-medium">Đang tải danh sách đề thi...</p>
+            </div>
+          ) : sortedExams.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
               <ClipboardCheck className="h-12 w-12 text-gray-200 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">Không tìm thấy đề thi nào</p>
@@ -200,79 +255,79 @@ export default function ExamApprovalPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đề thi</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Người tạo</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Ngày trình duyệt</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Ngày tạo</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
                     <th className="text-right px-5 py-3 font-semibold text-gray-600 whitespace-nowrap w-[240px]">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {sortedExams.map((exam) => {
-                    const creator = users.find((u) => u.id === (exam.creatorId || exam.createdBy));
-                    return (
-                      <tr key={exam.id} className="group hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-4">
-                          <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                            {exam.title}
+                  {sortedExams.map((exam) => (
+                    <tr key={exam.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                          {exam.title}
+                        </p>
+                        {exam.rejectionReason && (
+                          <p className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" />
+                            {exam.rejectionReason}
                           </p>
-                        </td>
-                        <td className="px-4 py-4 hidden md:table-cell">
-                          <span className="text-gray-600 bg-gray-50 px-2 py-1 rounded inline-flex items-center">
-                            {creator?.fullName || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
-                          {exam.submittedAt
-                            ? new Date(exam.submittedAt).toLocaleDateString('vi-VN')
-                            : '--'}
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border w-[110px] justify-center ${getStatusConfig(exam.status).color}`}>
-                            {getStatusConfig(exam.status).icon}
-                            {getStatusConfig(exam.status).label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex justify-end gap-2 whitespace-nowrap">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 gap-1.5 px-3"
-                              onClick={() => router.push(`/exam-creation?id=${exam.id}`)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="hidden xl:inline">Xem</span>
-                            </Button>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
+                        {exam.createdAt ? new Date(exam.createdAt).toLocaleDateString('vi-VN') : '--'}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border w-[110px] justify-center ${getStatusConfig(exam.status).color}`}>
+                          {getStatusConfig(exam.status).icon}
+                          {getStatusConfig(exam.status).label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex justify-end gap-2 whitespace-nowrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 gap-1.5 px-3"
+                            onClick={() => {
+                              setSelectedExam(exam);
+                              setIsPreviewOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="hidden xl:inline">Xem</span>
+                          </Button>
 
-                            {exam.status === 'InDraft' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-500 hover:bg-green-600 text-white gap-1.5 px-3 border-0"
-                                  onClick={() => handleApprove(exam.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                  <span className="hidden xl:inline">Duyệt</span>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200 hover:border-red-300 gap-1.5 px-3"
-                                  onClick={() => {
-                                    setSelectedExam(exam);
-                                    openRejectDialog();
-                                  }}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                  <span className="hidden xl:inline">Từ chối</span>
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          {exam.status === 'InDraft' && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="bg-green-500 hover:bg-green-600 text-white gap-1.5 px-3 border-0"
+                                onClick={() => handleApprove(exam.id)}
+                                disabled={submitting}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="hidden xl:inline">Duyệt</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200 hover:border-red-300 gap-1.5 px-3"
+                                onClick={() => {
+                                  setSelectedExam(exam);
+                                  setIsRejectDialogOpen(true);
+                                }}
+                                disabled={submitting}
+                              >
+                                <XCircle className="h-4 w-4" />
+                                <span className="hidden xl:inline">Từ chối</span>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -280,17 +335,13 @@ export default function ExamApprovalPage() {
         </div>
       </div>
 
-
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">{selectedExam?.title}</DialogTitle>
             <DialogDescription>
-              Tạo bởi{' '}
-              <span className="font-medium text-gray-900">
-                {users.find((u) => u.id === (selectedExam?.creatorId || selectedExam?.createdBy))?.fullName || 'Không có tên'}
-              </span>
+              Tạo lúc {selectedExam?.createdAt ? new Date(selectedExam.createdAt).toLocaleDateString('vi-VN') : '--'}
             </DialogDescription>
           </DialogHeader>
           {selectedExam && (
@@ -302,20 +353,14 @@ export default function ExamApprovalPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Thời gian</h4>
-                  <p className="font-medium text-gray-900">{selectedExam.duration} phút</p>
+                  <p className="font-medium text-gray-900">{selectedExam.duration ?? '—'} phút</p>
                 </div>
                 <div className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Điểm đỗ</h4>
-                  <p className="font-medium text-gray-900">{selectedExam.passScore || 70}%</p>
-                </div>
-                <div className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Ngày tạo</h4>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedExam.createdAt ? new Date(selectedExam.createdAt).toLocaleDateString('vi-VN') : '--'}
-                  </p>
+                  <p className="font-medium text-gray-900">{selectedExam.passScore ?? 70}%</p>
                 </div>
                 <div className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Trạng thái</h4>
@@ -333,14 +378,19 @@ export default function ExamApprovalPage() {
                     Lý do từ chối trước đó
                   </h4>
                   <p className="text-sm text-red-700 bg-white/50 p-3 rounded-lg">{selectedExam.rejectionReason}</p>
-                  {selectedExam.reviewedBy && (
-                    <p className="text-xs text-red-600/80 mt-3 font-medium">
-                      Người duyệt:{' '}
-                      {users.find((u) => u.id === selectedExam.reviewedBy)?.fullName || 'Không rõ'}
-                    </p>
-                  )}
                 </div>
               )}
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-gray-100">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/exam-creation?id=${selectedExam.id}`)}
+                  className="w-full gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  Xem chi tiết đề thi trong trình soạn thảo
+                </Button>
+              </div>
             </div>
           )}
           <DialogFooter className="mt-6 border-t pt-4">
@@ -349,11 +399,22 @@ export default function ExamApprovalPage() {
                 <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
                   Hủy
                 </Button>
-                <Button variant="destructive" onClick={openRejectDialog}>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setIsPreviewOpen(false);
+                    setIsRejectDialogOpen(true);
+                  }}
+                  disabled={submitting}
+                >
                   <XCircle className="h-4 w-4 mr-2" />
                   Từ chối
                 </Button>
-                <Button className="bg-green-500 hover:bg-green-600 text-white border-0" onClick={() => handleApprove(selectedExam.id)}>
+                <Button
+                  className="bg-green-500 hover:bg-green-600 text-white border-0"
+                  onClick={() => handleApprove(selectedExam.id)}
+                  disabled={submitting}
+                >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Phê duyệt
                 </Button>
@@ -400,9 +461,9 @@ export default function ExamApprovalPage() {
             <Button
               variant="destructive"
               onClick={handleReject}
-              disabled={!rejectionReason.trim()}
+              disabled={!rejectionReason.trim() || submitting}
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              {submitting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
               Gửi từ chối
             </Button>
           </DialogFooter>

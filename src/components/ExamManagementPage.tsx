@@ -1,53 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FilePlus, Search, FileEdit, Trash2, Clock, CheckCircle,
-    AlertCircle, FileText, ChevronRight, Filter, Eye
+    AlertCircle, FileText, ChevronRight, Filter, Eye, RefreshCw
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from './ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { RootState } from '@/lib/store/store';
-import { removeExam } from './store/examSlice';
-import { useDispatch } from 'react-redux';
-import { Exam, ExamStatus } from '@/types/client';
+import { ExamManagementService } from '@/lib/api-client';
 
 // ─── Status config ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    [ExamStatus.Empty]: {
+    Empty: {
         label: 'Bản nháp',
         color: 'bg-gray-100 text-gray-600 border-gray-200',
         icon: <FileText className="h-3 w-3" />,
     },
-    [ExamStatus.InDraft]: {
+    InDraft: {
         label: 'Chờ duyệt',
         color: 'bg-orange-100 text-orange-700 border-orange-200',
         icon: <Clock className="h-3 w-3" />,
     },
-    [ExamStatus.NeedsRevision]: {
+    NeedsRevision: {
         label: 'Cần sửa',
         color: 'bg-red-100 text-red-700 border-red-200',
         icon: <AlertCircle className="h-3 w-3" />,
     },
-    [ExamStatus.Published]: {
+    Published: {
         label: 'Đã xuất bản',
         color: 'bg-green-100 text-green-700 border-green-200',
         icon: <CheckCircle className="h-3 w-3" />,
     },
-};
-
-const DIFFICULTY_LABELS: Record<string, string> = {
-    beginner: 'Cơ bản',
-    intermediate: 'Trung bình',
-    advanced: 'Nâng cao',
 };
 
 const SKILL_LABELS: Record<string, string> = {
@@ -57,24 +46,51 @@ const SKILL_LABELS: Record<string, string> = {
     speaking: 'Speaking',
 };
 
-// ─── Staff exam list: filter only exams created by this staff ────
+interface ExamItem {
+    id: string;
+    title: string;
+    description?: string;
+    status: string;
+    testType?: string;
+    skill?: string;
+    difficulty?: string;
+    duration?: number;
+    createdAt?: string;
+    createdBy?: string;
+    rejectionReason?: string;
+}
 
 export function ExamManagementPage() {
-    const dispatch = useDispatch();
     const router = useRouter();
     const { toast } = useToast();
     const { currUser, isStaff } = useAuth();
 
-    const allExams = useSelector((s: RootState) => s.exams.list);
-
-    // Show only exams created by current staff + non-published
-    const staffExams = isStaff
-        ? allExams.filter(e => e.createdBy === currUser?.id || e.creatorId === currUser?.id)
-        : allExams;
-
-    // Filters
+    const [allExams, setAllExams] = useState<ExamItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+
+    const fetchExams = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
+            setAllExams(res.data?.exams ?? []);
+        } catch (err) {
+            console.warn('ExamManagement: failed to load exams', err);
+            toast({ title: 'Lỗi tải dữ liệu', description: 'Không thể tải danh sách đề thi.', variant: 'destructive' });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        if (currUser) fetchExams();
+    }, [currUser, fetchExams]);
+
+    // Staff only sees their own exams
+    const staffExams = isStaff
+        ? allExams.filter(e => e.createdBy === currUser?.id)
+        : allExams;
 
     const filtered = staffExams.filter(e => {
         const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -83,21 +99,26 @@ export function ExamManagementPage() {
         return matchesSearch && matchesStatus;
     });
 
-    // Stats
     const stats = {
         total: staffExams.length,
-        draft: staffExams.filter(e => e.status === ExamStatus.InDraft).length,
-        needsRevision: staffExams.filter(e => e.status === ExamStatus.NeedsRevision).length,
-        published: staffExams.filter(e => e.status === ExamStatus.Published).length,
+        draft: staffExams.filter(e => e.status === 'InDraft').length,
+        needsRevision: staffExams.filter(e => e.status === 'NeedsRevision').length,
+        published: staffExams.filter(e => e.status === 'Published').length,
     };
 
-    const handleEdit = (exam: Exam) => {
+    const handleEdit = (exam: ExamItem) => {
         router.push(`/exam-creation?id=${exam.id}`);
     };
 
-    const handleDelete = (examId: string) => {
-        dispatch(removeExam(examId));
-        toast({ title: 'Đã xóa đề thi', description: 'Đề thi đã được xóa thành công.' });
+    const handleDelete = async (examId: string) => {
+        try {
+            await ExamManagementService.examManagementGatewayControllerDeleteExamV1({ id: examId });
+            setAllExams(prev => prev.filter(e => e.id !== examId));
+            toast({ title: 'Đã xóa đề thi', description: 'Đề thi đã được xóa thành công.' });
+        } catch (err) {
+            console.error('Failed to delete exam', err);
+            toast({ title: 'Xóa thất bại', description: 'Không thể xóa đề thi này.', variant: 'destructive' });
+        }
     };
 
     return (
@@ -113,13 +134,24 @@ export function ExamManagementPage() {
                             <h1 className="text-2xl font-bold">Quản lý đề thi</h1>
                             <p className="text-blue-100 mt-1 text-sm">Tạo, chỉnh sửa và theo dõi trạng thái phê duyệt đề thi</p>
                         </div>
-                        <Button
-                            onClick={() => router.push('/exam-creation')}
-                            className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow border-0"
-                        >
-                            <FilePlus className="h-4 w-4 mr-2" />
-                            Tạo đề mới
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={fetchExams}
+                                variant="ghost"
+                                className="text-white hover:bg-white/20 border-0"
+                                size="sm"
+                                disabled={loading}
+                            >
+                                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                            </Button>
+                            <Button
+                                onClick={() => router.push('/exam-creation')}
+                                className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow border-0"
+                            >
+                                <FilePlus className="h-4 w-4 mr-2" />
+                                Tạo đề mới
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Stats row */}
@@ -161,10 +193,10 @@ export function ExamManagementPage() {
                             </SelectTrigger>
                             <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
                                 <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả trạng thái</SelectItem>
-                                <SelectItem value={ExamStatus.Empty} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
-                                <SelectItem value={ExamStatus.InDraft} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
-                                <SelectItem value={ExamStatus.NeedsRevision} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
-                                <SelectItem value={ExamStatus.Published} className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
+                                <SelectItem value="Empty" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
+                                <SelectItem value="InDraft" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
+                                <SelectItem value="NeedsRevision" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
+                                <SelectItem value="Published" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -172,7 +204,12 @@ export function ExamManagementPage() {
                 </div>
 
                 {/* Exam Table */}
-                {filtered.length === 0 ? (
+                {loading ? (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+                        <RefreshCw className="h-8 w-8 text-blue-400 mx-auto mb-4 animate-spin" />
+                        <p className="text-gray-500 font-medium">Đang tải danh sách đề thi...</p>
+                    </div>
+                ) : filtered.length === 0 ? (
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
                         <FileText className="h-12 w-12 text-gray-200 mx-auto mb-4" />
                         <p className="text-gray-500 font-medium">Chưa có đề thi nào</p>
@@ -199,8 +236,8 @@ export function ExamManagementPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {filtered.map(exam => {
-                                    const statusCfg = STATUS_CONFIG[exam.status] ?? STATUS_CONFIG[ExamStatus.Empty];
-                                    const canEdit = exam.status !== ExamStatus.Published;
+                                    const statusCfg = STATUS_CONFIG[exam.status] ?? STATUS_CONFIG['Empty'];
+                                    const canEdit = exam.status !== 'Published';
                                     return (
                                         <tr
                                             key={exam.id}
@@ -219,8 +256,7 @@ export function ExamManagementPage() {
                                                     {exam.description && (
                                                         <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{exam.description}</p>
                                                     )}
-                                                    {/* Show rejection reason if NeedsRevision */}
-                                                    {exam.status === ExamStatus.NeedsRevision && exam.rejectionReason && (
+                                                    {exam.status === 'NeedsRevision' && exam.rejectionReason && (
                                                         <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                                                             <AlertCircle className="h-3 w-3 shrink-0" />
                                                             {exam.rejectionReason}
@@ -236,8 +272,7 @@ export function ExamManagementPage() {
                                                         {exam.testType?.toUpperCase()}
                                                     </span>
                                                     <p className="text-xs text-gray-400">
-                                                        {SKILL_LABELS[exam.skill] ?? exam.skill}
-                                                        {exam.difficulty && ` • ${DIFFICULTY_LABELS[exam.difficulty] ?? exam.difficulty}`}
+                                                        {SKILL_LABELS[exam.skill ?? ''] ?? exam.skill}
                                                     </p>
                                                 </div>
                                             </td>
@@ -246,7 +281,7 @@ export function ExamManagementPage() {
                                             <td className="px-4 py-4 hidden lg:table-cell">
                                                 <span className="text-gray-600 flex items-center gap-1">
                                                     <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                                    {exam.duration} phút
+                                                    {exam.duration ?? '—'} phút
                                                 </span>
                                             </td>
 

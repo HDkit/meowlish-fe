@@ -18,6 +18,15 @@ const nextConfig: NextConfig = {
 			transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
 		},
 	},
+	async rewrites() {
+		return [
+			{
+				source: '/api/:path*',
+				// Forward requests to the real backend server
+				destination: 'http://khoakomlem-internal.ddns.net:1510/api/:path*',
+			},
+		];
+	},
 };
 
 export default nextConfig;

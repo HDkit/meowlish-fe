@@ -3,7 +3,11 @@ import { ThemeProvider } from 'next-themes';
 import StoreProvider from '@/lib/store/StoreProvider';
 import { MainNavbar } from '@/components/MainNavbar';
 import { Toaster } from '@/components/ui/toaster';
+import { setupApiClient } from '@/lib/api-client';
 import './globals.css';
+
+// Initialize API client configuration
+setupApiClient();
 
 export const metadata: Metadata = {
 	title: 'AI English Exam Prep System',

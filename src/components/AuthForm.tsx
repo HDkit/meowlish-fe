@@ -7,16 +7,15 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
+import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles, FlaskConical } from 'lucide-react';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
 import { v4 as uuidv4 } from 'uuid';
-
-import { RootState } from '@/lib/store/store';
-import { addUser, updateUser } from './store/userSlice';
+import { AuthService, setApiToken } from '@/lib/api-client';
+import { jwtDecode } from 'jwt-decode';
 import { User } from '@/types/client';
 
 export function AuthForm() {
@@ -35,10 +34,53 @@ export function AuthForm() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [devLoading, setDevLoading] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 	const [error, setError] = useState('');
-	const users = useAppSelector((state: RootState) => state.users.list);
-	const roles = useAppSelector((state: RootState) => state.roles.list);
+
+	// ─── Dev Quick Login (mock role, real token) ───────────────────────
+	const devLogin = async (targetRole: 'role-staff' | 'role-head-staff') => {
+		const label = targetRole === 'role-head-staff' ? 'head-staff' : 'staff';
+		setDevLoading(label);
+		setError('');
+		const ts = Date.now();
+		const devEmail = `dev.${label}.${ts}@devtest.local`;
+		const devPassword = `DevPass${ts}!`;
+		const devName = targetRole === 'role-head-staff' ? `HeadStaff${ts}` : `Staff${ts}`;
+		try {
+			// Register a fresh account to get a real token
+			const res = await AuthService.authGatewayControllerRegisterV1({
+				requestBody: { mail: devEmail, password: devPassword, username: devName },
+			});
+			const token = res.data?.accessToken;
+			if (!token) throw new Error('Không nhận được token');
+			setApiToken(token);
+			document.cookie = `user_authenticated=true; path=/; max-age=86400`;
+			const decoded: any = jwtDecode(token);
+			// Override roleId → desired staff role for UI routing
+			const user: User = {
+				id: decoded.sub || decoded.id || uuidv4(),
+				email: devEmail,
+				fullName: devName,
+				roleId: targetRole,
+				password: '***',
+				status: 'active',
+				createdAt: Date.now(),
+				lastLoginAt: Date.now(),
+			};
+			dispatch(setUser(user));
+			router.push('/dashboard');
+		} catch (err: any) {
+			setError(
+				err.body?.error?.message ||
+				err.message ||
+				'Dev login thất bại. Backend có thể không khả dụng.'
+			);
+		} finally {
+			setDevLoading(null);
+		}
+	};
+
 
 	// Common validation
 	const validate = () => {
@@ -65,46 +107,44 @@ export function AuthForm() {
 		setError('');
 
 		try {
-			// simulate API delay
-			await new Promise((res) => setTimeout(res, 700));
-
-			// get all users from Redux
-			const foundUser = users.find((u) => u.email === formData.email && u.password === formData.password);
-
-			if (!foundUser) {
-				setError('Email hoặc mật khẩu không đúng');
-				return;
-			}
-
-			// Check user status
-			if (foundUser.status === 'suspended') {
-				setError('Tài khoản của bạn đã bị tạm ngưng');
-				return;
-			}
-			if (foundUser.status === 'banned') {
-				setError('Tài khoản của bạn đã bị cấm');
-				return;
-			}
-
-			// Update last login time
-			const updatedUser: User = { ...foundUser, lastLoginAt: Date.now() };
-			dispatch(updateUser(updatedUser));
-
-			// dispatch current user to store
-			dispatch(setUser(updatedUser));
-
+			const res = await AuthService.authGatewayControllerLoginV1({
+				requestBody: { mail: formData.email, password: formData.password },
+			});
+			
+			const token = res.data?.accessToken;
+			if (!token) throw new Error('Không nhận được token từ server');
+			
+			setApiToken(token);
+			
 			// Set authentication cookie for middleware
-			document.cookie = 'user_authenticated=true; path=/; max-age=2592000'; // 30 days
+			document.cookie = `user_authenticated=true; path=/; max-age=2592000`; // 30 days
+			
+			// Decode token to get user info if possible (or just use basic properties)
+			const decoded: any = jwtDecode(token);
+			
+			// For right now, let's inject a realistic user into Redux to keep the app working
+			const user: User = {
+				id: decoded.sub || decoded.id || uuidv4(),
+				email: formData.email,
+				fullName: decoded.name || decoded.fullName || formData.email.split('@')[0],
+				roleId: decoded.role || decoded.roleId || 'role-learner',
+				password: '***',
+				status: 'active',
+				createdAt: Date.now(),
+				lastLoginAt: Date.now(),
+			};
 
-			// Redirect based on roleId (direct check — avoids timing issues with roles slice hydration)
-			const isAdminRole = foundUser.roleId === 'role-staff' || foundUser.roleId === 'role-head-staff';
+			dispatch(setUser(user));
+			
+			const isAdminRole = user.roleId === 'role-staff' || user.roleId === 'role-head-staff' || user.roleId === 'ADMIN';
 			if (isAdminRole) {
 				router.push('/dashboard');
 			} else {
 				router.push('/test-selection');
 			}
 		} catch (err: any) {
-			setError(err.message || 'Đăng nhập thất bại');
+			console.error(err);
+			setError(err.body?.error?.message || err.message || 'Đăng nhập thất bại');
 		} finally {
 			setLoading(false);
 		}
@@ -115,43 +155,34 @@ export function AuthForm() {
 		setLoading(true);
 		setError('');
 		try {
-			await new Promise((res) => setTimeout(res, 700));
+			const res = await AuthService.authGatewayControllerRegisterV1({
+				requestBody: { mail: formData.email, password: formData.password, username: formData.fullName },
+			});
+			
+			const token = res.data?.accessToken;
+			if (!token) throw new Error('Không nhận được token từ server');
+			
+			setApiToken(token);
+			document.cookie = `user_authenticated=true; path=/; max-age=2592000`;
 
-			// Check if user already exists
-			const existingUser = users.find(u => u.email === formData.email);
-			if (existingUser) {
-				setError('Email đã được đăng ký');
-				return;
-			}
+			const decoded: any = jwtDecode(token);
 
-			// Get learner role
-			const learnerRole = roles.find(r => r.name === 'learner');
-			if (!learnerRole) {
-				setError('Không tìm thấy vai trò người dùng');
-				return;
-			}
-
-			// Create new user with learner role
 			const newUser: User = {
-				id: uuidv4(),
+				id: decoded.sub || decoded.id || uuidv4(),
 				email: formData.email,
 				fullName: formData.fullName,
-				password: formData.password,
-				roleId: learnerRole.id,
+				password: '***',
+				roleId: decoded.role || decoded.roleId || 'role-learner',
 				status: 'active',
 				createdAt: Date.now(),
 				lastLoginAt: Date.now(),
 			};
 
 			dispatch(setUser(newUser));
-			dispatch(addUser(newUser));
-
-			// Set authentication cookie for middleware
-			document.cookie = 'user_authenticated=true; path=/; max-age=2592000'; // 30 days
-
 			router.push('/test-selection');
 		} catch (err: any) {
-			setError(err.message || 'Đăng ký thất bại');
+			console.error(err);
+			setError(err.body?.error?.message || err.message || 'Đăng ký thất bại');
 		} finally {
 			setLoading(false);
 		}
@@ -394,59 +425,39 @@ export function AuthForm() {
 							<FaFacebook className='w-5 h-5 text-blue-600 mr-2' />
 							{isLogin ? 'Tiếp tục với Facebook' : 'Đăng ký bằng Facebook'}
 						</Button>
-						{/* Quick login buttons for testing (only in login mode) */}
-						{isLogin && (
-							<div className='mt-6 pt-6 border-t'>
-								<p className='text-sm text-muted-foreground mb-3 text-center'>Đăng nhập nhanh (Testing):</p>
-								<div className='space-y-2'>
+						{/* Dev Quick Login – real token + mocked role */}
+						{isLogin && process.env.NODE_ENV !== 'production' && (
+							<div className='mt-4 pt-4 border-t border-dashed border-gray-200'>
+								<div className='flex items-center gap-2 mb-3'>
+									<FlaskConical className='h-3.5 w-3.5 text-amber-500' />
+									<p className='text-xs text-amber-600 font-semibold uppercase tracking-wider'>Dev Mode — Mock Role + Real Token</p>
+								</div>
+								<p className='text-xs text-gray-400 mb-2'>Tự động đăng ký tài khoản mới lấy token thật, override role để test UI.</p>
+								<div className='grid grid-cols-2 gap-2'>
 									<Button
 										variant='outline'
 										size='sm'
-										className='w-full'
-										onClick={() => {
-											setFormData({
-												...formData,
-												email: 'admin@englishprep.com',
-												password: 'admin123',
-											});
-										}}
 										type='button'
+										disabled={!!devLoading}
+										className='border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs h-9'
+										onClick={() => devLogin('role-staff')}
 									>
-										Head Staff (admin@englishprep.com)
+										{devLoading === 'staff' ? '⏳ Đang tạo...' : '🧑‍💼 Đăng nhập Staff'}
 									</Button>
 									<Button
 										variant='outline'
 										size='sm'
-										className='w-full'
-										onClick={() => {
-											setFormData({
-												...formData,
-												email: 'alice@example.com',
-												password: 'password123',
-											});
-										}}
 										type='button'
+										disabled={!!devLoading}
+										className='border-purple-200 text-purple-700 hover:bg-purple-50 text-xs h-9'
+										onClick={() => devLogin('role-head-staff')}
 									>
-										Staff (alice@example.com)
-									</Button>
-									<Button
-										variant='outline'
-										size='sm'
-										className='w-full'
-										onClick={() => {
-											setFormData({
-												...formData,
-												email: 'bob@example.com',
-												password: 'secret456',
-											});
-										}}
-										type='button'
-									>
-										Learner (bob@example.com)
+										{devLoading === 'head-staff' ? '⏳ Đang tạo...' : '⭐ Đăng nhập Head Staff'}
 									</Button>
 								</div>
 							</div>
 						)}
+
 						<p className='text-center text-sm mt-2 text-gray-600'>
 							{isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
 							<Button variant='link' className='p-0 font-semibold text-purple-600 hover:text-purple-700' onClick={toggleMode}>

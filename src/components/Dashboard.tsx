@@ -2,39 +2,143 @@
 
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Target, BookOpen, Clock, CheckCircle, Trophy, ChevronRight, Sparkles, TrendingUp, PlayCircle } from 'lucide-react';
+import { Target, BookOpen, Clock, CheckCircle, Trophy, ChevronRight, Sparkles, TrendingUp, PlayCircle, Calendar } from 'lucide-react';
 import { useAppSelector } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { ExamStatus } from '../types/client';
+import { useEffect, useState, useMemo } from 'react';
+import { ExamPracticeService } from '@/lib/api-client';
 
 export function Dashboard() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const router = useRouter();
 
-	const allExams = useAppSelector((state) => state.exams.list);
-	const allAttempts = useAppSelector((state) => state.attempts.list);
+	const [loading, setLoading] = useState(true);
+	const [stats, setStats] = useState<any>(null); // UserStatsDto
+	const [recommendedExams, setRecommendedExams] = useState<any[]>([]); // MinimalExamInfoDto[]
+	const [totalExamsDisplay, setTotalExamsDisplay] = useState("10+");
+	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
 
 	useEffect(() => {
-		if (!currentUser) router.push('/auth');
+		if (!currentUser) {
+			router.push('/auth');
+			return;
+		}
+
+		const fetchDashboardData = async () => {
+			try {
+				setLoading(true);
+				
+				// Fetch user stats
+				try {
+					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
+					setStats(statsRes.data);
+				} catch (err) {
+					console.warn("Failed to load user stats (Might be unavailable yet)");
+				}
+
+				// Fetch history for heatmap
+				try {
+					const end = new Date();
+					const start = new Date();
+					start.setDate(end.getDate() - 365);
+					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
+						range: {
+							from: start.toISOString(),
+							to: end.toISOString()
+						}
+					});
+					if (summaryRes.data?.history) {
+						setCalendarHistory(summaryRes.data.history);
+					}
+				} catch (err) {
+					console.warn("Failed to load history (Might be unavailable yet)");
+				}
+
+				// Fetch exams (using random limit for 'recommendation')
+				try {
+					const examsRes = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1({ limit: 6 });
+					
+					// Randomize the recommended exams
+					const examList = examsRes.data?.exams || [];
+					const shuffled = [...examList].sort(() => 0.5 - Math.random());
+					setRecommendedExams(shuffled.slice(0, 3));
+					
+					// Approximate total limit since endpoint is cursor-based
+					setTotalExamsDisplay(examList.length >= 6 ? "50+" : `${examList.length}`);
+				} catch (err) {
+					console.warn("Failed to load exams (Might be unavailable yet)");
+				}
+
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchDashboardData();
 	}, [currentUser, router]);
+
+	// Activity Heatmap Data
+	const heatmapWeeks = useMemo(() => {
+		const weeks: { dateStr: string; count: number; isFuture: boolean }[][] = [];
+		const today = new Date();
+		today.setHours(23, 59, 59, 999);
+		
+		const startDate = new Date(today);
+		startDate.setDate(today.getDate() - 364); 
+		
+		// Align to Sunday
+		while (startDate.getDay() !== 0) {
+			startDate.setDate(startDate.getDate() - 1);
+		}
+
+		let currDate = new Date(startDate);
+		while (currDate <= today || currDate.getDay() !== 0) {
+			if (currDate > today && currDate.getDay() === 0) break;
+
+			const weekIndex = Math.floor((currDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+			if (!weeks[weekIndex]) weeks[weekIndex] = [];
+
+			const tzoffset = currDate.getTimezoneOffset() * 60000;
+			const localISOTime = new Date(currDate.getTime() - tzoffset).toISOString().slice(0, 10);
+			
+			weeks[weekIndex].push({
+				dateStr: localISOTime,
+				count: calendarHistory[localISOTime] || 0,
+				isFuture: currDate.getTime() > today.getTime()
+			});
+
+			currDate.setDate(currDate.getDate() + 1);
+		}
+		return weeks;
+	}, [calendarHistory]);
+
+	if (loading) {
+		return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+			<div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+		</div>;
+	}
 
 	if (!currentUser) return null;
 
-	// Derived Data
-	const userAttempts = allAttempts.filter(a => a.userId === currentUser.id);
-	const completedAttempts = userAttempts.filter(a => a.score !== undefined);
-	const inProgressAttempts = userAttempts.filter(a => a.score === undefined);
+	const completedAttemptsCount = stats?.attemptCounts || 0;
+	const averageScore = stats?.averageScoreInPercentage ? Math.round(stats.averageScoreInPercentage) : 0;
+	
+	// Temporarily remove in-progress attempts since backend attempt history doesn't bundle exam titles elegantly yet
+	const inProgressAttemptsCount = 0;
 
-	const averageScore = completedAttempts.length > 0
-		? Math.round(completedAttempts.reduce((sum, a) => sum + (a.score || 0), 0) / completedAttempts.length)
-		: 0;
+	const formatDate = (date: Date | string) => {
+		const dateObj = typeof date === 'string' ? new Date(date) : date;
+		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
+	};
 
-	const publishedExams = allExams.filter(e => e.status === ExamStatus.Published || e.status === ExamStatus.Approved);
-
-	// Get 3 recommended exams (that user hasn't completed)
-	const completedExamIds = new Set(completedAttempts.map(a => a.examId));
-	const recommendedExams = publishedExams.filter(e => !completedExamIds.has(e.id)).slice(0, 3);
+	const getHeatmapColor = (count: number, isFuture: boolean) => {
+		if (isFuture) return 'bg-transparent border border-dashed border-gray-200';
+		if (count === 0) return 'bg-slate-100';
+		if (count === 1) return 'bg-[#c6e48b]'; // Github colors (light green)
+		if (count >= 2 && count <= 3) return 'bg-[#7bc96f]';
+		if (count >= 4 && count <= 5) return 'bg-[#239a3b]';
+		return 'bg-[#196127]'; // Dark green
+	};
 
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-10'>
@@ -72,7 +176,7 @@ export function Dashboard() {
 									<BookOpen className="h-5 w-5 text-blue-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{completedAttempts.length}</div>
+									<div className="text-2xl font-bold">{completedAttemptsCount}</div>
 									<div className="text-xs text-blue-200">Đề đã làm</div>
 								</div>
 							</div>
@@ -94,7 +198,7 @@ export function Dashboard() {
 									<Clock className="h-5 w-5 text-amber-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{inProgressAttempts.length}</div>
+									<div className="text-2xl font-bold">{inProgressAttemptsCount}</div>
 									<div className="text-xs text-blue-200">Đang thực hiện</div>
 								</div>
 							</div>
@@ -105,7 +209,7 @@ export function Dashboard() {
 									<Trophy className="h-5 w-5 text-purple-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{publishedExams.length}</div>
+									<div className="text-2xl font-bold">{totalExamsDisplay}</div>
 									<div className="text-xs text-blue-200">Đề thi có sẵn</div>
 								</div>
 							</div>
@@ -115,34 +219,69 @@ export function Dashboard() {
 			</div>
 
 			<div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-				{/* Section: In Progress (Nếu có) */}
-				{inProgressAttempts.length > 0 && (
-					<div className="space-y-4">
-						<div className="flex items-center gap-2 text-gray-900 border-b pb-2">
-							<Clock className="h-5 w-5 text-amber-500" />
-							<h2 className="text-xl font-bold">Bài thi đang thực hiện</h2>
+				{/* Activity Heatmap */}
+				<Card className="border-0 shadow-md bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all mb-8">
+					<CardContent className="pt-6 pb-6 overflow-x-auto">
+						<div className="min-w-[800px]">
+							<div className="flex justify-between items-end mb-4">
+								<h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+									<Calendar className="w-5 h-5 text-emerald-600" /> Hoạt động luyện tập
+								</h2>
+								<div className="text-sm text-gray-500">2026</div>
+							</div>
+							<div className="flex gap-[3px]">
+								{/* Day Labels (Mon, Wed, Fri) */}
+								<div className="flex flex-col gap-[3px] pr-2 text-xs text-gray-400 font-medium justify-between font-sans mt-[18px]">
+									<span className="h-[14px]"></span>
+									<span className="h-[14px] leading-[14px]">Mon</span>
+									<span className="h-[14px]"></span>
+									<span className="h-[14px] leading-[14px]">Wed</span>
+									<span className="h-[14px]"></span>
+									<span className="h-[14px] leading-[14px]">Fri</span>
+									<span className="h-[14px]"></span>
+								</div>
+
+								{/* Heatmap Grid */}
+								<div className="flex gap-[3px] flex-1">
+									{heatmapWeeks.map((week, wIdx) => {
+										// Strictly match -01 to prevent double month labels like NovNov
+										const monthLabel = week.find((d) => d.dateStr.endsWith('-01'));
+										return (
+											<div key={wIdx} className="flex flex-col gap-[3px] relative pt-[18px]">
+												{monthLabel && (
+													<div className="absolute top-0 left-0 text-[10px] text-gray-500 font-medium select-none whitespace-nowrap">
+														{new Date(monthLabel.dateStr).toLocaleString('en-US', { month: 'short' })}
+													</div>
+												)}
+												{week.map((day, dIdx) => (
+													<div
+														key={dIdx}
+														className={`w-[14px] h-[14px] rounded-[3px] ${getHeatmapColor(day.count, day.isFuture)} transition-colors duration-200 hover:ring-2 hover:ring-gray-300 hover:ring-offset-1`}
+														title={day.isFuture ? undefined : `${day.count} bài làm vào ${formatDate(day.dateStr)}`}
+													/>
+												))}
+											</div>
+										);
+									})}
+								</div>
+							</div>
+							<div className="flex items-center justify-between mt-4 text-xs text-gray-500">
+								<div>Cố gắng duy trì để phủ kín bảng này nhé!</div>
+								<div className="flex items-center gap-1.5">
+									<span>Ít</span>
+									<div className="flex gap-[3px]">
+										<div className="w-3 h-3 rounded-[2px] bg-slate-100" />
+										<div className="w-3 h-3 rounded-[2px] bg-[#c6e48b]" />
+										<div className="w-3 h-3 rounded-[2px] bg-[#7bc96f]" />
+										<div className="w-3 h-3 rounded-[2px] bg-[#239a3b]" />
+										<div className="w-3 h-3 rounded-[2px] bg-[#196127]" />
+									</div>
+									<span>Nhiều</span>
+								</div>
+							</div>
 						</div>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{inProgressAttempts.slice(0, 3).map(attempt => {
-								const exam = allExams.find(e => e.id === attempt.examId);
-								if (!exam) return null;
-								return (
-									<Card key={attempt.id} className="hover:shadow-md transition-shadow border-gray-200 cursor-pointer" onClick={() => router.push(`/test/do/${exam.id}`)}>
-										<CardContent className="p-5">
-											<h3 className="font-bold text-gray-900 line-clamp-1">{exam.title}</h3>
-											<p className="text-sm text-gray-500 mt-1 mb-4 flex items-center gap-1">
-												<Clock className="h-3.5 w-3.5" /> Còn {Math.ceil(attempt.timeLeft / 60)} phút
-											</p>
-											<Button className="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 shadow-none border border-amber-200">
-												Tiếp tục làm bài
-											</Button>
-										</CardContent>
-									</Card>
-								)
-							})}
-						</div>
-					</div>
-				)}
+					</CardContent>
+				</Card>
 
 				{/* Section: Đề xuất cho bạn */}
 				<div className="space-y-4">
@@ -168,13 +307,13 @@ export function Dashboard() {
 									<div className="h-1 shrink-0 bg-gradient-to-r from-blue-400 to-cyan-400" />
 									<CardContent className="p-5 flex flex-col flex-1">
 										<div className="inline-block self-start px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 mb-3 uppercase tracking-wider">
-											{exam.testType}
+											{exam.tags && exam.tags.find((t: string) => t.toLowerCase() === 'ielts' || t.toLowerCase() === 'toeic') || 'EXAM'}
 										</div>
 										<h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-											{exam.title}
+											{exam.name}
 										</h3>
 										<p className="text-sm text-gray-500 line-clamp-2 mb-4">
-											{exam.description}
+											Bao gồm {exam.questionsCount} câu hỏi
 										</p>
 										<div className="mt-auto">
 											<Button className="w-full bg-slate-900 hover:bg-blue-600 text-white transition-colors" onClick={() => router.push(`/test/${exam.id}`)}>

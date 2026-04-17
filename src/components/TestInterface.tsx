@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from './ui/button';
-import { Question, Section, Attempt } from '../types/client';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { Question, Section, Difficulty } from '../types/client';
 import { useParams, useRouter } from 'next/navigation';
-import { addAttempt, updateAttempt } from './store/attemptSlice';
+import { ExamPracticeService } from '@/lib/api-client';
 import { TextHighlighter } from './TextHighlighter';
 import { Clock, Send, Lightbulb } from 'lucide-react';
 
@@ -25,27 +24,22 @@ import { Clock, Send, Lightbulb } from 'lucide-react';
  */
 export function TestInterface() {
 	const params = useParams();
-	const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
+	const attemptId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
 	const router = useRouter();
-	const dispatch = useAppDispatch();
 
-	// --- REDUX SELECTORS ---a
-	const allExams = useAppSelector((state) => state.exams.list);
-	const allSections = useAppSelector((state) => state.sections.list);
-	const allQuestions = useAppSelector((state) => state.questions.list);
-	const allAttempts = useAppSelector((state) => state.attempts.list);
-	const currentUser = useAppSelector((state) => state.currUser.current);
-
-	// --- LOCAL STATE ---
 	const [sections, setSections] = useState<Section[]>([]);
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [orderedQuestions, setOrderedQuestions] = useState<Question[]>([]);
 
-	const [currentAttempt, setCurrentAttempt] = useState<Attempt | null>(null);
+	// Cấu trúc mới để theo dõi Attempt từ server
+	const [serverAttemptData, setServerAttemptData] = useState<any>(null); // AttemptDataDto
+	const [loading, setLoading] = useState(true);
+
 	const [timeLeft, setTimeLeft] = useState(0);
 
 	const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
 	const [currentSectionAncestors, setCurrentSectionAncestors] = useState<Section[]>([]);
+	const [answersMap, setAnswersMap] = useState<Record<string, string>>({});
 
 	// State Resizer
 	const [leftWidth, setLeftWidth] = useState(45);
@@ -56,223 +50,196 @@ export function TestInterface() {
 	const [highlightEnabled, setHighlightEnabled] = useState(true);
 
 	// --- REFS ---
-	const currentAttemptRef = useRef<Attempt | null>(null);
 	const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 	const isSubmittingRef = useRef(false);
-	const lastSavedTimeRef = useRef<number>(0);
 	const orderedQuestionsRef = useRef<Question[]>([]);
 
-	useEffect(() => {
-		currentAttemptRef.current = currentAttempt;
-	}, [currentAttempt]);
+	// Debounce timer cho API save answer
+	const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
 	useEffect(() => {
 		orderedQuestionsRef.current = orderedQuestions;
 	}, [orderedQuestions]);
 
-	// --- 1. DATA LOGIC ---
 	useEffect(() => {
-		const collectSections = (rootId: string, all: Section[]): Section[] => {
-			const result: Section[] = [];
-			const walk = (pid: string) => {
-				const children = all.filter((s) => s.parentId === pid);
-				for (const c of children) {
-					result.push(c);
-					walk(c.id);
+		orderedQuestionsRef.current = orderedQuestions;
+	}, [orderedQuestions]);
+
+	// --- 1. DATA LOGIC FROM API ---
+	useEffect(() => {
+		const loadAttemptData = async () => {
+			if (!attemptId) return;
+
+			try {
+				setLoading(true);
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1({ id: attemptId });
+				const data = response.data;
+				if (!data) return;
+				
+				setServerAttemptData(data);
+
+				// Flatten data để tương thích với component hiện tại
+				const flatSections: Section[] = [];
+				const flatQuestions: Question[] = [];
+
+				const walkSections = (secDto: any, parentId?: string) => {
+					// Dummy map for UI logic
+					const newSec: Section = {
+						id: secDto.id,
+						parentId: parentId || attemptId,
+						title: secDto.name || 'Section',
+						difficulty: Difficulty.Intermediate,
+						direction: secDto.directive || '',
+						lastEditedBy: '',
+					};
+					flatSections.push(newSec);
+
+					// Map Questions
+					if (secDto.questions) {
+						secDto.questions.forEach((qDto: any) => {
+							flatQuestions.push({
+								id: qDto.id,
+								sectionId: secDto.id,
+								type: qDto.type,
+								content: qDto.content,
+								points: 1,
+								options: qDto.choices ? qDto.choices.map((c: any) => c.content) : [],
+								correctAnswer: [], // Không gửi correct answer xuống frontend
+								tagIds: [],
+								lastEditedBy: '',
+								explanation: '',
+							});
+						});
+					}
+
+					// Recurse
+					if (secDto.sections) {
+						secDto.sections.forEach((childSec: any) => walkSections(childSec, secDto.id));
+					}
+				};
+
+				if (data.sections) {
+					data.sections.forEach((s: any) => walkSections(s, attemptId));
 				}
-			};
-			walk(rootId);
-			return result;
+
+				setSections(flatSections);
+				setQuestions(flatQuestions);
+				setOrderedQuestions(flatQuestions); // Dùng luôn thứ tự API trả về là đủ phẳng
+				if (flatQuestions.length > 0) setCurrentQuestionId(flatQuestions[0].id);
+
+				// Tính toán thời gian
+				let left = 0;
+				if (data.durationLimit > 0) {
+					const start = new Date(data.startedAt).getTime();
+					const elapsedSec = (Date.now() - start) / 1000;
+					left = Math.max(0, Math.floor(data.durationLimit * 60 - elapsedSec)); // Backend durationLimit thường là phút, kiểm tra sau
+				} else {
+					left = 9999; // Unlimited
+				}
+				setTimeLeft(left);
+
+				// Map answers
+				const ansMap: Record<string, string> = {};
+				if (data.responses) {
+					data.responses.forEach((resp: any) => {
+						ansMap[resp.questionId] = resp.answers.join(',');
+					});
+				}
+				setAnswersMap(ansMap);
+
+			} catch (error) {
+				console.error("Failed to load attempt:", error);
+			} finally {
+				setLoading(false);
+			}
 		};
 
-		if (!id) return;
-		const nestedSections = collectSections(id, allSections);
-		setSections(nestedSections);
-		const secIds = new Set(nestedSections.map((s) => s.id));
-		setQuestions(allQuestions.filter((q) => secIds.has(q.sectionId)));
-	}, [id, allSections, allQuestions]);
-
-	const buildOrderedQuestions = useCallback(() => {
-		const map: Record<string, Section[]> = {};
-		sections.forEach((s) => {
-			if (!map[s.parentId]) map[s.parentId] = [];
-			map[s.parentId].push(s);
-		});
-
-		const orderSections = (pid: string): string[] => {
-			let res: string[] = [];
-			for (const s of map[pid] || []) {
-				res.push(s.id);
-				res = res.concat(orderSections(s.id));
-			}
-			return res;
-		};
-
-		const orderedSectionIds = orderSections(id!);
-		const finalQuestions: Question[] = [];
-		for (const sid of orderedSectionIds) {
-			finalQuestions.push(...questions.filter((q) => q.sectionId === sid));
-		}
-		return finalQuestions;
-	}, [sections, questions, id]);
-
-	useEffect(() => {
-		setOrderedQuestions(buildOrderedQuestions());
-	}, [buildOrderedQuestions]);
-
-	// --- 2. INITIALIZATION ---
-	useEffect(() => {
-		if (!id || !currentUser) return;
-		if (currentAttempt) return;
-
-		isSubmittingRef.current = false;
-		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-		// Read state from sessionStorage (set in TestDetail.tsx)
-		const testState = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('testState') || '{}') : {};
-		const isRetake = testState.retake;
-		const { timer } = testState;
-
-		let attemptToLoad: Attempt | undefined;
-
-		if (!isRetake) {
-			attemptToLoad = allAttempts.find(
-				(a) => a.examId === id && a.userId === currentUser.id && typeof a.score === 'undefined'
-			);
-		}
-
-		if (attemptToLoad) {
-			setCurrentAttempt(attemptToLoad);
-			setTimeLeft(attemptToLoad.timeLeft);
-			lastSavedTimeRef.current = attemptToLoad.timeLeft;
-		} else {
-			const exam = allExams.find((e) => e.id === id);
-			if (!exam) return;
-
-			const durationSec = (timer || exam.duration) * 60;
-			const newAttempt: Attempt = {
-				id: 'attempt_' + Date.now(),
-				userId: currentUser.id,
-				examId: id,
-				startTime: Date.now(),
-				timeLeft: durationSec,
-				isPaused: false,
-				score: undefined,
-				choices: [],
-			};
-
-			lastSavedTimeRef.current = durationSec;
-			dispatch(addAttempt(newAttempt));
-			setCurrentAttempt(newAttempt);
-			setTimeLeft(durationSec);
-
-			if (orderedQuestions.length > 0) {
-				setCurrentQuestionId(orderedQuestions[0].id);
-			}
-		}
-	}, [id, currentUser, allAttempts, allExams, dispatch, currentAttempt, orderedQuestions]);
+		loadAttemptData();
+	}, [attemptId]);
 
 	// --- 3. HANDLERS (moved before timer to avoid closure issues) ---
-	const performSubmit = useCallback((isAuto: boolean) => {
-		if (isSubmittingRef.current) return;
-		const finalAttempt = currentAttemptRef.current;
-		if (!finalAttempt) return;
-
+	const performSubmit = useCallback(async (isAuto: boolean) => {
+		if (isSubmittingRef.current || !attemptId) return;
 		isSubmittingRef.current = true;
 		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-		let correctCount = 0;
-		let totalPoints = 0;
-		const questions = orderedQuestionsRef.current;
-		questions.forEach((q) => {
-			totalPoints += q.points;
-			const userChoice = finalAttempt.choices.find((c) => c.questionId === q.id);
-			const userAnswer = userChoice?.answerIdx || '';
-			if (q.correctAnswer && q.correctAnswer.length > 0) {
-				if (q.type === 'multiple-correct-answers') {
-					const userArr = userAnswer.split(',').filter(Boolean).sort();
-					const correctArr = [...q.correctAnswer].sort();
-					if (JSON.stringify(userArr) === JSON.stringify(correctArr)) correctCount += q.points;
-				} else {
-					if (q.correctAnswer.includes(userAnswer)) correctCount += q.points;
-				}
-			}
-		});
+		try {
+			// Flush any pending debounces before submit
+			Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
+			debounceTimersRef.current = {};
 
-		const finalScore = totalPoints > 0 ? (correctCount / totalPoints) * 100 : 0;
-		// Use lastSavedTimeRef instead of timeLeft state to avoid stale closure
-		const completedAttempt: Attempt = {
-			...finalAttempt,
-			timeLeft: isAuto ? 0 : lastSavedTimeRef.current,
-			score: finalScore,
-		};
-		dispatch(updateAttempt(completedAttempt));
-		router.push(`/results/${completedAttempt.id}`);
-	}, [dispatch, router]);
+			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: attemptId });
+			router.push(`/results/${attemptId}`);
+		} catch (error) {
+			console.error("Failed to submit attempt:", error);
+			// Optionally handle error UI here, but mostly we want to push anyway if it's auto
+			if (isAuto) router.push(`/results/${attemptId}`);
+		} finally {
+			isSubmittingRef.current = false;
+		}
+	}, [attemptId, router]);
 
 	const handleAutoSubmit = useCallback(() => performSubmit(true), [performSubmit]);
 	const handleSubmit = useCallback(() => performSubmit(false), [performSubmit]);
 
 	// --- 4. TIMER ---
 	useEffect(() => {
-		if (!currentAttempt && !currentAttemptRef.current) return;
-		if (isSubmittingRef.current) return;
+		if (isSubmittingRef.current || !serverAttemptData) return;
 		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+		// If durationLimit is 0 (unlimited), do not run a countdown timer
+		if (serverAttemptData.durationLimit <= 0) return;
 
 		timerIntervalRef.current = setInterval(() => {
 			setTimeLeft((prevTime) => {
-				if (prevTime <= 0) {
+				if (prevTime <= 1) {
 					if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 					if (!isSubmittingRef.current) handleAutoSubmit();
 					return 0;
 				}
-				const newTime = prevTime - 1;
-				// Update ref immediately
-				lastSavedTimeRef.current = newTime;
-
-				// Save to Redux every 5 seconds
-				if (newTime % 5 === 0) {
-					const latestState = currentAttemptRef.current;
-					if (latestState && typeof latestState.score === 'undefined') {
-						const updatedAttempt = { ...latestState, timeLeft: newTime };
-						dispatch(updateAttempt(updatedAttempt));
-						// Update the ref to keep in sync
-						setCurrentAttempt(updatedAttempt);
-					}
-				}
-				return newTime;
+				return prevTime - 1;
 			});
 		}, 1000);
 
 		return () => {
 			if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 		};
-	}, [dispatch, currentAttempt?.id, handleAutoSubmit]);
+	}, [serverAttemptData, handleAutoSubmit]);
 
 	// --- 5. ANSWER HANDLERS ---
 	const handleAnswerChange = useCallback(
 		(questionId: string, answer: string) => {
-			setCurrentAttempt((prev) => {
-				if (!prev) return null;
-				const updatedChoices = [...prev.choices];
-				const idx = updatedChoices.findIndex((c) => c.questionId === questionId);
-				if (idx >= 0) updatedChoices[idx] = { ...updatedChoices[idx], answerIdx: answer };
-				else updatedChoices.push({ questionId, answerIdx: answer });
+			// Update local state immediately for fast UI
+			setAnswersMap((prev) => ({ ...prev, [questionId]: answer }));
 
-				const newAttempt = { ...prev, choices: updatedChoices };
-				dispatch(updateAttempt(newAttempt));
-				return newAttempt;
-			});
+			// Clear previous debounce string
+			if (debounceTimersRef.current[questionId]) {
+				clearTimeout(debounceTimersRef.current[questionId]);
+			}
+
+			// Set new debounce to send API request after 1 second
+			debounceTimersRef.current[questionId] = setTimeout(async () => {
+				try {
+					await ExamPracticeService.examPracticeGatewayControllerAnswerV1({
+						id: attemptId,
+						questionId: questionId,
+						requestBody: {
+							answer: answer || '',
+						}
+					});
+				} catch (error) {
+					console.error("Failed to save answer:", error);
+				}
+			}, 1000);
 		},
-		[dispatch]
+		[attemptId]
 	);
 
 	const getCurrentAnswer = useCallback(
 		(qId: string) => {
-			const attempt = currentAttempt || currentAttemptRef.current;
-			return attempt?.choices.find((c) => c.questionId === qId)?.answerIdx || '';
+			return answersMap[qId] || '';
 		},
-		[currentAttempt]
+		[answersMap]
 	);
 
 	const scrollToQuestion = useCallback((qId: string) => {
@@ -329,6 +296,15 @@ export function TestInterface() {
 			window.removeEventListener('mouseup', stopResizing);
 		};
 	}, [resize, stopResizing]);
+
+	if (loading) {
+		return <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+			<div className="flex flex-col items-center gap-3">
+				<div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+				<p className="text-slate-500 font-medium">Đang tải dữ liệu bài thi...</p>
+			</div>
+		</div>;
+	}
 
 	// --- RENDER ---
 	return (

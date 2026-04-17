@@ -23,12 +23,17 @@ import {
 	PenTool,
 	Mic,
 	Filter,
+	CheckSquare,
+	Lock,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector } from './store/main/hook';
 import { Attempt, Exam, Skill, TestType } from '../types/client';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { ExamPracticeService, AchievementsService } from '@/lib/api-client';
 
 interface UserType {
 	fullName: string;
@@ -57,13 +62,74 @@ interface Achievement {
 
 export function UserPage() {
 	const router = useRouter();
-	const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history'>('history');
+	const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history'>('overview');
 	const [filterTestType, setFilterTestType] = useState<TestType | 'all'>('all');
 	const [filterSkill, setFilterSkill] = useState<Skill | 'all'>('all');
 	const [sortBy, setSortBy] = useState<'date' | 'score' | 'accuracy'>('date');
 
+	// State for badges and streak
+	const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
+	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
+	const [streak, setStreak] = useState(0);
+
 	// Get data from Redux store
 	const currUser = useAppSelector((state) => state.currUser.current);
+
+	useEffect(() => {
+		if (currUser) {
+			const fetchProfileData = async () => {
+				try {
+					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1({ limit: 100 });
+					if (badgesRes.data?.badges) {
+						setEarnedBadges(badgesRes.data.badges);
+					}
+
+					const end = new Date();
+					const start = new Date();
+					start.setDate(end.getDate() - 365); // Get data for the Heatmap (1 year)
+
+					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
+						range: {
+							from: start.toISOString(),
+							to: end.toISOString()
+						}
+					});
+
+					if (summaryRes.data?.history) {
+						const historyObj = summaryRes.data.history;
+						setCalendarHistory(historyObj);
+
+						// Calculate streak
+						let currentStreak = 0;
+						let d = new Date();
+						d.setHours(0, 0, 0, 0);
+
+						while(true) {
+							const tzoffset = d.getTimezoneOffset() * 60000;
+							const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 10);
+							
+							if (historyObj[localISOTime] && historyObj[localISOTime] > 0) {
+								currentStreak++;
+								d.setDate(d.getDate() - 1);
+							} else {
+								const todayOffset = new Date().getTimezoneOffset() * 60000;
+								const todayStr = (new Date(Date.now() - todayOffset)).toISOString().slice(0, 10);
+								if (localISOTime === todayStr) {
+									d.setDate(d.getDate() - 1);
+									continue;
+								}
+								break;
+							}
+						}
+						setStreak(currentStreak);
+					}
+				} catch (e) {
+					console.error("Failed to load profile enhancements:", e);
+				}
+			};
+			fetchProfileData();
+		}
+	}, [currUser]);
 	const attempts = useAppSelector((state) => state.attempts.list);
 	const exams = useAppSelector((state) => state.exams.list);
 	const questions = useAppSelector((state) => state.questions.list);
@@ -237,6 +303,33 @@ export function UserPage() {
 		}
 	};
 
+	// Radar Chart Data
+	const radarData = [
+		{ subject: 'Listening', score: skillStats[Skill.Listening].averageScore || 0, fullMark: 100 },
+		{ subject: 'Reading', score: skillStats[Skill.Reading].averageScore || 0, fullMark: 100 },
+		{ subject: 'Writing', score: skillStats[Skill.Writing].averageScore || 0, fullMark: 100 },
+		{ subject: 'Speaking', score: skillStats[Skill.Speaking].averageScore || 0, fullMark: 100 },
+	];
+
+	// Login Streak Current Week Data
+	const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+	const currentWeekChecks = [...Array(7)].map((_, i) => {
+		const curr = new Date();
+		const first = curr.getDate() - curr.getDay(); // Sunday
+		const dayDate = new Date();
+		dayDate.setDate(first + i);
+		const tzoffset = dayDate.getTimezoneOffset() * 60000;
+		const localISOTime = (new Date(dayDate.getTime() - tzoffset)).toISOString().slice(0, 10);
+		
+		// If the day is in the future, it should not be "missed", just unchecked visually differently
+		const isFuture = dayDate.getTime() > new Date().setHours(23, 59, 59, 999);
+		return { 
+			label: daysOfWeek[i], 
+			checked: !!(calendarHistory[localISOTime] && calendarHistory[localISOTime] > 0),
+			isFuture
+		};
+	});
+
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-20'>
 			{/* ── Profile Hero Header ── */}
@@ -332,6 +425,9 @@ export function UserPage() {
 							<TabsTrigger value='overview' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
 								<TrendingUp className="h-4 w-4 mr-2 inline" /> Thống kê & Tổng quan
 							</TabsTrigger>
+							<TabsTrigger value='achievements' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
+								<Award className="h-4 w-4 mr-2 inline" /> Danh hiệu ({earnedBadges.length})
+							</TabsTrigger>
 							<TabsTrigger value='history' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
 								<Edit className="h-4 w-4 mr-2 inline" /> Lịch sử luyện tập
 							</TabsTrigger>
@@ -341,6 +437,60 @@ export function UserPage() {
 					{/* Overview */}
 					<TabsContent value='overview'>
 						<div className='space-y-6'>
+							{/* Analytics Top Row (Radar & Streak) */}
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								{/* Activity Overview Radar */}
+								<Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all">
+									<CardHeader className="bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between">
+										<CardTitle className="text-xl font-bold text-gray-800">Cân bằng kỹ năng</CardTitle>
+									</CardHeader>
+									<CardContent className="pt-6 h-[300px] flex items-center justify-center">
+										<ResponsiveContainer width="100%" height="100%">
+											<RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+												<PolarGrid strokeDasharray="3 3" />
+												<PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 13, fontWeight: 500 }} />
+												<PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+												<Radar name="Kỹ năng" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+												<RechartsTooltip formatter={(value) => [`${value}%`, 'Tỷ lệ']} />
+											</RadarChart>
+										</ResponsiveContainer>
+									</CardContent>
+								</Card>
+
+								{/* Login Streak */}
+								<Card className="border-0 shadow-md bg-slate-900 text-white rounded-xl overflow-hidden hover:shadow-lg transition-all">
+									<CardHeader className="border-b border-white/10">
+										<CardTitle className="text-xl font-bold">Chuỗi học tập (Streak)</CardTitle>
+									</CardHeader>
+									<CardContent className="pt-10 pb-8 flex flex-col items-center justify-center">
+										<div className="relative flex justify-center items-center w-24 h-24 bg-rose-500 rounded-[35%_65%_60%_40%_/_45%_55%_45%_55%] animate-[pulse_3s_ease-in-out_infinite] mb-6 shadow-[0_0_20px_rgba(244,63,94,0.5)]">
+											<Flame className="w-12 h-12 text-white fill-current absolute drop-shadow-md" />
+										</div>
+										<h2 className="text-4xl font-extrabold mb-8">{streak} Day Streak</h2>
+										
+										{/* Week Checkboxes */}
+										<div className="w-full max-w-sm flex justify-between items-center px-4">
+											{currentWeekChecks.map((day, idx) => (
+												<div key={idx} className="flex flex-col items-center gap-2">
+													<div className="text-xs font-bold text-white/70 uppercase">{day.label}</div>
+													{day.checked ? (
+														<div className="w-8 h-8 rounded-md bg-[#81b64c] flex items-center justify-center border border-[#6f9e42] shadow-[0_2px_0_#6f9e42]">
+															<CheckSquare className="w-5 h-5 text-white" />
+														</div>
+													) : day.isFuture ? (
+														<div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center border border-white/5" />
+													) : (
+														<div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center border border-white/10" />
+													)}
+												</div>
+											))}
+										</div>
+
+										<p className="text-sm text-white/50 mt-8 font-medium">Bạn đã học rất tốt! Trở lại vào ngày mai để tiếp tục chuỗi nhé.</p>
+									</CardContent>
+								</Card>
+							</div>
+
 							{/* Test Type Statistics with Goals */}
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								{Object.values(TestType).map((testType) => {
@@ -668,6 +818,62 @@ export function UserPage() {
 								)}
 							</div>
 						</div>
+					</TabsContent>
+
+					{/* Achievements */}
+					<TabsContent value='achievements' className='space-y-6 mt-6'>
+						<Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden">
+							<CardHeader className="bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between">
+								<div>
+									<CardTitle className="text-xl font-bold text-gray-800">Kho danh hiệu của bạn</CardTitle>
+									<CardDescription>Hoàn thành các mốc quan trọng để nhận danh hiệu vinh danh</CardDescription>
+								</div>
+								<div className="bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center">
+									<Trophy className="w-5 h-5 mr-2 text-emerald-600"/>
+									{earnedBadges.length} Danh hiệu
+								</div>
+							</CardHeader>
+							<CardContent className="pt-8 pb-8">
+								{earnedBadges.length === 0 ? (
+									<div className="text-center py-16">
+										<div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
+											<Lock className="w-10 h-10 text-gray-300" />
+										</div>
+										<h3 className="text-xl font-bold text-gray-800 mb-2">Chưa có danh hiệu nào</h3>
+										<p className="text-gray-500 mb-6">Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
+										<Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => router.push('/test-selection')}>
+											Luyện tập ngay
+										</Button>
+									</div>
+								) : (
+									<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+										{earnedBadges.map((badge: any, index: number) => {
+											// Tự động generate CSS class theo tên danh hiệu để cho đẹp
+											const colorClass = index % 3 === 0 ? 'from-amber-300 to-orange-500' 
+															: index % 3 === 1 ? 'from-purple-400 to-indigo-600' 
+															: 'from-emerald-300 to-teal-500';
+											
+											return (
+												<div key={badge.id || index} className="flex flex-col items-center text-center group cursor-pointer">
+													<div className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center bg-gradient-to-br ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}>
+														<Award className="w-12 h-12 text-white drop-shadow-sm" />
+														
+														{/* Sparkle effects on hover */}
+														<div className="absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</div>
+														<div className="absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75">✨</div>
+													</div>
+													<h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-tight mb-1">{badge.displayName || badge.name}</h4>
+													<p className="text-xs text-gray-500 line-clamp-2">{badge.description}</p>
+													{badge.date && (
+														<p className="text-[10px] text-gray-400 mt-2">Đạt được: {formatDate(new Date(badge.date))}</p>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								)}
+							</CardContent>
+						</Card>
 					</TabsContent>
 				</Tabs>
 			</div>

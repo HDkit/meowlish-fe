@@ -1,19 +1,41 @@
 'use client';
 
-import React from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { RootState } from '@/lib/store/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-import { Users, FileText, CheckCircle, Clock, AlertCircle, TrendingUp, Star } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, AlertCircle, TrendingUp, Star, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { ExamManagementService } from '@/lib/api-client';
+
+interface ExamItem {
+  id: string;
+  title: string;
+  status: string;
+  createdAt?: string;
+  createdBy?: string;
+}
 
 export default function AdminDashboard() {
   const { currUser, userRole, isStaff, isHeadStaff } = useAuth();
-  const exams = useSelector((state: RootState) => state.exams.list);
-  const users = useSelector((state: RootState) => state.users.list);
+  const [exams, setExams] = useState<ExamItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currUser) return;
+    const fetchExams = async () => {
+      setLoading(true);
+      try {
+        const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 50 });
+        setExams(res.data?.exams ?? []);
+      } catch (err) {
+        console.warn('AdminDashboard: failed to load exams', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExams();
+  }, [currUser]);
 
   if (!currUser || (!isStaff && !isHeadStaff)) {
     return (
@@ -28,12 +50,10 @@ export default function AdminDashboard() {
     );
   }
 
-  const myExams = isStaff ? exams.filter(exam => (exam.creatorId || exam.createdBy) === currUser.id) : exams;
+  const myExams = isStaff ? exams.filter(exam => exam.createdBy === currUser.id) : exams;
   const pendingApprovalExams = exams.filter(exam => exam.status === 'InDraft');
   const publishedExams = exams.filter(exam => exam.status === 'Published');
   const needsRevisionExams = exams.filter(exam => exam.status === 'NeedsRevision');
-  const activeUsers = users.filter(user => user.status === 'active');
-  const suspendedUsers = users.filter(user => user.status === 'suspended');
   const myDraftExams = myExams.filter(exam => exam.status === 'Empty' || exam.status === 'InDraft');
   const myPublishedExams = myExams.filter(exam => exam.status === 'Published');
   const myNeedsRevisionExams = myExams.filter(exam => exam.status === 'NeedsRevision');
@@ -75,6 +95,12 @@ export default function AdminDashboard() {
             Xin chào, <span className="font-semibold text-white">{currUser.fullName}</span>
             {' '}({userRole?.name ?? currUser.roleId.replace('role-', '')})
           </p>
+          {loading && (
+            <div className="flex items-center gap-2 mt-2 text-white/70 text-xs">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              Đang tải dữ liệu...
+            </div>
+          )}
         </div>
       </div>
 
@@ -128,14 +154,14 @@ export default function AdminDashboard() {
               <Card className="border-0 shadow-md overflow-hidden">
                 <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Người dùng</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <Users className="h-4 w-4 text-blue-500" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{activeUsers.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">{suspendedUsers.length} bị tạm ngưng</p>
+                  <div className="text-3xl font-bold text-gray-800">{exams.length}</div>
+                  <p className="text-xs text-gray-500 mt-1">Toàn hệ thống</p>
                 </CardContent>
               </Card>
             </>
@@ -215,7 +241,20 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-3">
-                {myExams.slice(0, 5).map((exam) => (
+                {loading ? (
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 animate-pulse">
+                      <div className="flex-1 min-w-0 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3 w-48 bg-gray-200 rounded" />
+                          <div className="h-2 w-24 bg-gray-100 rounded" />
+                        </div>
+                      </div>
+                      <div className="h-6 w-24 bg-gray-100 rounded-full" />
+                    </div>
+                  ))
+                ) : myExams.slice(0, 5).map((exam) => (
                   <Link
                     href={`/exam-creation?id=${exam.id}`}
                     key={exam.id}
@@ -238,7 +277,7 @@ export default function AdminDashboard() {
                     </span>
                   </Link>
                 ))}
-                {myExams.length === 0 && (
+                {!loading && myExams.length === 0 && (
                   <div className="text-center py-10 bg-slate-50/50 rounded-xl border border-dashed border-gray-200">
                     <FileText className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                     <p className="text-sm font-medium text-gray-500">Chưa có đề thi nào</p>
@@ -250,7 +289,7 @@ export default function AdminDashboard() {
                     </Link>
                   </div>
                 )}
-                {myExams.length > 5 && (
+                {!loading && myExams.length > 5 && (
                   <div className="mt-4 text-center">
                     <Link href="/exam-management">
                       <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-sm">
@@ -274,25 +313,21 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {pendingApprovalExams.slice(0, 5).map((exam) => {
-                  const creator = users.find(u => u.id === (exam.creatorId || exam.createdBy));
-                  return (
-                    <div key={exam.id} className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800">{exam.title}</p>
-                        <p className="text-xs text-gray-500">
-                          Bởi <span className="text-orange-600 font-medium">{creator?.fullName || 'Không rõ'}</span>
-                          {' '}• Nộp lúc {exam.submittedAt ? new Date(exam.submittedAt).toLocaleDateString('vi-VN') : 'N/A'}
-                        </p>
-                      </div>
-                      <Link href="/exam-approval">
-                        <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-sm">
-                          Xem xét
-                        </Button>
-                      </Link>
+                {pendingApprovalExams.slice(0, 5).map((exam) => (
+                  <div key={exam.id} className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">{exam.title}</p>
+                      <p className="text-xs text-gray-500">
+                        Tạo lúc <span className="text-orange-600 font-medium">{exam.createdAt ? new Date(exam.createdAt).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                      </p>
                     </div>
-                  );
-                })}
+                    <Link href="/exam-approval">
+                      <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-sm">
+                        Xem xét
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
               </div>
               {pendingApprovalExams.length > 5 && (
                 <div className="mt-4 text-center">

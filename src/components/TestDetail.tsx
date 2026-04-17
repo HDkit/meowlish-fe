@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
+import { ExamPracticeService } from '@/lib/api-client';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { addComment } from './store/commentSlice';
 import { Textarea } from './ui/textarea';
@@ -33,58 +34,31 @@ export function ExamDetailPage() {
 	const dispatch = useAppDispatch();
 	if (!id) return <div>Invalid Exam ID</div>;
 
-	const examId = id;
-	const exams = useAppSelector((state) => state.exams.list);
-	const sections = useAppSelector((state) => state.sections.list);
-	const questions = useAppSelector((state) => state.questions.list);
-	const attempts = useAppSelector((state) => state.attempts.list);
-	const tags = useAppSelector((state) => state.tags.list);
-	const comments = useAppSelector((state) => state.comments.list);
+	const examId = id as string;
+
+	const [examData, setExamData] = useState<any>(null);
+	const [loading, setLoading] = useState(true);
+
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const users = useAppSelector((state) => state.users.list);
+	const comments = useAppSelector((state) => state.comments.list); // Fallback locally for comments for now since API doesn't support comment endpoints yet
 
-	const exam = exams.find((e) => e.id === examId);
-
-	// --- Logic xử lý dữ liệu ---
-	// Lấy danh sách các phần thi chính (các section có parentId là examId)
-	const rootSections = useMemo(() => sections.filter((sec) => sec.parentId === examId), [examId, sections]);
-
-	// Helper: đệ quy lấy tất cả child sections
-	const getAllChildSections = (parentId: string): Section[] => {
-		const children = sections.filter((sec) => sec.parentId === parentId);
-		let all: Section[] = [];
-		for (const child of children) {
-			all.push(child);
-			all = all.concat(getAllChildSections(child.id));
+	useEffect(() => {
+		const fetchExamData = async () => {
+			try {
+				setLoading(true);
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1({ id: examId });
+				setExamData(response.data);
+			} catch (error) {
+				console.error("Failed to fetch exam data:", error);
+			} finally {
+				setLoading(false);
+			}
+		};
+		if (examId) {
+			fetchExamData();
 		}
-		return all;
-	};
-
-	// Đếm số câu hỏi trong một section (bao gồm cả nested sections)
-	const countQuestionsInSection = (sectionId: string): number => {
-		const allSections = [sectionId, ...getAllChildSections(sectionId).map((s) => s.id)];
-		return questions.filter((q) => allSections.includes(q.sectionId)).length;
-	};
-
-	// Helper lấy tags cho một section cụ thể
-	const getTagsForSection = (sectionId: string) => {
-		const allSections = [sectionId, ...getAllChildSections(sectionId).map((s) => s.id)];
-		const sectionQuestions = questions.filter((q) => allSections.includes(q.sectionId));
-		const tagIds = new Set<string>();
-		sectionQuestions.forEach((q) => q.tagIds.forEach((t) => tagIds.add(t)));
-		return Array.from(tagIds)
-			.map((tid) => tags.find((t) => t.id === tid))
-			.filter(Boolean);
-	};
-
-	// Tổng số câu hỏi trong exam
-	const totalQuestions = useMemo(() => {
-		const allExamSections = rootSections.flatMap((s) => [s.id, ...getAllChildSections(s.id).map((sec) => sec.id)]);
-		return questions.filter((q) => allExamSections.includes(q.sectionId)).length;
-	}, [rootSections, questions, sections]);
-
-	// Tổng quan số liệu
-	const examAttempts = useMemo(() => attempts.filter((a) => a.examId === examId).length, [attempts, examId]);
+	}, [examId]);
 
 	// --- State quản lý UI ---
 	const [activeTab, setActiveTab] = useState<'practice' | 'fulltest' | 'discuss'>('practice');
@@ -93,27 +67,57 @@ export function ExamDetailPage() {
 	const [commentInput, setCommentInput] = useState<string>('');
 	const [examRating, setExamRating] = useState<Difficulty>(Difficulty.Intermediate);
 
+	// Tạm thời bảo toàn các helper functions UI
+	const rootSections = examData?.sections || [];
+	const countQuestionsInSection = (sectionId: string): number => {
+		const sec = rootSections.find((s: any) => s.id === sectionId);
+		return sec ? sec.questionsCount : 0;
+	};
+	const getTagsForSection = (sectionId: string) => {
+		const sec = rootSections.find((s: any) => s.id === sectionId);
+		return sec?.tags?.map((t: string) => ({ id: t, name: t })) || [];
+	};
+	const totalQuestions = rootSections.reduce((acc: number, cur: any) => acc + cur.questionsCount, 0);
+	const examAttempts = examData?.attemptsCount || 0;
+
+	// Xử lý thông tin parse từ tag
+	const lowerTags = examData?.tags?.map((t: string) => t.toLowerCase()) || [];
+	const difficulty = lowerTags.includes('beginner') ? Difficulty.Beginner : lowerTags.includes('advanced') ? Difficulty.Advanced : Difficulty.Intermediate;
+	const skill = lowerTags.includes('listening') ? Skill.Listening : lowerTags.includes('speaking') ? Skill.Speaking : lowerTags.includes('writing') ? Skill.Writing : Skill.Reading;
+	const testType = lowerTags.includes('ielts') ? TestType.IELTS : TestType.TOEIC;
+
 	// --- Handlers ---
 	const toggleSection = (secId: string) => {
 		setSelectedSectionIds((prev) => (prev.includes(secId) ? prev.filter((id) => id !== secId) : [...prev, secId]));
 	};
 
-	const handleStart = () => {
-		if (!exam) return;
+	const handleStart = async () => {
+		if (!examData) return;
 
-		const sectionsToUse = activeTab === 'fulltest' ? rootSections.map((s) => s.id) : selectedSectionIds;
-		const timerValue = activeTab === 'fulltest' ? exam.duration : timer ? parseInt(timer) : null;
+		try {
+			// Chuẩn bị Request Body
+			const sectionsToUse = activeTab === 'fulltest' ? [] : selectedSectionIds; // Emtpy array usually means all
+			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) : undefined;
+			
+			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1({
+				id: examId,
+				requestBody: {
+					options: {
+						duration: timerValue,
+						sectionIds: sectionsToUse.length > 0 ? sectionsToUse : undefined,
+					}
+				}
+			});
 
-		console.log('Start exam:', {
-			mode: activeTab,
-			sections: sectionsToUse,
-			timer: timerValue,
-		});
-
-		// Navigate to test interface
-		// Store state in sessionStorage since Next.js doesn't support state in router.push
-		sessionStorage.setItem('testState', JSON.stringify({ sections: sectionsToUse, timer: timerValue }));
-		router.push(`/test/do/${examId}`);
+			const attemptId = res.data?.id;
+			if (attemptId) {
+				router.push(`/test/do/${attemptId}`);
+			} else {
+				console.error("Attempt ID not found in response.");
+			}
+		} catch (error) {
+			console.error("Failed to start attempt:", error);
+		}
 	};
 
 	const handleCommentSubmit = () => {
@@ -191,9 +195,10 @@ export function ExamDetailPage() {
 		return `Part ${index + 1}`;
 	};
 
-	if (!exam) return <div className='p-6 text-center text-gray-500'>Không tìm thấy đề thi</div>;
+	if (loading) return <div className='p-6 text-center text-gray-500'>Đang tải đề thi...</div>;
+	if (!examData) return <div className='p-6 text-center text-gray-500'>Không tìm thấy đề thi</div>;
 
-	const SkillIcon = getSkillIcon(exam.skill);
+	const SkillIcon = getSkillIcon(skill);
 
 	return (
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
@@ -221,25 +226,25 @@ export function ExamDetailPage() {
 										variant='outline'
 										className={`shadow-sm bg-white/20 backdrop-blur-md text-white border-white/30 px-3 py-1 font-bold text-sm`}
 									>
-										{getTestTypeLabel(exam.testType)}
+										{getTestTypeLabel(testType)}
 									</Badge>
 									<Badge variant='outline' className='bg-white/20 backdrop-blur-md text-white border-white/30 px-3 py-1 font-bold text-sm shadow-sm'>
 										<SkillIcon className='h-4 w-4 mr-1.5' />
-										{exam.skill.charAt(0).toUpperCase() + exam.skill.slice(1)}
+										{skill.charAt(0).toUpperCase() + skill.slice(1)}
 									</Badge>
-									<Badge className={`px-3 py-1 font-bold text-sm uppercase tracking-wide border bg-white/10 backdrop-blur-md shadow-sm ${exam.difficulty === Difficulty.Beginner ? 'text-green-300 border-green-300/50' : exam.difficulty === Difficulty.Intermediate ? 'text-yellow-300 border-yellow-300/50' : 'text-red-300 border-red-300/50'}`}>
-										{getDifficultyText(exam.difficulty)}
+									<Badge className={`px-3 py-1 font-bold text-sm uppercase tracking-wide border bg-white/10 backdrop-blur-md shadow-sm ${difficulty === Difficulty.Beginner ? 'text-green-300 border-green-300/50' : difficulty === Difficulty.Intermediate ? 'text-yellow-300 border-yellow-300/50' : 'text-red-300 border-red-300/50'}`}>
+										{getDifficultyText(difficulty)}
 									</Badge>
 								</div>
-								<h1 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight'>{exam.title}</h1>
-								<p className='text-blue-100 text-lg md:text-xl font-medium max-w-3xl leading-relaxed opacity-90'>{exam.description}</p>
+								<h1 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight'>{examData.name}</h1>
+								<p className='text-blue-100 text-lg md:text-xl font-medium max-w-3xl leading-relaxed opacity-90'>{examData.description}</p>
 							</div>
 						</div>
 
 						<div className='flex items-center gap-6 text-sm flex-wrap text-blue-50 pt-2'>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<Clock className='h-5 w-5 text-blue-200' />
-								<span className="font-semibold text-base">{exam.duration} phút</span>
+								<span className="font-semibold text-base">{examData.duration} phút</span>
 							</div>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<FileText className='h-5 w-5 text-indigo-200' />
@@ -325,7 +330,7 @@ export function ExamDetailPage() {
 								</h3>
 
 								<div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
-									{rootSections.map((section, index) => {
+									{rootSections.map((section: any, index: number) => {
 										const sectionTags = getTagsForSection(section.id);
 										const questionCount = countQuestionsInSection(section.id);
 										const isSelected = selectedSectionIds.includes(section.id);
@@ -357,15 +362,12 @@ export function ExamDetailPage() {
 																		<FileText className='h-4 w-4 text-slate-500' />
 																		{questionCount} câu
 																	</span>
-																	<Badge className={`px-2.5 py-1 ${getDifficultyColor(section.difficulty)}`} variant='outline'>
-																		{getDifficultyText(section.difficulty)}
-																	</Badge>
 																</div>
 															</div>
 
 															{sectionTags.length > 0 && (
 																<div className='flex flex-wrap gap-1.5 pt-2 border-t border-slate-100'>
-																	{sectionTags.slice(0, 3).map((tag) => (
+																	{sectionTags.slice(0, 3).map((tag: any) => (
 																		<span key={tag?.id} className='text-[11px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-sm'>
 																			#{tag?.name}
 																		</span>
@@ -446,7 +448,7 @@ export function ExamDetailPage() {
 												</div>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Thời gian chuẩn</span>
-													<span className='text-2xl font-black text-emerald-600'>{exam.duration}'</span>
+													<span className='text-2xl font-black text-emerald-600'>{examData.duration}'</span>
 												</div>
 											</div>
 										</div>

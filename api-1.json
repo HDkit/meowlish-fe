@@ -1,0 +1,4409 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "AuthGatewayController_register_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/register_mail_req_dto_RegisterMailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ResponseTokensDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Register with email and password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthGatewayController_login_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/login_mail_req_dto_LoginMailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ResponseTokensDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Log in with email and password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthGatewayController_refresh_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ResponseTokensDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Refresh access tokens using a refresh token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "operationId": "AuthGatewayController_logoutAll_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Log out from all active sessions",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/exams/management": {
+      "post": {
+        "operationId": "ExamManagementGatewayController_createExam_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create_exam_req_dto_CreateExamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/created_exam_res_dto_CreatedExamDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an exam",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/{id}/sections": {
+      "post": {
+        "operationId": "ExamManagementGatewayController_createSectionInExam_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create_section_req_dto_CreateSectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/created_section_res_dto_CreatedSectionDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a section inside an exam",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/sections/{id}/sections": {
+      "post": {
+        "operationId": "ExamManagementGatewayController_createSectionInSection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create_section_req_dto_CreateSectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/created_section_res_dto_CreatedSectionDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a nested section inside a section",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/sections/{id}/questions": {
+      "post": {
+        "operationId": "ExamManagementGatewayController_createQuestion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create_question_req_dto_CreateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/created_question_res_dto_CreatedQuestionDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a question inside a section",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/{id}": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_updateExam_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update_exam_req_dto_UpdateExamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an exam",
+        "tags": [
+          "Exam Management"
+        ]
+      },
+      "delete": {
+        "operationId": "ExamManagementGatewayController_deleteExam_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an exam",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/sections/{id}": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_updateSection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update_section_req_dto_UpdateSectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a section",
+        "tags": [
+          "Exam Management"
+        ]
+      },
+      "delete": {
+        "operationId": "ExamManagementGatewayController_deleteSection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a section",
+        "tags": [
+          "Exam Management"
+        ]
+      },
+      "get": {
+        "operationId": "ExamManagementGatewayController_getSectionDetails_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/SectionManagementInfoDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed section management data",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/questions/{id}": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_updateQuestion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update_question_req_dto_UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a question",
+        "tags": [
+          "Exam Management"
+        ]
+      },
+      "delete": {
+        "operationId": "ExamManagementGatewayController_deleteQuestion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a question",
+        "tags": [
+          "Exam Management"
+        ]
+      },
+      "get": {
+        "operationId": "ExamManagementGatewayController_getQuestionDetails_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/QuestionManagementInfoDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed question management data",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/sections/{id}/move": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_moveSection_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/move_section_req_dto_MoveSectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move a section",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/questions/{id}/move": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_moveQuestion_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/move_question_req_dto_MoveQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move a question",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/{id}/review": {
+      "patch": {
+        "operationId": "ExamManagementGatewayController_reviewExam_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/review_exam_req_dto_ReviewExamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Review and approve or reject an exam",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/exams": {
+      "get": {
+        "operationId": "ExamManagementGatewayController_findExams_v1",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FilterOptionsDto"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/SortOptionsDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExamsManagementInfoDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Find exams for management",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/management/exams/{id}": {
+      "get": {
+        "operationId": "ExamManagementGatewayController_getExamDetails_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExamDetailedManagementInfoDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed exam management data",
+        "tags": [
+          "Exam Management"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/{id}": {
+      "post": {
+        "operationId": "ExamPracticeGatewayController_attempt_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/attempt_req_dto_AttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/created_attempt_res_dto_CreatedAttemptDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a practice attempt for an exam",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/submit": {
+      "post": {
+        "operationId": "ExamPracticeGatewayController_endAttempt_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit an attempt",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/answers/{questionId}": {
+      "post": {
+        "operationId": "ExamPracticeGatewayController_answer_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/answer_req_dto_AnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Answer a question in an attempt",
+        "tags": [
+          "Exam Practice"
+        ]
+      },
+      "delete": {
+        "operationId": "ExamPracticeGatewayController_removeAnswer_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/remove_answer_req_dto_RemoveAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an answer from a question in an attempt",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/answers/{questionId}/flag": {
+      "patch": {
+        "operationId": "ExamPracticeGatewayController_toggleFlag_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/flag_state_res_dto_FlagStateDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle question flag state",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/answers/{questionId}/note": {
+      "patch": {
+        "operationId": "ExamPracticeGatewayController_addNote_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/add_note_req_dto_AddNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add or update a note for a question",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_findExams_v1",
+        "parameters": [
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/find_exams_req_dto_FilterOptionsDto"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/find_exams_req_dto_SortOptionsDto"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExamsInfoDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Find exams available for practice",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/{id}/details": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getExamDetails_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExamDetailDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get exam details for practice",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/questions/{id}/details": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getDetailedQuestionInfo_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/QuestionDetailDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed question information for practice",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/{id}/stats": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getExamStats_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ExamStatsDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get aggregate exam statistics",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/saved": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getAttemptSavedData_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AttemptDataDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get saved attempt data",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/attempt/{id}/review": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getAttemptReview_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AttemptReviewDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get attempt review data",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/my/calendar": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getUsersAttemptSummary_v1",
+        "parameters": [
+          {
+            "name": "range",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/get_user_calendar_req_dto_TimeRangeDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserCalendarDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the authenticated user practice calendar",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/my/history": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getUsersAttemptHistory_v1",
+        "parameters": [
+          {
+            "name": "examId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/get_users_attempt_history_req_dto_SortOptionsDto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AttemptsHistoryDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the authenticated user attempt history",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/practice/my/stats": {
+      "get": {
+        "operationId": "ExamPracticeGatewayController_getUsesStats_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserStatsDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the authenticated user practice stats",
+        "tags": [
+          "Exam Practice"
+        ]
+      }
+    },
+    "/api/v1/exams/tags": {
+      "post": {
+        "operationId": "TagGatewayController_addTag_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/add_tag_req_dto_AddTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/added_tag_res_dto_AddedTagDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a tag",
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/api/v1/exams/tags/{id}": {
+      "delete": {
+        "operationId": "TagGatewayController_deleteTag_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a tag",
+        "tags": [
+          "Tags"
+        ]
+      },
+      "patch": {
+        "operationId": "TagGatewayController_updateTag_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update_tag_dto_UpdateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename a tag",
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/api/v1/exams/tags/{id}/move": {
+      "post": {
+        "operationId": "TagGatewayController_moveTag_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/move_tag_req_dto_MoveTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move a tag under another parent",
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/api/v1/exams/tags/tree": {
+      "get": {
+        "operationId": "TagGatewayController_getTagTree_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/TagTreesDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fetch all tags in a tree format",
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/api/v1/exams/tags/list": {
+      "get": {
+        "operationId": "TagGatewayController_getTagList_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/TagListDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fetch all tags as a list",
+        "tags": [
+          "Tags"
+        ]
+      }
+    },
+    "/api/v1/exams/goals/my": {
+      "post": {
+        "operationId": "GoalGatewayController_setGoal_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/set_goal_req_dto_SetGoalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GoalResDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set a goal for the authenticated user",
+        "tags": [
+          "Goals"
+        ]
+      },
+      "delete": {
+        "operationId": "GoalGatewayController_deleteGoal_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "null",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete the authenticated user goal",
+        "tags": [
+          "Goals"
+        ]
+      },
+      "patch": {
+        "operationId": "GoalGatewayController_updateGoal_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update_goal_req_dto_UpdateGoalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GoalResDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update the authenticated user goal",
+        "tags": [
+          "Goals"
+        ]
+      },
+      "get": {
+        "operationId": "GoalGatewayController_getGoal_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GoalResDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the authenticated user goal",
+        "tags": [
+          "Goals"
+        ]
+      }
+    },
+    "/api/v1/files": {
+      "post": {
+        "operationId": "FileGatewayController_getPresignedUrl_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/get_presigned_url_req_dto_GetPresignedUrlDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PresignedUrlResponseDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a presigned upload URL",
+        "tags": [
+          "Files"
+        ]
+      }
+    },
+    "/api/v1/achievements/badges": {
+      "get": {
+        "operationId": "AchievementGatewayController_getAllBadges_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/FoundBadgesDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all available badges",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/badges/my": {
+      "get": {
+        "operationId": "AchievementGatewayController_getMyBadges_v1",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/FoundUsersBadgesDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the authenticated user badges",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/badges/{uid}": {
+      "get": {
+        "operationId": "AchievementGatewayController_getSomeonesBadges_v1",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "uid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ResponseEntity"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/FoundUsersBadgesDto",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get badges earned by a specific user",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "",
+    "description": "",
+    "version": "1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ResponseEntity": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "API path",
+            "example": "/auth/login"
+          },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status code",
+            "example": 200
+          },
+          "success": {
+            "type": "boolean",
+            "description": "Request success status",
+            "example": true
+          },
+          "timestamp": {
+            "type": "object",
+            "description": "Response timestamp",
+            "example": 1776257433244
+          },
+          "error": {
+            "type": "object",
+            "description": "Error message if any",
+            "example": "Unauthorized"
+          },
+          "data": {
+            "type": "object",
+            "description": "Response payload, null if error and in special cases",
+            "nullable": true
+          }
+        },
+        "required": [
+          "path",
+          "statusCode",
+          "success",
+          "timestamp",
+          "data"
+        ]
+      },
+      "ResponseTokensDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "register_mail_req_dto_RegisterMailDto": {
+        "type": "object",
+        "properties": {
+          "mail": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mail",
+          "username",
+          "password"
+        ]
+      },
+      "login_mail_req_dto_LoginMailDto": {
+        "type": "object",
+        "properties": {
+          "mail": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mail",
+          "password"
+        ]
+      },
+      "created_exam_res_dto_CreatedExamDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "create_exam_req_dto_CreateExamDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "duration",
+          "title"
+        ]
+      },
+      "created_section_res_dto_CreatedSectionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "create_section_req_dto_CreateSectionDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          }
+        }
+      },
+      "created_question_res_dto_CreatedQuestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "create_question_req_dto_CreateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          }
+        }
+      },
+      "update_exam_req_dto_UpdateExamDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "setDescriptionNull": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "addTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removeTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "addTags",
+          "removeTags"
+        ]
+      },
+      "update_section_req_dto_UpdateSectionDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string"
+          },
+          "directive": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "setNameNull": {
+            "type": "boolean"
+          },
+          "addTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removeTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removeFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "addTags",
+          "removeTags",
+          "addFiles",
+          "removeFiles"
+        ]
+      },
+      "AddChoiceDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "isCorrect": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "isCorrect"
+        ]
+      },
+      "UpdateChoiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "isCorrect": {
+            "type": "boolean"
+          },
+          "setContentNull": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "update_question_req_dto_UpdateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "addChoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddChoiceDto"
+            }
+          },
+          "deleteChoicesIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updateChoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpdateChoiceDto"
+            }
+          },
+          "content": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "points": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "addTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removeTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "removeFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "addChoices",
+          "deleteChoicesIds",
+          "updateChoices",
+          "addTags",
+          "removeTags",
+          "addFiles",
+          "removeFiles"
+        ]
+      },
+      "move_section_req_dto_MoveSectionDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "toRoot": {
+            "type": "boolean"
+          }
+        }
+      },
+      "move_question_req_dto_MoveQuestionDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          },
+          "sectionId": {
+            "type": "string"
+          }
+        }
+      },
+      "review_exam_req_dto_ReviewExamDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ExamDto": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "createdBy",
+          "id",
+          "status",
+          "title",
+          "updatedAt"
+        ]
+      },
+      "ExamsManagementInfoDto": {
+        "type": "object",
+        "properties": {
+          "exams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExamDto"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "exams",
+          "cursor"
+        ]
+      },
+      "TimeRangeDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "FilterOptionsDto": {
+        "type": "object",
+        "properties": {
+          "createdBy": {
+            "type": "string"
+          },
+          "createdTimeRange": {
+            "$ref": "#/components/schemas/TimeRangeDto"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedTimeRange": {
+            "$ref": "#/components/schemas/TimeRangeDto"
+          }
+        }
+      },
+      "SortOptionsDto": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "ASC",
+              "DESC"
+            ]
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "updatedAt",
+              "createdAt"
+            ]
+          }
+        },
+        "required": [
+          "direction",
+          "key"
+        ]
+      },
+      "ExamDetailedManagementInfoDto": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "sectionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "createdBy",
+          "duration",
+          "id",
+          "sectionIds",
+          "status",
+          "tags",
+          "title",
+          "updatedAt"
+        ]
+      },
+      "FilePreviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "SectionManagementInfoDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string"
+          },
+          "directive": {
+            "type": "string"
+          },
+          "examId": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilePreviewDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "questionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "contentType",
+          "directive",
+          "examId",
+          "files",
+          "id",
+          "questionIds",
+          "tags"
+        ]
+      },
+      "ChoiceDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isCorrect": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "isCorrect",
+          "key",
+          "questionId"
+        ]
+      },
+      "QuestionManagementInfoDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChoiceDto"
+            }
+          },
+          "content": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilePreviewDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "points": {
+            "type": "number"
+          },
+          "sectionId": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "choices",
+          "content",
+          "explanation",
+          "files",
+          "id",
+          "points",
+          "sectionId",
+          "tags",
+          "type"
+        ]
+      },
+      "created_attempt_res_dto_CreatedAttemptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "OptionsDto": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "type": "number"
+          },
+          "sectionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "attempt_req_dto_AttemptDto": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "$ref": "#/components/schemas/OptionsDto"
+          }
+        }
+      },
+      "answer_req_dto_AnswerDto": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
+      "remove_answer_req_dto_RemoveAnswerDto": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "flag_state_res_dto_FlagStateDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "add_note_req_dto_AddNoteDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ]
+      },
+      "MinimalExamInfoDto": {
+        "type": "object",
+        "properties": {
+          "attemptsCount": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "attemptsCount",
+          "duration",
+          "id",
+          "name",
+          "tags",
+          "updatedAt"
+        ]
+      },
+      "ExamsInfoDto": {
+        "type": "object",
+        "properties": {
+          "exams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MinimalExamInfoDto"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "exams",
+          "cursor"
+        ]
+      },
+      "find_exams_req_dto_FilterOptionsDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "find_exams_req_dto_SortOptionsDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "attemptsCount",
+              "updatedAt"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "ASC",
+              "DESC"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "direction"
+        ]
+      },
+      "SectionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "questionsCount": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "questionsCount",
+          "tags"
+        ]
+      },
+      "ExamDetailDto": {
+        "type": "object",
+        "properties": {
+          "attemptsCount": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionDto"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "attemptsCount",
+          "duration",
+          "id",
+          "name",
+          "sections",
+          "tags",
+          "updatedAt"
+        ]
+      },
+      "SectionContextDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "fileUrls"
+        ]
+      },
+      "QuestionDetailDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "points": {
+            "type": "number"
+          },
+          "sectionContext": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionContextDto"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "explanation",
+          "fileUrls",
+          "id",
+          "points",
+          "sectionContext",
+          "type"
+        ]
+      },
+      "QuestionStatsDto": {
+        "type": "object",
+        "properties": {
+          "correctCount": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "totalCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "correctCount",
+          "tags",
+          "totalCount"
+        ]
+      },
+      "ExamStatsDto": {
+        "type": "object",
+        "properties": {
+          "averageDuration": {
+            "type": "number"
+          },
+          "averageScoreInPercentage": {
+            "type": "number"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionStatsDto"
+            }
+          }
+        },
+        "required": [
+          "averageDuration",
+          "averageScoreInPercentage",
+          "questions"
+        ]
+      },
+      "ResponseDataDto": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isFlagged": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answers",
+          "questionId"
+        ]
+      },
+      "ChoiceDataDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "QuestionDataDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChoiceDataDto"
+            }
+          },
+          "content": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "choices",
+          "content",
+          "fileUrls",
+          "id",
+          "order",
+          "type"
+        ]
+      },
+      "SectionDataDto": {
+        "type": "object",
+        "properties": {
+          "directive": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDataDto"
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionDataDto"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "directive",
+          "fileUrls",
+          "id",
+          "order",
+          "questions",
+          "sections",
+          "type"
+        ]
+      },
+      "AttemptDataDto": {
+        "type": "object",
+        "properties": {
+          "durationLimit": {
+            "type": "number"
+          },
+          "responses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseDataDto"
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionDataDto"
+            }
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "durationLimit",
+          "responses",
+          "sections",
+          "startedAt"
+        ]
+      },
+      "ResponseReviewDto": {
+        "type": "object",
+        "properties": {
+          "additionalData": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isCorrect": {
+            "type": "boolean"
+          },
+          "isFlagged": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answers",
+          "questionId"
+        ]
+      },
+      "attempt_review_res_dto_ChoiceDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "isCorrect": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "isCorrect",
+          "key"
+        ]
+      },
+      "QuestionReviewDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/attempt_review_res_dto_ChoiceDto"
+            }
+          },
+          "content": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "points": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "choices",
+          "content",
+          "fileUrls",
+          "id",
+          "order",
+          "points",
+          "tags",
+          "type"
+        ]
+      },
+      "SectionReviewDto": {
+        "type": "object",
+        "properties": {
+          "directive": {
+            "type": "string"
+          },
+          "fileUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionReviewDto"
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionReviewDto"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "directive",
+          "fileUrls",
+          "id",
+          "order",
+          "questions",
+          "sections",
+          "type"
+        ]
+      },
+      "AttemptReviewDto": {
+        "type": "object",
+        "properties": {
+          "durationLimit": {
+            "type": "number"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "responses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseReviewDto"
+            }
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionReviewDto"
+            }
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalPoints": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "durationLimit",
+          "endedAt",
+          "responses",
+          "sections",
+          "startedAt"
+        ]
+      },
+      "UserCalendarDto": {
+        "type": "object",
+        "properties": {
+          "history": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "history"
+        ]
+      },
+      "get_user_calendar_req_dto_TimeRangeDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "MinimalAttemptInfoDto": {
+        "type": "object",
+        "properties": {
+          "durationLimit": {
+            "type": "number"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isStrict": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": "number"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalPoints": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "durationLimit",
+          "id",
+          "isStrict",
+          "startedAt"
+        ]
+      },
+      "AttemptsHistoryDto": {
+        "type": "object",
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MinimalAttemptInfoDto"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempts",
+          "cursor"
+        ]
+      },
+      "get_users_attempt_history_req_dto_SortOptionsDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "endedAt",
+              "startedAt",
+              "examId",
+              "score"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "ASC",
+              "DESC"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "direction"
+        ]
+      },
+      "TagInfoDto": {
+        "type": "object",
+        "properties": {
+          "correctPercentage": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correctPercentage",
+          "name"
+        ]
+      },
+      "UserStatsDto": {
+        "type": "object",
+        "properties": {
+          "attemptCounts": {
+            "type": "number"
+          },
+          "averageScoreInPercentage": {
+            "type": "number"
+          },
+          "tagInfos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagInfoDto"
+            }
+          }
+        },
+        "required": [
+          "attemptCounts",
+          "averageScoreInPercentage",
+          "tagInfos"
+        ]
+      },
+      "added_tag_res_dto_AddedTagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "add_tag_req_dto_AddTagDto": {
+        "type": "object",
+        "properties": {
+          "parentId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "move_tag_req_dto_MoveTagDto": {
+        "type": "object",
+        "properties": {
+          "parentId": {
+            "type": "string"
+          }
+        }
+      },
+      "update_tag_dto_UpdateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TagTreeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTreeDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "children"
+        ]
+      },
+      "TagTreesDto": {
+        "type": "object",
+        "properties": {
+          "trees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTreeDto"
+            }
+          }
+        },
+        "required": [
+          "trees"
+        ]
+      },
+      "TagNodeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "parent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TagListDto": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagNodeDto"
+            }
+          }
+        },
+        "required": [
+          "list"
+        ]
+      },
+      "GoalResDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "type",
+          "uid"
+        ]
+      },
+      "set_goal_req_dto_SetGoalDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IELTS",
+              "TOEIC",
+              "VSTEP",
+              "TOEFL"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "target",
+          "type"
+        ]
+      },
+      "update_goal_req_dto_UpdateGoalDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IELTS",
+              "TOEIC",
+              "VSTEP",
+              "TOEFL"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "target",
+          "type"
+        ]
+      },
+      "PresignedUrlResponseDto": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string"
+          },
+          "formData": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "fileName",
+          "id",
+          "uploadUrl",
+          "formData"
+        ]
+      },
+      "get_presigned_url_req_dto_GetPresignedUrlDto": {
+        "type": "object",
+        "properties": {
+          "isPublicFile": {
+            "type": "boolean"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "fileSize": {
+            "type": "number"
+          },
+          "contentType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "isPublicFile",
+          "fileName",
+          "fileSize",
+          "contentType"
+        ]
+      },
+      "BadgeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "displayName",
+          "description"
+        ]
+      },
+      "FoundBadgesDto": {
+        "type": "object",
+        "properties": {
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BadgeDto"
+            }
+          }
+        },
+        "required": [
+          "badges"
+        ]
+      },
+      "UserBadgeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "displayName",
+          "description",
+          "id"
+        ]
+      },
+      "FoundUsersBadgesDto": {
+        "type": "object",
+        "properties": {
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserBadgeDto"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "badges"
+        ]
+      }
+    }
+  }
+}

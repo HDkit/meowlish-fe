@@ -27,6 +27,7 @@ import { RootState } from './store/main/store';
 import { Exam, Question, Section, TestType, ExamStatus } from '../types/client';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
+import { ExamPracticeService } from '@/lib/api-client';
 
 export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
@@ -40,7 +41,44 @@ export function TestSelection() {
 	}, [currentUser, router]);
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic' | 'practice'>('ielts');
 
-	const exams = useSelector((state: RootState) => state.exams.list);
+	const [exams, setExams] = useState<any[]>([]);
+	const [loadingExams, setLoadingExams] = useState(true);
+
+	useEffect(() => {
+		const fetchExams = async () => {
+			try {
+				setLoadingExams(true);
+				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1({ limit: 100 });
+				const examsList = res.data?.exams || [];
+				const formattedExams = examsList.map((e: any) => {
+					const lowerTags = e.tags?.map((t: string) => t.toLowerCase()) || [];
+					return {
+						id: e.id,
+						title: e.name,
+						description: e.description,
+						duration: e.duration,
+						// Parse tags to deduce the testType, difficulty, and skill
+						difficulty: lowerTags.includes('beginner') ? 'beginner' : lowerTags.includes('advanced') ? 'advanced' : 'intermediate',
+						testType: lowerTags.includes('ielts') ? TestType.IELTS : TestType.TOEIC,
+						skill: lowerTags.includes('listening') ? 'listening' : lowerTags.includes('speaking') ? 'speaking' : lowerTags.includes('writing') ? 'writing' : 'reading',
+						tagIds: e.tags || [],
+						status: ExamStatus.Published,
+					};
+				});
+				setExams(formattedExams);
+			} catch (err) {
+				console.error("Failed to load exams:", err);
+			} finally {
+				setLoadingExams(false);
+			}
+		};
+
+		if (currentUser) {
+			fetchExams();
+		}
+	}, [currentUser]);
+
+	// Keep these to satisfy ExamCard typing for now if not fully replaced
 	const sections = useSelector((state: RootState) => state.sections.list);
 	const questions = useSelector((state: RootState) => state.questions.list);
 	const tags = useSelector((state: RootState) => state.tags.list);
@@ -145,7 +183,7 @@ export function TestSelection() {
 						<div className='text-center border-r border-slate-200 last:border-0 p-1'>
 							<div className='flex flex-col items-center justify-center'>
 								<Target className='h-4 w-4 mb-1.5 text-rose-500' />
-								<span className="text-[13px] font-bold text-slate-700">{countQuestionsInExam(exam.id, sections, questions)}</span>
+								<span className="text-[13px] font-bold text-slate-700">N/A</span>
 								<span className="text-[10px] text-slate-500 font-semibold uppercase">Câu Hỏi</span>
 							</div>
 						</div>
@@ -153,7 +191,7 @@ export function TestSelection() {
 							<div className='flex flex-col items-center justify-center'>
 								<Tag className='h-4 w-4 mb-1.5 text-amber-500' />
 								<span className="text-[13px] font-bold text-slate-700 line-clamp-1 px-1">
-									{exam.tagIds.map((tagId) => tags.find((tag) => tag.id === tagId)?.name).join(', ') || 'Chung'}
+									{exam.tagIds.join(', ') || 'Chung'}
 								</span>
 								<span className="text-[10px] text-slate-500 font-semibold uppercase">Chủ Đề</span>
 							</div>
@@ -218,10 +256,12 @@ export function TestSelection() {
 						</div>
 
 						<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8'>
-							{filterExams(TestType.IELTS).map((exam) => (
-								<ExamCard key={exam.id} exam={exam} />
+							{loadingExams ? (
+								<div className="col-span-full py-12 text-center text-slate-500">Đang tải danh sách đề thi...</div>
+							) : filterExams(TestType.IELTS).map((exam) => (
+								<ExamCard key={exam.id} exam={exam as any} />
 							))}
-							{filterExams(TestType.IELTS).length === 0 && (
+							{!loadingExams && filterExams(TestType.IELTS).length === 0 && (
 								<div className="col-span-full py-24 text-center bg-white rounded-3xl border border-dashed border-slate-300">
 									<BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
 									<p className="text-slate-500 font-semibold text-lg">Hệ thống đang cập nhật đề thi IELTS</p>
@@ -238,10 +278,12 @@ export function TestSelection() {
 						</div>
 
 						<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8'>
-							{filterExams(TestType.TOEIC).map((exam) => (
-								<ExamCard key={exam.id} exam={exam} />
+							{loadingExams ? (
+								<div className="col-span-full py-12 text-center text-slate-500">Đang tải danh sách đề thi...</div>
+							) : filterExams(TestType.TOEIC).map((exam) => (
+								<ExamCard key={exam.id} exam={exam as any} />
 							))}
-							{filterExams(TestType.TOEIC).length === 0 && (
+							{!loadingExams && filterExams(TestType.TOEIC).length === 0 && (
 								<div className="col-span-full py-24 text-center bg-white rounded-3xl border border-dashed border-slate-300">
 									<Headphones className="w-16 h-16 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
 									<p className="text-slate-500 font-semibold text-lg">Hệ thống đang cập nhật đề thi TOEIC</p>
