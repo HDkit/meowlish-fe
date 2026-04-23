@@ -1,1058 +1,1595 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Plus, ChevronDown, ChevronRight, Trash2, Save, Send,
-  FileText, Layers, HelpCircle, AlertCircle, CheckCircle,
-  Clock, Settings, Eye, GripVertical, X
-} from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
-import { Card, CardContent } from './ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useToast } from './ui/use-toast';
+  ExamManagementService,
+  getAccessToken,
+  getRefreshToken,
+} from '@/lib/api-client';
+import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { RootState } from '@/lib/store/store';
-import { addExam, updateExam, submitForApproval } from './store/examSlice';
-import { addSection, updateSection } from './store/sectionSlice';
-import { addQuestion, updateQuestion } from './store/questionSlice';
-import { Exam, ExamStatus, Section, Question, Difficulty, Skill, TestType } from '@/types/client';
-
-// ─── Local types ────────────────────────────────────────────────
-
-type AnswerOption = { id: string; text: string; isCorrect: boolean };
-
-type LocalQuestion = {
-  id: string;
-  sectionId: string;
-  type: 'multiple-choice' | 'fill-blank' | 'essay' | 'speaking' | 'multiple-correct-answers';
-  content: string;
-  options: AnswerOption[];
-  correctAnswer: string[];
-  points: number;
-  explanation: string;
-};
-
-type LocalSection = {
-  id: string;
-  parentId: string;   // examId or sectionId
-  title: string;
-  direction: string;
-  difficulty: Difficulty;
-  isExpanded: boolean;
-  children: LocalSection[];
-};
+import { AdminTagManager } from '@/components/admin/AdminTagManager';
+import { AdminUploadTool } from '@/components/admin/AdminUploadTool';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { useToast } from './ui/use-toast';
+import {
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  Layers,
+  HelpCircle,
+  Move,
+  Send,
+  FilePlus2,
+  ShieldCheck,
+  Sparkles,
+  FolderTree,
+  ListChecks,
+  ClipboardPen,
+} from 'lucide-react';
 
 type SelectedNode =
-  | { type: 'exam' }
+  | { type: 'overview' }
   | { type: 'section'; id: string }
-  | { type: 'question'; id: string; sectionId: string };
+  | { type: 'question'; id: string };
 
-// ─── Helpers ────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  Empty: { label: 'Trống', color: 'bg-gray-100 text-gray-600' },
-  InDraft: { label: 'Chờ duyệt', color: 'bg-orange-100 text-orange-700' },
-  NeedsRevision: { label: 'Cần chỉnh sửa', color: 'bg-red-100 text-red-700' },
-  Published: { label: 'Đã xuất bản', color: 'bg-green-100 text-green-700' },
+type ExamDetails = {
+  id: string;
+  title: string;
+  description?: string;
+  duration: number;
+  status: string;
+  sectionIds: string[];
+  tags: string[];
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
 };
 
-const QUESTION_TYPE_LABELS: Record<string, string> = {
-  'multiple-choice': 'Trắc nghiệm (1 đáp án)',
-  'multiple-correct-answers': 'Trắc nghiệm (nhiều đáp án)',
-  'fill-blank': 'Điền vào chỗ trống',
-  'essay': 'Tự luận',
-  'speaking': 'Nói',
+type SectionDetails = {
+  id: string;
+  examId: string;
+  parentId?: string;
+  name?: string;
+  directive: string;
+  contentType: string;
+  questionIds: string[];
+  tags: string[];
+  files: Array<{ id: string; url: string }>;
 };
 
-// Generate a default section name based on nesting depth
-const depthLabel = (depth: number) => {
-  if (depth === 0) return 'Section';
-  if (depth === 1) return 'Subsection';
-  return 'Sub'.repeat(depth - 1) + 'subsection';
+type ChoiceDetails = {
+  id?: string;
+  key: string;
+  content: string;
+  isCorrect: boolean;
 };
 
+type QuestionDetails = {
+  id: string;
+  sectionId: string;
+  content: string;
+  explanation: string;
+  points: number;
+  type: string;
+  tags: string[];
+  files: Array<{ id: string; url: string }>;
+  choices: ChoiceDetails[];
+};
 
-// ─── Sub-components ─────────────────────────────────────────────
+type SectionMoveState = {
+  parentId: string;
+  index: string;
+  toRoot: boolean;
+};
 
-function SectionTreeNode({
-  node, depth, selectedNode, onSelect, onAddChild, onDelete, questionCount,
-}: {
-  node: LocalSection;
-  depth: number;
-  selectedNode: SelectedNode;
-  onSelect: (n: SelectedNode) => void;
-  onAddChild: (parentId: string, childDepth: number) => void;
-  onDelete: (id: string) => void;
-  questionCount: (sectionId: string) => number;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const isSelected = selectedNode.type === 'section' && selectedNode.id === node.id;
-  const qCount = questionCount(node.id);
+type QuestionMoveState = {
+  sectionId: string;
+  index: string;
+};
 
-  return (
-    <div>
-      <div
-        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors
-                    ${isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700'}`}
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
-      >
-        <button onClick={() => setExpanded(e => !e)} className="shrink-0 p-0.5 text-gray-400 hover:text-gray-700">
-          {node.children.length > 0
-            ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />)
-            : <span className="w-3.5 inline-block" />}
-        </button>
-        <Layers className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-        <span className="flex-1 truncate font-medium" onClick={() => onSelect({ type: 'section', id: node.id })}>
-          {node.title || 'Section không tên'}
-        </span>
-        {qCount > 0 && (
-          <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-1.5">{qCount}</span>
-        )}
-        {/* Always-visible action buttons — subtle gray, colored on hover */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); onAddChild(node.id, depth + 1); }}
-            className="p-0.5 text-gray-300 hover:text-blue-600 transition-colors"
-            title={`Thêm ${depthLabel(depth + 1)}`}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(node.id); }}
-            className="p-0.5 text-gray-300 hover:text-red-500 transition-colors"
-            title="Xóa section"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
+const QUESTION_TYPE_OPTIONS = [
+  'multiple-choice',
+  'multiple-correct-answers',
+  'fill-blank',
+  'essay',
+  'speaking',
+];
 
-      {expanded && node.children.map(child => (
-        <SectionTreeNode
-          key={child.id}
-          node={child}
-          depth={depth + 1}
-          selectedNode={selectedNode}
-          onSelect={onSelect}
-          onAddChild={onAddChild}
-          onDelete={onDelete}
-          questionCount={questionCount}
-        />
-      ))}
-    </div>
-  );
-}
+const REVIEW_STATUSES = ['InDraft', 'Published', 'NeedsRevision'];
 
-function QuestionItem({
-  question, index, selectedNode, onSelect, onDelete,
-}: {
-  question: LocalQuestion;
-  index: number;
-  selectedNode: SelectedNode;
-  onSelect: (n: SelectedNode) => void;
-  onDelete: (id: string) => void;
-}) {
-  const isSelected = selectedNode.type === 'question' && selectedNode.id === question.id;
+const getQuestionModeLabel = (type: string) => {
+  if (type === 'multiple-choice') return 'Chọn 1 đáp án đúng';
+  if (type === 'multiple-correct-answers') return 'Có thể chọn nhiều đáp án đúng';
+  if (type === 'fill-blank') return 'Câu hỏi điền từ';
+  if (type === 'essay') return 'Câu hỏi tự luận';
+  if (type === 'speaking') return 'Câu hỏi nói';
+  return type;
+};
 
-  return (
-    <div
-      className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-sm transition-colors
-                ${isSelected ? 'bg-purple-100 text-purple-800' : 'hover:bg-gray-100 text-gray-600'}`}
-      onClick={() => onSelect({ type: 'question', id: question.id, sectionId: question.sectionId })}
-    >
-      <GripVertical className="h-3.5 w-3.5 text-gray-300 shrink-0" />
-      <HelpCircle className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-      <span className="flex-1 truncate">Q{index + 1}: {question.content.slice(0, 40) || 'Câu hỏi mới'}</span>
-      <span className="text-xs text-gray-400 shrink-0">{question.points}đ</span>
-      <button
-        onClick={e => { e.stopPropagation(); onDelete(question.id); }}
-        className="hidden group-hover:block text-gray-400 hover:text-red-500"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  );
-}
+const getRootSectionIds = (examId: string, sections: SectionDetails[]): string[] => {
+  const sectionIds = new Set(sections.map((section) => section.id));
 
-// ─── Main component ──────────────────────────────────────────────
+  return sections
+    .filter((section) => !section.parentId || section.parentId === examId || !sectionIds.has(section.parentId))
+    .map((section) => section.id);
+};
+
+const buildChoiceDrafts = (question: QuestionDetails): ChoiceDetails[] => {
+  if (question.choices.length > 0) {
+    return question.choices.map((choice) => ({
+      id: choice.id,
+      key: choice.key,
+      content: choice.content ?? '',
+      isCorrect: choice.isCorrect,
+    }));
+  }
+
+  return [
+    { key: 'A', content: '', isCorrect: false },
+    { key: 'B', content: '', isCorrect: false },
+  ];
+};
+
+const AUTHORING_STEPS = [
+  '1. Xác định mục tiêu đề: Listening, Reading hay full test.',
+  '2. Tạo section theo đúng cấu trúc phần thi thật trước khi thêm câu hỏi.',
+  '3. Viết directive giống giọng văn exam thật: ngắn, rõ, đúng yêu cầu.',
+  '4. Thêm câu hỏi theo đúng part, số lượng và độ khó tăng dần hợp lý.',
+  '5. Kiểm tra đáp án, explanation và thời lượng trước khi gửi review.',
+];
+
+const REAL_EXAM_HINTS = [
+  'Giữ wording trung tính, rõ nghĩa và tránh mẹo đánh đố không giống đề thật.',
+  'Mỗi section nên kiểm tra một kỹ năng/mẫu câu hỏi rõ ràng, không trộn quá nhiều mục tiêu.',
+  'Với đề TOEIC, nên bám số câu từng part và nhịp độ quen thuộc của full test.',
+];
+
+const TOEIC_BLUEPRINT = [
+  { part: 'Part 1', focus: 'Photographs', questions: 6, sectionType: 'Listening' },
+  { part: 'Part 2', focus: 'Question-Response', questions: 25, sectionType: 'Listening' },
+  { part: 'Part 3', focus: 'Conversations', questions: 39, sectionType: 'Listening' },
+  { part: 'Part 4', focus: 'Talks', questions: 30, sectionType: 'Listening' },
+  { part: 'Part 5', focus: 'Incomplete Sentences', questions: 30, sectionType: 'Reading' },
+  { part: 'Part 6', focus: 'Text Completion', questions: 16, sectionType: 'Reading' },
+  { part: 'Part 7', focus: 'Reading Comprehension', questions: 54, sectionType: 'Reading' },
+];
 
 export function ExamCreationPage() {
-  const dispatch = useDispatch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { currUser } = useAuth();
+  const { isHeadStaff, isStaff } = useAuth();
 
-  const allSections = useSelector((s: RootState) => s.sections.list);
-  const allQuestions = useSelector((s: RootState) => s.questions.list);
-  const allExams = useSelector((s: RootState) => s.exams.list);
+  const queryExamId = searchParams.get('id');
 
-  // ── Exam metadata state ──
-  const [examId, setExamId] = useState<string | null>(null);
-  const currentExam = examId ? allExams.find(e => e.id === examId) ?? null : null;
+  const [loading, setLoading] = useState(false);
+  const [savingExam, setSavingExam] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<SelectedNode>({ type: 'overview' });
+  const [examId, setExamId] = useState<string | null>(queryExamId);
 
-  const [meta, setMeta] = useState({
+  const [exam, setExam] = useState<ExamDetails | null>(null);
+  const [examDraft, setExamDraft] = useState({
     title: '',
     description: '',
-    testType: TestType.IELTS as TestType,
-    skill: Skill.Reading as Skill,
-    difficulty: Difficulty.Intermediate as Difficulty,
-    duration: 60,
+    duration: '60',
+    tagsInput: '',
   });
 
-  // ── Load exam from ?id= query param (when coming from Exam Management) ──
-  const searchParams = useSearchParams();
-  useEffect(() => {
-    const idParam = searchParams.get('id');
-    if (!idParam || examId) return; // already initialized
-    const exam = allExams.find(e => e.id === idParam);
-    if (!exam) return;
-    setExamId(idParam);
-    setMeta({
-      title: exam.title,
-      description: exam.description ?? '',
-      testType: exam.testType,
-      skill: exam.skill,
-      difficulty: exam.difficulty,
-      duration: exam.duration,
+  const [sections, setSections] = useState<Record<string, SectionDetails>>({});
+  const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+  const [sectionSnapshots, setSectionSnapshots] = useState<Record<string, SectionDetails>>({});
+  const [questions, setQuestions] = useState<Record<string, QuestionDetails>>({});
+  const [questionSnapshots, setQuestionSnapshots] = useState<Record<string, QuestionDetails>>({});
+
+  const [sectionMoveState, setSectionMoveState] = useState<Record<string, SectionMoveState>>({});
+  const [questionMoveState, setQuestionMoveState] = useState<Record<string, QuestionMoveState>>({});
+  const [reviewStatus, setReviewStatus] = useState('InDraft');
+
+  const ensureApiSession = (actionLabel = 'thao tác với editor admin') => {
+    if (getAccessToken() || getRefreshToken()) {
+      return true;
+    }
+
+    toast({
+      title: 'Thiếu phiên backend',
+      description: `Hãy đăng xuất rồi đăng nhập lại để lấy token backend trước khi ${actionLabel}.`,
+      variant: 'destructive',
     });
-    // Load existing sections for this exam
-    const buildTree = (parentId: string): LocalSection[] => {
-      return allSections
-        .filter(s => s.parentId === parentId)
-        .map(s => ({
-          id: s.id,
-          parentId: s.parentId,
-          title: s.title ?? s.direction?.split('\n')[0].slice(0, 50) ?? 'Section',
-          direction: s.direction ?? '',
-          difficulty: s.difficulty,
-          isExpanded: true,
-          children: buildTree(s.id),
-        }));
-    };
-    setLocalSections(buildTree(idParam));
-    // Load existing questions
-    const examSectionIds = allSections
-      .filter(s => {
-        let cur = allSections.find(x => x.id === s.id);
-        let depth = 0;
-        while (cur && depth < 15) {
-          if (cur.parentId === idParam) return true;
-          cur = allSections.find(x => x.id === cur!.parentId);
-          depth++;
-        }
-        return false;
-      })
-      .map(s => s.id);
-    const loadedQuestions: LocalQuestion[] = allQuestions
-      .filter(q => examSectionIds.includes(q.sectionId))
-      .map(q => ({
-        id: q.id,
-        sectionId: q.sectionId,
-        type: q.type,
-        content: q.content,
-        options: (q.options ?? []).map((text, i) => ({
-          id: `opt-${i}`,
-          text,
-          isCorrect: q.correctAnswer?.includes(text) ?? false,
-        })),
-        correctAnswer: q.correctAnswer ?? [],
-        points: q.points,
-        explanation: q.explanation,
-      }));
-    setLocalQuestions(loadedQuestions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    return false;
+  };
 
-  // ── Local section/question state (mirrors Redux for the current exam) ──
-  const [localSections, setLocalSections] = useState<LocalSection[]>([]);
-  const [localQuestions, setLocalQuestions] = useState<LocalQuestion[]>([]);
+  const loadEditorData = async (id: string) => {
+    if (!ensureApiSession('tải dữ liệu đề thi')) {
+      setLoading(false);
+      return;
+    }
 
-  // ── UI state ──
-  const [selectedNode, setSelectedNode] = useState<SelectedNode>({ type: 'exam' });
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+    setLoading(true);
+    try {
+      const examResponse = await ExamManagementService.examManagementGatewayControllerGetExamDetailsV1({ id });
+      const examPayload = extractEntityData<ExamDetails>(examResponse);
 
-  // ── Derived ──
-  const questionsForSection = (sectionId: string) =>
-    localQuestions.filter(q => q.sectionId === sectionId);
+      if (!examPayload) {
+        throw new Error('Không nhận được dữ liệu đề thi.');
+      }
 
-  const questionCount = (sectionId: string) => questionsForSection(sectionId).length;
-
-  const totalQuestions = localQuestions.length;
-  const totalPoints = localQuestions.reduce((s, q) => s + q.points, 0);
-
-  const statusCfg = currentExam
-    ? STATUS_CONFIG[currentExam.status] ?? STATUS_CONFIG.Empty
-    : STATUS_CONFIG.Empty;
-
-  // ── Section helpers ──
-  const addRootSection = useCallback(() => {
-    const id = `s-${uuidv4().slice(0, 8)}`;
-    const newSec: LocalSection = {
-      id, parentId: examId ?? '__new__',
-      title: `Section ${localSections.length + 1}`,
-      direction: '', difficulty: Difficulty.Intermediate,
-      isExpanded: true, children: [],
-    };
-    setLocalSections(prev => [...prev, newSec]);
-    setSelectedNode({ type: 'section', id });
-  }, [examId, localSections.length]);
-
-  const addChildSection = useCallback((parentId: string, childDepth: number = 1) => {
-    const id = `s-${uuidv4().slice(0, 8)}`;
-    const newSec: LocalSection = {
-      id, parentId,
-      title: depthLabel(childDepth),
-      direction: '', difficulty: Difficulty.Intermediate,
-      isExpanded: true, children: [],
-    };
-
-    // Recursive insert — works at any depth in the tree
-    const insertChild = (sections: LocalSection[]): LocalSection[] =>
-      sections.map(s => s.id === parentId
-        ? { ...s, children: [...s.children, newSec] }
-        : { ...s, children: insertChild(s.children) }
+      const sectionIds = examPayload.sectionIds ?? [];
+      const sectionResponses = await Promise.all(
+        sectionIds.map((sectionId) =>
+          ExamManagementService.examManagementGatewayControllerGetSectionDetailsV1({ id: sectionId })
+        )
       );
 
-    setLocalSections(prev => insertChild(prev));
-    setSelectedNode({ type: 'section', id });
-  }, []);
+      const loadedSections = sectionResponses
+        .map((response) => extractEntityData<SectionDetails>(response))
+        .filter((section): section is SectionDetails => Boolean(section));
 
-  const deleteSection = useCallback((id: string) => {
-    const removeFromTree = (sections: LocalSection[]): LocalSection[] =>
-      sections.filter(s => s.id !== id).map(s => ({ ...s, children: removeFromTree(s.children) }));
-    setLocalSections(prev => removeFromTree(prev));
-    setLocalQuestions(prev => prev.filter(q => q.sectionId !== id));
-    if (selectedNode.type === 'section' && selectedNode.id === id) {
-      setSelectedNode({ type: 'exam' });
+      const questionIds = loadedSections.flatMap((section) => section.questionIds ?? []);
+      const questionResponses = await Promise.all(
+        questionIds.map((questionId) =>
+          ExamManagementService.examManagementGatewayControllerGetQuestionDetailsV1({ id: questionId })
+        )
+      );
+
+      const loadedQuestions = questionResponses
+        .map((response) => extractEntityData<QuestionDetails>(response))
+        .filter((question): question is QuestionDetails => Boolean(question))
+        .map((question) => ({
+          ...question,
+          choices: buildChoiceDrafts(question),
+        }));
+
+      const nextSections = Object.fromEntries(loadedSections.map((section) => [section.id, section]));
+      const nextQuestions = Object.fromEntries(loadedQuestions.map((question) => [question.id, question]));
+
+      setExam(examPayload);
+      setExamDraft({
+        title: examPayload.title ?? '',
+        description: examPayload.description ?? '',
+        duration: String(examPayload.duration ?? 60),
+        tagsInput: (examPayload.tags ?? []).join(', '),
+      });
+      setSections(nextSections);
+      setSectionSnapshots(nextSections);
+      setSectionOrder(sectionIds);
+      setQuestions(nextQuestions);
+      setQuestionSnapshots(nextQuestions);
+      setReviewStatus(examPayload.status === 'Published' ? 'Published' : 'InDraft');
+
+      setSectionMoveState(
+        Object.fromEntries(
+          loadedSections.map((section, index) => [
+            section.id,
+            {
+              parentId: section.parentId ?? '',
+              index: String(index),
+              toRoot: !section.parentId || section.parentId === examPayload.id,
+            },
+          ])
+        )
+      );
+
+      setQuestionMoveState(
+        Object.fromEntries(
+          loadedQuestions.map((question, index) => [
+            question.id,
+            {
+              sectionId: question.sectionId,
+              index: String(index),
+            },
+          ])
+        )
+      );
+    } catch (error) {
+      toast({
+        title: 'Không tải được editor',
+        description: extractApiErrorMessage(error, 'Không thể tải dữ liệu đề thi từ API.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [selectedNode]);
+  };
 
-  const updateLocalSection = useCallback((id: string, patch: Partial<LocalSection>) => {
-    const applyPatch = (sections: LocalSection[]): LocalSection[] =>
-      sections.map(s => s.id === id ? { ...s, ...patch } : { ...s, children: applyPatch(s.children) });
-    setLocalSections(prev => applyPatch(prev));
-  }, []);
-
-  // ── Question helpers ──
-  const addQuestionToSection = useCallback((sectionId: string) => {
-    const id = `q-${uuidv4().slice(0, 8)}`;
-    const newQ: LocalQuestion = {
-      id, sectionId,
-      type: 'multiple-choice',
-      content: '',
-      options: [
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
-      ],
-      correctAnswer: [],
-      points: 1,
-      explanation: '',
-    };
-    setLocalQuestions(prev => [...prev, newQ]);
-    setSelectedNode({ type: 'question', id, sectionId });
-  }, []);
-
-  const updateLocalQuestion = useCallback((id: string, patch: Partial<LocalQuestion>) => {
-    setLocalQuestions(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
-  }, []);
-
-  const deleteLocalQuestion = useCallback((id: string) => {
-    setLocalQuestions(prev => prev.filter(q => q.id !== id));
-    if (selectedNode.type === 'question' && selectedNode.id === id) {
-      setSelectedNode({ type: 'exam' });
-    }
-  }, [selectedNode]);
-
-  // ── Save draft ──
-  const handleSave = async () => {
-    if (!currUser) {
-      toast({ title: 'Lỗi', description: 'Bạn cần đăng nhập.', variant: 'destructive' });
+  useEffect(() => {
+    if (!queryExamId) {
+      setExam(null);
+      setExamId(null);
+      setExamDraft({ title: '', description: '', duration: '60', tagsInput: '' });
+      setSections({});
+      setSectionSnapshots({});
+      setSectionOrder([]);
+      setQuestions({});
+      setQuestionSnapshots({});
+      setSelectedNode({ type: 'overview' });
       return;
     }
-    if (!meta.title.trim()) {
-      toast({ title: 'Thiếu thông tin', description: 'Vui lòng nhập tên đề thi.', variant: 'destructive' });
+
+    setExamId(queryExamId);
+    void loadEditorData(queryExamId);
+  }, [queryExamId]);
+
+  const sectionList = useMemo(
+    () => sectionOrder.map((sectionId) => sections[sectionId]).filter((section): section is SectionDetails => Boolean(section)),
+    [sectionOrder, sections]
+  );
+
+  const rootSectionIds = useMemo(
+    () => (examId ? getRootSectionIds(examId, sectionList) : []),
+    [examId, sectionList]
+  );
+
+  const selectedSection = selectedNode.type === 'section' ? sections[selectedNode.id] ?? null : null;
+  const selectedQuestion = selectedNode.type === 'question' ? questions[selectedNode.id] ?? null : null;
+  const totalQuestions = Object.keys(questions).length;
+  const totalSections = sectionList.length;
+  const blueprintCoverage = totalQuestions > 0 ? Math.min(100, Math.round((totalQuestions / 200) * 100)) : 0;
+
+  const applyToeicPreset = () => {
+    setExamDraft((prev) => ({
+      ...prev,
+      title: prev.title || 'TOEIC Full Test Simulation',
+      description:
+        'TOEIC Listening & Reading mock test modeled after common Study4-style full tests: 7 parts, 200 questions, realistic timing and section flow.',
+      duration: '120',
+      tagsInput: prev.tagsInput || 'toeic, full-test, listening, reading',
+    }));
+
+    toast({
+      title: 'Đã áp dụng preset TOEIC',
+      description: 'Màn hình đã điền sẵn tiêu đề, mô tả và thời lượng cho một full test TOEIC.',
+    });
+  };
+
+  const saveExam = async () => {
+    if (!ensureApiSession(examId ? 'lưu đề thi' : 'tạo đề thi')) {
       return;
     }
 
-    setIsSaving(true);
-    await new Promise(r => setTimeout(r, 400));
+    const duration = Number(examDraft.duration);
 
-    const id = examId ?? `exam-${uuidv4().slice(0, 8)}`;
-    const examData: Exam = {
-      id, title: meta.title, description: meta.description,
-      status: currentExam?.status ?? ExamStatus.Empty,
-      testType: meta.testType, skill: meta.skill, difficulty: meta.difficulty,
-      duration: meta.duration,
-      createdBy: currUser.id, creatorId: currUser.id,
-      tagIds: [],
-      createdAt: currentExam?.createdAt ?? Date.now(),
-      updatedAt: Date.now(),
-    };
+    if (!examDraft.title.trim()) {
+      toast({ title: 'Thiếu tên đề', description: 'Vui lòng nhập tên đề thi.', variant: 'destructive' });
+      return;
+    }
 
-    if (examId) dispatch(updateExam(examData));
-    else { dispatch(addExam(examData)); setExamId(id); }
+    if (!Number.isFinite(duration) || duration <= 0) {
+      toast({ title: 'Duration không hợp lệ', description: 'Duration phải là số dương.', variant: 'destructive' });
+      return;
+    }
 
-    // Persist sections
-    localSections.forEach(sec => {
-      const flattenSections = (sections: LocalSection[], parentId: string): void => {
-        sections.forEach(s => {
-          const existing = allSections.find(x => x.id === s.id);
-          const data: Section = {
-            id: s.id, parentId: s.id === sec.id ? id : s.parentId,
-            title: s.title, direction: s.direction,
-            difficulty: s.difficulty, lastEditedBy: currUser.id,
-          };
-          if (existing) dispatch(updateSection(data));
-          else dispatch(addSection(data));
-          flattenSections(s.children, s.id);
+    setSavingExam(true);
+    try {
+      if (!examId) {
+        const createResponse = await ExamManagementService.examManagementGatewayControllerCreateExamV1({
+          requestBody: {
+            title: examDraft.title.trim(),
+            description: examDraft.description.trim(),
+            duration,
+          },
         });
-      };
-      flattenSections([sec], id);
-    });
 
-    // Persist questions
-    localQuestions.forEach(q => {
-      const existing = allQuestions.find(x => x.id === q.id);
-      const data: Question = {
-        id: q.id, sectionId: q.sectionId, type: q.type,
-        content: q.content, options: q.options.map(o => o.text),
-        correctAnswer: q.options.filter(o => o.isCorrect).map(o => o.text),
-        points: q.points, explanation: q.explanation,
-        lastEditedBy: currUser.id, tagIds: [],
-      };
-      if (existing) dispatch(updateQuestion(data));
-      else dispatch(addQuestion(data));
-    });
+        const created = extractEntityData<{ id?: string }>(createResponse);
+        const createdExamId = created?.id;
 
-    setIsSaving(false);
-    toast({ title: '✅ Đã lưu nháp', description: `Đề "${meta.title}" đã được lưu.` });
+        if (!createdExamId) {
+          throw new Error('API không trả về id đề thi.');
+        }
+
+        setExamId(createdExamId);
+        router.replace(`/exam-creation?id=${createdExamId}`);
+        toast({ title: 'Đã tạo đề thi', description: `Đề mới có id: ${createdExamId}` });
+        return;
+      }
+
+      const currentTags = exam?.tags ?? [];
+      const nextTags = parseCommaSeparatedValues(examDraft.tagsInput);
+
+      await ExamManagementService.examManagementGatewayControllerUpdateExamV1({
+        id: examId,
+        requestBody: {
+          title: examDraft.title.trim(),
+          description: examDraft.description.trim() || undefined,
+          setDescriptionNull: !examDraft.description.trim(),
+          duration,
+          addTags: nextTags.filter((tag) => !currentTags.includes(tag)),
+          removeTags: currentTags.filter((tag) => !nextTags.includes(tag)),
+        },
+      });
+
+      toast({ title: 'Đã lưu đề thi', description: 'Thông tin đề thi đã được cập nhật.' });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Lưu đề thi thất bại',
+        description: extractApiErrorMessage(error, 'Không thể lưu thông tin đề thi.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingExam(false);
+    }
   };
 
-  // ── Submit for approval ──
-  const handleSubmit = async () => {
-    if (!examId) { await handleSave(); }
-    if (localQuestions.length === 0) {
-      toast({ title: 'Chưa đủ nội dung', description: 'Đề thi phải có ít nhất 1 câu hỏi.', variant: 'destructive' });
+  const createRootSection = async () => {
+    if (!ensureApiSession('tạo section')) {
       return;
     }
-    setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 400));
-    if (examId) dispatch(submitForApproval(examId));
-    setIsSubmitting(false);
-    setShowReview(false);
-    toast({ title: '📤 Đã nộp duyệt', description: 'Đề thi đã được gửi cho Head Staff xét duyệt.' });
-  };
 
-  // ── Get currently selected section ──
-  const getSection = (id: string): LocalSection | undefined => {
-    const find = (sections: LocalSection[]): LocalSection | undefined => {
-      for (const s of sections) {
-        if (s.id === id) return s;
-        const found = find(s.children);
-        if (found) return found;
+    if (!examId) {
+      toast({ title: 'Cần tạo đề trước', description: 'Hãy lưu đề thi để lấy id trước khi tạo section.', variant: 'destructive' });
+      return;
+    }
+
+    setActionLoading('create-root-section');
+    try {
+      const response = await ExamManagementService.examManagementGatewayControllerCreateSectionInExamV1({
+        id: examId,
+        requestBody: { index: rootSectionIds.length },
+      });
+
+      const created = extractEntityData<{ id?: string }>(response);
+      if (!created?.id) {
+        throw new Error('API không trả về id section.');
       }
-    };
-    return find(localSections);
+
+      toast({ title: 'Đã tạo section', description: `Section id: ${created.id}` });
+      await loadEditorData(examId);
+      setSelectedNode({ type: 'section', id: created.id });
+    } catch (error) {
+      toast({
+        title: 'Tạo section thất bại',
+        description: extractApiErrorMessage(error, 'Không thể tạo section mới.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const selectedQuestion = selectedNode.type === 'question'
-    ? localQuestions.find(q => q.id === selectedNode.id)
-    : null;
+  const createChildSection = async (parentSectionId: string) => {
+    if (!ensureApiSession('tạo subsection')) {
+      return;
+    }
 
-  const selectedSection = selectedNode.type === 'section'
-    ? getSection(selectedNode.id)
-    : null;
+    if (!examId) {
+      return;
+    }
 
-  // ─── RENDER ─────────────────────────────────────────────────
+    const childrenCount = sectionList.filter((section) => section.parentId === parentSectionId).length;
+
+    setActionLoading(`create-child-${parentSectionId}`);
+    try {
+      const response = await ExamManagementService.examManagementGatewayControllerCreateSectionInSectionV1({
+        id: parentSectionId,
+        requestBody: { index: childrenCount },
+      });
+
+      const created = extractEntityData<{ id?: string }>(response);
+      if (!created?.id) {
+        throw new Error('API không trả về id section con.');
+      }
+
+      toast({ title: 'Đã tạo subsection', description: `Section id: ${created.id}` });
+      await loadEditorData(examId);
+      setSelectedNode({ type: 'section', id: created.id });
+    } catch (error) {
+      toast({
+        title: 'Tạo subsection thất bại',
+        description: extractApiErrorMessage(error, 'Không thể tạo subsection mới.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const saveSection = async (section: SectionDetails) => {
+    if (!ensureApiSession('lưu section')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    const snapshot = sectionSnapshots[section.id] ?? section;
+
+    setActionLoading(`save-section-${section.id}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerUpdateSectionV1({
+        id: section.id,
+        requestBody: {
+          name: section.name?.trim() || undefined,
+          setNameNull: !section.name?.trim(),
+          directive: section.directive,
+          contentType: section.contentType,
+          addTags: section.tags.filter((tag) => !(snapshot.tags ?? []).includes(tag)),
+          removeTags: (snapshot.tags ?? []).filter((tag) => !section.tags.includes(tag)),
+          addFiles: section.files.map((file) => file.id).filter((id) => !(snapshot.files ?? []).some((file) => file.id === id)),
+          removeFiles: (snapshot.files ?? []).map((file) => file.id).filter((id) => !section.files.some((file) => file.id === id)),
+        },
+      });
+
+      toast({ title: 'Đã lưu section', description: `Section ${section.name || section.id} đã được cập nhật.` });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Lưu section thất bại',
+        description: extractApiErrorMessage(error, 'Không thể cập nhật section.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const deleteSection = async (sectionId: string) => {
+    if (!ensureApiSession('xóa section')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    setActionLoading(`delete-section-${sectionId}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerDeleteSectionV1({ id: sectionId });
+      toast({ title: 'Đã xóa section', description: `Section ${sectionId} đã được xóa.` });
+      setSelectedNode({ type: 'overview' });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Xóa section thất bại',
+        description: extractApiErrorMessage(error, 'Không thể xóa section này.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const moveSection = async (sectionId: string) => {
+    if (!ensureApiSession('di chuyển section')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    const moveState = sectionMoveState[sectionId];
+    if (!moveState) {
+      return;
+    }
+
+    const index = Number(moveState.index);
+    if (!Number.isFinite(index) || index < 0) {
+      toast({ title: 'Index không hợp lệ', description: 'Index của section phải >= 0.', variant: 'destructive' });
+      return;
+    }
+
+    setActionLoading(`move-section-${sectionId}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerMoveSectionV1({
+        id: sectionId,
+        requestBody: {
+          index,
+          toRoot: moveState.toRoot,
+          parentId: moveState.toRoot ? undefined : moveState.parentId.trim() || undefined,
+        },
+      });
+
+      toast({ title: 'Đã di chuyển section', description: `Section ${sectionId} đã được cập nhật vị trí.` });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Move section thất bại',
+        description: extractApiErrorMessage(error, 'Không thể di chuyển section.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const createQuestion = async (sectionId: string) => {
+    if (!ensureApiSession('tạo câu hỏi')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    const section = sections[sectionId];
+    const index = section?.questionIds.length ?? 0;
+
+    setActionLoading(`create-question-${sectionId}`);
+    try {
+      const response = await ExamManagementService.examManagementGatewayControllerCreateQuestionV1({
+        id: sectionId,
+        requestBody: { index },
+      });
+
+      const created = extractEntityData<{ id?: string }>(response);
+      if (!created?.id) {
+        throw new Error('API không trả về id câu hỏi.');
+      }
+
+      toast({ title: 'Đã tạo câu hỏi', description: `Question id: ${created.id}` });
+      await loadEditorData(examId);
+      setSelectedNode({ type: 'question', id: created.id });
+    } catch (error) {
+      toast({
+        title: 'Tạo câu hỏi thất bại',
+        description: extractApiErrorMessage(error, 'Không thể tạo câu hỏi mới.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const saveQuestion = async (question: QuestionDetails) => {
+    if (!ensureApiSession('lưu câu hỏi')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    const snapshot = questionSnapshots[question.id] ?? question;
+    const oldChoices = snapshot.choices ?? [];
+    const nextChoices = question.choices ?? [];
+
+    setActionLoading(`save-question-${question.id}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerUpdateQuestionV1({
+        id: question.id,
+        requestBody: {
+          content: question.content,
+          explanation: question.explanation,
+          points: question.points,
+          type: question.type,
+          addChoices: nextChoices
+            .filter((choice) => !choice.id)
+            .map((choice) => ({
+              key: choice.key,
+              content: choice.content || undefined,
+              isCorrect: choice.isCorrect,
+            })),
+          updateChoices: nextChoices
+            .filter((choice) => Boolean(choice.id))
+            .map((choice) => {
+              const previousChoice = oldChoices.find((item) => item.id === choice.id);
+              return {
+                id: choice.id!,
+                key: choice.key,
+                content: choice.content || undefined,
+                setContentNull: !choice.content,
+                isCorrect: choice.isCorrect,
+                ...(previousChoice ?? {}),
+              };
+            }),
+          deleteChoicesIds: oldChoices
+            .filter((choice) => choice.id && !nextChoices.some((item) => item.id === choice.id))
+            .map((choice) => choice.id as string),
+          addTags: question.tags.filter((tag) => !(snapshot.tags ?? []).includes(tag)),
+          removeTags: (snapshot.tags ?? []).filter((tag) => !question.tags.includes(tag)),
+          addFiles: question.files.map((file) => file.id).filter((id) => !(snapshot.files ?? []).some((file) => file.id === id)),
+          removeFiles: (snapshot.files ?? []).map((file) => file.id).filter((id) => !question.files.some((file) => file.id === id)),
+        },
+      });
+
+      toast({ title: 'Đã lưu câu hỏi', description: `Question ${question.id} đã được cập nhật.` });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Lưu câu hỏi thất bại',
+        description: extractApiErrorMessage(error, 'Không thể cập nhật câu hỏi.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const deleteQuestion = async (questionId: string) => {
+    if (!ensureApiSession('xóa câu hỏi')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    setActionLoading(`delete-question-${questionId}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerDeleteQuestionV1({ id: questionId });
+      toast({ title: 'Đã xóa câu hỏi', description: `Question ${questionId} đã được xóa.` });
+      setSelectedNode({ type: 'overview' });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Xóa câu hỏi thất bại',
+        description: extractApiErrorMessage(error, 'Không thể xóa câu hỏi.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const moveQuestion = async (questionId: string) => {
+    if (!ensureApiSession('di chuyển câu hỏi')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    const moveState = questionMoveState[questionId];
+    if (!moveState?.sectionId.trim()) {
+      toast({ title: 'Thiếu section đích', description: 'Cần nhập section id đích để move question.', variant: 'destructive' });
+      return;
+    }
+
+    const index = Number(moveState.index);
+    if (!Number.isFinite(index) || index < 0) {
+      toast({ title: 'Index không hợp lệ', description: 'Index của question phải >= 0.', variant: 'destructive' });
+      return;
+    }
+
+    setActionLoading(`move-question-${questionId}`);
+    try {
+      await ExamManagementService.examManagementGatewayControllerMoveQuestionV1({
+        id: questionId,
+        requestBody: {
+          sectionId: moveState.sectionId.trim(),
+          index,
+        },
+      });
+
+      toast({ title: 'Đã di chuyển câu hỏi', description: `Question ${questionId} đã được cập nhật vị trí.` });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Move question thất bại',
+        description: extractApiErrorMessage(error, 'Không thể di chuyển câu hỏi.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const reviewExam = async () => {
+    if (!ensureApiSession('review đề thi')) {
+      return;
+    }
+
+    if (!examId) {
+      return;
+    }
+
+    setActionLoading('review-exam');
+    try {
+      await ExamManagementService.examManagementGatewayControllerReviewExamV1({
+        id: examId,
+        requestBody: {
+          status: reviewStatus,
+        },
+      });
+
+      toast({ title: 'Đã gửi review action', description: `Trạng thái mới: ${reviewStatus}` });
+      await loadEditorData(examId);
+    } catch (error) {
+      toast({
+        title: 'Review exam thất bại',
+        description: extractApiErrorMessage(error, 'Không thể cập nhật trạng thái review của đề thi.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const renderSectionTree = (sectionId: string, depth = 0) => {
+    const section = sections[sectionId];
+    if (!section) {
+      return null;
+    }
+
+    const children = sectionList
+      .filter((item) => item.parentId === sectionId)
+      .map((child) => child.id);
+    const isSelected = selectedNode.type === 'section' && selectedNode.id === sectionId;
+    const descendantQuestionCount = section.questionIds.length + children.reduce((sum, childId) => {
+      const childSection = sections[childId];
+      return sum + (childSection?.questionIds.length ?? 0);
+    }, 0);
+
+    return (
+      <div key={sectionId} className="space-y-2">
+        <div
+          className={`relative rounded-2xl border px-3 py-3 text-sm cursor-pointer transition-all ${
+            isSelected
+              ? 'border-blue-300 bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-900 shadow-sm'
+              : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50'
+          }`}
+          style={{ marginLeft: depth * 18 }}
+          onClick={() => setSelectedNode({ type: 'section', id: sectionId })}
+        >
+          {depth > 0 && (
+            <div className="absolute -left-3 top-0 bottom-0 w-px bg-gradient-to-b from-blue-100 via-slate-200 to-transparent" />
+          )}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  isSelected ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  Level {depth + 1}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                  {children.length} child
+                </span>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  {descendantQuestionCount} question
+                </span>
+              </div>
+              <p className="mt-2 font-semibold truncate">{section.name || `Section ${section.id.slice(0, 8)}`}</p>
+              <p className="mt-1 text-xs text-gray-500 line-clamp-2">
+                {section.directive || 'Chưa có directive. Hãy thêm hướng dẫn hoặc nội dung cho section này.'}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5">id: {section.id.slice(0, 8)}</span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5">
+                  parent: {section.parentId ? section.parentId.slice(0, 8) : 'root'}
+                </span>
+                {section.tags.length > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
+                    {section.tags.length} tag
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-xl px-2 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void createChildSection(sectionId);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {section.questionIds.map((questionId) => {
+          const question = questions[questionId];
+          if (!question) {
+            return null;
+          }
+
+          return (
+            <button
+              key={questionId}
+              type="button"
+              className={`block w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
+                selectedNode.type === 'question' && selectedNode.id === questionId
+                  ? 'border-purple-300 bg-purple-50 text-purple-900'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+              style={{ marginLeft: (depth + 1) * 16 }}
+              onClick={() => setSelectedNode({ type: 'question', id: questionId })}
+            >
+              <p className="font-medium truncate">{question.content || `Question ${question.id.slice(0, 8)}`}</p>
+              <p className="text-xs text-gray-500">
+                {question.type} · {question.points} điểm
+              </p>
+            </button>
+          );
+        })}
+
+        {children.map((childId) => renderSectionTree(childId, depth + 1))}
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 flex flex-col">
-
-      {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white shrink-0">
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="relative px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-cyan-200" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+      <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_26%),linear-gradient(110deg,#1d4ed8_0%,#0891b2_48%,#0f766e_100%)] text-white">
+        <div className="absolute inset-0 bg-[linear-gradient(transparent_0%,rgba(0,0,0,0.1)_100%)]" />
+        <div className="relative mx-auto max-w-7xl px-6 py-10">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-xl font-bold">
-                {meta.title || 'Đề thi mới'}
-              </h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.color}`}>
-                  {statusCfg.label}
-                </span>
-                {currentExam?.status === ExamStatus.NeedsRevision && currentExam.rejectionReason && (
-                  <span className="text-xs text-red-200">• {currentExam.rejectionReason}</span>
-                )}
-              </div>
+              <h1 className="text-3xl font-bold">Admin Exam Editor</h1>
+              <p className="mt-1 text-sm text-blue-100">
+                Editor này dùng API thật cho exam, section, question, tags và presigned upload.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="border border-white/25 text-white hover:bg-white/15"
+                onClick={applyToeicPreset}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                TOEIC preset
+              </Button>
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/20" onClick={() => examId && void loadEditorData(examId)} disabled={!examId || loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Reload
+              </Button>
+              <Button className="bg-white text-blue-700 hover:bg-blue-50" onClick={() => void saveExam()} disabled={savingExam}>
+                <Save className="h-4 w-4 mr-2" />
+                {savingExam ? 'Đang lưu...' : examId ? 'Lưu đề thi' : 'Tạo đề thi'}
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowReview(true)}
-              className="text-white hover:bg-white/20 border border-white/30"
-            >
-              <Eye className="h-4 w-4 mr-1.5" />
-              Review & Nộp
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="bg-white text-blue-700 hover:bg-blue-50 font-semibold border-0 shadow"
-            >
-              <Save className="h-4 w-4 mr-1.5" />
-              {isSaving ? 'Đang lưu...' : 'Lưu nháp'}
-            </Button>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Target Format</p>
+              <p className="mt-2 text-2xl font-semibold">TOEIC L&R</p>
+              <p className="mt-1 text-sm text-blue-100">7 parts · 200 questions · 120 minutes</p>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Current Coverage</p>
+              <p className="mt-2 text-2xl font-semibold">{totalQuestions}/200</p>
+              <p className="mt-1 text-sm text-blue-100">{blueprintCoverage}% of a full-test blueprint</p>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Build Flow</p>
+              <p className="mt-2 text-base font-semibold">Exam info → Sections → Questions → Review</p>
+              <p className="mt-1 text-sm text-blue-100">Create the structure first, then fill each part like a real exam.</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── 3-Panel Layout ── */}
-      <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 88px)' }}>
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Layers className="h-5 w-5 text-blue-600" />
+                Structure
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button className="w-full" onClick={() => void createRootSection()} disabled={!examId || actionLoading === 'create-root-section'}>
+                <FilePlus2 className="h-4 w-4 mr-2" />
+                Thêm root section
+              </Button>
 
-        {/* ── LEFT SIDEBAR — Section Tree ── */}
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cấu trúc đề thi</span>
-            <button
-              onClick={addRootSection}
-              className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-              title="Thêm section"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
+              {!examId && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                  Cần tạo đề thi trước khi thêm section hoặc question.
+                </div>
+              )}
 
-          <div className="flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5">
-            {/* Root: Exam metadata node */}
-            <div
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors
-                                ${selectedNode.type === 'exam' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
-              onClick={() => setSelectedNode({ type: 'exam' })}
-            >
-              <Settings className={`h-3.5 w-3.5 shrink-0 ${selectedNode.type === 'exam' ? 'text-blue-100' : 'text-blue-500'}`} />
-              <span className="flex-1 truncate font-semibold text-xs">Thông tin chung</span>
-            </div>
-
-            {/* Section tree */}
-            {localSections.map(sec => (
-              <div key={sec.id}>
-                <SectionTreeNode
-                  node={sec}
-                  depth={0}
-                  selectedNode={selectedNode}
-                  onSelect={setSelectedNode}
-                  onAddChild={addChildSection}
-                  onDelete={deleteSection}
-                  questionCount={questionCount}
-                />
-                {/* Questions under this section (leaf only) */}
-                {selectedNode.type === 'section' && selectedNode.id === sec.id && sec.children.length === 0 && (
-                  <div className="pl-8 py-1 space-y-0.5">
-                    {questionsForSection(sec.id).map((q, i) => (
-                      <QuestionItem
-                        key={q.id}
-                        question={q}
-                        index={i}
-                        selectedNode={selectedNode}
-                        onSelect={setSelectedNode}
-                        onDelete={deleteLocalQuestion}
-                      />
-                    ))}
-                  </div>
+              <div className="space-y-3">
+                {rootSectionIds.length === 0 ? (
+                  <p className="text-sm text-gray-500">Chưa có section nào.</p>
+                ) : (
+                  rootSectionIds.map((sectionId) => renderSectionTree(sectionId))
                 )}
               </div>
-            ))}
+            </CardContent>
+          </Card>
 
-            {localSections.length === 0 && (
-              <div className="text-center py-8 text-xs text-gray-400">
-                <Layers className="h-8 w-8 mx-auto mb-2 text-gray-200" />
-                Chưa có section nào.<br />Nhấn + để thêm.
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Quick Info</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Exam ID</p>
+                <p className="font-mono text-sm text-gray-900 break-all">{examId ?? 'Chưa có'}</p>
               </div>
-            )}
-          </div>
-
-          {/* Stats footer */}
-          <div className="border-t border-gray-100 px-3 py-2 bg-gray-50 text-xs text-gray-500 flex justify-between">
-            <span>{localSections.length} section</span>
-            <span>{totalQuestions} câu • {totalPoints}đ</span>
-          </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Status</p>
+                <p className="text-sm font-medium text-gray-900">{exam?.status ?? 'Draft local'}</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Sections / Questions</p>
+                <p className="text-sm font-medium text-gray-900">{totalSections} / {totalQuestions}</p>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <p className="text-xs uppercase tracking-wide text-blue-600">TOEIC Target</p>
+                <p className="text-sm font-medium text-blue-900">Listen 100 + Read 100</p>
+                <p className="mt-1 text-xs text-blue-700">Keep the familiar pacing of a full test: Parts 1-4 then Parts 5-7.</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* ── CENTER PANEL — Contextual Editor ── */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <Tabs defaultValue="editor" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-transparent p-0 gap-3">
+            <TabsTrigger value="editor" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Editor</TabsTrigger>
+            <TabsTrigger value="tags" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Tags</TabsTrigger>
+            <TabsTrigger value="uploads" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Uploads</TabsTrigger>
+          </TabsList>
 
-          {/* ─── EXAM METADATA EDITOR ─── */}
-          {selectedNode.type === 'exam' && (
-            <div className="max-w-2xl mx-auto space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="h-5 w-5 text-blue-500" />
-                <h2 className="text-lg font-semibold text-gray-800">Thông tin chung</h2>
-              </div>
-
-              {currentExam?.status === ExamStatus.NeedsRevision && currentExam.rejectionReason && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-red-700">Đề bị trả về — cần chỉnh sửa</p>
-                    <p className="text-sm text-red-600 mt-0.5">{currentExam.rejectionReason}</p>
-                  </div>
-                </div>
-              )}
-
+          <TabsContent value="editor" className="space-y-6">
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <Card className="border-0 shadow-sm">
-                <CardContent className="pt-5 space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Tên đề thi *</Label>
-                    <Input
-                      value={meta.title}
-                      onChange={e => setMeta(m => ({ ...m, title: e.target.value }))}
-                      placeholder="Ví dụ: IELTS Reading Mock Test 1"
-                      className="mt-1 bg-gray-50 border-gray-200"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Mô tả</Label>
-                    <Textarea
-                      value={meta.description}
-                      onChange={e => setMeta(m => ({ ...m, description: e.target.value }))}
-                      placeholder="Mô tả ngắn về đề thi..."
-                      rows={3}
-                      className="mt-1 bg-gray-50 border-gray-200 resize-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Loại chứng chỉ</Label>
-                      <Select value={meta.testType} onValueChange={v => setMeta(m => ({ ...m, testType: v as TestType }))}>
-                        <SelectTrigger className="mt-1 bg-gray-50 border-gray-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[200]">
-                          <SelectItem value={TestType.IELTS}>IELTS</SelectItem>
-                          <SelectItem value={TestType.TOEIC}>TOEIC</SelectItem>
-                        </SelectContent>
-                      </Select>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ClipboardPen className="h-5 w-5 text-blue-600" />
+                    Authoring Workflow
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  {AUTHORING_STEPS.map((step) => (
+                    <div key={step} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
+                      {step}
                     </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Kỹ năng</Label>
-                      <Select value={meta.skill} onValueChange={v => setMeta(m => ({ ...m, skill: v as Skill }))}>
-                        <SelectTrigger className="mt-1 bg-gray-50 border-gray-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[200]">
-                          <SelectItem value={Skill.Reading}>Reading</SelectItem>
-                          <SelectItem value={Skill.Listening}>Listening</SelectItem>
-                          <SelectItem value={Skill.Writing}>Writing</SelectItem>
-                          <SelectItem value={Skill.Speaking}>Speaking</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Độ khó</Label>
-                      <Select value={meta.difficulty} onValueChange={v => setMeta(m => ({ ...m, difficulty: v as Difficulty }))}>
-                        <SelectTrigger className="mt-1 bg-gray-50 border-gray-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[200]">
-                          <SelectItem value={Difficulty.Beginner}>Cơ bản</SelectItem>
-                          <SelectItem value={Difficulty.Intermediate}>Trung bình</SelectItem>
-                          <SelectItem value={Difficulty.Advanced}>Nâng cao</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Thời gian (phút)</Label>
-                      <Input
-                        type="number" min={1} max={300}
-                        value={meta.duration}
-                        onChange={e => setMeta(m => ({ ...m, duration: Number(e.target.value) }))}
-                        className="mt-1 bg-gray-50 border-gray-200"
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </CardContent>
               </Card>
 
-              <div className="text-center py-4 text-sm text-gray-400">
-                ← Chọn một section ở sidebar để chỉnh sửa nội dung
-              </div>
-            </div>
-          )}
-
-          {/* ─── SECTION EDITOR ─── */}
-          {selectedNode.type === 'section' && selectedSection && (
-            <div className="max-w-2xl mx-auto space-y-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-blue-500" />
-                  <h2 className="text-lg font-semibold text-gray-800">Chỉnh sửa Section</h2>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => addQuestionToSection(selectedSection.id)}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0"
-                >
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Thêm câu hỏi
-                </Button>
-              </div>
-
               <Card className="border-0 shadow-sm">
-                <CardContent className="pt-5 space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Tên section</Label>
-                    <Input
-                      value={selectedSection.title}
-                      onChange={e => updateLocalSection(selectedSection.id, { title: e.target.value })}
-                      placeholder="Ví dụ: Part 1 – Reading Comprehension"
-                      className="mt-1 bg-gray-50 border-gray-200"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Nội dung / Hướng dẫn</Label>
-                    <Textarea
-                      value={selectedSection.direction}
-                      onChange={e => updateLocalSection(selectedSection.id, { direction: e.target.value })}
-                      placeholder="Nhập hướng dẫn cho phần thi hoặc đoạn văn Reading/Listening..."
-                      rows={8}
-                      className="mt-1 bg-gray-50 border-gray-200 font-mono text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Độ khó</Label>
-                    <Select
-                      value={selectedSection.difficulty}
-                      onValueChange={v => updateLocalSection(selectedSection.id, { difficulty: v as Difficulty })}
-                    >
-                      <SelectTrigger className="mt-1 bg-gray-50 border-gray-200 w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white z-[200]">
-                        <SelectItem value={Difficulty.Beginner}>Cơ bản</SelectItem>
-                        <SelectItem value={Difficulty.Intermediate}>Trung bình</SelectItem>
-                        <SelectItem value={Difficulty.Advanced}>Nâng cao</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Questions list for this section */}
-              {selectedSection.children.length === 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-700 text-sm">
-                      Câu hỏi ({questionsForSection(selectedSection.id).length})
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    {questionsForSection(selectedSection.id).map((q, i) => (
-                      <div
-                        key={q.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
-                          ${(selectedNode as { type: string; id?: string }).id === q.id
-                            ? 'border-purple-300 bg-purple-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                          }`}
-                        onClick={() => setSelectedNode({ type: 'question', id: q.id, sectionId: q.sectionId })}
-                      >
-                        <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center shrink-0">
-                          {i + 1}
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ListChecks className="h-5 w-5 text-emerald-600" />
+                    Real-Test Blueprint
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {TOEIC_BLUEPRINT.map((item) => (
+                      <div key={item.part} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{item.part}</p>
+                            <p className="mt-1 text-xs text-slate-600">{item.focus}</p>
+                          </div>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 shadow-sm">
+                            {item.questions} Q
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">
-                            {q.content || '(Nội dung câu hỏi)'}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {QUESTION_TYPE_LABELS[q.type]} • {q.points} điểm
-                          </p>
-                        </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteLocalQuestion(q.id); }}
-                          className="text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <p className="mt-3 text-xs uppercase tracking-wide text-emerald-700">{item.sectionType}</p>
                       </div>
                     ))}
-                    {questionsForSection(selectedSection.id).length === 0 && (
-                      <div
-                        className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition-colors"
-                        onClick={() => addQuestionToSection(selectedSection.id)}
-                      >
-                        <HelpCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-400">Nhấn để thêm câu hỏi đầu tiên</p>
-                      </div>
-                    )}
                   </div>
-                </div>
-              )}
-
-              {selectedSection.children.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-                  💡 Section này có {selectedSection.children.length} subsection con. Chọn subsection để thêm câu hỏi.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ─── QUESTION EDITOR ─── */}
-          {selectedNode.type === 'question' && selectedQuestion && (
-            <div className="max-w-2xl mx-auto space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <HelpCircle className="h-5 w-5 text-purple-500" />
-                <h2 className="text-lg font-semibold text-gray-800">Chỉnh sửa câu hỏi</h2>
-              </div>
-
-              <Card className="border-0 shadow-sm">
-                <CardContent className="pt-5 space-y-4">
-                  {/* Type + Points */}
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium text-gray-700">Loại câu hỏi</Label>
-                      <Select
-                        value={selectedQuestion.type}
-                        onValueChange={v => updateLocalQuestion(selectedQuestion.id, { type: v as LocalQuestion['type'], options: [] })}
-                      >
-                        <SelectTrigger className="mt-1 bg-gray-50 border-gray-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[200]">
-                          {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                      <Sparkles className="h-4 w-4" />
+                      Quality notes
                     </div>
-                    <div className="w-28">
-                      <Label className="text-sm font-medium text-gray-700">Điểm</Label>
+                    <div className="mt-3 space-y-2 text-sm text-amber-800">
+                      {REAL_EXAM_HINTS.map((hint) => (
+                        <p key={hint}>{hint}</p>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FolderTree className="h-5 w-5 text-blue-600" />
+                  Exam Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Title</Label>
+                  <Input value={examDraft.title} onChange={(event) => setExamDraft((prev) => ({ ...prev, title: event.target.value }))} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    rows={4}
+                    value={examDraft.description}
+                    onChange={(event) => setExamDraft((prev) => ({ ...prev, description: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Duration (minutes)</Label>
+                  <Input value={examDraft.duration} onChange={(event) => setExamDraft((prev) => ({ ...prev, duration: event.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tag ids (comma separated)</Label>
+                  <Input
+                    value={examDraft.tagsInput}
+                    onChange={(event) => setExamDraft((prev) => ({ ...prev, tagsInput: event.target.value }))}
+                    placeholder="tag-id-1, tag-id-2"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {(isHeadStaff || isStaff) && examId && (
+              <Card className="border-0 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    Review / Workflow
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-[220px_auto] md:items-end">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                      value={reviewStatus}
+                      onChange={(event) => setReviewStatus(event.target.value)}
+                    >
+                      {REVIEW_STATUSES.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button onClick={() => void reviewExam()} disabled={actionLoading === 'review-exam'}>
+                    <Send className="h-4 w-4 mr-2" />
+                    {actionLoading === 'review-exam' ? 'Đang gửi...' : 'Gửi review action'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedNode.type === 'overview' && (
+              <Card className="border-0 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
+                    Start with exam metadata first: title, duration, and global tags.
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
+                    Build the structure by parts before writing questions, especially for a full TOEIC test.
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
+                    Keep the order familiar: listening flow first, then reading flow, and review at the end.
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedSection && (
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FolderTree className="h-5 w-5 text-blue-600" />
+                    Section Detail
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => void createQuestion(selectedSection.id)} disabled={actionLoading === `create-question-${selectedSection.id}`}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add question
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => void deleteSection(selectedSection.id)} disabled={actionLoading === `delete-section-${selectedSection.id}`}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Name</Label>
                       <Input
-                        type="number" min={1} max={100}
-                        value={selectedQuestion.points}
-                        onChange={e => updateLocalQuestion(selectedQuestion.id, { points: Number(e.target.value) })}
-                        className="mt-1 bg-gray-50 border-gray-200"
+                        value={selectedSection.name ?? ''}
+                        onChange={(event) =>
+                          setSections((prev) => ({
+                            ...prev,
+                            [selectedSection.id]: { ...prev[selectedSection.id], name: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Content Type</Label>
+                      <Input
+                        value={selectedSection.contentType}
+                        onChange={(event) =>
+                          setSections((prev) => ({
+                            ...prev,
+                            [selectedSection.id]: { ...prev[selectedSection.id], contentType: event.target.value },
+                          }))
+                        }
+                        placeholder="reading-passage, instructions, audio-script..."
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Directive</Label>
+                      <Textarea
+                        rows={6}
+                        value={selectedSection.directive}
+                        onChange={(event) =>
+                          setSections((prev) => ({
+                            ...prev,
+                            [selectedSection.id]: { ...prev[selectedSection.id], directive: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tag ids</Label>
+                      <Input
+                        value={selectedSection.tags.join(', ')}
+                        onChange={(event) =>
+                          setSections((prev) => ({
+                            ...prev,
+                            [selectedSection.id]: { ...prev[selectedSection.id], tags: parseCommaSeparatedValues(event.target.value) },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>File ids</Label>
+                      <Input
+                        value={selectedSection.files.map((file) => file.id).join(', ')}
+                        onChange={(event) =>
+                          setSections((prev) => ({
+                            ...prev,
+                            [selectedSection.id]: {
+                              ...prev[selectedSection.id],
+                              files: parseCommaSeparatedValues(event.target.value).map((id) => ({ id, url: '' })),
+                            },
+                          }))
+                        }
                       />
                     </div>
                   </div>
 
-                  {/* Content */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Nội dung câu hỏi *</Label>
-                    <Textarea
-                      value={selectedQuestion.content}
-                      onChange={e => updateLocalQuestion(selectedQuestion.id, { content: e.target.value })}
-                      placeholder="Nhập nội dung câu hỏi..."
-                      rows={3}
-                      className="mt-1 bg-gray-50 border-gray-200"
-                    />
-                  </div>
-
-                  {/* Answers for multiple choice types */}
-                  {(selectedQuestion.type === 'multiple-choice' || selectedQuestion.type === 'multiple-correct-answers') && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm font-medium text-gray-700">Phương án trả lời</Label>
-                        <button
-                          onClick={() => updateLocalQuestion(selectedQuestion.id, {
-                            options: [...selectedQuestion.options, { id: uuidv4(), text: '', isCorrect: false }]
-                          })}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                        >
-                          <Plus className="h-3 w-3" /> Thêm phương án
-                        </button>
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Move className="h-4 w-4 text-blue-600" />
+                      <h3 className="font-medium text-gray-900">Move Section</h3>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Index</Label>
+                        <Input
+                          value={sectionMoveState[selectedSection.id]?.index ?? '0'}
+                          onChange={(event) =>
+                            setSectionMoveState((prev) => ({
+                              ...prev,
+                              [selectedSection.id]: {
+                                ...(prev[selectedSection.id] ?? { parentId: '', index: '0', toRoot: false }),
+                                index: event.target.value,
+                              },
+                            }))
+                          }
+                        />
                       </div>
                       <div className="space-y-2">
-                        {selectedQuestion.options.map((opt, i) => (
-                          <div key={opt.id} className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                const updated = selectedQuestion.options.map(o => ({
-                                  ...o,
-                                  isCorrect: o.id === opt.id
-                                    ? !o.isCorrect
-                                    : selectedQuestion.type === 'multiple-choice' ? false : o.isCorrect
-                                }));
-                                updateLocalQuestion(selectedQuestion.id, { options: updated });
-                              }}
-                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
-                                                                ${opt.isCorrect ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'}`}
-                            >
-                              {opt.isCorrect && <CheckCircle className="h-4 w-4 text-white" />}
-                            </button>
-                            <span className="text-xs text-gray-400 w-5 shrink-0">{String.fromCharCode(65 + i)}.</span>
-                            <Input
-                              value={opt.text}
-                              onChange={e => {
-                                const updated = selectedQuestion.options.map(o =>
-                                  o.id === opt.id ? { ...o, text: e.target.value } : o
-                                );
-                                updateLocalQuestion(selectedQuestion.id, { options: updated });
-                              }}
-                              placeholder={`Phương án ${String.fromCharCode(65 + i)}`}
-                              className={`bg-gray-50 border-gray-200 flex-1 text-sm
-                                                                ${opt.isCorrect ? 'border-green-300 bg-green-50' : ''}`}
-                            />
-                            {selectedQuestion.options.length > 2 && (
-                              <button
-                                onClick={() => updateLocalQuestion(selectedQuestion.id, {
-                                  options: selectedQuestion.options.filter(o => o.id !== opt.id)
-                                })}
-                                className="text-gray-300 hover:text-red-500 shrink-0"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                        <Label>Parent section id</Label>
+                        <Input
+                          value={sectionMoveState[selectedSection.id]?.parentId ?? ''}
+                          onChange={(event) =>
+                            setSectionMoveState((prev) => ({
+                              ...prev,
+                              [selectedSection.id]: {
+                                ...(prev[selectedSection.id] ?? { parentId: '', index: '0', toRoot: false }),
+                                parentId: event.target.value,
+                              },
+                            }))
+                          }
+                          disabled={sectionMoveState[selectedSection.id]?.toRoot}
+                        />
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">
-                        {selectedQuestion.type === 'multiple-choice'
-                          ? '● Chọn 1 đáp án đúng bằng cách click vào vòng tròn'
-                          : '● Có thể chọn nhiều đáp án đúng'}
-                      </p>
+                      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={sectionMoveState[selectedSection.id]?.toRoot ?? false}
+                          onChange={(event) =>
+                            setSectionMoveState((prev) => ({
+                              ...prev,
+                              [selectedSection.id]: {
+                                ...(prev[selectedSection.id] ?? { parentId: '', index: '0', toRoot: false }),
+                                toRoot: event.target.checked,
+                              },
+                            }))
+                          }
+                        />
+                        Move to root
+                      </label>
                     </div>
-                  )}
+                    <Button variant="outline" onClick={() => void moveSection(selectedSection.id)} disabled={actionLoading === `move-section-${selectedSection.id}`}>
+                      {actionLoading === `move-section-${selectedSection.id}` ? 'Đang move...' : 'Move section'}
+                    </Button>
+                  </div>
 
-                  {/* Fill blank correct answer */}
-                  {selectedQuestion.type === 'fill-blank' && (
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Đáp án đúng</Label>
-                      <Input
-                        value={selectedQuestion.correctAnswer[0] ?? ''}
-                        onChange={e => updateLocalQuestion(selectedQuestion.id, { correctAnswer: [e.target.value] })}
-                        placeholder="Nhập đáp án chính xác..."
-                        className="mt-1 bg-gray-50 border-gray-200"
-                      />
-                    </div>
-                  )}
-
-                  {/* Explanation */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Giải thích đáp án</Label>
-                    <Textarea
-                      value={selectedQuestion.explanation}
-                      onChange={e => updateLocalQuestion(selectedQuestion.id, { explanation: e.target.value })}
-                      placeholder="Giải thích tại sao đáp án đó đúng..."
-                      rows={3}
-                      className="mt-1 bg-gray-50 border-gray-200 resize-none"
-                    />
+                  <div className="flex gap-3">
+                    <Button onClick={() => void saveSection(selectedSection)} disabled={actionLoading === `save-section-${selectedSection.id}`}>
+                      <Save className="h-4 w-4 mr-2" />
+                      {actionLoading === `save-section-${selectedSection.id}` ? 'Đang lưu...' : 'Lưu section'}
+                    </Button>
+                    <Button variant="outline" onClick={() => void createChildSection(selectedSection.id)} disabled={actionLoading === `create-child-${selectedSection.id}`}>
+                      <Layers className="h-4 w-4 mr-2" />
+                      Add child section
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
 
-      {/* ── REVIEW MODAL ── */}
-      {showReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-t-2xl p-5 text-white">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Review & Nộp duyệt</h2>
-                <button onClick={() => setShowReview(false)} className="text-white/80 hover:text-white">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <p className="text-sm text-blue-100 mt-1">{meta.title || 'Đề thi chưa đặt tên'}</p>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Section', value: localSections.length, icon: Layers, color: 'text-blue-600 bg-blue-50' },
-                  { label: 'Câu hỏi', value: totalQuestions, icon: HelpCircle, color: 'text-purple-600 bg-purple-50' },
-                  { label: 'Tổng điểm', value: totalPoints, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className={`rounded-xl p-3 text-center ${color.split(' ')[1]}`}>
-                    <Icon className={`h-5 w-5 mx-auto mb-1 ${color.split(' ')[0]}`} />
-                    <div className={`text-xl font-bold ${color.split(' ')[0]}`}>{value}</div>
-                    <div className="text-xs text-gray-500">{label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Validation */}
-              {(() => {
-                const errors: string[] = [];
-                if (!meta.title.trim()) errors.push('Chưa có tên đề thi');
-                if (localSections.length === 0) errors.push('Chưa có section nào');
-                if (totalQuestions === 0) errors.push('Chưa có câu hỏi nào');
-                localQuestions.forEach(q => {
-                  if (!q.content.trim()) errors.push(`Câu hỏi "${q.id.slice(-4)}" chưa có nội dung`);
-                  if ((q.type === 'multiple-choice' || q.type === 'multiple-correct-answers') && !q.options.some(o => o.isCorrect)) {
-                    errors.push(`Câu hỏi "${q.content.slice(0, 20) || q.id.slice(-4)}" chưa có đáp án đúng`);
-                  }
-                });
-
-                if (errors.length > 0) {
-                  return (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                      <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
-                        <AlertCircle className="h-4 w-4" /> Cần sửa trước khi nộp:
-                      </p>
-                      <ul className="text-sm text-red-600 space-y-1">
-                        {errors.map((e, i) => <li key={i}>• {e}</li>)}
-                      </ul>
+            {selectedQuestion && (
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <HelpCircle className="h-5 w-5 text-purple-600" />
+                    Question Detail
+                  </CardTitle>
+                  <Button variant="destructive" size="sm" onClick={() => void deleteQuestion(selectedQuestion.id)} disabled={actionLoading === `delete-question-${selectedQuestion.id}`}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Question Type</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                        value={selectedQuestion.type}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: { ...prev[selectedQuestion.id], type: event.target.value },
+                          }))
+                        }
+                      >
+                        {QUESTION_TYPE_OPTIONS.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                }
-                return (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                    <p className="text-sm text-green-700">Đề thi sẵn sàng để nộp duyệt!</p>
+                    <div className="space-y-2">
+                      <Label>Points</Label>
+                      <Input
+                        value={String(selectedQuestion.points)}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: { ...prev[selectedQuestion.id], points: Number(event.target.value) || 0 },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-3">
+                      <Label>Content</Label>
+                      <Textarea
+                        rows={4}
+                        value={selectedQuestion.content}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: { ...prev[selectedQuestion.id], content: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-3">
+                      <Label>Explanation</Label>
+                      <Textarea
+                        rows={4}
+                        value={selectedQuestion.explanation}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: { ...prev[selectedQuestion.id], explanation: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tag ids</Label>
+                      <Input
+                        value={selectedQuestion.tags.join(', ')}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: { ...prev[selectedQuestion.id], tags: parseCommaSeparatedValues(event.target.value) },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>File ids</Label>
+                      <Input
+                        value={selectedQuestion.files.map((file) => file.id).join(', ')}
+                        onChange={(event) =>
+                          setQuestions((prev) => ({
+                            ...prev,
+                            [selectedQuestion.id]: {
+                              ...prev[selectedQuestion.id],
+                              files: parseCommaSeparatedValues(event.target.value).map((id) => ({ id, url: '' })),
+                            },
+                          }))
+                        }
+                      />
+                    </div>
                   </div>
-                );
-              })()}
 
-              {/* Info */}
-              <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-                <Clock className="h-3.5 w-3.5 inline mr-1" />
-                Sau khi nộp, đề sẽ chuyển sang trạng thái <strong>Chờ duyệt</strong>.
-                Head Staff sẽ xem xét và phản hồi.
-              </div>
+                  <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <HelpCircle className="h-4 w-4 text-purple-600" />
+                          <h3 className="font-medium text-gray-900">Choices</h3>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Mode: {getQuestionModeLabel(selectedQuestion.type)}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setQuestions((prev) => {
+                            const choiceCount = prev[selectedQuestion.id].choices.length;
+                            const nextKey = String.fromCharCode(65 + choiceCount);
+                            return {
+                              ...prev,
+                              [selectedQuestion.id]: {
+                                ...prev[selectedQuestion.id],
+                                choices: [...prev[selectedQuestion.id].choices, { key: nextKey, content: '', isCorrect: false }],
+                              },
+                            };
+                          })
+                        }
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add choice
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {selectedQuestion.choices.map((choice, index) => (
+                        <div key={`${choice.id ?? 'new'}-${index}`} className="grid gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[80px_minmax(0,1fr)_120px_auto]">
+                          <Input
+                            value={choice.key}
+                            onChange={(event) =>
+                              setQuestions((prev) => ({
+                                ...prev,
+                                [selectedQuestion.id]: {
+                                  ...prev[selectedQuestion.id],
+                                  choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, key: event.target.value } : item
+                                  ),
+                                },
+                              }))
+                            }
+                          />
+                          <Input
+                            value={choice.content}
+                            onChange={(event) =>
+                              setQuestions((prev) => ({
+                                ...prev,
+                                [selectedQuestion.id]: {
+                                  ...prev[selectedQuestion.id],
+                                  choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, content: event.target.value } : item
+                                  ),
+                                },
+                              }))
+                            }
+                            placeholder="Choice content"
+                          />
+                          <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={choice.isCorrect}
+                              onChange={(event) =>
+                                setQuestions((prev) => ({
+                                  ...prev,
+                                  [selectedQuestion.id]: {
+                                    ...prev[selectedQuestion.id],
+                                    choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
+                                      itemIndex === index ? { ...item, isCorrect: event.target.checked } : item
+                                    ),
+                                  },
+                                }))
+                              }
+                            />
+                            Correct
+                          </label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setQuestions((prev) => ({
+                                ...prev,
+                                [selectedQuestion.id]: {
+                                  ...prev[selectedQuestion.id],
+                                  choices: prev[selectedQuestion.id].choices.filter((_, itemIndex) => itemIndex !== index),
+                                },
+                              }))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="flex gap-3 pt-1">
-                <Button variant="outline" onClick={() => setShowReview(false)} className="flex-1">
-                  Tiếp tục chỉnh sửa
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !meta.title.trim() || totalQuestions === 0}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0"
-                >
-                  <Send className="h-4 w-4 mr-1.5" />
-                  {isSubmitting ? 'Đang nộp...' : 'Nộp duyệt'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Move className="h-4 w-4 text-blue-600" />
+                      <h3 className="font-medium text-gray-900">Move Question</h3>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Target section id</Label>
+                        <Input
+                          value={questionMoveState[selectedQuestion.id]?.sectionId ?? selectedQuestion.sectionId}
+                          onChange={(event) =>
+                            setQuestionMoveState((prev) => ({
+                              ...prev,
+                              [selectedQuestion.id]: {
+                                ...(prev[selectedQuestion.id] ?? { sectionId: selectedQuestion.sectionId, index: '0' }),
+                                sectionId: event.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Index</Label>
+                        <Input
+                          value={questionMoveState[selectedQuestion.id]?.index ?? '0'}
+                          onChange={(event) =>
+                            setQuestionMoveState((prev) => ({
+                              ...prev,
+                              [selectedQuestion.id]: {
+                                ...(prev[selectedQuestion.id] ?? { sectionId: selectedQuestion.sectionId, index: '0' }),
+                                index: event.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => void moveQuestion(selectedQuestion.id)} disabled={actionLoading === `move-question-${selectedQuestion.id}`}>
+                      {actionLoading === `move-question-${selectedQuestion.id}` ? 'Đang move...' : 'Move question'}
+                    </Button>
+                  </div>
+
+                  <Button onClick={() => void saveQuestion(selectedQuestion)} disabled={actionLoading === `save-question-${selectedQuestion.id}`}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {actionLoading === `save-question-${selectedQuestion.id}` ? 'Đang lưu...' : 'Lưu question'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="tags">
+            <AdminTagManager />
+          </TabsContent>
+
+          <TabsContent value="uploads">
+            <AdminUploadTool />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

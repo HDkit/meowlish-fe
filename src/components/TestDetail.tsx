@@ -5,6 +5,7 @@ import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
+import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { addComment } from './store/commentSlice';
 import { Textarea } from './ui/textarea';
@@ -26,6 +27,7 @@ import {
 	Target,
 	Info,
 	ArrowLeft,
+	History,
 } from 'lucide-react';
 
 export function ExamDetailPage() {
@@ -38,34 +40,70 @@ export function ExamDetailPage() {
 
 	const [examData, setExamData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState<string | null>(null);
 
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const users = useAppSelector((state) => state.users.list);
-	const comments = useAppSelector((state) => state.comments.list); // Fallback locally for comments for now since API doesn't support comment endpoints yet
+	const comments = useAppSelector((state) => state.comments.list);
 
 	useEffect(() => {
 		const fetchExamData = async () => {
 			try {
 				setLoading(true);
+				setLoadError(null);
 				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1({ id: examId });
-				setExamData(response.data);
+				const payload = extractEntityData<any>(response);
+				if (!payload) {
+					throw new Error('API không trả về dữ liệu đề thi.');
+				}
+				setExamData(payload);
 			} catch (error) {
-				console.error("Failed to fetch exam data:", error);
+				console.error('Failed to fetch exam data:', error);
+				setLoadError(extractApiErrorMessage(error, 'Không thể tải dữ liệu đề thi từ backend.'));
 			} finally {
 				setLoading(false);
 			}
 		};
+
+		// Fetch attempt history để phát hiện bài dang dở
+		const fetchOngoingAttempt = async () => {
+			try {
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1({
+					examId,
+					limit: 10,
+					sortBy: { key: 'startedAt', direction: 'DESC' },
+				});
+				const attempts: any[] = res?.data?.attempts ?? [];
+				// Attempt chưa nộp = endedAt null/undefined
+				const inProgress = attempts.find((a) => !a.endedAt);
+				if (inProgress) {
+					setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
+				}
+			} catch (e) {
+				// Không thông báo lỗi này để không làm phiền user
+				console.warn('Could not fetch attempt history:', e);
+			}
+		};
+
 		if (examId) {
 			fetchExamData();
+			fetchOngoingAttempt();
 		}
 	}, [examId]);
 
 	// --- State quản lý UI ---
 	const [activeTab, setActiveTab] = useState<'practice' | 'fulltest' | 'discuss'>('practice');
 	const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
-	const [timer, setTimer] = useState<string>(''); // Để trống là không giới hạn
+	const [timer, setTimer] = useState<string>('');
 	const [commentInput, setCommentInput] = useState<string>('');
 	const [examRating, setExamRating] = useState<Difficulty>(Difficulty.Intermediate);
+	const [startError, setStartError] = useState<string | null>(null);
+	const [isStarting, setIsStarting] = useState(false);
+	// Attempt dang dở của user cho exam này
+	const [ongoingAttempt, setOngoingAttempt] = useState<{ id: string; startedAt: string } | null>(null);
+	const [isSubmittingOld, setIsSubmittingOld] = useState(false);
+	// Dialog fallback (giữ lại cho trường hợp 499 khi không tìm được từ history)
+	const [pendingAttemptDialog, setPendingAttemptDialog] = useState<{ open: boolean; attemptId: string | null }>({ open: false, attemptId: null });
 
 	// Tạm thời bảo toàn các helper functions UI
 	const rootSections = examData?.sections || [];
@@ -92,13 +130,14 @@ export function ExamDetailPage() {
 	};
 
 	const handleStart = async () => {
-		if (!examData) return;
+		if (!examData || isStarting) return;
+		setIsStarting(true);
+		setStartError(null);
 
 		try {
-			// Chuẩn bị Request Body
-			const sectionsToUse = activeTab === 'fulltest' ? [] : selectedSectionIds; // Emtpy array usually means all
+			const sectionsToUse = activeTab === 'fulltest' ? [] : selectedSectionIds;
 			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) : undefined;
-			
+
 			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1({
 				id: examId,
 				requestBody: {
@@ -113,11 +152,54 @@ export function ExamDetailPage() {
 			if (attemptId) {
 				router.push(`/test/do/${attemptId}`);
 			} else {
-				console.error("Attempt ID not found in response.");
+				setStartError('Không nhận được ID bài thi từ server.');
 			}
-		} catch (error) {
-			console.error("Failed to start attempt:", error);
+		} catch (error: any) {
+			const status = error?.status ?? error?.body?.statusCode;
+			const errorMsg: string = error?.body?.error ?? '';
+
+			// Backend trả 499: có attempt cũ chưa nộp (fallback nếu history chưa fetch kịp)
+			if (status === 499 && errorMsg.toLowerCase().includes('previous attempt')) {
+				const existingAttemptId: string | null = error?.body?.data?.id ?? null;
+				setPendingAttemptDialog({ open: true, attemptId: existingAttemptId });
+			} else {
+				console.error('Failed to start attempt:', error);
+				setStartError(extractApiErrorMessage(error, 'Không thể bắt đầu bài thi. Vui lòng thử lại.'));
+			}
+		} finally {
+			setIsStarting(false);
 		}
+	};
+
+	// Nộp attempt đang dang dở từ banner, lấy dữ liệu saved rồi tự động tạo attempt mới
+	const handleSubmitOngoingAndStartNew = async () => {
+		if (!ongoingAttempt) return;
+		setIsSubmittingOld(true);
+		const idToSubmit = ongoingAttempt.id;
+		setOngoingAttempt(null);
+		try {
+			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: idToSubmit });
+		} catch (e) {
+			console.error('Failed to submit ongoing attempt:', e);
+		} finally {
+			setIsSubmittingOld(false);
+		}
+		// Tự động bắt đầu bài mới ngay sau khi nộp xong
+		await handleStart();
+	};
+
+	// Nộp attempt cũ từ fallback dialog (499 khi không tìm được từ history)
+	const handleSubmitOldAndStartNew = async () => {
+		const oldAttemptId = pendingAttemptDialog.attemptId;
+		setPendingAttemptDialog({ open: false, attemptId: null });
+		if (oldAttemptId) {
+			try {
+				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: oldAttemptId });
+			} catch (e) {
+				console.error('Failed to submit old attempt:', e);
+			}
+		}
+		handleStart();
 	};
 
 	const handleCommentSubmit = () => {
@@ -133,8 +215,6 @@ export function ExamDetailPage() {
 
 		dispatch(addComment(newComment));
 		setCommentInput('');
-
-		// Switch to discuss tab to show the comment
 		setActiveTab('discuss');
 	};
 
@@ -189,13 +269,43 @@ export function ExamDetailPage() {
 		return testType === TestType.IELTS ? 'IELTS' : 'TOEIC';
 	};
 
-	const getPartName = (section: Section, index: number) => {
-		// Nếu section có title trong direction hoặc có thể tạo từ id
-		// Tạm thời dùng format Part {index + 1}
+	const getPartName = (_section: Section, index: number) => {
 		return `Part ${index + 1}`;
 	};
 
 	if (loading) return <div className='p-6 text-center text-gray-500'>Đang tải đề thi...</div>;
+	if (loadError) {
+		return (
+			<div className='min-h-screen bg-slate-50 px-6 py-16'>
+				<div className='mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-8 shadow-sm'>
+					<div className='flex items-start gap-3'>
+						<AlertCircle className='mt-0.5 h-5 w-5 text-red-500' />
+						<div className='space-y-3'>
+							<div>
+								<h1 className='text-xl font-semibold text-slate-900'>Không tải được đề thi</h1>
+								<p className='mt-1 text-sm text-slate-600'>
+									Nếu backend trả <code>502 Bad Gateway</code> thì thường là API nguồn đang lỗi,
+									không phải do giao diện render.
+								</p>
+							</div>
+							<div className='rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700'>
+								{loadError}
+							</div>
+							<div className='flex flex-wrap gap-3'>
+								<Button variant="outline" onClick={() => router.push('/test-selection')}>
+									<ArrowLeft className='mr-2 h-4 w-4' />
+									Quay lại danh sách đề
+								</Button>
+								<Button onClick={() => window.location.reload()}>
+									Thử tải lại
+								</Button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
 	if (!examData) return <div className='p-6 text-center text-gray-500'>Không tìm thấy đề thi</div>;
 
 	const SkillIcon = getSkillIcon(skill);
@@ -309,6 +419,43 @@ export function ExamDetailPage() {
 
 				{/* 3. Main Content Area */}
 				<div className='space-y-6'>
+
+					{/* Banner: Bài thi dang dở */}
+					{ongoingAttempt && (
+						<div className='relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-md'>
+							<div className='absolute -top-6 -right-6 w-28 h-28 bg-amber-300 rounded-full blur-[40px] opacity-40 pointer-events-none' />
+							<div className='relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4'>
+								<div className='flex items-center gap-3 flex-1'>
+									<div className='p-2.5 bg-amber-100 border border-amber-200 rounded-xl shrink-0'>
+										<History className='h-6 w-6 text-amber-600' />
+									</div>
+									<div>
+										<p className='font-black text-amber-900 text-[15px]'>Bạn có bài thi chưa hoàn thành!</p>
+										<p className='text-amber-700 text-xs font-medium mt-0.5'>
+											Bắt đầu lúc {new Date(ongoingAttempt.startedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+										</p>
+									</div>
+								</div>
+								<div className='flex items-center gap-2 shrink-0 flex-wrap'>
+									<Button
+										className='bg-amber-500 hover:bg-amber-600 text-white font-bold h-10 px-5 rounded-xl shadow-sm'
+										onClick={() => router.push(`/test/do/${ongoingAttempt.id}`)}
+									>
+										<Play className='h-4 w-4 mr-1.5' /> Tiếp tục làm bài
+									</Button>
+									<Button
+										variant='outline'
+										className='border-amber-300 text-amber-700 hover:bg-amber-100 font-bold h-10 px-4 rounded-xl text-sm'
+										onClick={handleSubmitOngoingAndStartNew}
+										disabled={isSubmittingOld}
+									>
+										{isSubmittingOld ? 'Đang nộp...' : 'Nộp & Bắt đầu mới'}
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+
 					{/* Pro Tips Alert */}
 					{activeTab === 'practice' && (
 						<div className='bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3 text-green-800 text-sm'>
@@ -465,8 +612,7 @@ export function ExamDetailPage() {
 								<MessageSquare className="w-6 h-6 text-blue-500" />
 								Khu Vực Thảo Luận ({examComments.length} bình luận)
 							</h3>
-							
-							{/* Nhập bình luận */}
+
 							<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
 								<Textarea
 									placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
@@ -543,18 +689,16 @@ export function ExamDetailPage() {
 						<div className='flex flex-col sm:flex-row items-center gap-4 pt-10 pb-4 justify-center md:justify-start border-t border-slate-200/60 mt-8'>
 							<Button
 								onClick={handleStart}
-								className={`relative overflow-hidden font-black text-white px-10 h-14 text-lg rounded-2xl shadow-lg transition-all transform hover:-translate-y-1 hover:shadow-xl ${activeTab === 'practice' && selectedSectionIds.length === 0 ? 'bg-slate-300 shadow-none hover:translate-y-0 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800'}`}
-								disabled={activeTab === 'practice' && selectedSectionIds.length === 0}
+								className={`relative overflow-hidden font-black text-white px-10 h-14 text-lg rounded-2xl shadow-lg transition-all transform hover:-translate-y-1 hover:shadow-xl ${(activeTab === 'practice' && selectedSectionIds.length === 0) || isStarting ? 'bg-slate-300 shadow-none hover:translate-y-0 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800'}`}
+								disabled={(activeTab === 'practice' && selectedSectionIds.length === 0) || isStarting}
 							>
 								<span className="relative z-10 flex items-center">
-									{activeTab === 'fulltest' ? (
-										<>
-											<FileText className='h-5 w-5 mr-2.5' /> VÀO THI NGAY
-										</>
+									{isStarting ? (
+										<><div className='w-5 h-5 mr-2.5 border-2 border-white border-t-transparent rounded-full animate-spin' /> Đang tạo bài thi...</>
+									) : activeTab === 'fulltest' ? (
+										<><FileText className='h-5 w-5 mr-2.5' /> VÀO THI NGAY</>
 									) : (
-										<>
-											<Play className='h-5 w-5 mr-2.5' /> BẮT ĐẦU LUYỆN TẬP
-										</>
+										<><Play className='h-5 w-5 mr-2.5' /> BẮT ĐẦU LUYỆN TẬP</>
 									)}
 								</span>
 							</Button>
@@ -563,101 +707,156 @@ export function ExamDetailPage() {
 									Đã chọn sẵn {selectedSectionIds.length} phần thi
 								</div>
 							)}
+							{startError && (
+								<div className='flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl'>
+									<AlertCircle className='h-4 w-4 shrink-0' />
+									{startError}
+								</div>
+							)}
 						</div>
 					)}
-			</div>
 
-			{/* 4. Comments Section */}
-			{activeTab !== 'discuss' && (
-						<div className='pt-12 mt-12 border-t border-slate-200/60'>
-							<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
-								<MessageSquare className="w-6 h-6 text-blue-500" />
-								Bình luận & Thảo luận
-							</h3>
-
-							{/* Nhập bình luận */}
-							<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
-								<Textarea
-									placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-									className='flex-1 min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
-									value={commentInput}
-									onChange={(e) => setCommentInput(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' && !e.shiftKey) {
-											e.preventDefault();
-											handleCommentSubmit();
-										}
-									}}
-								/>
-								<div className='flex items-center justify-between gap-3 mt-4'>
-									<div className='flex flex-wrap items-center gap-3'>
-										<label className='text-sm font-bold text-slate-700'>Chấm độ khó:</label>
-										<select
-											value={examRating}
-											onChange={(e) => setExamRating(e.target.value as Difficulty)}
-											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 shadow-sm'
-										>
-											<option value={Difficulty.Beginner}>Cơ bản</option>
-											<option value={Difficulty.Intermediate}>Trung bình</option>
-											<option value={Difficulty.Advanced}>Rất khó</option>
-										</select>
+					{/* Dialog fallback: Attempt cũ chưa nộp (khi 499 nhưng history chưa fetch kịp) */}
+					{pendingAttemptDialog.open && (
+						<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4'>
+							<div className='bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-amber-200 relative overflow-hidden'>
+								<div className='absolute top-0 right-0 w-40 h-40 bg-amber-300 rounded-full blur-[50px] opacity-30 pointer-events-none' />
+								<div className='relative z-10'>
+									<div className='flex items-center gap-3 mb-4'>
+										<div className='p-2.5 bg-amber-100 rounded-2xl'>
+											<AlertCircle className='h-7 w-7 text-amber-600' />
+										</div>
+										<div>
+											<h3 className='text-xl font-black text-slate-900'>Bài thi chưa hoàn thành</h3>
+											<p className='text-sm text-slate-500 font-medium'>Bạn còn một bài thi đang dang dở</p>
+										</div>
 									</div>
-									<Button
-										onClick={handleCommentSubmit}
-										className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
-										disabled={!commentInput.trim() || !currentUser}
-									>
-										Gửi
-									</Button>
-								</div>
-							</div>
-
-							<div className='space-y-6'>
-								{examComments.length === 0 ? (
-									<div className='text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-300'>
-										<MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-										<p className="text-slate-500 font-medium text-sm">Chưa có bình luận nào. Hãy khai màn đi bạn ơi!</p>
-									</div>
-								) : (
-									examComments.slice(0, 3).map((comment) => {
-										const commentUser = users.find((u) => u.id === comment.userId);
-										return (
-											<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
-												<div className='flex items-start gap-4'>
-													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-bold flex items-center justify-center flex-shrink-0 text-lg border border-blue-200">
-														{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
-													</div>
-													<div className='flex-1'>
-														<div className='flex flex-col sm:flex-row sm:items-center gap-2 mb-2'>
-															<span className='font-bold text-slate-800 text-[15px]'>
-																{commentUser?.fullName || 'Người dùng ẩn danh'}
-															</span>
-															<Badge className={`${getDifficultyColor(comment.examRating)} px-2 py-0.5 shadow-sm`} variant='outline'>
-																Đánh giá: {getDifficultyText(comment.examRating)}
-															</Badge>
-														</div>
-														<p className='text-slate-600 whitespace-pre-wrap text-[15px] leading-relaxed'>{comment.content}</p>
-													</div>
-												</div>
-											</div>
-										);
-									})
-								)}
-								{examComments.length > 3 && (
-									<div className='text-center pt-6'>
+									<p className='text-slate-600 mb-8 leading-relaxed text-[15px]'>
+										Bạn có một lần thi trước chưa được nộp. Bạn muốn <strong>tiếp tục</strong> bài đó, hay <strong>nộp bài cũ và bắt đầu lại</strong>?
+									</p>
+									<div className='flex flex-col sm:flex-row gap-3'>
+										{pendingAttemptDialog.attemptId && (
+											<Button
+												className='flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 rounded-2xl shadow-md'
+												onClick={() => {
+													setPendingAttemptDialog({ open: false, attemptId: null });
+													router.push(`/test/do/${pendingAttemptDialog.attemptId}`);
+												}}
+											>
+												<Play className='h-4 w-4 mr-2' /> Tiếp tục bài cũ
+											</Button>
+										)}
 										<Button
 											variant='outline'
-											onClick={() => setActiveTab('discuss')}
-											className='text-blue-700 border-blue-200 hover:bg-blue-50 font-bold px-8 rounded-xl h-12'
+											className='flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-12 rounded-2xl'
+											onClick={handleSubmitOldAndStartNew}
 										>
-											Xem tất cả {examComments.length} bình luận
+											Nộp bài cũ & Tạo bài mới
+										</Button>
+										<Button
+											variant='ghost'
+											className='sm:w-auto text-slate-500 font-bold h-12 rounded-2xl'
+											onClick={() => setPendingAttemptDialog({ open: false, attemptId: null })}
+										>
+											Hủy
 										</Button>
 									</div>
-								)}
+								</div>
 							</div>
 						</div>
 					)}
 				</div>
+
+				{/* 4. Comments Section (khi không ở tab discuss) */}
+				{activeTab !== 'discuss' && (
+					<div className='pt-12 mt-12 border-t border-slate-200/60'>
+						<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
+							<MessageSquare className="w-6 h-6 text-blue-500" />
+							Bình luận & Thảo luận
+						</h3>
+
+						<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
+							<Textarea
+								placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
+								className='flex-1 min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
+								value={commentInput}
+								onChange={(e) => setCommentInput(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' && !e.shiftKey) {
+										e.preventDefault();
+										handleCommentSubmit();
+									}
+								}}
+							/>
+							<div className='flex items-center justify-between gap-3 mt-4'>
+								<div className='flex flex-wrap items-center gap-3'>
+									<label className='text-sm font-bold text-slate-700'>Chấm độ khó:</label>
+									<select
+										value={examRating}
+										onChange={(e) => setExamRating(e.target.value as Difficulty)}
+										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 shadow-sm'
+									>
+										<option value={Difficulty.Beginner}>Cơ bản</option>
+										<option value={Difficulty.Intermediate}>Trung bình</option>
+										<option value={Difficulty.Advanced}>Rất khó</option>
+									</select>
+								</div>
+								<Button
+									onClick={handleCommentSubmit}
+									className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
+									disabled={!commentInput.trim() || !currentUser}
+								>
+									Gửi
+								</Button>
+							</div>
+						</div>
+
+						<div className='space-y-6'>
+							{examComments.length === 0 ? (
+								<div className='text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-300'>
+									<MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+									<p className="text-slate-500 font-medium text-sm">Chưa có bình luận nào. Hãy khai màn đi bạn ơi!</p>
+								</div>
+							) : (
+								examComments.slice(0, 3).map((comment) => {
+									const commentUser = users.find((u) => u.id === comment.userId);
+									return (
+										<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
+											<div className='flex items-start gap-4'>
+												<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-bold flex items-center justify-center flex-shrink-0 text-lg border border-blue-200">
+													{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
+												</div>
+												<div className='flex-1'>
+													<div className='flex flex-col sm:flex-row sm:items-center gap-2 mb-2'>
+														<span className='font-bold text-slate-800 text-[15px]'>
+															{commentUser?.fullName || 'Người dùng ẩn danh'}
+														</span>
+														<Badge className={`${getDifficultyColor(comment.examRating)} px-2 py-0.5 shadow-sm`} variant='outline'>
+															Đánh giá: {getDifficultyText(comment.examRating)}
+														</Badge>
+													</div>
+													<p className='text-slate-600 whitespace-pre-wrap text-[15px] leading-relaxed'>{comment.content}</p>
+												</div>
+											</div>
+										</div>
+									);
+								})
+							)}
+							{examComments.length > 3 && (
+								<div className='text-center pt-6'>
+									<Button
+										variant='outline'
+										onClick={() => setActiveTab('discuss')}
+										className='text-blue-700 border-blue-200 hover:bg-blue-50 font-bold px-8 rounded-xl h-12'
+									>
+										Xem tất cả {examComments.length} bình luận
+									</Button>
+								</div>
+							)}
+						</div>
+					</div>
+				)}
 			</div>
-			);
+		</div>
+	);
 }

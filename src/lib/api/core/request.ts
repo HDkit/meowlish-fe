@@ -8,6 +8,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
+import { clearApiTokens, getAccessToken, getRefreshToken, refreshAccessToken } from '../auth-session';
 
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
@@ -136,6 +137,16 @@ export const resolve = async <T>(options: ApiRequestOptions, resolver?: T | Reso
     return resolver;
 };
 
+const PUBLIC_AUTH_ROUTES = new Set([
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+]);
+
+const shouldAttachAuthorization = (options: ApiRequestOptions): boolean => {
+    return !PUBLIC_AUTH_ROUTES.has(options.url);
+};
+
 export const getHeaders = async (config: OpenAPIConfig, options: ApiRequestOptions): Promise<Headers> => {
     const [token, username, password, additionalHeaders] = await Promise.all([
         resolve(options, config.TOKEN),
@@ -155,7 +166,7 @@ export const getHeaders = async (config: OpenAPIConfig, options: ApiRequestOptio
             [key]: String(value),
         }), {} as Record<string, string>);
 
-    if (isStringWithValue(token)) {
+    if (isStringWithValue(token) && shouldAttachAuthorization(options)) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
@@ -296,10 +307,22 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             const url = getUrl(config, options);
             const formData = getFormData(options);
             const body = getRequestBody(options);
-            const headers = await getHeaders(config, options);
+            let headers = await getHeaders(config, options);
 
             if (!onCancel.isCancelled) {
-                const response = await sendRequest(config, options, url, body, formData, headers, onCancel);
+                let response = await sendRequest(config, options, url, body, formData, headers, onCancel);
+
+                if (response.status === 401 && (getAccessToken() || getRefreshToken())) {
+                    const refreshedToken = await refreshAccessToken();
+
+                    if (refreshedToken) {
+                        headers = await getHeaders(config, options);
+                        response = await sendRequest(config, options, url, body, formData, headers, onCancel);
+                    } else {
+                        clearApiTokens();
+                    }
+                }
+
                 const responseBody = await getResponseBody(response);
                 const responseHeader = getResponseHeader(response, options.responseHeader);
 

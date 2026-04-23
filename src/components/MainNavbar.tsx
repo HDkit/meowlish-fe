@@ -3,6 +3,7 @@
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { clearUser } from './store/currUserSlice';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { AuthService, clearApiToken } from '@/lib/api-client';
 import {
 	Brain,
 	User as UserIcon,
@@ -37,7 +38,14 @@ export function MainNavbar() {
 	const router = useRouter();
 	const pathname = usePathname();
 
-	const handleLogout = () => {
+	const handleLogout = async () => {
+		try {
+			await AuthService.authGatewayControllerLogoutAllV1();
+		} catch {
+			// Clear local session even if the backend session is already invalid.
+		}
+
+		clearApiToken();
 		document.cookie = 'user_authenticated=; path=/; max-age=0';
 		dispatch(clearUser());
 		window.location.href = '/auth';

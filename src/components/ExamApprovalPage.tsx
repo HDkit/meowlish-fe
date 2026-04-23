@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService } from '@/lib/api-client';
+import { ExamManagementService, getAccessToken, getRefreshToken } from '@/lib/api-client';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,7 +78,20 @@ export default function ExamApprovalPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  const hasApiSession = () => Boolean(getAccessToken() || getRefreshToken());
+
   const fetchExams = useCallback(async () => {
+    if (!hasApiSession()) {
+      setExams([]);
+      setLoading(false);
+      toast({
+        title: 'Thiếu phiên backend',
+        description: 'Hãy đăng xuất rồi đăng nhập lại để lấy token backend trước khi duyệt đề thi.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
@@ -124,6 +137,15 @@ export default function ExamApprovalPage() {
   });
 
   const handleApprove = async (examId: string) => {
+    if (!hasApiSession()) {
+      toast({
+        title: 'Thiếu phiên backend',
+        description: 'Hãy đăng nhập lại trước khi phê duyệt đề thi.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await ExamManagementService.examManagementGatewayControllerReviewExamV1({
@@ -144,6 +166,15 @@ export default function ExamApprovalPage() {
 
   const handleReject = async () => {
     if (!selectedExam || !rejectionReason.trim()) return;
+    if (!hasApiSession()) {
+      toast({
+        title: 'Thiếu phiên backend',
+        description: 'Hãy đăng nhập lại trước khi từ chối đề thi.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await ExamManagementService.examManagementGatewayControllerReviewExamV1({

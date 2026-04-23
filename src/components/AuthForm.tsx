@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -14,9 +13,84 @@ import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
 import { v4 as uuidv4 } from 'uuid';
-import { AuthService, setApiToken } from '@/lib/api-client';
+import { AuthService, setApiTokensState } from '@/lib/api-client';
 import { jwtDecode } from 'jwt-decode';
 import { User } from '@/types/client';
+
+const normalizeRoleIdFromToken = (decoded: any): string => {
+	const rawRole = decoded?.role || decoded?.roleId;
+	const normalizedRoles = Array.isArray(decoded?.roles)
+		? decoded.roles.map((role: unknown) => String(role).toLowerCase())
+		: [];
+	const normalizedPermissions = Array.isArray(decoded?.permissions)
+		? decoded.permissions.map((permission: unknown) => String(permission).toLowerCase())
+		: [];
+	const normalizedRawRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : '';
+
+	if (
+		normalizedRawRole === 'role-head-staff' ||
+		normalizedRawRole === 'head_staff' ||
+		normalizedRawRole === 'head-staff' ||
+		normalizedRawRole === 'admin' ||
+		normalizedRoles.includes('admin') ||
+		normalizedRoles.includes('head_staff') ||
+		normalizedPermissions.includes('exam:approve') ||
+		normalizedPermissions.includes('user:ban') ||
+		normalizedPermissions.includes('user:lock')
+	) {
+		return 'role-head-staff';
+	}
+
+	if (
+		normalizedRawRole === 'role-staff' ||
+		normalizedRawRole === 'staff' ||
+		normalizedRoles.includes('staff') ||
+		normalizedPermissions.includes('exam:write') ||
+		normalizedPermissions.includes('exam:review')
+	) {
+		return 'role-staff';
+	}
+
+	if (normalizedRawRole === 'role-learner' || normalizedRawRole === 'learner' || normalizedRoles.includes('learner')) {
+		return 'role-learner';
+	}
+
+	return 'role-learner';
+};
+
+const extractApiErrorMessage = (err: any, fallback: string) => {
+	const apiError = err?.body?.error;
+
+	if (typeof apiError === 'string' && apiError.trim()) {
+		return apiError;
+	}
+
+	if (Array.isArray(apiError) && apiError.length > 0) {
+		return apiError.map((item) => String(item)).join(', ');
+	}
+
+	if (typeof apiError?.message === 'string' && apiError.message.trim()) {
+		return apiError.message;
+	}
+
+	if (Array.isArray(apiError?.message) && apiError.message.length > 0) {
+		return apiError.message.map((item: unknown) => String(item)).join(', ');
+	}
+
+	if (typeof err?.body?.message === 'string' && err.body.message.trim()) {
+		return err.body.message;
+	}
+
+	if (Array.isArray(err?.body?.message) && err.body.message.length > 0) {
+		return err.body.message.map((item: unknown) => String(item)).join(', ');
+	}
+
+	if (typeof err?.message === 'string' && err.message.trim() && err.message !== 'Bad Request') {
+		return err.message;
+	}
+
+	return fallback;
+};
 
 export function AuthForm() {
 	const router = useRouter();
@@ -54,7 +128,7 @@ export function AuthForm() {
 			});
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token');
-			setApiToken(token);
+			setApiTokensState(token, res.data?.refreshToken);
 			document.cookie = `user_authenticated=true; path=/; max-age=86400`;
 			const decoded: any = jwtDecode(token);
 			// Override roleId → desired staff role for UI routing
@@ -71,11 +145,7 @@ export function AuthForm() {
 			dispatch(setUser(user));
 			router.push('/dashboard');
 		} catch (err: any) {
-			setError(
-				err.body?.error?.message ||
-				err.message ||
-				'Dev login thất bại. Backend có thể không khả dụng.'
-			);
+			setError(extractApiErrorMessage(err, 'Dev login thất bại. Backend có thể không khả dụng.'));
 		} finally {
 			setDevLoading(null);
 		}
@@ -89,7 +159,7 @@ export function AuthForm() {
 		else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email không hợp lệ';
 
 		if (!formData.password) errors.password = 'Mật khẩu là bắt buộc';
-		else if (formData.password.length < 6) errors.password = 'Mật khẩu phải dài hơn 6 ký tự';
+		else if (!isLogin && formData.password.length < 6) errors.password = 'Mật khẩu phải dài hơn 6 ký tự';
 
 		if (!isLogin) {
 			if (!formData.fullName.trim()) errors.fullName = 'Họ tên là bắt buộc';
@@ -114,7 +184,7 @@ export function AuthForm() {
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token từ server');
 			
-			setApiToken(token);
+			setApiTokensState(token, res.data?.refreshToken);
 			
 			// Set authentication cookie for middleware
 			document.cookie = `user_authenticated=true; path=/; max-age=2592000`; // 30 days
@@ -127,7 +197,7 @@ export function AuthForm() {
 				id: decoded.sub || decoded.id || uuidv4(),
 				email: formData.email,
 				fullName: decoded.name || decoded.fullName || formData.email.split('@')[0],
-				roleId: decoded.role || decoded.roleId || 'role-learner',
+				roleId: normalizeRoleIdFromToken(decoded),
 				password: '***',
 				status: 'active',
 				createdAt: Date.now(),
@@ -144,7 +214,7 @@ export function AuthForm() {
 			}
 		} catch (err: any) {
 			console.error(err);
-			setError(err.body?.error?.message || err.message || 'Đăng nhập thất bại');
+			setError(extractApiErrorMessage(err, 'Đăng nhập thất bại'));
 		} finally {
 			setLoading(false);
 		}
@@ -162,7 +232,7 @@ export function AuthForm() {
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token từ server');
 			
-			setApiToken(token);
+			setApiTokensState(token, res.data?.refreshToken);
 			document.cookie = `user_authenticated=true; path=/; max-age=2592000`;
 
 			const decoded: any = jwtDecode(token);
@@ -172,7 +242,7 @@ export function AuthForm() {
 				email: formData.email,
 				fullName: formData.fullName,
 				password: '***',
-				roleId: decoded.role || decoded.roleId || 'role-learner',
+				roleId: normalizeRoleIdFromToken(decoded),
 				status: 'active',
 				createdAt: Date.now(),
 				lastLoginAt: Date.now(),
@@ -182,7 +252,7 @@ export function AuthForm() {
 			router.push('/test-selection');
 		} catch (err: any) {
 			console.error(err);
-			setError(err.body?.error?.message || err.message || 'Đăng ký thất bại');
+			setError(extractApiErrorMessage(err, 'Đăng ký thất bại'));
 		} finally {
 			setLoading(false);
 		}
@@ -322,14 +392,14 @@ export function AuthForm() {
 						<form onSubmit={handleSubmit} className='space-y-4'>
 							{!isLogin && (
 								<div className='space-y-2'>
-									<Label className='text-gray-700 font-semibold'>Họ và tên</Label>
+									<Label className='text-gray-700 font-semibold'>Username</Label>
 									<div className='relative'>
 										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-500' />
 										<Input
 											value={formData.fullName}
 											onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
 											className='pl-10 border-2 focus:border-purple-400 transition-colors h-11'
-											placeholder='Nhập họ và tên'
+											placeholder='Nhập username'
 										/>
 									</div>
 									{validationErrors.fullName && <p className='text-sm text-destructive'>{validationErrors.fullName}</p>}

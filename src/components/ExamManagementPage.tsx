@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from './ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService } from '@/lib/api-client';
+import { ExamManagementService, getAccessToken, getRefreshToken } from '@/lib/api-client';
 
 // ─── Status config ───────────────────────────────────────────────
 
@@ -70,7 +70,20 @@ export function ExamManagementPage() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
+    const hasApiSession = () => Boolean(getAccessToken() || getRefreshToken());
+
     const fetchExams = useCallback(async () => {
+        if (!hasApiSession()) {
+            setAllExams([]);
+            setLoading(false);
+            toast({
+                title: 'Thiếu phiên backend',
+                description: 'Hãy đăng xuất rồi đăng nhập lại để lấy token backend trước khi quản lý đề thi.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setLoading(true);
         try {
             const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
@@ -111,6 +124,15 @@ export function ExamManagementPage() {
     };
 
     const handleDelete = async (examId: string) => {
+        if (!hasApiSession()) {
+            toast({
+                title: 'Thiếu phiên backend',
+                description: 'Hãy đăng nhập lại trước khi xóa đề thi.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         try {
             await ExamManagementService.examManagementGatewayControllerDeleteExamV1({ id: examId });
             setAllExams(prev => prev.filter(e => e.id !== examId));

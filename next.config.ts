@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
 			{
 				source: '/api/:path*',
 				// Forward requests to the real backend server
-				destination: 'http://khoakomlem-internal.ddns.net:1510/api/:path*',
+				destination: 'https://meowlish.servebeer.com/api/:path*',
 			},
 		];
 	},
