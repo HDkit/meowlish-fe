@@ -22,6 +22,7 @@ type TextHighlighterProps = {
   text: string;
   onNewWord?: (word: string) => void;
   highlightEnabled?: boolean;
+  className?: string;
 };
 
 type FlashcardFormData = {
@@ -272,7 +273,7 @@ const FlashcardFormModal = ({
 };
 
 // --- MAIN COMPONENT ---
-export function TextHighlighter({ text, onNewWord, highlightEnabled }: TextHighlighterProps) {
+export function TextHighlighter({ text, onNewWord, highlightEnabled, className }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedColor, setSelectedColor] = useState<string>('yellow');
   const [showToolbar, setShowToolbar] = useState(false);
@@ -519,10 +520,10 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled }: TextHighl
 
   // --- RENDER ---
   return (
-    <div className="relative group">
+    <div className={`relative group ${className || ''}`}>
       <div
         ref={textRef}
-        className="whitespace-pre-wrap text-justify leading-relaxed selection:bg-blue-100 selection:text-blue-900"
+        className="whitespace-pre-wrap text-justify selection:bg-blue-100 selection:text-blue-900"
         onMouseUp={handleMouseUp}
         onClick={(e) => {
           // Only close toolbar if no text is selected and not clicking on highlight or toolbar

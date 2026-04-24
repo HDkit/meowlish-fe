@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button } from './ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { Clock, Send, Lightbulb, Volume2, ChevronRight } from 'lucide-react';
+import { Clock, Send, Volume2, ChevronRight, Lightbulb } from 'lucide-react';
+import { TextHighlighter } from './TextHighlighter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,98 +161,17 @@ function formatTime(seconds: number): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Renders HTML directive content safely */
-function DirectiveContent({ html, className }: { html: string; className?: string }) {
-  return (
-    <div
-      className={className}
-      // directive is stored as HTML — render it as such
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
-}
 
-/** Audio player shown in passage panel when a section has audio */
+
+/** Audio player shown above a question group */
 function AudioPlayer({ url }: { url: string }) {
   return (
-    <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
       <Volume2 className="h-5 w-5 shrink-0 text-slate-500" />
       <audio controls className="h-8 w-full outline-none">
         <source src={url} />
         Trình duyệt không hỗ trợ audio.
       </audio>
-    </div>
-  );
-}
-
-/** Passage panel: renders section directives for the current question context */
-function PassagePanel({
-  activeQuestion,
-  highlightEnabled,
-  onToggleHighlight,
-}: {
-  activeQuestion: FlatQuestion | null;
-  highlightEnabled: boolean;
-  onToggleHighlight: () => void;
-}) {
-  const audioUrl = activeQuestion ? getSectionAudioUrl(activeQuestion) : null;
-  const passageSections = activeQuestion ? getPassageSections(activeQuestion) : [];
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b bg-white px-5 shadow-sm">
-        <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
-          <Lightbulb className="h-4 w-4 text-yellow-500" />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Highlight</span>
-          <button
-            onClick={onToggleHighlight}
-            className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
-          >
-            <div
-              className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'}`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {!activeQuestion && (
-          <p className="text-sm text-slate-400">Chọn câu hỏi để xem nội dung bài thi.</p>
-        )}
-
-        {/* Audio player (Part-level, e.g. IELTS Listening) */}
-        {audioUrl && <AudioPlayer url={audioUrl} />}
-
-        {passageSections.map((section) => {
-          // Short instructions banner (e.g. "Complete the form below")
-          if (section.type === 'instructions' || section.type === 'group') {
-            return (
-              <div
-                key={section.id}
-                className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800"
-              >
-                <DirectiveContent html={section.directive} />
-              </div>
-            );
-          }
-
-          // Full passage / reading text (contentType QUESTION or reading-passage)
-          return (
-            <div key={section.id} className="mb-10">
-              {section.name && (
-                <h2 className="mb-4 text-2xl font-extrabold leading-tight text-slate-800">
-                  {section.name}
-                </h2>
-              )}
-              <div className="font-serif text-lg leading-7 text-gray-800">
-                <DirectiveContent html={section.directive} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -425,6 +345,7 @@ export function TestInterface() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [activePartId, setActivePartId] = useState<string | null>(null);
+  const [highlightEnabled, setHighlightEnabled] = useState(false);
 
   const parts = useMemo(() => {
     const uniqueParts = new Map<string, { id: string; name: string }>();
@@ -432,7 +353,7 @@ export function TestInterface() {
     for (const q of allQuestions) {
       const root = q.ancestorSections[0];
       if (root && !uniqueParts.has(root.id)) {
-        uniqueParts.set(root.id, { id: root.id, name: root.name || `Phần ${partCounter++}` });
+        uniqueParts.set(root.id, { id: root.id, name: root.name || `Part ${partCounter++}` });
       }
     }
     return Array.from(uniqueParts.values());
@@ -448,9 +369,6 @@ export function TestInterface() {
   const [answersMap, setAnswersMap] = useState<Record<string, string[]>>({});
 
   // Layout
-  const [leftWidth, setLeftWidth] = useState(45);
-  const [isResizing, setIsResizing] = useState(false);
-  const [highlightEnabled, setHighlightEnabled] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Refs
@@ -613,33 +531,13 @@ export function TestInterface() {
     [debouncedApi],
   );
 
+  // ── Resizer (kept for containerRef usage) ─────────────────────────────────
+
   // ── Navigation ─────────────────────────────────────────────────────────────
   const scrollToQuestion = useCallback((qId: string) => {
     setActiveQuestionId(qId);
     document.getElementById(`q-${qId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
-
-  // ── Resizer ────────────────────────────────────────────────────────────────
-  const startResizing = useCallback(() => setIsResizing(true), []);
-  const stopResizing = useCallback(() => setIsResizing(false), []);
-  const resize = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
-      const trackerW = 320;
-      const usable = containerRef.current.clientWidth - trackerW;
-      const pct = (e.clientX / usable) * 100;
-      if (pct > 20 && pct < 75) setLeftWidth(pct);
-    },
-    [isResizing],
-  );
-  useEffect(() => {
-    window.addEventListener('mousemove', resize);
-    window.addEventListener('mouseup', stopResizing);
-    return () => {
-      window.removeEventListener('mousemove', resize);
-      window.removeEventListener('mouseup', stopResizing);
-    };
-  }, [resize, stopResizing]);
 
   // ── Helpers for tracker ────────────────────────────────────────────────────
   const hasAnswer = useCallback(
@@ -651,6 +549,20 @@ export function TestInterface() {
   );
 
   const answeredCount = allQuestions.filter((q) => hasAnswer(q.id)).length;
+
+  // Group visibleQuestions by ownerSection — must be before any early return (Rules of Hooks)
+  const questionGroups = useMemo(() => {
+    const groups: Array<{ sectionId: string; section: SectionData; questions: FlatQuestion[] }> = [];
+    for (const q of visibleQuestions) {
+      const last = groups[groups.length - 1];
+      if (last && last.sectionId === q.ownerSection.id) {
+        last.questions.push(q);
+      } else {
+        groups.push({ sectionId: q.ownerSection.id, section: q.ownerSection, questions: [q] });
+      }
+    }
+    return groups;
+  }, [visibleQuestions]);
 
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
@@ -665,33 +577,18 @@ export function TestInterface() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div
-      className="inset-0 flex flex-row gap-4 overflow-hidden bg-slate-50 p-4 font-sans"
+      className="flex flex-row items-start gap-4 bg-slate-50 p-4 font-sans"
       ref={containerRef}
     >
-      {/* ── PASSAGE PANEL (left) ─────────────────────────────────────────── */}
-      <div style={{ width: `${leftWidth}%` }} className="h-full shrink-0">
-        <PassagePanel
-          activeQuestion={activeQuestion}
-          highlightEnabled={highlightEnabled}
-          onToggleHighlight={() => setHighlightEnabled((v) => !v)}
-        />
-      </div>
-
-      {/* ── RESIZER ──────────────────────────────────────────────────────── */}
-      <div
-        className="z-30 flex w-1 shrink-0 cursor-col-resize items-center justify-center rounded opacity-50 transition-colors hover:bg-blue-400"
-        onMouseDown={startResizing}
-      >
-        <div className="h-8 w-1 rounded-full bg-gray-400" />
-      </div>
-
-      {/* ── QUESTIONS PANEL (center) ──────────────────────────────────────── */}
-      <div className="flex h-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {/* Header (Study4-style Tab Bar) */}
-        <div className="sticky top-0 z-10 flex flex-col border-b border-slate-100 bg-white shadow-sm shrink-0">
-          <div className="flex overflow-x-auto px-4 py-3 gap-2 scrollbar-hide">
+      {/* ── QUESTIONS PANEL (left, natural height, page scrolls) ────────── */}
+      <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* Header: Part tabs + Highlight toggle */}
+        <div className="flex items-center border-b border-slate-100 bg-white px-4 py-2 gap-3 rounded-t-2xl">
+          {/* Part tabs */}
+          <div className="flex flex-1 overflow-x-auto gap-2 scrollbar-hide">
             {parts.map((part) => (
               <button
                 key={part.id}
@@ -700,7 +597,9 @@ export function TestInterface() {
                   const firstQ = allQuestions.find((q) => q.ancestorSections[0]?.id === part.id);
                   if (firstQ) {
                     setActiveQuestionId(firstQ.id);
-                    document.getElementById('questions-container')?.scrollTo({ top: 0, behavior: 'smooth' });
+                    setTimeout(() => {
+                      document.getElementById(`q-${firstQ.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
                   }
                 }}
                 className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
@@ -713,77 +612,170 @@ export function TestInterface() {
               </button>
             ))}
           </div>
+          {/* Highlight toggle */}
+          <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+            <Lightbulb className="h-3.5 w-3.5 text-yellow-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Highlight</span>
+            <button
+              onClick={() => setHighlightEnabled((v) => !v)}
+              className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+            >
+              <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'}`} />
+            </button>
+          </div>
         </div>
 
-        {/* Questions */}
-        <div id="questions-container" className="flex-1 overflow-y-auto bg-white p-6 scroll-smooth">
-          <div className="space-y-6">
-            {visibleQuestions.map((q) => {
-              const isActive = q.id === activeQuestionId;
-              const qAnswers = answersMap[q.id] ?? [];
+        {/* Questions area */}
+        <div id="questions-container" className="bg-white px-6 py-5">
+          <div className="flex flex-col gap-6">
+            {questionGroups.map((group) => {
+              // Audio URL for this section group
+              const groupAudioUrl = group.section.fileUrls?.find((u) =>
+                u.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i),
+              );
+              // Image URLs attached to the section group itself
+              const groupImageUrls = group.section.fileUrls?.filter((u) => isImageUrl(u)) ?? [];
+              // Directive for this section group
+              const hasDirective = group.section.directive?.trim();
+              // If the section has images, use a split layout: images left, questions right
+              const hasSectionImages = groupImageUrls.length > 0;
 
               return (
-                <div
-                  key={q.id}
-                  id={`q-${q.id}`}
-                  className={`flex gap-5 rounded-xl border p-6 transition-all hover:border-blue-100 hover:bg-slate-50/50 ${
-                    isActive
-                      ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
-                      : 'border-transparent'
-                  }`}
-                  onClick={() => setActiveQuestionId(q.id)}
-                >
-                  {/* Question number (global index) */}
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${
-                      isActive
-                        ? 'border-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
-                        : 'border border-slate-200 bg-white text-slate-600'
-                    }`}
-                  >
-                    {q.globalIndex}
-                  </div>
+                <div key={group.sectionId} className="flex flex-col gap-3">
+                  {/* Group audio */}
+                  {groupAudioUrl && <AudioPlayer url={formatMediaUrl(groupAudioUrl)} />}
 
-                  <div className="flex-1">
-                    {/* Question content is also HTML */}
-                    <div
-                      className="mb-4 text-[1.05rem] font-semibold leading-relaxed text-slate-800"
-                      dangerouslySetInnerHTML={{ __html: q.content }}
+                  {/* Group directive */}
+                  {hasDirective && group.section.type !== 'audio-script' && (
+                    <TextHighlighter 
+                      text={group.section.directive} 
+                      highlightEnabled={highlightEnabled} 
+                      className="rounded-xl border border-blue-50 bg-blue-50/60 px-4 py-3 text-sm leading-relaxed text-slate-700" 
                     />
+                  )}
 
-                    {/* Files attached directly to the question (e.g. image for that question) */}
-                    {q.fileUrls?.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {q.fileUrls.map((url) =>
-                          isImageUrl(url) ? (
+                  {hasSectionImages ? (
+                    /* ── Split layout: section image(s) LEFT, questions RIGHT ── */
+                    <div className="flex gap-0 rounded-xl border border-slate-100 overflow-hidden">
+                      {/* Left: images stacked vertically */}
+                      <div className="w-[45%] shrink-0 border-r border-slate-100 bg-slate-50 overflow-y-auto">
+                        <div className="flex flex-col">
+                          {groupImageUrls.map((url) => (
                             <img
                               key={url}
                               src={formatMediaUrl(url)}
                               alt=""
-                              className="max-h-48 rounded-lg border border-slate-200 object-contain"
+                              className="w-full object-contain"
                             />
-                          ) : url.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i) ? (
-                            <audio key={url} controls src={formatMediaUrl(url)} className="w-full max-w-sm mt-2" />
-                          ) : null,
-                        )}
+                          ))}
+                        </div>
                       </div>
-                    )}
+                      {/* Right: questions */}
+                      <div className="flex flex-1 flex-col gap-3 p-4">
+                        {group.questions.map((q) => {
+                          const isActive = q.id === activeQuestionId;
+                          const qAnswers = answersMap[q.id] ?? [];
+                          const qAudioUrls = q.fileUrls?.filter((u) => u.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i)) ?? [];
 
-                    {/* Answer input */}
-                    <QuestionInput
-                      question={q}
-                      answers={qAnswers}
-                      onSingleAnswer={handleSingleAnswer}
-                      onMultiAnswer={handleMultiAnswer}
-                    />
-                  </div>
+                          return (
+                            <div
+                              key={q.id}
+                              id={`q-${q.id}`}
+                              className={`rounded-xl border transition-all ${
+                                isActive
+                                  ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
+                                  : 'border-slate-100 bg-white hover:border-blue-100'
+                              }`}
+                              onClick={() => setActiveQuestionId(q.id)}
+                            >
+                              <div className="flex gap-4 p-4">
+                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
+                                  isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                }`}>{q.globalIndex}</div>
+                                <div className="flex-1">
+                                  {q.content && (
+                                    <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
+                                  )}
+                                  {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Stacked layout: questions one by one ── */
+                    <div className="flex flex-col gap-4">
+                      {group.questions.map((q) => {
+                        const isActive = q.id === activeQuestionId;
+                        const qAnswers = answersMap[q.id] ?? [];
+                        const qImageUrls = q.fileUrls?.filter((u) => isImageUrl(u)) ?? [];
+                        const qAudioUrls = q.fileUrls?.filter((u) => u.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i)) ?? [];
+                        const hasQImage = qImageUrls.length > 0;
+
+                        return (
+                          <div
+                            key={q.id}
+                            id={`q-${q.id}`}
+                            className={`rounded-xl border transition-all ${
+                              isActive
+                                ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
+                                : 'border-slate-100 bg-white hover:border-blue-100'
+                            }`}
+                            onClick={() => setActiveQuestionId(q.id)}
+                          >
+                            {hasQImage ? (
+                              // Per-question split: image left, choices right
+                              <div className="flex gap-0">
+                                <div className="w-[45%] shrink-0 overflow-hidden rounded-l-xl border-r border-slate-100 bg-slate-50">
+                                  <div className="flex flex-col">
+                                    {qImageUrls.map((url) => (
+                                      <img key={url} src={formatMediaUrl(url)} alt="" className="w-full object-cover" />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex flex-1 flex-col gap-4 p-5">
+                                  <div className="flex items-start gap-3">
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                                      isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                    }`}>{q.globalIndex}</div>
+                                    {q.content && (
+                                      <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
+                                    )}
+                                  </div>
+                                  {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mt-1" />)}
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                </div>
+                              </div>
+                            ) : (
+                              // Normal stacked
+                              <div className="flex gap-4 p-5">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
+                                  isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                }`}>{q.globalIndex}</div>
+                                <div className="flex-1">
+                                  {q.content && (
+                                    <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
+                                  )}
+                                  {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
 
             {/* Next Part Button */}
             {parts.findIndex((p) => p.id === activePartId) !== -1 && parts.findIndex((p) => p.id === activePartId) < parts.length - 1 && (
-              <div className="mt-8 flex justify-end border-t border-slate-100 pt-6">
+              <div className="mt-4 flex justify-end border-t border-slate-100 pt-5">
                 <button
                   onClick={() => {
                     const currentIndex = parts.findIndex((p) => p.id === activePartId);
@@ -792,10 +784,9 @@ export function TestInterface() {
                       setActivePartId(nextPart.id);
                       const firstQ = allQuestions.find((q) => q.ancestorSections[0]?.id === nextPart.id);
                       if (firstQ) setActiveQuestionId(firstQ.id);
-                      document.getElementById('questions-container')?.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                   }}
-                  className="flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-blue-600 border border-blue-200 shadow-sm transition-all hover:bg-blue-50"
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700"
                 >
                   TIẾP THEO <ChevronRight className="h-4 w-4" />
                 </button>
@@ -805,46 +796,50 @@ export function TestInterface() {
         </div>
       </div>
 
-      {/* ── TRACKER PANEL (right) ─────────────────────────────────────────── */}
-      <div className="flex w-80 shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {/* Timer */}
-        <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-blue-50/50 to-white p-6 text-center">
-          <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-blue-100" />
-          <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600/80">
-            <Clock className="h-3.5 w-3.5" />
-            Thời gian còn lại
+      {/* ── TRACKER PANEL (right) ────────────────────────────────────────── */}
+      <div className="flex w-72 shrink-0 flex-col gap-4">
+        
+        {/* Sticky Header: Timer, Submit, Progress */}
+        <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Timer */}
+          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-blue-50/50 to-white p-6 text-center">
+            <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-blue-100" />
+            <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600/80">
+              <Clock className="h-3.5 w-3.5" />
+              Thời gian còn lại
+            </div>
+            <div
+              className={`mt-2 font-mono text-5xl font-black tabular-nums tracking-wider drop-shadow-sm ${
+                timeLeft < 300 && timeLeft !== Infinity ? 'animate-pulse text-rose-600' : 'text-slate-800'
+              }`}
+            >
+              {timeLeft === Infinity ? '∞' : formatTime(timeLeft)}
+            </div>
           </div>
-          <div
-            className={`mt-2 font-mono text-5xl font-black tabular-nums tracking-wider drop-shadow-sm ${
-              timeLeft < 300 && timeLeft !== Infinity ? 'animate-pulse text-rose-600' : 'text-slate-800'
-            }`}
-          >
-            {timeLeft === Infinity ? '∞' : formatTime(timeLeft)}
+
+          {/* Submit */}
+          <div className="bg-white p-5">
+            <Button
+              onClick={() => performSubmit(false)}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-blue-600 to-indigo-600 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg"
+            >
+              <Send className="h-4 w-4" /> Nộp bài
+            </Button>
+          </div>
+
+          {/* Progress */}
+          <div className="flex items-center justify-between bg-slate-50 border-t border-slate-100 px-5 py-3">
+            <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-600">
+              {allQuestions.length} câu
+            </span>
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
+              Đã làm {answeredCount}
+            </span>
           </div>
         </div>
 
-        {/* Submit */}
-        <div className="bg-white p-5">
-          <Button
-            onClick={() => performSubmit(false)}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-blue-600 to-indigo-600 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg"
-          >
-            <Send className="h-4 w-4" /> Nộp bài
-          </Button>
-        </div>
-
-        {/* Progress */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-5 pb-3 pt-1">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-500">
-            {allQuestions.length} câu
-          </span>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-600">
-            Đã làm {answeredCount}
-          </span>
-        </div>
-
-        {/* Question grid by Part */}
-        <div className="flex-1 overflow-y-auto bg-slate-50/50 px-5 py-5">
+        {/* Question grid by Part (Scrolls naturally) */}
+        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
           <div className="flex flex-col gap-6">
             {parts.map((part) => {
               const partQuestions = allQuestions.filter(q => q.ancestorSections[0]?.id === part.id);
@@ -863,8 +858,13 @@ export function TestInterface() {
                         <button
                           key={q.id}
                           onClick={() => {
+                            // Switch to the correct part first, then scroll after re-render
                             setActivePartId(part.id);
-                            scrollToQuestion(q.id);
+                            setActiveQuestionId(q.id);
+                            setTimeout(() => {
+                              const el = document.getElementById(`q-${q.id}`);
+                              el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 50);
                           }}
                           className={`relative flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold shadow-sm transition-all ${
                             active
