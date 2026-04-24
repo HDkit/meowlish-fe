@@ -1,632 +1,893 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
-import { Question, Section, Difficulty } from '../types/client';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { TextHighlighter } from './TextHighlighter';
-import { Clock, Send, Lightbulb } from 'lucide-react';
+import { Clock, Send, Lightbulb, Volume2, ChevronRight } from 'lucide-react';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Mirrors ChoiceDataDto from API — no isCorrect exposed to test takers */
+type ChoiceData = {
+  key: string;
+  content?: string;
+};
+
+/** Mirrors QuestionDataDto from API */
+type QuestionData = {
+  id: string;
+  type: 'MCQ' | 'MCQ_MULTI' | 'Fill' | 'FillAny' | 'Writing';
+  content: string;
+  order: number;
+  fileUrls: string[];
+  choices: ChoiceData[];
+  // UI-only fields populated during flatten
+  sectionId: string;
+  globalIndex: number; // 1-based across entire exam
+};
 
 /**
- * TestInterface - The main component for the test interface page.
- * 
- * Provides a grid of questions with answer options and a tracker for the user's progress.
- * 
- * The component also includes a timer and a submit button to submit the test.
- * 
- * @param {Object} props - The props object passed to the component.
- * @param {string} id - The ID of the exam to be taken.
- * @param {string} currentQuestionId - The ID of the currently selected question.
- * @param {number} timeLeft - The number of seconds left in the test.
- * @param {Function} handleSubmit - The function to call when the user submits the test.
- * @param {Function} scrollToQuestion - The function to call when the user clicks on a question.
+ * Mirrors SectionDataDto from API.
+ * contentType drives rendering:
+ *  - 'SECTION'        → has child sections, no direct questions
+ *  - 'QUESTION'       → has direct questions (leaf section)
+ *  - 'instructions'   → directive is a short banner, no questions
+ *  - 'audio-script'   → directive hidden during exam, shown in review
+ *  - 'group'          → short directive label above a question cluster
+ *  (The API stores whatever string the admin entered in contentType / section.type)
  */
+type SectionData = {
+  id: string;
+  name?: string;
+  directive: string;
+  type: string;   // contentType — 'SECTION' | 'QUESTION' | 'instructions' | 'audio-script' | 'group'
+  order: number;
+  fileUrls: string[];
+  questions: QuestionData[];
+  sections: SectionData[];
+  // UI-only fields populated during flatten
+  parentId?: string;
+  depth: number;
+};
+
+/** Flat index used by components */
+type FlatQuestion = QuestionData & {
+  /** The deepest section that directly owns this question */
+  ownerSection: SectionData;
+  /** All ancestor sections from root down to ownerSection */
+  ancestorSections: SectionData[];
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Walk the nested SectionDataDto tree and produce two flat arrays:
+ *  - flatSections: every section with parentId + depth set
+ *  - flatQuestions: every question with ownerSection + ancestor chain
+ * Questions are ordered globally by section order then question order.
+ */
+function flattenAttemptData(
+  rootSections: SectionData[],
+  parentId?: string,
+  ancestorChain: SectionData[] = [],
+  depth = 0,
+  globalCounter = { n: 0 },
+): { flatSections: SectionData[]; flatQuestions: FlatQuestion[] } {
+  const flatSections: SectionData[] = [];
+  const flatQuestions: FlatQuestion[] = [];
+
+  const sorted = [...rootSections].sort((a, b) => a.order - b.order);
+
+  for (const sec of sorted) {
+    // Annotate section
+    sec.parentId = parentId;
+    sec.depth = depth;
+    flatSections.push(sec);
+
+    const chain = [...ancestorChain, sec];
+
+    // Direct questions in this section
+    const sortedQ = [...(sec.questions || [])].sort((a, b) => a.order - b.order);
+    for (const q of sortedQ) {
+      globalCounter.n += 1;
+      flatQuestions.push({
+        ...q,
+        sectionId: sec.id,
+        globalIndex: globalCounter.n,
+        ownerSection: sec,
+        ancestorSections: chain,
+      });
+    }
+
+    // Recurse into child sections
+    if (sec.sections?.length) {
+      const child = flattenAttemptData(sec.sections, sec.id, chain, depth + 1, globalCounter);
+      flatSections.push(...child.flatSections);
+      flatQuestions.push(...child.flatQuestions);
+    }
+  }
+
+  return { flatSections, flatQuestions };
+}
+
+/**
+ * Given a question, return all sections that should be visible in the passage panel.
+ * Rules:
+ *  - All ancestor sections with a non-empty directive are shown, EXCEPT audio-script.
+ *  - Sections with contentType SECTION and no directive are skipped (they're just structural).
+ */
+function getPassageSections(q: FlatQuestion): SectionData[] {
+  return q.ancestorSections.filter(
+    (s) => s.type !== 'audio-script' && s.directive?.trim(),
+  );
+}
+
+function formatMediaUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `http://${url}`;
+}
+
+/**
+ * Return the audio URL (if any) attached to any ancestor section of the given question.
+ * IELTS convention: audio lives on the Part-level section, not per-question.
+ */
+function getSectionAudioUrl(q: FlatQuestion): string | null {
+  for (const s of q.ancestorSections) {
+    const url = s.fileUrls?.find(
+      (u) => u.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i),
+    );
+    if (url) return formatMediaUrl(url);
+  }
+  return null;
+}
+
+function isImageUrl(url: string): boolean {
+  return !!url.match(/\.(jpe?g|png|gif|webp|svg)(\?.*)?$/i);
+}
+
+/**
+ * Format seconds → mm:ss or h:mm:ss
+ */
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Renders HTML directive content safely */
+function DirectiveContent({ html, className }: { html: string; className?: string }) {
+  return (
+    <div
+      className={className}
+      // directive is stored as HTML — render it as such
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+/** Audio player shown in passage panel when a section has audio */
+function AudioPlayer({ url }: { url: string }) {
+  return (
+    <div className="mb-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <Volume2 className="h-5 w-5 shrink-0 text-slate-500" />
+      <audio controls className="h-8 w-full outline-none">
+        <source src={url} />
+        Trình duyệt không hỗ trợ audio.
+      </audio>
+    </div>
+  );
+}
+
+/** Passage panel: renders section directives for the current question context */
+function PassagePanel({
+  activeQuestion,
+  highlightEnabled,
+  onToggleHighlight,
+}: {
+  activeQuestion: FlatQuestion | null;
+  highlightEnabled: boolean;
+  onToggleHighlight: () => void;
+}) {
+  const audioUrl = activeQuestion ? getSectionAudioUrl(activeQuestion) : null;
+  const passageSections = activeQuestion ? getPassageSections(activeQuestion) : [];
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* Header */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b bg-white px-5 shadow-sm">
+        <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+          <Lightbulb className="h-4 w-4 text-yellow-500" />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Highlight</span>
+          <button
+            onClick={onToggleHighlight}
+            className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+          >
+            <div
+              className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'}`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {!activeQuestion && (
+          <p className="text-sm text-slate-400">Chọn câu hỏi để xem nội dung bài thi.</p>
+        )}
+
+        {/* Audio player (Part-level, e.g. IELTS Listening) */}
+        {audioUrl && <AudioPlayer url={audioUrl} />}
+
+        {passageSections.map((section) => {
+          // Short instructions banner (e.g. "Complete the form below")
+          if (section.type === 'instructions' || section.type === 'group') {
+            return (
+              <div
+                key={section.id}
+                className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800"
+              >
+                <DirectiveContent html={section.directive} />
+              </div>
+            );
+          }
+
+          // Full passage / reading text (contentType QUESTION or reading-passage)
+          return (
+            <div key={section.id} className="mb-10">
+              {section.name && (
+                <h2 className="mb-4 text-2xl font-extrabold leading-tight text-slate-800">
+                  {section.name}
+                </h2>
+              )}
+              <div className="font-serif text-lg leading-7 text-gray-800">
+                <DirectiveContent html={section.directive} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Single MCQ radio option */
+function MCQOption({
+  choice,
+  isSelected,
+  onSelect,
+}: {
+  choice: ChoiceData;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-sm ${
+        isSelected
+          ? 'border-blue-500 bg-blue-50/80 font-bold text-blue-900 ring-1 ring-blue-200'
+          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+      }`}
+    >
+      <div
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+          isSelected ? 'border-blue-600 bg-white' : 'border-slate-300'
+        }`}
+      >
+        {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
+      </div>
+      <input type="radio" className="hidden" checked={isSelected} onChange={onSelect} />
+      <div className="flex items-baseline gap-2.5">
+        <span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
+          {choice.key}.
+        </span>
+        <span className="leading-relaxed text-slate-700">{choice.content}</span>
+      </div>
+    </label>
+  );
+}
+
+/** Single MCQ_MULTI checkbox option */
+function MCQMultiOption({
+  choice,
+  isChecked,
+  onToggle,
+}: {
+  choice: ChoiceData;
+  isChecked: boolean;
+  onToggle: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all ${
+        isChecked
+          ? 'border-blue-500 bg-blue-100 font-medium text-blue-900'
+          : 'border-gray-200 bg-white hover:bg-gray-50'
+      }`}
+    >
+      <div
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+          isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+        }`}
+      >
+        {isChecked && (
+          <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </div>
+      <input type="checkbox" className="hidden" checked={isChecked} onChange={(e) => onToggle(e.target.checked)} />
+      <div className="flex items-baseline gap-2.5">
+        <span className={`font-black ${isChecked ? 'text-blue-700' : 'text-slate-400'}`}>
+          {choice.key}.
+        </span>
+        <span className="leading-relaxed text-slate-700">{choice.content}</span>
+      </div>
+    </label>
+  );
+}
+
+/** Renders the correct input widget for a given question type */
+function QuestionInput({
+  question,
+  answers,
+  onSingleAnswer,
+  onMultiAnswer,
+}: {
+  question: FlatQuestion;
+  answers: string[];
+  onSingleAnswer: (qId: string, value: string) => void;
+  onMultiAnswer: (qId: string, key: string, checked: boolean) => void;
+}) {
+  const { id, type, choices } = question;
+
+  if (type === 'MCQ') {
+    return (
+      <div className="flex flex-col gap-3">
+        {choices.map((c) => (
+          <MCQOption
+            key={c.key}
+            choice={c}
+            isSelected={answers[0] === c.key}
+            onSelect={() => onSingleAnswer(id, c.key)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (type === 'MCQ_MULTI') {
+    return (
+      <div className="flex flex-col gap-3">
+        {choices.map((c) => (
+          <MCQMultiOption
+            key={c.key}
+            choice={c}
+            isChecked={answers.includes(c.key)}
+            onToggle={(checked) => onMultiAnswer(id, c.key, checked)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (type === 'Fill' || type === 'FillAny') {
+    return (
+      <input
+        type="text"
+        className="h-12 w-full rounded-xl border border-gray-300 bg-white px-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        placeholder="Nhập câu trả lời của bạn..."
+        value={answers[0] ?? ''}
+        onChange={(e) => onSingleAnswer(id, e.target.value)}
+      />
+    );
+  }
+
+  if (type === 'Writing') {
+    return (
+      <textarea
+        className="w-full resize-none rounded-xl border border-gray-300 bg-white p-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        placeholder="Viết câu trả lời của bạn ở đây..."
+        rows={8}
+        value={answers[0] ?? ''}
+        onChange={(e) => onSingleAnswer(id, e.target.value)}
+      />
+    );
+  }
+
+  return null;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export function TestInterface() {
-	const params = useParams();
-	const attemptId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
-	const router = useRouter();
+  const params = useParams();
+  const attemptId =
+    typeof params?.id === 'string'
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : '';
+  const router = useRouter();
 
-	const [sections, setSections] = useState<Section[]>([]);
-	const [questions, setQuestions] = useState<Question[]>([]);
-	const [orderedQuestions, setOrderedQuestions] = useState<Question[]>([]);
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [loading, setLoading] = useState(true);
+  const [serverAttemptData, setServerAttemptData] = useState<any>(null);
 
-	// Cấu trúc mới để theo dõi Attempt từ server
-	const [serverAttemptData, setServerAttemptData] = useState<any>(null); // AttemptDataDto
-	const [loading, setLoading] = useState(true);
+  /** All questions in global display order (flat) */
+  const [allQuestions, setAllQuestions] = useState<FlatQuestion[]>([]);
 
-	const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const [activePartId, setActivePartId] = useState<string | null>(null);
 
-	const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
-	const [currentSectionAncestors, setCurrentSectionAncestors] = useState<Section[]>([]);
-	const [answersMap, setAnswersMap] = useState<Record<string, string[]>>({});
+  const parts = useMemo(() => {
+    const uniqueParts = new Map<string, { id: string; name: string }>();
+    let partCounter = 1;
+    for (const q of allQuestions) {
+      const root = q.ancestorSections[0];
+      if (root && !uniqueParts.has(root.id)) {
+        uniqueParts.set(root.id, { id: root.id, name: root.name || `Phần ${partCounter++}` });
+      }
+    }
+    return Array.from(uniqueParts.values());
+  }, [allQuestions]);
 
-	// State Resizer
-	const [leftWidth, setLeftWidth] = useState(45);
-	const [isResizing, setIsResizing] = useState(false);
-	const containerRef = useRef<HTMLDivElement>(null);
+  /**
+   * answersMap[questionId] = string[]
+   * Matches AttemptResponse.answers from the API exactly.
+   * MCQ        → ["B"]
+   * MCQ_MULTI  → ["A", "C"]
+   * Fill/FillAny/Writing → ["user typed text"]
+   */
+  const [answersMap, setAnswersMap] = useState<Record<string, string[]>>({});
 
-	// State Highlight Mode
-	const [highlightEnabled, setHighlightEnabled] = useState(true);
+  // Layout
+  const [leftWidth, setLeftWidth] = useState(45);
+  const [isResizing, setIsResizing] = useState(false);
+  const [highlightEnabled, setHighlightEnabled] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-	// --- REFS ---
-	const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-	const isSubmittingRef = useRef(false);
-	const orderedQuestionsRef = useRef<Question[]>([]);
+  // Refs
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isSubmittingRef = useRef(false);
+  /** Per-answer debounce: key = `${questionId}:${answerValue}` */
+  const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
-	// Debounce timer cho API save answer
-	const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const activeQuestion = allQuestions.find((q) => q.id === activeQuestionId) ?? null;
 
-	useEffect(() => {
-		orderedQuestionsRef.current = orderedQuestions;
-	}, [orderedQuestions]);
+  /** Questions visible in the main panel = all questions belonging to activePartId */
+  const visibleQuestions = activePartId
+    ? allQuestions.filter((q) => q.ancestorSections[0]?.id === activePartId)
+    : [];
 
-	useEffect(() => {
-		orderedQuestionsRef.current = orderedQuestions;
-	}, [orderedQuestions]);
+  // ── Load ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!attemptId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const response =
+          await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1(attemptId);
+        const data = response.data as any; // AttemptDataDto
+        if (!data) return;
+        setServerAttemptData(data);
 
-	// --- 1. DATA LOGIC FROM API ---
-	useEffect(() => {
-		const loadAttemptData = async () => {
-			if (!attemptId) return;
+        // Flatten nested SectionDataDto tree
+        const { flatQuestions } = flattenAttemptData(data.sections ?? []);
+        setAllQuestions(flatQuestions);
+        if (flatQuestions.length > 0) {
+          setActiveQuestionId(flatQuestions[0].id);
+          setActivePartId(flatQuestions[0].ancestorSections[0]?.id || null);
+        }
 
-			try {
-				setLoading(true);
-				const response = await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1(attemptId);
-				const data = response.data;
-				if (!data) return;
-				
-				setServerAttemptData(data);
+        // Timer — durationLimit is in SECONDS per AttemptDataDto
+        if (data.durationLimit > 0) {
+          const elapsedSec = (Date.now() - new Date(data.startedAt).getTime()) / 1000;
+          setTimeLeft(Math.max(0, Math.floor(data.durationLimit - elapsedSec)));
+        } else {
+          setTimeLeft(Infinity); // Unlimited
+        }
 
-				// Flatten data để tương thích với component hiện tại
-				const flatSections: Section[] = [];
-				const flatQuestions: Question[] = [];
+        // Restore saved answers — answers is string[] per ResponseDataDto
+        const map: Record<string, string[]> = {};
+        (data.responses ?? []).forEach((r: any) => {
+          map[r.questionId] = r.answers ?? [];
+        });
+        setAnswersMap(map);
+      } catch (err) {
+        console.error('Failed to load attempt:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [attemptId]);
 
-				const walkSections = (secDto: any, parentId?: string) => {
-					// Dummy map for UI logic
-					const newSec: Section = {
-						id: secDto.id,
-						parentId: parentId || attemptId,
-						title: secDto.name || 'Section',
-						difficulty: Difficulty.Intermediate,
-						direction: secDto.directive || '',
-						lastEditedBy: '',
-						fileUrls: secDto.fileUrls || [],
-						contentType: secDto.type,
-					};
-					flatSections.push(newSec);
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!serverAttemptData || serverAttemptData.durationLimit <= 0) return;
+    timerIntervalRef.current = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(timerIntervalRef.current!);
+          if (!isSubmittingRef.current) performSubmit(true);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerIntervalRef.current!);
+  }, [serverAttemptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-					// Map Questions
-					if (secDto.questions) {
-						secDto.questions.forEach((qDto: any) => {
-							flatQuestions.push({
-								id: qDto.id,
-								sectionId: secDto.id,
-								type: qDto.type,
-								content: qDto.content,
-								points: 1,
-								choices: qDto.choices ? qDto.choices.map((c: any) => ({ key: c.key, content: c.content })) : [],
-								correctAnswer: [], // Không gửi correct answer xuống frontend
-								tagIds: [],
-								lastEditedBy: '',
-								explanation: '',
-							});
-						});
-					}
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const performSubmit = useCallback(
+    async (isAuto: boolean) => {
+      if (isSubmittingRef.current || !attemptId) return;
+      isSubmittingRef.current = true;
+      clearInterval(timerIntervalRef.current!);
+      Object.values(debounceTimersRef.current).forEach(clearTimeout);
+      debounceTimersRef.current = {};
+      try {
+        await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
+        router.push(`/results/${attemptId}`);
+      } catch (err) {
+        console.error('Submit failed:', err);
+        if (isAuto) router.push(`/results/${attemptId}`);
+      } finally {
+        isSubmittingRef.current = false;
+      }
+    },
+    [attemptId, router],
+  );
 
-					// Recurse
-					if (secDto.sections) {
-						secDto.sections.forEach((childSec: any) => walkSections(childSec, secDto.id));
-					}
-				};
+  // ── Answer API calls ───────────────────────────────────────────────────────
+  /**
+   * Debounced wrapper for POST /answers/{questionId} or DELETE /answers/{questionId}.
+   * Key includes the answer value so concurrent add/remove of different values
+   * don't cancel each other's timers.
+   */
+  const debouncedApi = useCallback(
+    (questionId: string, answer: string, del: boolean) => {
+      const key = `${questionId}:${answer}:${del ? 'd' : 'a'}`;
+      clearTimeout(debounceTimersRef.current[key]);
+      debounceTimersRef.current[key] = setTimeout(async () => {
+        if (!attemptId || isSubmittingRef.current) return;
+        try {
+          if (del) {
+            await ExamPracticeService.examPracticeGatewayControllerRemoveAnswerV1(
+              attemptId, questionId, { answer },
+            );
+          } else {
+            await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
+              attemptId, questionId, { answer },
+            );
+          }
+        } catch (err: any) {
+          if (err?.status === 403 || err?.body?.statusCode === 403) return;
+          console.error('Answer API error:', err);
+        }
+      }, 800);
+    },
+    [attemptId],
+  );
 
-				if (data.sections) {
-					data.sections.forEach((s: any) => walkSections(s, attemptId));
-				}
+  /**
+   * For MCQ, Fill, FillAny, Writing — replaces the entire answer array with a single value.
+   * Sends POST { answer: value } once. If old value exists, sends DELETE first.
+   */
+  const handleSingleAnswer = useCallback(
+    (questionId: string, value: string) => {
+      setAnswersMap((prev) => {
+        const old = prev[questionId]?.[0];
+        // Debounce DELETE of old value if it changed
+        if (old !== undefined && old !== value && old !== '') {
+          debouncedApi(questionId, old, true);
+        }
+        // Debounce POST of new value
+        if (value !== '') debouncedApi(questionId, value, false);
+        return { ...prev, [questionId]: value !== '' ? [value] : [] };
+      });
+    },
+    [debouncedApi],
+  );
 
-				setSections(flatSections);
-				setQuestions(flatQuestions);
-				setOrderedQuestions(flatQuestions); // Dùng luôn thứ tự API trả về là đủ phẳng
-				if (flatQuestions.length > 0) setCurrentQuestionId(flatQuestions[0].id);
+  /**
+   * For MCQ_MULTI — toggles a single key in the answers array.
+   * Sends POST { answer: key } or DELETE { answer: key }.
+   */
+  const handleMultiAnswer = useCallback(
+    (questionId: string, key: string, checked: boolean) => {
+      setAnswersMap((prev) => {
+        const current = prev[questionId] ?? [];
+        const next = checked ? [...current, key] : current.filter((k) => k !== key);
+        debouncedApi(questionId, key, !checked);
+        return { ...prev, [questionId]: next };
+      });
+    },
+    [debouncedApi],
+  );
 
-				// Tính toán thời gian
-				let left = 0;
-				if (data.durationLimit > 0) {
-					const start = new Date(data.startedAt).getTime();
-					const elapsedSec = (Date.now() - start) / 1000;
-					left = Math.max(0, Math.floor(data.durationLimit - elapsedSec));
-				} else {
-					left = 9999; // Unlimited
-				}
-				setTimeLeft(left);
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  const scrollToQuestion = useCallback((qId: string) => {
+    setActiveQuestionId(qId);
+    document.getElementById(`q-${qId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
 
-				// Map answers
-				const ansMap: Record<string, string[]> = {};
-				if (data.responses) {
-					data.responses.forEach((resp: any) => {
-						ansMap[resp.questionId] = resp.answers || [];
-					});
-				}
-				setAnswersMap(ansMap);
+  // ── Resizer ────────────────────────────────────────────────────────────────
+  const startResizing = useCallback(() => setIsResizing(true), []);
+  const stopResizing = useCallback(() => setIsResizing(false), []);
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+      const trackerW = 320;
+      const usable = containerRef.current.clientWidth - trackerW;
+      const pct = (e.clientX / usable) * 100;
+      if (pct > 20 && pct < 75) setLeftWidth(pct);
+    },
+    [isResizing],
+  );
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
 
-			} catch (error) {
-				console.error("Failed to load attempt:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
+  // ── Helpers for tracker ────────────────────────────────────────────────────
+  const hasAnswer = useCallback(
+    (qId: string) => {
+      const a = answersMap[qId];
+      return Array.isArray(a) && a.length > 0 && a[0] !== '';
+    },
+    [answersMap],
+  );
 
-		loadAttemptData();
-	}, [attemptId]);
+  const answeredCount = allQuestions.filter((q) => hasAnswer(q.id)).length;
 
-	// --- 3. HANDLERS (moved before timer to avoid closure issues) ---
-	const performSubmit = useCallback(async (isAuto: boolean) => {
-		if (isSubmittingRef.current || !attemptId) return;
-		isSubmittingRef.current = true;
-		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+  // ── Loading screen ─────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <p className="font-medium text-slate-500">Đang tải dữ liệu bài thi...</p>
+        </div>
+      </div>
+    );
+  }
 
-		try {
-			// Flush any pending debounces before submit
-			Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
-			debounceTimersRef.current = {};
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div
+      className="inset-0 flex flex-row gap-4 overflow-hidden bg-slate-50 p-4 font-sans"
+      ref={containerRef}
+    >
+      {/* ── PASSAGE PANEL (left) ─────────────────────────────────────────── */}
+      <div style={{ width: `${leftWidth}%` }} className="h-full shrink-0">
+        <PassagePanel
+          activeQuestion={activeQuestion}
+          highlightEnabled={highlightEnabled}
+          onToggleHighlight={() => setHighlightEnabled((v) => !v)}
+        />
+      </div>
 
-			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
-			router.push(`/results/${attemptId}`);
-		} catch (error) {
-			console.error("Failed to submit attempt:", error);
-			// Optionally handle error UI here, but mostly we want to push anyway if it's auto
-			if (isAuto) router.push(`/results/${attemptId}`);
-		} finally {
-			isSubmittingRef.current = false;
-		}
-	}, [attemptId, router]);
+      {/* ── RESIZER ──────────────────────────────────────────────────────── */}
+      <div
+        className="z-30 flex w-1 shrink-0 cursor-col-resize items-center justify-center rounded opacity-50 transition-colors hover:bg-blue-400"
+        onMouseDown={startResizing}
+      >
+        <div className="h-8 w-1 rounded-full bg-gray-400" />
+      </div>
 
-	const handleAutoSubmit = useCallback(() => performSubmit(true), [performSubmit]);
-	const handleSubmit = useCallback(() => performSubmit(false), [performSubmit]);
+      {/* ── QUESTIONS PANEL (center) ──────────────────────────────────────── */}
+      <div className="flex h-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* Header (Study4-style Tab Bar) */}
+        <div className="sticky top-0 z-10 flex flex-col border-b border-slate-100 bg-white shadow-sm shrink-0">
+          <div className="flex overflow-x-auto px-4 py-3 gap-2 scrollbar-hide">
+            {parts.map((part) => (
+              <button
+                key={part.id}
+                onClick={() => {
+                  setActivePartId(part.id);
+                  const firstQ = allQuestions.find((q) => q.ancestorSections[0]?.id === part.id);
+                  if (firstQ) {
+                    setActiveQuestionId(firstQ.id);
+                    document.getElementById('questions-container')?.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  activePartId === part.id
+                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                    : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                {part.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-	// --- 4. TIMER ---
-	useEffect(() => {
-		if (isSubmittingRef.current || !serverAttemptData) return;
-		if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        {/* Questions */}
+        <div id="questions-container" className="flex-1 overflow-y-auto bg-white p-6 scroll-smooth">
+          <div className="space-y-6">
+            {visibleQuestions.map((q) => {
+              const isActive = q.id === activeQuestionId;
+              const qAnswers = answersMap[q.id] ?? [];
 
-		// If durationLimit is 0 (unlimited), do not run a countdown timer
-		if (serverAttemptData.durationLimit <= 0) return;
+              return (
+                <div
+                  key={q.id}
+                  id={`q-${q.id}`}
+                  className={`flex gap-5 rounded-xl border p-6 transition-all hover:border-blue-100 hover:bg-slate-50/50 ${
+                    isActive
+                      ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
+                      : 'border-transparent'
+                  }`}
+                  onClick={() => setActiveQuestionId(q.id)}
+                >
+                  {/* Question number (global index) */}
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${
+                      isActive
+                        ? 'border-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    {q.globalIndex}
+                  </div>
 
-		timerIntervalRef.current = setInterval(() => {
-			setTimeLeft((prevTime) => {
-				if (prevTime <= 1) {
-					if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-					if (!isSubmittingRef.current) handleAutoSubmit();
-					return 0;
-				}
-				return prevTime - 1;
-			});
-		}, 1000);
+                  <div className="flex-1">
+                    {/* Question content is also HTML */}
+                    <div
+                      className="mb-4 text-[1.05rem] font-semibold leading-relaxed text-slate-800"
+                      dangerouslySetInnerHTML={{ __html: q.content }}
+                    />
 
-		return () => {
-			if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-		};
-	}, [serverAttemptData, handleAutoSubmit]);
+                    {/* Files attached directly to the question (e.g. image for that question) */}
+                    {q.fileUrls?.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {q.fileUrls.map((url) =>
+                          isImageUrl(url) ? (
+                            <img
+                              key={url}
+                              src={formatMediaUrl(url)}
+                              alt=""
+                              className="max-h-48 rounded-lg border border-slate-200 object-contain"
+                            />
+                          ) : url.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i) ? (
+                            <audio key={url} controls src={formatMediaUrl(url)} className="w-full max-w-sm mt-2" />
+                          ) : null,
+                        )}
+                      </div>
+                    )}
 
-	// --- 5. ANSWER HANDLERS ---
-	const getSingleAnswer = useCallback((qId: string): string => {
-		return answersMap[qId]?.[0] ?? '';
-	}, [answersMap]);
+                    {/* Answer input */}
+                    <QuestionInput
+                      question={q}
+                      answers={qAnswers}
+                      onSingleAnswer={handleSingleAnswer}
+                      onMultiAnswer={handleMultiAnswer}
+                    />
+                  </div>
+                </div>
+              );
+            })}
 
-	const isMultiChecked = useCallback((qId: string, key: string): boolean => {
-		return (answersMap[qId] ?? []).includes(key);
-	}, [answersMap]);
+            {/* Next Part Button */}
+            {parts.findIndex((p) => p.id === activePartId) !== -1 && parts.findIndex((p) => p.id === activePartId) < parts.length - 1 && (
+              <div className="mt-8 flex justify-end border-t border-slate-100 pt-6">
+                <button
+                  onClick={() => {
+                    const currentIndex = parts.findIndex((p) => p.id === activePartId);
+                    if (currentIndex !== -1 && currentIndex < parts.length - 1) {
+                      const nextPart = parts[currentIndex + 1];
+                      setActivePartId(nextPart.id);
+                      const firstQ = allQuestions.find((q) => q.ancestorSections[0]?.id === nextPart.id);
+                      if (firstQ) setActiveQuestionId(firstQ.id);
+                      document.getElementById('questions-container')?.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className="flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-blue-600 border border-blue-200 shadow-sm transition-all hover:bg-blue-50"
+                >
+                  TIẾP THEO <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-	const debouncedPostAnswer = useCallback((questionId: string, answer: string, isDelete: boolean = false) => {
-		const timerKey = `${questionId}-${answer}`;
-		if (debounceTimersRef.current[timerKey]) {
-			clearTimeout(debounceTimersRef.current[timerKey]);
-		}
-		debounceTimersRef.current[timerKey] = setTimeout(async () => {
-			if (!attemptId || isSubmittingRef.current) return;
-			try {
-				if (isDelete) {
-					await ExamPracticeService.examPracticeGatewayControllerRemoveAnswerV1(
-						attemptId,
-						questionId,
-						{ answer }
-					);
-				} else {
-					await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
-						attemptId,
-						questionId,
-						{ answer }
-					);
-				}
-			} catch (error: any) {
-				if (error?.status === 403 || error?.body?.statusCode === 403) return; // Silent ignore (attempt ended or no permission)
-				console.error("Failed to save/delete answer:", error);
-			}
-		}, 1000);
-	}, [attemptId]);
+      {/* ── TRACKER PANEL (right) ─────────────────────────────────────────── */}
+      <div className="flex w-80 shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* Timer */}
+        <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-blue-50/50 to-white p-6 text-center">
+          <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-blue-100" />
+          <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600/80">
+            <Clock className="h-3.5 w-3.5" />
+            Thời gian còn lại
+          </div>
+          <div
+            className={`mt-2 font-mono text-5xl font-black tabular-nums tracking-wider drop-shadow-sm ${
+              timeLeft < 300 && timeLeft !== Infinity ? 'animate-pulse text-rose-600' : 'text-slate-800'
+            }`}
+          >
+            {timeLeft === Infinity ? '∞' : formatTime(timeLeft)}
+          </div>
+        </div>
 
-	const handleSingleAnswer = useCallback((questionId: string, value: string) => {
-		setAnswersMap((prev) => ({ ...prev, [questionId]: [value] }));
-		debouncedPostAnswer(questionId, value, false);
-	}, [debouncedPostAnswer]);
+        {/* Submit */}
+        <div className="bg-white p-5">
+          <Button
+            onClick={() => performSubmit(false)}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-blue-600 to-indigo-600 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg"
+          >
+            <Send className="h-4 w-4" /> Nộp bài
+          </Button>
+        </div>
 
-	const handleMultiAnswer = useCallback((questionId: string, key: string, checked: boolean) => {
-		setAnswersMap((prev) => {
-			const current = prev[questionId] ?? [];
-			const next = checked ? [...current, key] : current.filter(k => k !== key);
-			return { ...prev, [questionId]: next };
-		});
-		debouncedPostAnswer(questionId, key, !checked);
-	}, [debouncedPostAnswer]);
+        {/* Progress */}
+        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-5 pb-3 pt-1">
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+            {allQuestions.length} câu
+          </span>
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-600">
+            Đã làm {answeredCount}
+          </span>
+        </div>
 
-	const scrollToQuestion = useCallback((qId: string) => {
-		setCurrentQuestionId(qId);
-		const element = document.getElementById(`question-${qId}`);
-		if (element) {
-			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		}
-	}, []);
-
-	const getAncestors = useCallback(
-		(pId: string): Section[] => {
-			const ancestors: Section[] = [];
-			let current = sections.find((s) => s.id === pId);
-			while (current) {
-				ancestors.unshift(current);
-				current = sections.find((s) => s.id === current?.parentId);
-			}
-			return ancestors;
-		},
-		[sections]
-	);
-
-	useEffect(() => {
-		if (!currentQuestionId && orderedQuestions.length > 0) {
-			if (!currentQuestionId) setCurrentQuestionId(orderedQuestions[0].id);
-		}
-		if (currentQuestionId) {
-			const q = questions.find((item) => item.id === currentQuestionId);
-			if (q) setCurrentSectionAncestors(getAncestors(q.sectionId));
-		}
-	}, [currentQuestionId, questions, getAncestors, orderedQuestions]);
-
-	// --- RESIZER LOGIC ---
-	const startResizing = useCallback(() => setIsResizing(true), []);
-	const stopResizing = useCallback(() => setIsResizing(false), []);
-	const resize = useCallback(
-		(e: MouseEvent) => {
-			if (isResizing && containerRef.current) {
-				const trackerWidth = 340;
-				const containerWidth = containerRef.current.clientWidth - trackerWidth;
-				const newLeftWidth = (e.clientX / containerWidth) * 100;
-				if (newLeftWidth > 20 && newLeftWidth < 80) setLeftWidth(newLeftWidth);
-			}
-		},
-		[isResizing]
-	);
-
-	useEffect(() => {
-		window.addEventListener('mousemove', resize);
-		window.addEventListener('mouseup', stopResizing);
-		return () => {
-			window.removeEventListener('mousemove', resize);
-			window.removeEventListener('mouseup', stopResizing);
-		};
-	}, [resize, stopResizing]);
-
-	if (loading) {
-		return <div className="h-screen w-full flex items-center justify-center bg-slate-50">
-			<div className="flex flex-col items-center gap-3">
-				<div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-				<p className="text-slate-500 font-medium">Đang tải dữ liệu bài thi...</p>
-			</div>
-		</div>;
-	}
-
-	// --- RENDER ---
-	return (
-		<div className='inset-0 flex flex-row bg-slate-50 font-sans overflow-hidden p-4 gap-4' ref={containerRef}>
-			{/* --- KHỐI 1: PASSAGE (TRÁI) --- */}
-			<div
-				style={{ width: `${leftWidth}%` }}
-				className='h-full flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200 shrink-0'
-			>
-				{/* Passage Header */}
-				<div className='h-14 border-b bg-white flex items-center justify-between px-5 shrink-0 sticky top-0 z-10 shadow-sm'>
-					{/* Hiển thị tiêu đề Section hiện tại */}
-
-					<div className='flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full'>
-						<Lightbulb className="w-4 h-4 text-yellow-500" />
-						<span className='text-xs font-bold uppercase tracking-wider text-slate-600'>Highlight mode</span>
-						<button
-							onClick={() => setHighlightEnabled(!highlightEnabled)}
-							className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'
-								}`}
-						>
-							<div
-								className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'
-									}`}
-							></div>
-						</button>
-					</div>
-				</div>
-
-				{/* Passage Content with Text Highlighter */}
-				<div className='flex-1 overflow-y-auto p-6 scroll-smooth'>
-					{currentSectionAncestors.map((section) => {
-						if (!section.direction) return null;
-
-						// Tách dòng đầu tiên làm tiêu đề lớn (nếu có)
-						const lines = section.direction.split('\n');
-						const title = lines[0];
-						const content = lines.slice(1).join('\n');
-
-						const handleNewWord = (word: string) => {
-							// Here you can implement the logic to add the word to the "Từ mới" form
-							console.log('New word to add to flashcard:', word);
-							// You can update your state or call a function to show the flashcard creation form
-						};
-
-						// Xử lý các loại Content Type
-						if (section.contentType === 'audio-script') return null; // Ẩn khi đang thi
-
-						if (section.contentType === 'instructions') {
-							return (
-								<div key={section.id} className='mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm font-medium'>
-									{section.direction}
-								</div>
-							);
-						}
-
-						if (section.contentType === 'group') {
-							return (
-								<div key={section.id} className='mb-6 text-slate-700 text-base font-medium italic'>
-									{section.direction}
-								</div>
-							);
-						}
-
-						return (
-							<div key={section.id} className='mb-10'>
-								{/* Audio Player if available */}
-								{section.fileUrls && section.fileUrls.some(url => url.endsWith('.mp3') || url.endsWith('.wav')) && (
-									<div className="mb-6 p-4 bg-slate-100 rounded-xl border border-slate-200">
-										<audio controls className="w-full h-10 outline-none">
-											<source src={section.fileUrls.find(url => url.endsWith('.mp3') || url.endsWith('.wav'))} type="audio/mpeg" />
-											Trình duyệt của bạn không hỗ trợ thẻ audio.
-										</audio>
-									</div>
-								)}
-								{/* Title - Hiển thị to, đậm giống ảnh mẫu */}
-								{title && <h2 className='text-2xl font-extrabold text-slate-800 mb-5 leading-tight'>{title}</h2>}
-								{/* Nội dung bài đọc với chức năng highlight */}
-								{content && (
-									<div className='text-gray-800 leading-7 text-justify font-serif text-lg'>
-										<TextHighlighter
-											text={content}
-											onNewWord={handleNewWord}
-											highlightEnabled={highlightEnabled}
-										/>
-									</div>
-								)}
-							</div>
-						);
-					})}
-				</div>
-			</div>
-
-			{/* RESIZER HANDLE */}
-			<div
-				className='w-1 hover:bg-blue-400 cursor-col-resize z-30 transition-colors flex items-center justify-center shrink-0 rounded opacity-50'
-				onMouseDown={startResizing}
-			>
-				<div className='h-8 w-1 bg-gray-400 rounded-full'></div>
-			</div>
-
-			{/* --- KHỐI 2: QUESTIONS (GIỮA) --- */}
-			<div className='flex-1 h-full flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200'>
-				{/* Questions Header */}
-				<div className='h-14 border-b bg-white px-5 flex items-center shrink-0 justify-between sticky top-0 z-10 shadow-sm'>
-					<div className="flex items-center gap-2">
-						<div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-						<h2 className='text-sm font-extrabold text-slate-700 uppercase tracking-widest'>Nội dung câu hỏi</h2>
-					</div>
-				</div>
-
-				{/* Questions Content */}
-				<div className='flex-1 overflow-y-auto p-6 bg-white'>
-					<div className='space-y-6'>
-						{orderedQuestions
-							.filter((q) => {
-								const currentActive = questions.find((item) => item.id === currentQuestionId);
-								return q.sectionId === currentActive?.sectionId;
-							})
-							.map((q) => {
-								return (
-									<div
-										key={q.id}
-										id={`question-${q.id}`}
-										className={`flex gap-5 p-6 rounded-xl transition-all border border-transparent hover:border-blue-100 hover:bg-slate-50/50 ${q.id === currentQuestionId ? 'bg-blue-50/30 border-blue-200 shadow-sm ring-1 ring-blue-500/20' : ''}`}
-										onClick={() => setCurrentQuestionId(q.id)}
-									>
-										{/* Số thứ tự câu hỏi */}
-										<div
-											className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shadow-sm ${q.id === currentQuestionId ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0' : 'bg-white border border-slate-200 text-slate-600'
-												}`}
-										>
-											{orderedQuestions.indexOf(q) + 1}
-										</div>
-
-										<div className='flex-1'>
-											{/* Nội dung câu hỏi */}
-											<p className='text-slate-800 font-semibold mb-4 text-[1.05rem] leading-relaxed'>{q.content}</p>
-
-											<div className='mt-2'>
-												{/* --- 1. MCQ (Single Choice) --- */}
-												{(q.type === 'MCQ' || q.type === 'multiple-choice') && q.choices && (
-													<div className='flex flex-col gap-3'>
-														{q.choices.map((choice) => {
-															const isSelected = getSingleAnswer(q.id) === choice.key;
-															return (
-																<label
-																	key={choice.key}
-																	className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${isSelected
-																		? 'bg-blue-50/80 border-blue-500 ring-1 ring-blue-200 text-blue-900 font-bold'
-																		: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-																		}`}
-																>
-																	<div
-																		className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-blue-600 bg-white' : 'border-slate-300'
-																			}`}
-																	>
-																		{isSelected && <div className='w-2.5 h-2.5 bg-blue-600 rounded-full'></div>}
-																	</div>
-																	<input
-																		type='radio'
-																		name={q.id}
-																		value={choice.key}
-																		checked={isSelected}
-																		onChange={() => handleSingleAnswer(q.id, choice.key)}
-																		className='hidden'
-																	/>
-																	<div className="flex gap-2.5 items-baseline">
-																		<span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>{choice.key}.</span>
-																		<span className="leading-relaxed text-slate-700">{choice.content}</span>
-																	</div>
-																</label>
-															);
-														})}
-													</div>
-												)}
-
-												{/* --- 2. MCQ_MULTI (Multiple Correct) --- */}
-												{(q.type === 'MCQ_MULTI' || q.type === 'multiple-correct-answers') && q.choices && (
-													<div className='flex flex-col gap-3'>
-														{q.choices.map((choice) => {
-															const isChecked = isMultiChecked(q.id, choice.key);
-															return (
-																<label
-																	key={choice.key}
-																	className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isChecked
-																		? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
-																		: 'bg-white border-gray-200 hover:bg-gray-50'
-																		}`}
-																>
-																	<input
-																		type='checkbox'
-																		checked={isChecked}
-																		onChange={(e) => handleMultiAnswer(q.id, choice.key, e.target.checked)}
-																		className='w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 hidden'
-																	/>
-																	<div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'}`}>
-																		{isChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-																	</div>
-																	<div className="flex gap-2.5 items-baseline">
-																		<span className={`font-black ${isChecked ? 'text-blue-700' : 'text-slate-400'}`}>{choice.key}.</span>
-																		<span className="leading-relaxed text-slate-700">{choice.content}</span>
-																	</div>
-																</label>
-															);
-														})}
-													</div>
-												)}
-
-												{/* --- 3 & 4. Fill / FillAny --- */}
-												{(q.type === 'Fill' || q.type === 'FillAny' || q.type === 'fill-blank') && (
-													<div className='relative'>
-														<input
-															type='text'
-															className='border border-gray-300 rounded-xl w-full h-12 px-5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-sm text-gray-800 placeholder:text-gray-400 font-medium'
-															placeholder='Nhập câu trả lời của bạn vào đây...'
-															value={getSingleAnswer(q.id)}
-															onChange={(e) => handleSingleAnswer(q.id, e.target.value)}
-														/>
-													</div>
-												)}
-
-												{/* --- 5. Writing (Essay / Speaking / Writing) --- */}
-												{(q.type === 'Writing' || q.type === 'essay' || q.type === 'speaking') && (
-													<div className='relative'>
-														<textarea
-															className='border border-gray-300 rounded-xl w-full p-5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-sm text-gray-800 placeholder:text-gray-400 font-medium resize-none'
-															placeholder='Viết câu trả lời của bạn ở đây...'
-															rows={8}
-															value={getSingleAnswer(q.id)}
-															onChange={(e) => handleSingleAnswer(q.id, e.target.value)}
-														/>
-													</div>
-												)}
-											</div>
-										</div>
-									</div>
-								);
-							})}
-					</div>
-				</div>
-			</div>
-
-			{/* --- KHỐI 3: TRACKER (PHẢI) --- */}
-			<div className='w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col shrink-0 overflow-hidden'>
-				{/* Header Cố định (TIMER) */}
-				<div className='bg-white shrink-0 z-10 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)]'>
-					<div className='p-6 border-b border-slate-100 text-center bg-gradient-to-b from-blue-50/50 to-white relative overflow-hidden'>
-						<Clock className="absolute top-4 right-4 text-blue-100 w-24 h-24 -mr-8 -mt-8 rotate-12" />
-						<div className='text-xs text-blue-600/80 uppercase font-bold text-center mb-1 tracking-widest flex items-center justify-center gap-2'>
-							<Clock className="w-3.5 h-3.5" /> Thời gian còn lại
-						</div>
-						<div
-							className={`text-5xl font-black font-mono tracking-wider tabular-nums mt-2 drop-shadow-sm ${timeLeft < 300 ? 'text-rose-600 animate-pulse' : 'text-slate-800'
-								}`}
-						>
-							{timeLeft >= 3600 ? `${Math.floor(timeLeft / 3600)}:${String(Math.floor((timeLeft % 3600) / 60)).padStart(2, '0')}` : Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-						</div>
-					</div>
-
-					<div className='p-5 bg-white'>
-						<Button
-							variant='default'
-							onClick={handleSubmit}
-							className='w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold h-14 uppercase tracking-widest shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 border-0 rounded-xl flex items-center justify-center gap-2'
-						>
-							<Send className="w-4 h-4" /> Nộp bài
-						</Button>
-					</div>
-
-					<div className='px-5 pb-3 border-b border-slate-100 bg-white pt-1 flex justify-between items-center'>
-						<span className='text-xs text-slate-500 font-bold tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-full'>{orderedQuestions.length} câu hỏi</span>
-						<span className='text-xs text-blue-600 font-bold tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full'>Đã làm {orderedQuestions.filter(q => (answersMap[q.id] && answersMap[q.id].length > 0 && answersMap[q.id][0] !== '')).length}</span>
-					</div>
-				</div>
-
-				{/* Grid Scrollable */}
-				<div className='flex-1 overflow-y-auto px-5 py-5 bg-slate-50/50'>
-					<div className='grid grid-cols-5 gap-2.5'>
-						{orderedQuestions.map((q, i) => {
-							const hasAnswer = answersMap[q.id] && answersMap[q.id].length > 0 && answersMap[q.id][0] !== '';
-							const isActive = currentQuestionId === q.id;
-
-							return (
-								<button
-									key={q.id}
-									onClick={() => scrollToQuestion(q.id)}
-									className={`
-            h-10 w-10 rounded-lg text-xs font-bold transition-all flex items-center justify-center relative shadow-sm
-            ${isActive
-											? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white ring-2 ring-blue-300 ring-offset-1 transform scale-110 z-10 font-black shadow-md border-0'
-											: hasAnswer
-												? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
-												: 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700'
-										}
-          `}
-								>
-									{i + 1}
-									{hasAnswer && !isActive && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-slate-50 rounded-full"></div>}
-								</button>
-							);
-						})}
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+        {/* Question grid by Part */}
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 px-5 py-5">
+          <div className="flex flex-col gap-6">
+            {parts.map((part) => {
+              const partQuestions = allQuestions.filter(q => q.ancestorSections[0]?.id === part.id);
+              if (partQuestions.length === 0) return null;
+              
+              return (
+                <div key={part.id}>
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+                    {part.name}
+                  </h3>
+                  <div className="grid grid-cols-5 gap-2.5">
+                    {partQuestions.map((q) => {
+                      const done = hasAnswer(q.id);
+                      const active = q.id === activeQuestionId;
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => {
+                            setActivePartId(part.id);
+                            scrollToQuestion(q.id);
+                          }}
+                          className={`relative flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold shadow-sm transition-all ${
+                            active
+                              ? 'z-10 scale-110 border-0 bg-gradient-to-br from-blue-500 to-indigo-600 font-black text-white ring-2 ring-blue-300 ring-offset-1 shadow-md'
+                              : done
+                              ? 'border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
+                          }`}
+                        >
+                          {q.globalIndex}
+                          {done && !active && (
+                            <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-slate-50 bg-blue-500" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -85,6 +85,7 @@ export const clearApiTokens = (): void => {
 
     clearCookieValue(ACCESS_TOKEN_COOKIE_KEY);
     clearCookieValue(REFRESH_TOKEN_COOKIE_KEY);
+    document.cookie = 'user_authenticated=; path=/; max-age=0; samesite=lax';
 };
 
 const extractTokens = (payload: unknown): ResponseTokensDto | null => {

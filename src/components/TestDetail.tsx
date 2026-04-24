@@ -137,7 +137,7 @@ export function ExamDetailPage() {
 
 		try {
 			const sectionsToUse = activeTab === 'fulltest' ? [] : selectedSectionIds;
-			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) : undefined;
+			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) * 60 : undefined;
 
 			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1(
 				examId,
