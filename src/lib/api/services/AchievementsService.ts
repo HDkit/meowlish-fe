@@ -20,16 +20,15 @@ export class AchievementsService {
     }
     /**
      * Get the authenticated user badges
+     * @param cursor
+     * @param limit
      * @returns any
      * @throws ApiError
      */
-    public static achievementGatewayControllerGetMyBadgesV1({
-        cursor,
-        limit,
-    }: {
+    public static achievementGatewayControllerGetMyBadgesV1(
         cursor?: string,
         limit?: number,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/achievements/badges/my',
@@ -41,18 +40,17 @@ export class AchievementsService {
     }
     /**
      * Get badges earned by a specific user
+     * @param uid
+     * @param cursor
+     * @param limit
      * @returns any
      * @throws ApiError
      */
-    public static achievementGatewayControllerGetSomeonesBadgesV1({
-        uid,
-        cursor,
-        limit,
-    }: {
+    public static achievementGatewayControllerGetSomeonesBadgesV1(
         uid: string,
         cursor?: string,
         limit?: number,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/achievements/badges/{uid}',
@@ -63,6 +61,17 @@ export class AchievementsService {
                 'cursor': cursor,
                 'limit': limit,
             },
+        });
+    }
+    /**
+     * Get the authenticated user badges progress
+     * @returns any
+     * @throws ApiError
+     */
+    public static achievementGatewayControllerGetMyProgressV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/achievements/badges/my/progress',
         });
     }
 }

@@ -48,7 +48,7 @@ export function TestSelection() {
 		const fetchExams = async () => {
 			try {
 				setLoadingExams(true);
-				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1({ limit: 100 });
+				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(undefined, undefined, undefined, 100);
 				const examsList = res.data?.exams || [];
 				const formattedExams = examsList.map((e: any) => {
 					const lowerTags = e.tags?.map((t: string) => t.toLowerCase()) || [];

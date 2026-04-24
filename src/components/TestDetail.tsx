@@ -51,7 +51,7 @@ export function ExamDetailPage() {
 			try {
 				setLoading(true);
 				setLoadError(null);
-				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1({ id: examId });
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1(examId);
 				const payload = extractEntityData<any>(response);
 				if (!payload) {
 					throw new Error('API không trả về dữ liệu đề thi.');
@@ -68,11 +68,12 @@ export function ExamDetailPage() {
 		// Fetch attempt history để phát hiện bài dang dở
 		const fetchOngoingAttempt = async () => {
 			try {
-				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1({
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
 					examId,
-					limit: 10,
-					sortBy: { key: 'startedAt', direction: 'DESC' },
-				});
+					undefined,
+					10,
+					{ key: 'startedAt', direction: 'DESC' }
+				);
 				const attempts: any[] = res?.data?.attempts ?? [];
 				// Attempt chưa nộp = endedAt null/undefined
 				const inProgress = attempts.find((a) => !a.endedAt);
@@ -138,15 +139,15 @@ export function ExamDetailPage() {
 			const sectionsToUse = activeTab === 'fulltest' ? [] : selectedSectionIds;
 			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) : undefined;
 
-			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1({
-				id: examId,
-				requestBody: {
+			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1(
+				examId,
+				{
 					options: {
 						duration: timerValue,
 						sectionIds: sectionsToUse.length > 0 ? sectionsToUse : undefined,
 					}
 				}
-			});
+			);
 
 			const attemptId = res.data?.id;
 			if (attemptId) {
@@ -178,7 +179,7 @@ export function ExamDetailPage() {
 		const idToSubmit = ongoingAttempt.id;
 		setOngoingAttempt(null);
 		try {
-			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: idToSubmit });
+			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(idToSubmit);
 		} catch (e) {
 			console.error('Failed to submit ongoing attempt:', e);
 		} finally {
@@ -194,7 +195,7 @@ export function ExamDetailPage() {
 		setPendingAttemptDialog({ open: false, attemptId: null });
 		if (oldAttemptId) {
 			try {
-				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: oldAttemptId });
+				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(oldAttemptId);
 			} catch (e) {
 				console.error('Failed to submit old attempt:', e);
 			}
@@ -354,7 +355,7 @@ export function ExamDetailPage() {
 						<div className='flex items-center gap-6 text-sm flex-wrap text-blue-50 pt-2'>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<Clock className='h-5 w-5 text-blue-200' />
-								<span className="font-semibold text-base">{examData.duration} phút</span>
+								<span className="font-semibold text-base">{examData.duration} giây</span>
 							</div>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<FileText className='h-5 w-5 text-indigo-200' />
@@ -595,7 +596,7 @@ export function ExamDetailPage() {
 												</div>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Thời gian chuẩn</span>
-													<span className='text-2xl font-black text-emerald-600'>{examData.duration}'</span>
+													<span className='text-2xl font-black text-emerald-600'>{examData.duration}s</span>
 												</div>
 											</div>
 										</div>

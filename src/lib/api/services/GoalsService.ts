@@ -11,14 +11,13 @@ import { request as __request } from '../core/request';
 export class GoalsService {
     /**
      * Set a goal for the authenticated user
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static goalGatewayControllerSetGoalV1({
-        requestBody,
-    }: {
+    public static goalGatewayControllerSetGoalV1(
         requestBody: set_goal_req_dto_SetGoalDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/goals/my',
@@ -39,14 +38,13 @@ export class GoalsService {
     }
     /**
      * Update the authenticated user goal
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static goalGatewayControllerUpdateGoalV1({
-        requestBody,
-    }: {
+    public static goalGatewayControllerUpdateGoalV1(
         requestBody: update_goal_req_dto_UpdateGoalDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/goals/my',

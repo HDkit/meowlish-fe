@@ -87,6 +87,8 @@ export interface Section extends MockDbType {
 	title?: string; // Optional section title
 	direction?: string;
 	difficulty: Difficulty;
+	fileUrls?: string[];
+	contentType?: string;
 }
 
 // Closure Table for Section Hierarchy
@@ -112,9 +114,9 @@ export interface FileAttachment extends MockDbType {
 export interface Question extends MockDbType {
 	lastEditedBy: string; //User.id
 	sectionId: string; //Section.id
-	type: 'multiple-choice' | 'fill-blank' | 'essay' | 'speaking' | 'multiple-correct-answers';
+	type: 'MCQ' | 'MCQ_MULTI' | 'Fill' | 'FillAny' | 'Writing' | 'multiple-choice' | 'fill-blank' | 'essay' | 'speaking' | 'multiple-correct-answers';
 	content: string;
-	options?: string[];
+	choices?: { key: string; content?: string }[];
 	correctAnswer?: string[];
 	points: number;
 	tagIds: string[];

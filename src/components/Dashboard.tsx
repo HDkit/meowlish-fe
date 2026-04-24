@@ -42,10 +42,8 @@ export function Dashboard() {
 					const start = new Date();
 					start.setDate(end.getDate() - 365);
 					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-						range: {
-							from: start.toISOString(),
-							to: end.toISOString()
-						}
+						from: start.toISOString(),
+						to: end.toISOString()
 					});
 					if (summaryRes.data?.history) {
 						setCalendarHistory(summaryRes.data.history);
@@ -56,7 +54,7 @@ export function Dashboard() {
 
 				// Fetch exams (using random limit for 'recommendation')
 				try {
-					const examsRes = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1({ limit: 6 });
+					const examsRes = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(undefined, undefined, undefined, 6);
 					
 					// Randomize the recommended exams
 					const examList = examsRes.data?.exams || [];

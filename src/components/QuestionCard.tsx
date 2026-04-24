@@ -29,8 +29,10 @@ export function QuestionCardModal({
 	);
 }
 
-export function QuestionCard({ q, status }: { q: Question; status: string }) {
+export function QuestionCard({ q, status }: { q: any; status: string }) {
 	const [isOpen, setIsOpen] = useState(false);
+
+	const correctAnsText = q.correctAnswer?.join(', ') || q.choices?.filter((c: any) => c.isCorrect).map((c: any) => c.key).join(', ') || 'N/A';
 
 	return (
 		<>
@@ -40,7 +42,7 @@ export function QuestionCard({ q, status }: { q: Question; status: string }) {
 					onClick={() => setIsOpen(true)}
 				>
 					<p className='text-xs text-green-600 uppercase font-bold mb-1'>Đáp án đúng</p>
-					<p className='font-medium text-gray-800'>{q.correctAnswer?.join(', ') || 'N/A'}</p>
+					<p className='font-medium text-gray-800'>{correctAnsText}</p>
 				</div>
 			)}
 
@@ -51,7 +53,7 @@ export function QuestionCard({ q, status }: { q: Question; status: string }) {
 	);
 }
 
-export function AICard({ q }: { q: Question }) {
+export function AICard({ q }: { q: any }) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (

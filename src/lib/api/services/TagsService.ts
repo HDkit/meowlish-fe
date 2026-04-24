@@ -12,14 +12,13 @@ import { request as __request } from '../core/request';
 export class TagsService {
     /**
      * Create a tag
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static tagGatewayControllerAddTagV1({
-        requestBody,
-    }: {
+    public static tagGatewayControllerAddTagV1(
         requestBody: add_tag_req_dto_AddTagDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/tags',
@@ -29,14 +28,13 @@ export class TagsService {
     }
     /**
      * Delete a tag
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static tagGatewayControllerDeleteTagV1({
-        id,
-    }: {
+    public static tagGatewayControllerDeleteTagV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/api/v1/exams/tags/{id}',
@@ -47,16 +45,15 @@ export class TagsService {
     }
     /**
      * Rename a tag
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static tagGatewayControllerUpdateTagV1({
-        id,
-        requestBody,
-    }: {
+    public static tagGatewayControllerUpdateTagV1(
         id: string,
         requestBody: update_tag_dto_UpdateTagDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/tags/{id}',
@@ -69,16 +66,15 @@ export class TagsService {
     }
     /**
      * Move a tag under another parent
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static tagGatewayControllerMoveTagV1({
-        id,
-        requestBody,
-    }: {
+    public static tagGatewayControllerMoveTagV1(
         id: string,
         requestBody: move_tag_req_dto_MoveTagDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/tags/{id}/move',

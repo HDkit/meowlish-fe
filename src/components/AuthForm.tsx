@@ -123,9 +123,7 @@ export function AuthForm() {
 		const devName = targetRole === 'role-head-staff' ? `HeadStaff${ts}` : `Staff${ts}`;
 		try {
 			// Register a fresh account to get a real token
-			const res = await AuthService.authGatewayControllerRegisterV1({
-				requestBody: { mail: devEmail, password: devPassword, username: devName },
-			});
+			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: devEmail, password: devPassword, username: devName });
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token');
 			setApiTokensState(token, res.data?.refreshToken);
@@ -177,9 +175,7 @@ export function AuthForm() {
 		setError('');
 
 		try {
-			const res = await AuthService.authGatewayControllerLoginV1({
-				requestBody: { mail: formData.email, password: formData.password },
-			});
+			const res = await AuthService.authGatewayControllerLoginMailV1({ mail: formData.email, password: formData.password });
 			
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token từ server');
@@ -225,9 +221,7 @@ export function AuthForm() {
 		setLoading(true);
 		setError('');
 		try {
-			const res = await AuthService.authGatewayControllerRegisterV1({
-				requestBody: { mail: formData.email, password: formData.password, username: formData.fullName },
-			});
+			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
 			
 			const token = res.data?.accessToken;
 			if (!token) throw new Error('Không nhận được token từ server');

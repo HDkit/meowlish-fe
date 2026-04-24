@@ -17,16 +17,15 @@ import { request as __request } from '../core/request';
 export class ExamPracticeService {
     /**
      * Start a practice attempt for an exam
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerAttemptV1({
-        id,
-        requestBody,
-    }: {
+    public static examPracticeGatewayControllerAttemptV1(
         id: string,
         requestBody: attempt_req_dto_AttemptDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/practice/{id}',
@@ -39,14 +38,13 @@ export class ExamPracticeService {
     }
     /**
      * Submit an attempt
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerEndAttemptV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerEndAttemptV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/practice/attempt/{id}/submit',
@@ -57,18 +55,17 @@ export class ExamPracticeService {
     }
     /**
      * Answer a question in an attempt
+     * @param id
+     * @param questionId
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerAnswerV1({
-        id,
-        questionId,
-        requestBody,
-    }: {
+    public static examPracticeGatewayControllerAnswerV1(
         id: string,
         questionId: string,
         requestBody: answer_req_dto_AnswerDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/practice/attempt/{id}/answers/{questionId}',
@@ -82,18 +79,17 @@ export class ExamPracticeService {
     }
     /**
      * Remove an answer from a question in an attempt
+     * @param id
+     * @param questionId
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerRemoveAnswerV1({
-        id,
-        questionId,
-        requestBody,
-    }: {
+    public static examPracticeGatewayControllerRemoveAnswerV1(
         id: string,
         questionId: string,
         requestBody: remove_answer_req_dto_RemoveAnswerDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/api/v1/exams/practice/attempt/{id}/answers/{questionId}',
@@ -107,16 +103,15 @@ export class ExamPracticeService {
     }
     /**
      * Toggle question flag state
+     * @param id
+     * @param questionId
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerToggleFlagV1({
-        id,
-        questionId,
-    }: {
+    public static examPracticeGatewayControllerToggleFlagV1(
         id: string,
         questionId: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/practice/attempt/{id}/answers/{questionId}/flag',
@@ -128,18 +123,17 @@ export class ExamPracticeService {
     }
     /**
      * Add or update a note for a question
+     * @param id
+     * @param questionId
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerAddNoteV1({
-        id,
-        questionId,
-        requestBody,
-    }: {
+    public static examPracticeGatewayControllerAddNoteV1(
         id: string,
         questionId: string,
         requestBody: add_note_req_dto_AddNoteDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/practice/attempt/{id}/answers/{questionId}/note',
@@ -153,20 +147,19 @@ export class ExamPracticeService {
     }
     /**
      * Find exams available for practice
+     * @param filter
+     * @param sortBy
+     * @param cursor
+     * @param limit
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerFindExamsV1({
-        filter,
-        sortBy,
-        cursor,
-        limit,
-    }: {
+    public static examPracticeGatewayControllerFindExamsV1(
         filter?: find_exams_req_dto_FilterOptionsDto,
         sortBy?: find_exams_req_dto_SortOptionsDto,
         cursor?: string,
         limit?: number,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice',
@@ -180,14 +173,13 @@ export class ExamPracticeService {
     }
     /**
      * Get exam details for practice
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetExamDetailsV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerGetExamDetailsV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/{id}/details',
@@ -198,14 +190,13 @@ export class ExamPracticeService {
     }
     /**
      * Get detailed question information for practice
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetDetailedQuestionInfoV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerGetDetailedQuestionInfoV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/questions/{id}/details',
@@ -216,14 +207,13 @@ export class ExamPracticeService {
     }
     /**
      * Get aggregate exam statistics
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetExamStatsV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerGetExamStatsV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/{id}/stats',
@@ -234,14 +224,13 @@ export class ExamPracticeService {
     }
     /**
      * Get saved attempt data
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetAttemptSavedDataV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerGetAttemptSavedDataV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/attempt/{id}/saved',
@@ -252,14 +241,13 @@ export class ExamPracticeService {
     }
     /**
      * Get attempt review data
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetAttemptReviewV1({
-        id,
-    }: {
+    public static examPracticeGatewayControllerGetAttemptReviewV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/attempt/{id}/review',
@@ -270,14 +258,13 @@ export class ExamPracticeService {
     }
     /**
      * Get the authenticated user practice calendar
+     * @param range
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-        range,
-    }: {
+    public static examPracticeGatewayControllerGetUsersAttemptSummaryV1(
         range: get_user_calendar_req_dto_TimeRangeDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/my/calendar',
@@ -288,20 +275,19 @@ export class ExamPracticeService {
     }
     /**
      * Get the authenticated user attempt history
+     * @param examId
+     * @param cursor
+     * @param limit
+     * @param sortBy
      * @returns any
      * @throws ApiError
      */
-    public static examPracticeGatewayControllerGetUsersAttemptHistoryV1({
-        examId,
-        cursor,
-        limit,
-        sortBy,
-    }: {
+    public static examPracticeGatewayControllerGetUsersAttemptHistoryV1(
         examId?: string,
         cursor?: string,
         limit?: number,
         sortBy?: get_users_attempt_history_req_dto_SortOptionsDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/my/history',

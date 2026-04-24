@@ -1428,107 +1428,210 @@ export function ExamCreationPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <HelpCircle className="h-4 w-4 text-purple-600" />
-                          <h3 className="font-medium text-gray-900">Choices</h3>
+                  {/* Choices Editor */}
+                  {['MCQ', 'MCQ_MULTI', 'multiple-choice', 'multiple-correct-answers'].includes(selectedQuestion.type) && (
+                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="h-4 w-4 text-purple-600" />
+                            <h3 className="font-medium text-gray-900">Choices</h3>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Mode: {getQuestionModeLabel(selectedQuestion.type)} ({(selectedQuestion.type === 'MCQ' || selectedQuestion.type === 'multiple-choice') ? 'Only one correct' : 'Multiple correct allowed'})
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Mode: {getQuestionModeLabel(selectedQuestion.type)}
-                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setQuestions((prev) => {
+                              const choiceCount = prev[selectedQuestion.id].choices.length;
+                              const nextKey = String.fromCharCode(65 + choiceCount);
+                              return {
+                                ...prev,
+                                [selectedQuestion.id]: {
+                                  ...prev[selectedQuestion.id],
+                                  choices: [...prev[selectedQuestion.id].choices, { key: nextKey, content: '', isCorrect: false }],
+                                },
+                              };
+                            })
+                          }
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add choice
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setQuestions((prev) => {
-                            const choiceCount = prev[selectedQuestion.id].choices.length;
-                            const nextKey = String.fromCharCode(65 + choiceCount);
-                            return {
-                              ...prev,
-                              [selectedQuestion.id]: {
-                                ...prev[selectedQuestion.id],
-                                choices: [...prev[selectedQuestion.id].choices, { key: nextKey, content: '', isCorrect: false }],
-                              },
-                            };
-                          })
-                        }
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add choice
-                      </Button>
-                    </div>
-                    <div className="space-y-3">
-                      {selectedQuestion.choices.map((choice, index) => (
-                        <div key={`${choice.id ?? 'new'}-${index}`} className="grid gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[80px_minmax(0,1fr)_120px_auto]">
-                          <Input
-                            value={choice.key}
-                            onChange={(event) =>
-                              setQuestions((prev) => ({
-                                ...prev,
-                                [selectedQuestion.id]: {
-                                  ...prev[selectedQuestion.id],
-                                  choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
-                                    itemIndex === index ? { ...item, key: event.target.value } : item
-                                  ),
-                                },
-                              }))
-                            }
-                          />
-                          <Input
-                            value={choice.content}
-                            onChange={(event) =>
-                              setQuestions((prev) => ({
-                                ...prev,
-                                [selectedQuestion.id]: {
-                                  ...prev[selectedQuestion.id],
-                                  choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
-                                    itemIndex === index ? { ...item, content: event.target.value } : item
-                                  ),
-                                },
-                              }))
-                            }
-                            placeholder="Choice content"
-                          />
-                          <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={choice.isCorrect}
+                      <div className="space-y-3">
+                        {selectedQuestion.choices.map((choice, index) => (
+                          <div key={`${choice.id ?? 'new'}-${index}`} className="grid gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[80px_minmax(0,1fr)_120px_auto]">
+                            <Input
+                              value={choice.key}
                               onChange={(event) =>
                                 setQuestions((prev) => ({
                                   ...prev,
                                   [selectedQuestion.id]: {
                                     ...prev[selectedQuestion.id],
                                     choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
-                                      itemIndex === index ? { ...item, isCorrect: event.target.checked } : item
+                                      itemIndex === index ? { ...item, key: event.target.value } : item
                                     ),
                                   },
                                 }))
                               }
                             />
-                            Correct
-                          </label>
+                            <Input
+                              value={choice.content}
+                              onChange={(event) =>
+                                setQuestions((prev) => ({
+                                  ...prev,
+                                  [selectedQuestion.id]: {
+                                    ...prev[selectedQuestion.id],
+                                    choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
+                                      itemIndex === index ? { ...item, content: event.target.value } : item
+                                    ),
+                                  },
+                                }))
+                              }
+                              placeholder="Choice content"
+                            />
+                            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                              <input
+                                type={(selectedQuestion.type === 'MCQ' || selectedQuestion.type === 'multiple-choice') ? 'radio' : 'checkbox'}
+                                name={`correct-${selectedQuestion.id}`}
+                                checked={choice.isCorrect}
+                                onChange={(event) =>
+                                  setQuestions((prev) => ({
+                                    ...prev,
+                                    [selectedQuestion.id]: {
+                                      ...prev[selectedQuestion.id],
+                                      choices: prev[selectedQuestion.id].choices.map((item, itemIndex) => {
+                                        if (selectedQuestion.type === 'MCQ' || selectedQuestion.type === 'multiple-choice') {
+                                          return itemIndex === index ? { ...item, isCorrect: event.target.checked } : { ...item, isCorrect: false };
+                                        }
+                                        return itemIndex === index ? { ...item, isCorrect: event.target.checked } : item;
+                                      }),
+                                    },
+                                  }))
+                                }
+                              />
+                              Correct
+                            </label>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setQuestions((prev) => ({
+                                  ...prev,
+                                  [selectedQuestion.id]: {
+                                    ...prev[selectedQuestion.id],
+                                    choices: prev[selectedQuestion.id].choices.filter((_, itemIndex) => itemIndex !== index),
+                                  },
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {['Fill', 'FillAny', 'fill-blank'].includes(selectedQuestion.type) && (
+                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="h-4 w-4 text-purple-600" />
+                            <h3 className="font-medium text-gray-900">Answers ({selectedQuestion.type === 'Fill' ? 'Exact Match' : 'Match Any'})</h3>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {selectedQuestion.type === 'Fill' ? 'Chấm exact match — viết đúng dạng thí sinh phải điền' : 'Chấp nhận bất kỳ đáp án nào trong danh sách'}
+                          </p>
+                        </div>
+                        {selectedQuestion.type !== 'Fill' && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() =>
-                              setQuestions((prev) => ({
-                                ...prev,
-                                [selectedQuestion.id]: {
-                                  ...prev[selectedQuestion.id],
-                                  choices: prev[selectedQuestion.id].choices.filter((_, itemIndex) => itemIndex !== index),
-                                },
-                              }))
+                              setQuestions((prev) => {
+                                const choiceCount = prev[selectedQuestion.id].choices.length;
+                                return {
+                                  ...prev,
+                                  [selectedQuestion.id]: {
+                                    ...prev[selectedQuestion.id],
+                                    choices: [...prev[selectedQuestion.id].choices, { key: String(choiceCount + 1), content: '', isCorrect: true }],
+                                  },
+                                };
+                              })
                             }
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Plus className="h-4 w-4 mr-2" />
+                            Thêm đáp án
                           </Button>
-                        </div>
-                      ))}
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        {selectedQuestion.choices.length === 0 && selectedQuestion.type === 'Fill' && (
+                          <Button 
+                            className="w-full" 
+                            variant="outline" 
+                            onClick={() => setQuestions(prev => ({
+                              ...prev,
+                              [selectedQuestion.id]: {
+                                ...prev[selectedQuestion.id],
+                                choices: [{ key: 'answer', content: '', isCorrect: true }]
+                              }
+                            }))}
+                          >
+                            Tạo đáp án chuẩn
+                          </Button>
+                        )}
+                        {selectedQuestion.choices.map((choice, index) => (
+                          <div key={`${choice.id ?? 'new'}-${index}`} className="flex gap-3 items-center">
+                            <Input
+                              value={choice.content}
+                              onChange={(event) =>
+                                setQuestions((prev) => ({
+                                  ...prev,
+                                  [selectedQuestion.id]: {
+                                    ...prev[selectedQuestion.id],
+                                    choices: prev[selectedQuestion.id].choices.map((item, itemIndex) =>
+                                      itemIndex === index ? { ...item, content: event.target.value, isCorrect: true } : item
+                                    ),
+                                  },
+                                }))
+                              }
+                              placeholder={selectedQuestion.type === 'Fill' ? "Đáp án chuẩn duy nhất" : "Đáp án chấp nhận được"}
+                            />
+                            {selectedQuestion.type !== 'Fill' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setQuestions((prev) => ({
+                                    ...prev,
+                                    [selectedQuestion.id]: {
+                                      ...prev[selectedQuestion.id],
+                                      choices: prev[selectedQuestion.id].choices.filter((_, itemIndex) => itemIndex !== index),
+                                    },
+                                  }))
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {['Writing', 'essay', 'speaking'].includes(selectedQuestion.type) && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                      <strong>Câu hỏi chủ quan</strong> — không có choices. Người chấm nhập điểm sau khi nộp bài. Prompt/Rubric chấm điểm vui lòng ghi ở phần Explanation.
+                    </div>
+                  )}
 
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
                     <div className="flex items-center gap-2">

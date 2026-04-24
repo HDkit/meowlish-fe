@@ -3,7 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type TagNodeDto = {
+    id: string;
     name: string;
-    parent?: string;
+    parentId?: string;
 };
 

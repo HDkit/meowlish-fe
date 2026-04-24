@@ -10,14 +10,13 @@ import { request as __request } from '../core/request';
 export class FilesService {
     /**
      * Create a presigned upload URL
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static fileGatewayControllerGetPresignedUrlV1({
-        requestBody,
-    }: {
+    public static fileGatewayControllerGetPresignedUrlV1(
         requestBody: get_presigned_url_req_dto_GetPresignedUrlDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/files',

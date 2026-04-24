@@ -39,7 +39,7 @@ export function TestInterface() {
 
 	const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
 	const [currentSectionAncestors, setCurrentSectionAncestors] = useState<Section[]>([]);
-	const [answersMap, setAnswersMap] = useState<Record<string, string>>({});
+	const [answersMap, setAnswersMap] = useState<Record<string, string[]>>({});
 
 	// State Resizer
 	const [leftWidth, setLeftWidth] = useState(45);
@@ -72,7 +72,7 @@ export function TestInterface() {
 
 			try {
 				setLoading(true);
-				const response = await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1({ id: attemptId });
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1(attemptId);
 				const data = response.data;
 				if (!data) return;
 				
@@ -91,6 +91,8 @@ export function TestInterface() {
 						difficulty: Difficulty.Intermediate,
 						direction: secDto.directive || '',
 						lastEditedBy: '',
+						fileUrls: secDto.fileUrls || [],
+						contentType: secDto.type,
 					};
 					flatSections.push(newSec);
 
@@ -103,7 +105,7 @@ export function TestInterface() {
 								type: qDto.type,
 								content: qDto.content,
 								points: 1,
-								options: qDto.choices ? qDto.choices.map((c: any) => c.content) : [],
+								choices: qDto.choices ? qDto.choices.map((c: any) => ({ key: c.key, content: c.content })) : [],
 								correctAnswer: [], // Không gửi correct answer xuống frontend
 								tagIds: [],
 								lastEditedBy: '',
@@ -132,17 +134,17 @@ export function TestInterface() {
 				if (data.durationLimit > 0) {
 					const start = new Date(data.startedAt).getTime();
 					const elapsedSec = (Date.now() - start) / 1000;
-					left = Math.max(0, Math.floor(data.durationLimit * 60 - elapsedSec)); // Backend durationLimit thường là phút, kiểm tra sau
+					left = Math.max(0, Math.floor(data.durationLimit - elapsedSec));
 				} else {
 					left = 9999; // Unlimited
 				}
 				setTimeLeft(left);
 
 				// Map answers
-				const ansMap: Record<string, string> = {};
+				const ansMap: Record<string, string[]> = {};
 				if (data.responses) {
 					data.responses.forEach((resp: any) => {
-						ansMap[resp.questionId] = resp.answers.join(',');
+						ansMap[resp.questionId] = resp.answers || [];
 					});
 				}
 				setAnswersMap(ansMap);
@@ -168,7 +170,7 @@ export function TestInterface() {
 			Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
 			debounceTimersRef.current = {};
 
-			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1({ id: attemptId });
+			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
 			router.push(`/results/${attemptId}`);
 		} catch (error) {
 			console.error("Failed to submit attempt:", error);
@@ -207,40 +209,55 @@ export function TestInterface() {
 	}, [serverAttemptData, handleAutoSubmit]);
 
 	// --- 5. ANSWER HANDLERS ---
-	const handleAnswerChange = useCallback(
-		(questionId: string, answer: string) => {
-			// Update local state immediately for fast UI
-			setAnswersMap((prev) => ({ ...prev, [questionId]: answer }));
+	const getSingleAnswer = useCallback((qId: string): string => {
+		return answersMap[qId]?.[0] ?? '';
+	}, [answersMap]);
 
-			// Clear previous debounce string
-			if (debounceTimersRef.current[questionId]) {
-				clearTimeout(debounceTimersRef.current[questionId]);
-			}
+	const isMultiChecked = useCallback((qId: string, key: string): boolean => {
+		return (answersMap[qId] ?? []).includes(key);
+	}, [answersMap]);
 
-			// Set new debounce to send API request after 1 second
-			debounceTimersRef.current[questionId] = setTimeout(async () => {
-				try {
-					await ExamPracticeService.examPracticeGatewayControllerAnswerV1({
-						id: attemptId,
-						questionId: questionId,
-						requestBody: {
-							answer: answer || '',
-						}
-					});
-				} catch (error) {
-					console.error("Failed to save answer:", error);
+	const debouncedPostAnswer = useCallback((questionId: string, answer: string, isDelete: boolean = false) => {
+		const timerKey = `${questionId}-${answer}`;
+		if (debounceTimersRef.current[timerKey]) {
+			clearTimeout(debounceTimersRef.current[timerKey]);
+		}
+		debounceTimersRef.current[timerKey] = setTimeout(async () => {
+			if (!attemptId || isSubmittingRef.current) return;
+			try {
+				if (isDelete) {
+					await ExamPracticeService.examPracticeGatewayControllerRemoveAnswerV1(
+						attemptId,
+						questionId,
+						{ answer }
+					);
+				} else {
+					await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
+						attemptId,
+						questionId,
+						{ answer }
+					);
 				}
-			}, 1000);
-		},
-		[attemptId]
-	);
+			} catch (error: any) {
+				if (error?.status === 403 || error?.body?.statusCode === 403) return; // Silent ignore (attempt ended or no permission)
+				console.error("Failed to save/delete answer:", error);
+			}
+		}, 1000);
+	}, [attemptId]);
 
-	const getCurrentAnswer = useCallback(
-		(qId: string) => {
-			return answersMap[qId] || '';
-		},
-		[answersMap]
-	);
+	const handleSingleAnswer = useCallback((questionId: string, value: string) => {
+		setAnswersMap((prev) => ({ ...prev, [questionId]: [value] }));
+		debouncedPostAnswer(questionId, value, false);
+	}, [debouncedPostAnswer]);
+
+	const handleMultiAnswer = useCallback((questionId: string, key: string, checked: boolean) => {
+		setAnswersMap((prev) => {
+			const current = prev[questionId] ?? [];
+			const next = checked ? [...current, key] : current.filter(k => k !== key);
+			return { ...prev, [questionId]: next };
+		});
+		debouncedPostAnswer(questionId, key, !checked);
+	}, [debouncedPostAnswer]);
 
 	const scrollToQuestion = useCallback((qId: string) => {
 		setCurrentQuestionId(qId);
@@ -350,18 +367,48 @@ export function TestInterface() {
 							// You can update your state or call a function to show the flashcard creation form
 						};
 
+						// Xử lý các loại Content Type
+						if (section.contentType === 'audio-script') return null; // Ẩn khi đang thi
+
+						if (section.contentType === 'instructions') {
+							return (
+								<div key={section.id} className='mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm font-medium'>
+									{section.direction}
+								</div>
+							);
+						}
+
+						if (section.contentType === 'group') {
+							return (
+								<div key={section.id} className='mb-6 text-slate-700 text-base font-medium italic'>
+									{section.direction}
+								</div>
+							);
+						}
+
 						return (
 							<div key={section.id} className='mb-10'>
+								{/* Audio Player if available */}
+								{section.fileUrls && section.fileUrls.some(url => url.endsWith('.mp3') || url.endsWith('.wav')) && (
+									<div className="mb-6 p-4 bg-slate-100 rounded-xl border border-slate-200">
+										<audio controls className="w-full h-10 outline-none">
+											<source src={section.fileUrls.find(url => url.endsWith('.mp3') || url.endsWith('.wav'))} type="audio/mpeg" />
+											Trình duyệt của bạn không hỗ trợ thẻ audio.
+										</audio>
+									</div>
+								)}
 								{/* Title - Hiển thị to, đậm giống ảnh mẫu */}
-								<h2 className='text-2xl font-extrabold text-slate-800 mb-5 leading-tight'>{title}</h2>
+								{title && <h2 className='text-2xl font-extrabold text-slate-800 mb-5 leading-tight'>{title}</h2>}
 								{/* Nội dung bài đọc với chức năng highlight */}
-								<div className='text-gray-800 leading-7 text-justify font-serif text-lg'>
-									<TextHighlighter
-										text={content}
-										onNewWord={handleNewWord}
-										highlightEnabled={highlightEnabled}
-									/>
-								</div>
+								{content && (
+									<div className='text-gray-800 leading-7 text-justify font-serif text-lg'>
+										<TextHighlighter
+											text={content}
+											onNewWord={handleNewWord}
+											highlightEnabled={highlightEnabled}
+										/>
+									</div>
+								)}
 							</div>
 						);
 					})}
@@ -415,15 +462,14 @@ export function TestInterface() {
 											<p className='text-slate-800 font-semibold mb-4 text-[1.05rem] leading-relaxed'>{q.content}</p>
 
 											<div className='mt-2'>
-												{/* --- 1. MULTIPLE CHOICE (Dạng A, B, C, D) --- */}
-												{q.type === 'multiple-choice' && q.options && (
+												{/* --- 1. MCQ (Single Choice) --- */}
+												{(q.type === 'MCQ' || q.type === 'multiple-choice') && q.choices && (
 													<div className='flex flex-col gap-3'>
-														{q.options.map((op, idx) => {
-															const charLabel = String.fromCharCode(65 + idx); // A, B, C...
-															const isSelected = getCurrentAnswer(q.id) === op;
+														{q.choices.map((choice) => {
+															const isSelected = getSingleAnswer(q.id) === choice.key;
 															return (
 																<label
-																	key={idx}
+																	key={choice.key}
 																	className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${isSelected
 																		? 'bg-blue-50/80 border-blue-500 ring-1 ring-blue-200 text-blue-900 font-bold'
 																		: 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -438,14 +484,14 @@ export function TestInterface() {
 																	<input
 																		type='radio'
 																		name={q.id}
-																		value={op}
+																		value={choice.key}
 																		checked={isSelected}
-																		onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-																		className='hidden' // Ẩn radio mặc định
+																		onChange={() => handleSingleAnswer(q.id, choice.key)}
+																		className='hidden'
 																	/>
 																	<div className="flex gap-2.5 items-baseline">
-																		<span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>{charLabel}.</span>
-																		<span className="leading-relaxed text-slate-700">{op}</span>
+																		<span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>{choice.key}.</span>
+																		<span className="leading-relaxed text-slate-700">{choice.content}</span>
 																	</div>
 																</label>
 															);
@@ -453,50 +499,60 @@ export function TestInterface() {
 													</div>
 												)}
 
-												{/* --- 2. CHECKBOXES (Multiple Correct) --- */}
-												{q.type === 'multiple-correct-answers' && q.options && (
+												{/* --- 2. MCQ_MULTI (Multiple Correct) --- */}
+												{(q.type === 'MCQ_MULTI' || q.type === 'multiple-correct-answers') && q.choices && (
 													<div className='flex flex-col gap-3'>
-														{q.options.map((op, idx) => {
-															const currentAnswers = getCurrentAnswer(q.id).split(',').filter(Boolean);
-															const isChecked = currentAnswers.includes(op);
-															const charLabel = String.fromCharCode(65 + idx);
+														{q.choices.map((choice) => {
+															const isChecked = isMultiChecked(q.id, choice.key);
 															return (
 																<label
-																	key={idx}
-																	className={`flex items-center gap-3 p-3 rounded border cursor-pointer transition-all ${isChecked
+																	key={choice.key}
+																	className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isChecked
 																		? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
 																		: 'bg-white border-gray-200 hover:bg-gray-50'
 																		}`}
 																>
 																	<input
 																		type='checkbox'
-																		value={op}
 																		checked={isChecked}
-																		onChange={(e) => {
-																			const newAnswers = e.target.checked
-																				? [...currentAnswers, op]
-																				: currentAnswers.filter((ans) => ans !== op);
-																			handleAnswerChange(q.id, newAnswers.join(','));
-																		}}
-																		className='w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500'
+																		onChange={(e) => handleMultiAnswer(q.id, choice.key, e.target.checked)}
+																		className='w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 hidden'
 																	/>
-																	<span className='font-bold text-gray-500 w-4'>{charLabel}.</span>
-																	<span>{op}</span>
+																	<div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'}`}>
+																		{isChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+																	</div>
+																	<div className="flex gap-2.5 items-baseline">
+																		<span className={`font-black ${isChecked ? 'text-blue-700' : 'text-slate-400'}`}>{choice.key}.</span>
+																		<span className="leading-relaxed text-slate-700">{choice.content}</span>
+																	</div>
 																</label>
 															);
 														})}
 													</div>
 												)}
 
-												{/* --- 3. TEXT INPUT (Fill Blank / Essay) --- */}
-												{(q.type === 'fill-blank' || q.type === 'essay' || q.type === 'speaking') && (
+												{/* --- 3 & 4. Fill / FillAny --- */}
+												{(q.type === 'Fill' || q.type === 'FillAny' || q.type === 'fill-blank') && (
 													<div className='relative'>
 														<input
 															type='text'
-															className='border border-gray-300 rounded w-full h-11 px-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-sm text-gray-800 placeholder:text-gray-400'
-															placeholder='Type your answer here...'
-															value={getCurrentAnswer(q.id)}
-															onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+															className='border border-gray-300 rounded-xl w-full h-12 px-5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-sm text-gray-800 placeholder:text-gray-400 font-medium'
+															placeholder='Nhập câu trả lời của bạn vào đây...'
+															value={getSingleAnswer(q.id)}
+															onChange={(e) => handleSingleAnswer(q.id, e.target.value)}
+														/>
+													</div>
+												)}
+
+												{/* --- 5. Writing (Essay / Speaking / Writing) --- */}
+												{(q.type === 'Writing' || q.type === 'essay' || q.type === 'speaking') && (
+													<div className='relative'>
+														<textarea
+															className='border border-gray-300 rounded-xl w-full p-5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-sm text-gray-800 placeholder:text-gray-400 font-medium resize-none'
+															placeholder='Viết câu trả lời của bạn ở đây...'
+															rows={8}
+															value={getSingleAnswer(q.id)}
+															onChange={(e) => handleSingleAnswer(q.id, e.target.value)}
 														/>
 													</div>
 												)}
@@ -522,7 +578,7 @@ export function TestInterface() {
 							className={`text-5xl font-black font-mono tracking-wider tabular-nums mt-2 drop-shadow-sm ${timeLeft < 300 ? 'text-rose-600 animate-pulse' : 'text-slate-800'
 								}`}
 						>
-							{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+							{timeLeft >= 3600 ? `${Math.floor(timeLeft / 3600)}:${String(Math.floor((timeLeft % 3600) / 60)).padStart(2, '0')}` : Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
 						</div>
 					</div>
 
@@ -538,7 +594,7 @@ export function TestInterface() {
 
 					<div className='px-5 pb-3 border-b border-slate-100 bg-white pt-1 flex justify-between items-center'>
 						<span className='text-xs text-slate-500 font-bold tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-full'>{orderedQuestions.length} câu hỏi</span>
-						<span className='text-xs text-blue-600 font-bold tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full'>Đã làm {orderedQuestions.filter(q => getCurrentAnswer(q.id) !== '').length}</span>
+						<span className='text-xs text-blue-600 font-bold tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full'>Đã làm {orderedQuestions.filter(q => (answersMap[q.id] && answersMap[q.id].length > 0 && answersMap[q.id][0] !== '')).length}</span>
 					</div>
 				</div>
 
@@ -546,7 +602,7 @@ export function TestInterface() {
 				<div className='flex-1 overflow-y-auto px-5 py-5 bg-slate-50/50'>
 					<div className='grid grid-cols-5 gap-2.5'>
 						{orderedQuestions.map((q, i) => {
-							const hasAnswer = getCurrentAnswer(q.id) !== '';
+							const hasAnswer = answersMap[q.id] && answersMap[q.id].length > 0 && answersMap[q.id][0] !== '';
 							const isActive = currentQuestionId === q.id;
 
 							return (

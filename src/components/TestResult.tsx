@@ -2,76 +2,63 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAppSelector } from '@/lib/store/hooks';
 import { Button } from './ui/button';
-import { Question, Attempt, Section } from '../types/client';
-import { AICard, QuestionCard } from './QuestionCard';
 import { CheckCircle2, XCircle, Clock, Trophy, Target, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
+import { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
+import { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
+import { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
+import { AICard, QuestionCard } from './QuestionCard';
+import { useAppSelector } from '@/lib/store/hooks';
 
 export function TestResult() {
 	const { id } = useParams(); // Đây là attemptId
 	const router = useRouter();
 
-	// 1. Lấy dữ liệu từ Redux Store
-	const attempts = useAppSelector((state) => state.attempts.list);
-	const questions = useAppSelector((state) => state.questions.list);
 	const exams = useAppSelector((state) => state.exams.list);
-	const sections = useAppSelector((state) => state.sections.list);
+	const [reviewData, setReviewData] = useState<AttemptReviewDto | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState('');
+	// Exam ID might not be in review data directly, but we can try to guess it from exams or it might not be strictly needed except for retake
+	const [examId, setExamId] = useState<string>('');
 
-	const [currentAttempt, setCurrentAttempt] = useState<Attempt | null>(null);
-
-	// 2. Tìm Attempt hiện tại dựa trên ID URL
+	// 1. Fetch Review Data
 	useEffect(() => {
-		if (id) {
-			const found = attempts.find((a) => a.id === id);
-			if (found) setCurrentAttempt(found);
-		}
-	}, [id, attempts]);
-
-	// 3. Logic tái tạo lại đề thi (Lấy tất cả câu hỏi thuộc Exam này)
-	const examQuestions = useMemo(() => {
-		if (!currentAttempt) return [];
-
-		// Hàm đệ quy tìm tất cả section con của examId
-		const collectSections = (rootId: string): Section[] => {
-			const result: Section[] = [];
-			const walk = (pid: string) => {
-				const children = sections.filter((s) => s.parentId === pid);
-				for (const c of children) {
-					result.push(c);
-					walk(c.id);
+		const fetchReview = async () => {
+			if (!id) return;
+			try {
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetAttemptReviewV1(id as string);
+				if (res.data) {
+					setReviewData(res.data as AttemptReviewDto);
+					// Extract examId from the responses if possible, or usually we might not need it
+					if (res.data.examId) {
+						setExamId(res.data.examId);
+					}
 				}
-			};
-			walk(rootId);
-			return result;
+			} catch (err: any) {
+				console.error(err);
+				setError("Không thể tải kết quả. Có thể bài làm chưa hoàn thành hoặc không tồn tại.");
+			} finally {
+				setLoading(false);
+			}
 		};
+		fetchReview();
+	}, [id]);
 
-		// Tìm tất cả section của Exam
-		const examSections = collectSections(currentAttempt.examId);
-		const sectionIds = new Set(examSections.map((s) => s.id));
+	// 2. Logic tái tạo lại đề thi (Lấy tất cả câu hỏi thuộc Review Data)
+	const examQuestions = useMemo(() => {
+		if (!reviewData) return [];
 
-		// Lọc ra các câu hỏi thuộc các section đó
-		return questions.filter((q) => sectionIds.has(q.sectionId));
-	}, [currentAttempt, sections, questions]);
-
-	// 4. Hàm kiểm tra đúng sai
-	const checkAnswerStatus = (q: Question, userAnswer: string) => {
-		if (!userAnswer) return 'skipped'; // Chưa làm
-		if (!q.correctAnswer || q.correctAnswer.length === 0) return 'manual'; // Câu hỏi tự luận/speaking
-
-		let isCorrect = false;
-
-		if (q.type === 'multiple-correct-answers') {
-			const u = userAnswer.split(',').filter(Boolean).sort().join(',');
-			const c = [...q.correctAnswer].sort().join(',');
-			isCorrect = u === c;
-		} else {
-			// Multiple choice / Fill blank
-			isCorrect = q.correctAnswer.includes(userAnswer);
-		}
-
-		return isCorrect ? 'correct' : 'incorrect';
-	};
+		const result: QuestionReviewDto[] = [];
+		const walk = (sections: SectionReviewDto[]) => {
+			for (const s of sections) {
+				if (s.questions) result.push(...s.questions);
+				if (s.sections) walk(s.sections);
+			}
+		};
+		walk(reviewData.sections || []);
+		return result;
+	}, [reviewData]);
 
 	// Thống kê đúng sai
 	const stats = useMemo(() => {
@@ -80,24 +67,26 @@ export function TestResult() {
 		let skipped = 0;
 		let manual = 0;
 
-		if (!currentAttempt) return { correct, incorrect, skipped, manual };
+		if (!reviewData) return { correct, incorrect, skipped, manual, total: 0 };
 
 		examQuestions.forEach((q) => {
-			const userChoice = currentAttempt.choices.find((c) => c.questionId === q.id);
-			const userAnswer = userChoice?.answerIdx || '';
-			const status = checkAnswerStatus(q, userAnswer);
-
-			if (status === 'correct') correct++;
-			else if (status === 'incorrect') incorrect++;
-			else if (status === 'skipped') skipped++;
-			else if (status === 'manual') manual++;
+			const res = reviewData.responses?.find(r => r.questionId === q.id);
+			if (!res || !res.answers || res.answers.length === 0) {
+				skipped++;
+			} else if (res.isCorrect === true) {
+				correct++;
+			} else if (res.isCorrect === false) {
+				incorrect++;
+			} else {
+				manual++;
+			}
 		});
 
 		return { correct, incorrect, skipped, manual, total: examQuestions.length };
-	}, [examQuestions, currentAttempt]);
+	}, [examQuestions, reviewData]);
 
 	// Loading state
-	if (!currentAttempt) {
+	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
 				<div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -106,15 +95,26 @@ export function TestResult() {
 		);
 	}
 
-	const examInfo = exams.find((e) => e.id === currentAttempt.examId);
+	if (error || !reviewData) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+				<div className="text-red-500 mb-4"><XCircle className="w-16 h-16" /></div>
+				<p className="text-slate-700 font-medium">{error || "Không có dữ liệu bài làm."}</p>
+				<Button onClick={() => router.push('/')} className="mt-4">Về trang chủ</Button>
+			</div>
+		);
+	}
+
+	// Lấy exam info để hiển thị tiêu đề
+	const examInfo = examId ? exams.find((e) => e.id === examId) : null;
+	const title = examInfo?.title || "Chi tiết kết quả bài thi";
 
 	// Tính thời gian đã làm
-	const totalTime = (examInfo?.duration || 0) * 60;
-	const timeTaken = totalTime - currentAttempt.timeLeft;
-	const minutes = Math.floor(timeTaken / 60);
-	const seconds = timeTaken % 60;
-
-	const scorePercentage = currentAttempt.score !== undefined ? (currentAttempt.score / 100) * 100 : 0;
+	const startedAt = new Date(reviewData.startedAt).getTime();
+	const endedAt = new Date(reviewData.endedAt).getTime();
+	const timeTakenSeconds = Math.max(0, Math.floor((endedAt - startedAt) / 1000));
+	const minutes = Math.floor(timeTakenSeconds / 60);
+	const seconds = timeTakenSeconds % 60;
 
 	return (
 		<div className='min-h-screen bg-slate-50 pb-20'>
@@ -127,11 +127,11 @@ export function TestResult() {
 				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 					<Button
 						variant="ghost"
-						onClick={() => router.push(`/tests/${currentAttempt.examId}`)}
+						onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
 						className="flex items-center gap-2 mb-6 -ml-2 text-blue-100 hover:text-white hover:bg-white/10 font-medium transition-colors"
 					>
 						<ArrowLeft className="h-4 w-4" />
-						Trở về chi tiết đề thi
+						Trở về
 					</Button>
 
 					<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
@@ -140,10 +140,10 @@ export function TestResult() {
 								<Trophy className="w-4 h-4 text-yellow-300" /> KẾT QUẢ BÀI THI
 							</div>
 							<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">
-								{examInfo?.title}
+								{title}
 							</h1>
 							<p className="text-blue-100 font-medium text-lg max-w-2xl leading-relaxed">
-								Đã hoàn thành vào lúc {new Date(currentAttempt.createdAt).toLocaleString('vi-VN')}
+								Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
 							</p>
 						</div>
 
@@ -152,7 +152,7 @@ export function TestResult() {
 							<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
 							<span className="text-sm font-bold text-blue-100 uppercase tracking-widest mb-1">Tổng điểm</span>
 							<div className="flex items-baseline gap-1">
-								<span className="text-5xl font-black text-white drop-shadow-md">{currentAttempt.score !== undefined ? currentAttempt.score.toFixed(1) : 0}</span>
+								<span className="text-5xl font-black text-white drop-shadow-md">{reviewData.totalPoints !== undefined ? Number(reviewData.totalPoints).toFixed(1) : 0}</span>
 								<span className="text-xl text-blue-200 font-bold">/100</span>
 							</div>
 						</div>
@@ -204,15 +204,17 @@ export function TestResult() {
 					>
 						Về Trang Chủ
 					</Button>
-					<Button
-						onClick={() => {
-							sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
-							router.push(`/test/${currentAttempt.examId}`);
-						}}
-						className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
-					>
-						<RefreshCw className="w-4 h-4 mr-2" /> Làm Lại Bài Thi
-					</Button>
+					{examId && (
+						<Button
+							onClick={() => {
+								sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
+								router.push(`/test/${examId}`);
+							}}
+							className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
+						>
+							<RefreshCw className="w-4 h-4 mr-2" /> Làm Lại Bài Thi
+						</Button>
+					)}
 				</div>
 
 				{/* Detailed Results */}
@@ -223,9 +225,16 @@ export function TestResult() {
 					</div>
 
 					{examQuestions.map((q, index) => {
-						const userChoice = currentAttempt.choices.find((c) => c.questionId === q.id);
-						const userAnswer = userChoice?.answerIdx || '';
-						const status = checkAnswerStatus(q, userAnswer);
+						const res = reviewData.responses?.find((r) => r.questionId === q.id);
+						const userAnswers = res?.answers || [];
+						const userAnswerStr = userAnswers.join(', ');
+
+						let status = 'skipped';
+						if (userAnswers.length > 0) {
+							if (res?.isCorrect === true) status = 'correct';
+							else if (res?.isCorrect === false) status = 'incorrect';
+							else status = 'manual';
+						}
 
 						let borderClass = 'border-slate-200 ring-1 ring-slate-200';
 						let bgHeaderClass = 'bg-slate-50';
@@ -248,7 +257,12 @@ export function TestResult() {
 							statusColor = 'text-red-700';
 							statusBg = 'bg-red-100';
 							StatusIcon = XCircle;
+						} else if (status === 'manual') {
+							statusText = 'Chờ thẩm định';
 						}
+
+						// Parse options from the choices if present
+						const options = q.choices?.map(c => c.key) || [];
 
 						return (
 							<div key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${borderClass}`}>
@@ -273,18 +287,22 @@ export function TestResult() {
 										<p className='text-slate-800 text-lg font-medium leading-relaxed'>{q.content}</p>
 									</div>
 
-									{q.options && q.options.length > 0 && (
+									{options && options.length > 0 && (
 										<div className='bg-slate-50 rounded-xl p-5 border border-slate-100'>
 											<p className='mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide'>Các lựa chọn:</p>
 											<div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-												{q.options.map((op, i) => (
-													<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${op === userAnswer ? 'border-blue-400 shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
-														<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${op === userAnswer ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
-															{String.fromCharCode(65 + i)}
+												{q.choices.map((op, i) => {
+													const opKey = String.fromCharCode(65 + i);
+													const isChecked = userAnswers.includes(op.key);
+													return (
+														<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-blue-400 shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
+															<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
+																{opKey}
+															</div>
+															<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op.content || op.key}</span>
 														</div>
-														<span className={`text-sm ${op === userAnswer ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op}</span>
-													</div>
-												))}
+													);
+												})}
 											</div>
 										</div>
 									)}
@@ -296,9 +314,9 @@ export function TestResult() {
 												<p className='text-xs uppercase font-bold text-slate-500 tracking-wider'>Câu trả lời của bạn</p>
 											</div>
 											<div className='min-h-[2.5rem] flex flex-wrap items-center gap-2'>
-												{userAnswer ? (
+												{userAnswerStr ? (
 													<span className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${status === 'correct' ? 'text-green-700 border-green-200' : status === 'incorrect' ? 'text-red-600 border-red-200' : 'text-slate-700 border-slate-300'}`}>
-														{userAnswer}
+														{userAnswerStr}
 													</span>
 												) : (
 													<span className="text-slate-400 italic font-medium">Chưa trả lời</span>

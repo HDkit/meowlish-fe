@@ -79,7 +79,7 @@ export function UserPage() {
 		if (currUser) {
 			const fetchProfileData = async () => {
 				try {
-					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1({ limit: 100 });
+					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100);
 					if (badgesRes.data?.badges) {
 						setEarnedBadges(badgesRes.data.badges);
 					}
@@ -89,10 +89,8 @@ export function UserPage() {
 					start.setDate(end.getDate() - 365); // Get data for the Heatmap (1 year)
 
 					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-						range: {
-							from: start.toISOString(),
-							to: end.toISOString()
-						}
+						from: start.toISOString(),
+						to: end.toISOString()
 					});
 
 					if (summaryRes.data?.history) {

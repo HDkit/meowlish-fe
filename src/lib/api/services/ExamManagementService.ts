@@ -20,14 +20,13 @@ import { request as __request } from '../core/request';
 export class ExamManagementService {
     /**
      * Create an exam
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerCreateExamV1({
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerCreateExamV1(
         requestBody: create_exam_req_dto_CreateExamDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/management',
@@ -37,16 +36,15 @@ export class ExamManagementService {
     }
     /**
      * Create a section inside an exam
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerCreateSectionInExamV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerCreateSectionInExamV1(
         id: string,
         requestBody: create_section_req_dto_CreateSectionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/management/{id}/sections',
@@ -59,16 +57,15 @@ export class ExamManagementService {
     }
     /**
      * Create a nested section inside a section
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerCreateSectionInSectionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerCreateSectionInSectionV1(
         id: string,
         requestBody: create_section_req_dto_CreateSectionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/management/sections/{id}/sections',
@@ -81,16 +78,15 @@ export class ExamManagementService {
     }
     /**
      * Create a question inside a section
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerCreateQuestionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerCreateQuestionV1(
         id: string,
         requestBody: create_question_req_dto_CreateQuestionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/exams/management/sections/{id}/questions',
@@ -103,16 +99,15 @@ export class ExamManagementService {
     }
     /**
      * Update an exam
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerUpdateExamV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerUpdateExamV1(
         id: string,
         requestBody: update_exam_req_dto_UpdateExamDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/{id}',
@@ -125,14 +120,13 @@ export class ExamManagementService {
     }
     /**
      * Delete an exam
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerDeleteExamV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerDeleteExamV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/api/v1/exams/management/{id}',
@@ -143,16 +137,15 @@ export class ExamManagementService {
     }
     /**
      * Update a section
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerUpdateSectionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerUpdateSectionV1(
         id: string,
         requestBody: update_section_req_dto_UpdateSectionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/sections/{id}',
@@ -165,14 +158,13 @@ export class ExamManagementService {
     }
     /**
      * Delete a section
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerDeleteSectionV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerDeleteSectionV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/api/v1/exams/management/sections/{id}',
@@ -183,14 +175,13 @@ export class ExamManagementService {
     }
     /**
      * Get detailed section management data
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerGetSectionDetailsV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerGetSectionDetailsV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/management/sections/{id}',
@@ -201,16 +192,15 @@ export class ExamManagementService {
     }
     /**
      * Update a question
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerUpdateQuestionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerUpdateQuestionV1(
         id: string,
         requestBody: update_question_req_dto_UpdateQuestionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/questions/{id}',
@@ -223,14 +213,13 @@ export class ExamManagementService {
     }
     /**
      * Delete a question
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerDeleteQuestionV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerDeleteQuestionV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/api/v1/exams/management/questions/{id}',
@@ -241,14 +230,13 @@ export class ExamManagementService {
     }
     /**
      * Get detailed question management data
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerGetQuestionDetailsV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerGetQuestionDetailsV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/management/questions/{id}',
@@ -259,16 +247,15 @@ export class ExamManagementService {
     }
     /**
      * Move a section
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerMoveSectionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerMoveSectionV1(
         id: string,
         requestBody: move_section_req_dto_MoveSectionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/sections/{id}/move',
@@ -281,16 +268,15 @@ export class ExamManagementService {
     }
     /**
      * Move a question
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerMoveQuestionV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerMoveQuestionV1(
         id: string,
         requestBody: move_question_req_dto_MoveQuestionDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/questions/{id}/move',
@@ -303,16 +289,15 @@ export class ExamManagementService {
     }
     /**
      * Review and approve or reject an exam
+     * @param id
+     * @param requestBody
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerReviewExamV1({
-        id,
-        requestBody,
-    }: {
+    public static examManagementGatewayControllerReviewExamV1(
         id: string,
         requestBody: review_exam_req_dto_ReviewExamDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/api/v1/exams/management/{id}/review',
@@ -325,20 +310,19 @@ export class ExamManagementService {
     }
     /**
      * Find exams for management
+     * @param cursor
+     * @param filter
+     * @param limit
+     * @param sortBy
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerFindExamsV1({
-        cursor,
-        filter,
-        limit,
-        sortBy,
-    }: {
+    public static examManagementGatewayControllerFindExamsV1(
         cursor?: string,
         filter?: FilterOptionsDto,
         limit?: number,
         sortBy?: SortOptionsDto,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/management/exams',
@@ -352,14 +336,13 @@ export class ExamManagementService {
     }
     /**
      * Get detailed exam management data
+     * @param id
      * @returns any
      * @throws ApiError
      */
-    public static examManagementGatewayControllerGetExamDetailsV1({
-        id,
-    }: {
+    public static examManagementGatewayControllerGetExamDetailsV1(
         id: string,
-    }): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/management/exams/{id}',

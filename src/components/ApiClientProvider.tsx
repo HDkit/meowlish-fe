@@ -11,10 +11,9 @@ import { setupApiClient } from '@/lib/api-client';
  * luôn được inject trước khi bất kỳ API call nào xảy ra.
  */
 export function ApiClientProvider({ children }: { children: React.ReactNode }) {
-	useEffect(() => {
-		// Chỉ chạy phía client – lúc này localStorage đã available
+	if (typeof window !== 'undefined') {
 		setupApiClient();
-	}, []);
+	}
 
 	return <>{children}</>;
 }
