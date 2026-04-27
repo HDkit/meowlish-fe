@@ -89,7 +89,7 @@ export function TestResult() {
 	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-				<div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+				<div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
 				<p className="mt-4 text-slate-600 font-medium">Đang tải kết quả...</p>
 			</div>
 		);
@@ -120,7 +120,7 @@ export function TestResult() {
 		<div className='min-h-screen bg-slate-50 pb-20'>
 			{/* Premium Header */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 pointer-events-none'></div>
+				<div className='absolute inset-0 bg-gradient-to-r from-primary to-primary/80 pointer-events-none'></div>
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -128,7 +128,7 @@ export function TestResult() {
 					<Button
 						variant="ghost"
 						onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
-						className="flex items-center gap-2 mb-6 -ml-2 text-blue-100 hover:text-white hover:bg-white/10 font-medium transition-colors"
+						className="flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
 					>
 						<ArrowLeft className="h-4 w-4" />
 						Trở về
@@ -142,7 +142,7 @@ export function TestResult() {
 							<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">
 								{title}
 							</h1>
-							<p className="text-blue-100 font-medium text-lg max-w-2xl leading-relaxed">
+							<p className="text-primary-foreground/80 font-medium text-lg max-w-2xl leading-relaxed">
 								Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
 							</p>
 						</div>
@@ -150,10 +150,10 @@ export function TestResult() {
 						{/* Score Circle / Badge */}
 						<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-48 shrink-0 relative overflow-hidden group">
 							<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-							<span className="text-sm font-bold text-blue-100 uppercase tracking-widest mb-1">Tổng điểm</span>
+							<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">Tổng điểm</span>
 							<div className="flex items-baseline gap-1">
 								<span className="text-5xl font-black text-white drop-shadow-md">{reviewData.totalPoints !== undefined ? Number(reviewData.totalPoints).toFixed(1) : 0}</span>
-								<span className="text-xl text-blue-200 font-bold">/100</span>
+								<span className="text-xl text-primary/60 font-bold">/100</span>
 							</div>
 						</div>
 					</div>
@@ -210,7 +210,7 @@ export function TestResult() {
 								sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
 								router.push(`/test/${examId}`);
 							}}
-							className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
+							className='bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
 						>
 							<RefreshCw className="w-4 h-4 mr-2" /> Làm Lại Bài Thi
 						</Button>
@@ -220,7 +220,7 @@ export function TestResult() {
 				{/* Detailed Results */}
 				<div className='space-y-6'>
 					<div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-6">
-						<Target className="w-6 h-6 text-blue-600" />
+						<Target className="w-6 h-6 text-primary" />
 						<h2 className='text-2xl font-extrabold text-slate-800'>Đáp án chi tiết</h2>
 					</div>
 
@@ -295,8 +295,8 @@ export function TestResult() {
 													const opKey = String.fromCharCode(65 + i);
 													const isChecked = userAnswers.includes(op.key);
 													return (
-														<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-blue-400 shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
-															<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
+														<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
+															<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-primary border-primary text-primary-foreground' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
 																{opKey}
 															</div>
 															<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op.content || op.key}</span>
@@ -324,10 +324,10 @@ export function TestResult() {
 											</div>
 										</div>
 
-										<div className="p-5 rounded-xl border bg-blue-50/50 border-blue-200">
+										<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
 											<div className="flex items-center gap-2 mb-2">
-												<CheckCircle2 className="w-4 h-4 text-blue-600" />
-												<p className='text-xs uppercase font-bold text-blue-700 tracking-wider'>Đáp án đúng</p>
+												<CheckCircle2 className="w-4 h-4 text-primary" />
+												<p className='text-xs uppercase font-bold text-primary tracking-wider'>Đáp án đúng</p>
 											</div>
 											<div className='min-h-[2.5rem] flex flex-wrap items-center gap-2'>
 												<QuestionCard q={q} status={status}></QuestionCard>

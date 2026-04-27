@@ -329,7 +329,7 @@ export function UserPage() {
 	});
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-20'>
+		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50 pb-20'>
 			{/* ── Profile Hero Header ── */}
 			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white shadow-xl mb-8">
 				<div className="absolute inset-0 bg-black/10" />
@@ -371,7 +371,7 @@ export function UserPage() {
 						<Button className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'>
 							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
-						<Button className='bg-white/10 hover:bg-white/20 text-blue-100 border-0 backdrop-blur-md w-full md:w-auto justify-start'>
+						<Button className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'>
 							<Settings className='h-4 w-4 mr-2' /> Cài đặt tài khoản
 						</Button>
 					</div>

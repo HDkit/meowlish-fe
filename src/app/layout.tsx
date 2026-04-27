@@ -4,6 +4,7 @@ import StoreProvider from '@/lib/store/StoreProvider';
 import { MainNavbar } from '@/components/MainNavbar';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiClientProvider } from '@/components/ApiClientProvider';
+import { AppThemeProvider } from '@/contexts/ThemeContext';
 import './globals.css';
 
 
@@ -22,15 +23,17 @@ export default function RootLayout({
 			<body>
 				<StoreProvider>
 					<ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-						<ApiClientProvider>
-							<div className="min-h-screen bg-background flex flex-col">
-								<MainNavbar />
-								<main className="flex-1 mx-auto relative w-full">
-									{children}
-								</main>
-								<Toaster />
-							</div>
-						</ApiClientProvider>
+						<AppThemeProvider>
+							<ApiClientProvider>
+								<div className="min-h-screen bg-background flex flex-col">
+									<MainNavbar />
+									<main className="flex-1 mx-auto relative w-full">
+										{children}
+									</main>
+									<Toaster />
+								</div>
+							</ApiClientProvider>
+						</AppThemeProvider>
 					</ThemeProvider>
 				</StoreProvider>
 			</body>

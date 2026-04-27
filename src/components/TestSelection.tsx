@@ -215,10 +215,10 @@ export function TestSelection() {
 	return (
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
 			{/* Modern Premium Header */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
+			<div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-secondary text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-				<div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
 				<div className='relative z-10 max-w-3xl mx-auto space-y-4'>
 					<div className="flex justify-center">
@@ -240,10 +240,10 @@ export function TestSelection() {
 				<Tabs defaultValue='ielts' value={selectedTab} onValueChange={(value: any) => setSelectedTab(value)} className="w-full">
 					<div className="flex justify-center mb-12">
 						<TabsList className='bg-slate-100/80 p-1.5 rounded-2xl shadow-inner border border-slate-200/60 inline-flex'>
-							<TabsTrigger value='ielts' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all'>
+							<TabsTrigger value='ielts' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all'>
 								IELTS Exam
 							</TabsTrigger>
-							<TabsTrigger value='toeic' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm transition-all'>
+							<TabsTrigger value='toeic' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-secondary data-[state=active]:shadow-sm transition-all'>
 								TOEIC Exam
 							</TabsTrigger>
 						</TabsList>

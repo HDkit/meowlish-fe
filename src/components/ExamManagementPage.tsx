@@ -144,10 +144,10 @@ export function ExamManagementPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
 
             {/* ── Hero Header ── */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white">
+            <div className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-accent/80 text-white">
                 <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative px-6 py-8">
@@ -168,7 +168,7 @@ export function ExamManagementPage() {
                             </Button>
                             <Button
                                 onClick={() => router.push('/exam-creation')}
-                                className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow border-0"
+                                className="bg-white text-primary hover:bg-primary/10 font-semibold shadow border-0"
                             >
                                 <FilePlus className="h-4 w-4 mr-2" />
                                 Tạo đề mới
@@ -238,7 +238,7 @@ export function ExamManagementPage() {
                         <p className="text-gray-400 text-sm mt-1">Nhấn "Tạo đề mới" để bắt đầu</p>
                         <Button
                             onClick={() => router.push('/exam-creation')}
-                            className="mt-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0"
+                            className="mt-4 bg-gradient-to-r from-primary to-accent text-white border-0"
                         >
                             <FilePlus className="h-4 w-4 mr-2" />
                             Tạo đề thi đầu tiên
@@ -271,7 +271,7 @@ export function ExamManagementPage() {
                                                     className="text-left w-full"
                                                     onClick={() => handleEdit(exam)}
                                                 >
-                                                    <p className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors flex items-center gap-1.5">
+                                                    <p className="font-semibold text-gray-800 group-hover:text-primary transition-colors flex items-center gap-1.5">
                                                         {exam.title}
                                                         <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary/80" />
                                                     </p>

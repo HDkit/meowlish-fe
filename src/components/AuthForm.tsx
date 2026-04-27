@@ -417,7 +417,7 @@ export function AuthForm() {
 							<div className='space-y-2'>
 								<Label className='text-gray-700 font-semibold'>Mật khẩu</Label>
 								<div className='relative'>
-									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
+									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 									<Input
 										type={showPassword ? 'text' : 'password'}
 										value={formData.password}
@@ -442,7 +442,7 @@ export function AuthForm() {
 								<div className='space-y-2'>
 									<Label className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
 									<div className='relative'>
-										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
+										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input
 											type={showConfirmPassword ? 'text' : 'password'}
 											value={formData.confirmPassword}

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
+import { ThemeSwitcher } from './theme/ThemeSwitcher';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -58,12 +59,12 @@ export function MainNavbar() {
 	const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 	const getNavClass = (path: string) => {
 		return isActive(path)
-			? 'text-blue-600 bg-transparent hover:bg-slate-50 relative after:absolute after:-bottom-[17px] after:left-0 after:h-[3px] after:w-full after:bg-blue-600 after:rounded-t-md'
-			: 'text-gray-500 hover:text-gray-900 bg-transparent hover:bg-slate-50 relative after:absolute after:-bottom-[17px] after:left-0 after:h-[3px] after:w-full after:bg-transparent';
+			? 'text-primary bg-transparent hover:bg-muted relative after:absolute after:-bottom-[17px] after:left-0 after:h-[3px] after:w-full after:bg-primary after:rounded-t-md'
+			: 'text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted relative after:absolute after:-bottom-[17px] after:left-0 after:h-[3px] after:w-full after:bg-transparent';
 	};
 
 	return (
-		<header className='border-b bg-background sticky top-0 z-50'>
+		<header className='bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50'>
 			<div className='container mx-auto px-4 py-4 flex items-center'>
 				{/* Logo */}
 				<button
@@ -140,6 +141,7 @@ export function MainNavbar() {
 
 				{/* User / Auth Buttons */}
 				<div className='flex items-center space-x-4 ml-auto'>
+				<ThemeSwitcher compact />
 					{user ? (
 						<>
 							{/* Desktop User Info + Logout */}
@@ -148,7 +150,7 @@ export function MainNavbar() {
 									<UserIcon className='h-4 w-4 mr-2' />
 									{user.fullName}
 								</Button>
-								<Button variant='ghost' onClick={handleLogout} className='text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100'>
+								<Button variant='ghost' onClick={handleLogout} className='text-destructive hover:text-destructive/90 bg-destructive/10 hover:bg-destructive/15'>
 									<LogOut className='h-4 w-4 mr-2' />
 									Đăng xuất
 								</Button>
@@ -162,7 +164,7 @@ export function MainNavbar() {
 											<Menu className='h-5 w-5' />
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align='end' className='w-56 z-[100] bg-white dark:bg-slate-950'>
+									<DropdownMenuContent align='end' className='w-56 z-[100] bg-background'>
 										<DropdownMenuItem onClick={() => router.push('/dashboard')}>
 											<Home className='mr-2 h-4 w-4' />
 											Dashboard
@@ -246,13 +248,13 @@ export function MainNavbar() {
 							<Button
 								variant='outline'
 								onClick={() => router.push('/auth')}
-								className='border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-semibold transition-all shadow-sm hover:shadow-md'
+								className='border-2 border-primary text-primary hover:bg-primary/10 font-semibold transition-all shadow-sm hover:shadow-md'
 							>
 								Đăng nhập
 							</Button>
 							<Button
 								onClick={() => router.push('/auth?mode=register')}
-								className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all'
+								className='bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md hover:shadow-lg transition-all'
 							>
 								Đăng ký
 							</Button>

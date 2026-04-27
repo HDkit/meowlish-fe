@@ -144,7 +144,7 @@ export function Dashboard() {
 			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-				<div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
+				<div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
 
 				<div className="relative px-6 py-10 max-w-6xl mx-auto">
 					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -302,7 +302,7 @@ export function Dashboard() {
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 							{recommendedExams.map(exam => (
 								<Card key={exam.id} className="flex flex-col hover:shadow-lg transition-all border-gray-100 group overflow-hidden">
-									<div className="h-1 shrink-0 bg-gradient-to-r from-blue-400 to-cyan-400" />
+									<div className="h-1 shrink-0 bg-gradient-to-r from-primary/80 to-cyan-400" />
 									<CardContent className="p-5 flex flex-col flex-1">
 										<div className="inline-block self-start px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 mb-3 uppercase tracking-wider">
 											{exam.tags && exam.tags.find((t: string) => t.toLowerCase() === 'ielts' || t.toLowerCase() === 'toeic') || 'EXAM'}

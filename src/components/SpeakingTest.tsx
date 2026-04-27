@@ -193,7 +193,7 @@ export function SpeakingTest() {
                 {/* Start Button */}
                 <Button
                   onClick={() => handleStartPart(part.part)}
-                  className="w-full bg-slate-900 hover:bg-blue-600 text-white font-bold h-12 rounded-xl transition-colors"
+                  className="w-full bg-slate-900 hover:bg-primary text-white font-bold h-12 rounded-xl transition-colors"
                 >
                   <Mic className="h-5 w-5 mr-2" />
                   Bắt đầu Part {part.part}
@@ -205,7 +205,7 @@ export function SpeakingTest() {
 
         {/* Instructions */}
         <Card className="bg-primary/10 border-0 shadow-sm rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary font-bold">
               <BookOpen className="h-5 w-5" />

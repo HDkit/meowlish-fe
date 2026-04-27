@@ -826,20 +826,20 @@ export function ExamCreationPage() {
         <div
           className={`relative rounded-2xl border px-3 py-3 text-sm cursor-pointer transition-all ${
             isSelected
-              ? 'border-blue-300 bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-900 shadow-sm'
-              : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50'
+              ? 'border-primary/30 bg-gradient-to-r from-primary/10 to-accent/10 text-primary shadow-sm'
+              : 'border-gray-200 bg-white hover:border-primary/20 hover:bg-gray-50'
           }`}
           style={{ marginLeft: depth * 18 }}
           onClick={() => setSelectedNode({ type: 'section', id: sectionId })}
         >
           {depth > 0 && (
-            <div className="absolute -left-3 top-0 bottom-0 w-px bg-gradient-to-b from-blue-100 via-slate-200 to-transparent" />
+            <div className="absolute -left-3 top-0 bottom-0 w-px bg-gradient-to-b from-primary/30 via-slate-200 to-transparent" />
           )}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                  isSelected ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                  isSelected ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-600'
                 }`}>
                   Level {depth + 1}
                 </span>
@@ -915,7 +915,7 @@ export function ExamCreationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
       <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_26%),linear-gradient(110deg,#1d4ed8_0%,#0891b2_48%,#0f766e_100%)] text-white">
         <div className="absolute inset-0 bg-[linear-gradient(transparent_0%,rgba(0,0,0,0.1)_100%)]" />
         <div className="relative mx-auto max-w-7xl px-6 py-10">
@@ -940,7 +940,7 @@ export function ExamCreationPage() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Reload
               </Button>
-              <Button className="bg-white text-blue-700 hover:bg-blue-50" onClick={() => void saveExam()} disabled={savingExam}>
+              <Button className="bg-white text-primary hover:bg-primary/10" onClick={() => void saveExam()} disabled={savingExam}>
                 <Save className="h-4 w-4 mr-2" />
                 {savingExam ? 'Đang lưu...' : examId ? 'Lưu đề thi' : 'Tạo đề thi'}
               </Button>
@@ -1025,9 +1025,9 @@ export function ExamCreationPage() {
 
         <Tabs defaultValue="editor" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-transparent p-0 gap-3">
-            <TabsTrigger value="editor" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Editor</TabsTrigger>
-            <TabsTrigger value="tags" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Tags</TabsTrigger>
-            <TabsTrigger value="uploads" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Uploads</TabsTrigger>
+            <TabsTrigger value="editor" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Editor</TabsTrigger>
+            <TabsTrigger value="tags" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Tags</TabsTrigger>
+            <TabsTrigger value="uploads" className="rounded-2xl border border-gray-200 bg-white py-3 data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Uploads</TabsTrigger>
           </TabsList>
 
           <TabsContent value="editor" className="space-y-6">

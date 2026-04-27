@@ -54,7 +54,7 @@ function FlashcardCard({
 
 	return (
 		<Card
-			className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[18rem] h-full flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden relative ${isFlipped ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white' : 'bg-white ring-1 ring-slate-200/50'}`}
+			className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[18rem] h-full flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden relative ${isFlipped ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'bg-white ring-1 ring-slate-200/50'}`}
 			onClick={() => setIsFlipped(!isFlipped)}
 		>
 			<CardContent className="p-6 flex-1 flex flex-col relative z-10">
@@ -66,7 +66,7 @@ function FlashcardCard({
 				<div className="flex items-start justify-between mb-4 relative z-20">
 					<div className="flex items-center gap-2">
 						{tag && (
-							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-primary/10 text-primary border-primary/30'}`}>
 								{tag.name}
 							</Badge>
 						)}
@@ -75,7 +75,7 @@ function FlashcardCard({
 						<Button
 							variant={isFlipped ? 'ghost' : 'outline'}
 							size="icon"
-							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-blue-50'}`}
+							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10'}`}
 							onClick={(e) => {
 								e.stopPropagation();
 								onEdit();
@@ -194,7 +194,7 @@ function FlashcardDialog({
 							placeholder="VD: Aberration, Present Perfect..."
 							value={content}
 							onChange={(e) => setContent(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl h-11"
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
 						/>
 					</div>
 					<div className="space-y-2">
@@ -205,13 +205,13 @@ function FlashcardDialog({
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							rows={4}
-							className="bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl resize-none"
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
 						/>
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="tag" className="text-slate-700 font-bold">Chủ đề <span className="text-red-500">*</span></Label>
 						<Select value={tagId} onValueChange={setTagId}>
-							<SelectTrigger id="tag" className="bg-slate-50 border-slate-200 rounded-xl h-11 focus:ring-blue-500 focus:border-blue-500">
+							<SelectTrigger id="tag" className="bg-slate-50 border-slate-200 rounded-xl h-11 focus:ring-primary focus:border-primary">
 								<SelectValue placeholder="Chọn một chủ đề" />
 							</SelectTrigger>
 							<SelectContent className="rounded-xl border-slate-200">
@@ -228,7 +228,7 @@ function FlashcardDialog({
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
 						{flashcard ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
@@ -413,7 +413,7 @@ export function FlashcardListDetail() {
 								setEditingFlashcard(undefined);
 								setFlashcardDialogOpen(true);
 							}}
-							className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-6 h-auto shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all hover:-translate-y-1 font-bold text-base flex-shrink-0"
+							className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 font-bold text-base flex-shrink-0"
 						>
 							<Plus className="h-5 w-5 mr-2" strokeWidth={3} />
 							Thêm Flashcard
@@ -431,12 +431,12 @@ export function FlashcardListDetail() {
 							placeholder="Tìm kiếm nội dung thẻ học hoặc ghi chú..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-11 bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-xl h-12 text-base font-medium"
+							className="pl-11 bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-12 text-base font-medium"
 						/>
 					</div>
 					<div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-4">
 						<Select value={selectedTagId} onValueChange={setSelectedTagId}>
-							<SelectTrigger className="w-full sm:w-56 h-12 bg-slate-50 border-slate-200 rounded-xl font-medium focus:ring-blue-500 text-slate-600">
+							<SelectTrigger className="w-full sm:w-56 h-12 bg-slate-50 border-slate-200 rounded-xl font-medium focus:ring-primary text-slate-600">
 								<div className="flex items-center">
 									<Filter className="h-4 w-4 mr-2 text-slate-400" />
 									<SelectValue placeholder="Lọc theo chủ đề" />
@@ -484,7 +484,7 @@ export function FlashcardListDetail() {
 								setEditingFlashcard(undefined);
 								setFlashcardDialogOpen(true);
 							}}
-							className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
+							className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
 						>
 							<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
 							Tạo thẻ ghi nhớ đầu tiên

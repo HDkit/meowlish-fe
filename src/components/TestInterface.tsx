@@ -196,7 +196,7 @@ function MCQOption({
     >
       <div
         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-          isSelected ? 'border-blue-600 bg-white' : 'border-slate-300'
+          isSelected ? 'border-primary bg-white' : 'border-slate-300'
         }`}
       >
         {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-primary" />}
@@ -232,7 +232,7 @@ function MCQMultiOption({
     >
       <div
         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-          isChecked ? 'border-blue-600 bg-primary' : 'border-slate-300 bg-white'
+          isChecked ? 'border-primary bg-primary' : 'border-slate-300 bg-white'
         }`}
       >
         {isChecked && (
@@ -300,7 +300,7 @@ function QuestionInput({
     return (
       <input
         type="text"
-        className="h-12 w-full rounded-xl border border-gray-300 bg-white px-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        className="h-12 w-full rounded-xl border border-gray-300 bg-white px-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary"
         placeholder="Nhập câu trả lời của bạn..."
         value={answers[0] ?? ''}
         onChange={(e) => onSingleAnswer(id, e.target.value)}
@@ -311,7 +311,7 @@ function QuestionInput({
   if (type === 'Writing') {
     return (
       <textarea
-        className="w-full resize-none rounded-xl border border-gray-300 bg-white p-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        className="w-full resize-none rounded-xl border border-gray-300 bg-white p-5 font-medium text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary"
         placeholder="Viết câu trả lời của bạn ở đây..."
         rows={8}
         value={answers[0] ?? ''}
@@ -650,7 +650,7 @@ export function TestInterface() {
                     <TextHighlighter 
                       text={group.section.directive} 
                       highlightEnabled={highlightEnabled} 
-                      className="rounded-xl border border-blue-50 bg-blue-50/60 px-4 py-3 text-sm leading-relaxed text-slate-700" 
+                      className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm leading-relaxed text-slate-700"
                     />
                   )}
 
@@ -684,13 +684,13 @@ export function TestInterface() {
                               className={`rounded-xl border transition-all ${
                                 isActive
                                   ? 'border-primary/30 bg-primary/5 shadow-sm ring-1 ring-primary/20'
-                                  : 'border-slate-100 bg-white hover:border-blue-100'
+                                  : 'border-slate-100 bg-white hover:border-primary/30'
                               }`}
                               onClick={() => setActiveQuestionId(q.id)}
                             >
                               <div className="flex gap-4 p-4">
                                 <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
-                                  isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                  isActive ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
@@ -722,7 +722,7 @@ export function TestInterface() {
                             className={`rounded-xl border transition-all ${
                               isActive
                                 ? 'border-primary/30 bg-primary/5 shadow-sm ring-1 ring-primary/20'
-                                : 'border-slate-100 bg-white hover:border-blue-100'
+                                : 'border-slate-100 bg-white hover:border-primary/30'
                             }`}
                             onClick={() => setActiveQuestionId(q.id)}
                           >
@@ -739,7 +739,8 @@ export function TestInterface() {
                                 <div className="flex flex-1 flex-col gap-4 p-5">
                                   <div className="flex items-start gap-3">
                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                                      isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                      isActive
+                                      ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
                                     }`}>{q.globalIndex}</div>
                                     {q.content && (
                                       <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
@@ -753,7 +754,7 @@ export function TestInterface() {
                               // Normal stacked
                               <div className="flex gap-4 p-5">
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
-                                  isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                  isActive ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
@@ -786,7 +787,7 @@ export function TestInterface() {
                       if (firstQ) setActiveQuestionId(firstQ.id);
                     }
                   }}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700"
+                  className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary/90"
                 >
                   TIẾP THEO <ChevronRight className="h-4 w-4" />
                 </button>
@@ -802,7 +803,7 @@ export function TestInterface() {
         {/* Sticky Header: Timer, Submit, Progress */}
         <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Timer */}
-          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-blue-50/50 to-white p-6 text-center">
+          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-primary/5 to-white p-6 text-center">
             <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-primary-foreground/80" />
             <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/80">
               <Clock className="h-3.5 w-3.5" />
@@ -821,7 +822,7 @@ export function TestInterface() {
           <div className="bg-white p-5">
             <Button
               onClick={() => performSubmit(false)}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-blue-600 to-indigo-600 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-primary to-primary/80 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-primary/90 hover:to-primary/70 hover:shadow-lg"
             >
               <Send className="h-4 w-4" /> Nộp bài
             </Button>
@@ -868,7 +869,7 @@ export function TestInterface() {
                           }}
                           className={`relative flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold shadow-sm transition-all ${
                             active
-                              ? 'z-10 scale-110 border-0 bg-gradient-to-br from-blue-500 to-indigo-600 font-black text-white ring-2 ring-blue-300 ring-offset-1 shadow-md'
+                              ? 'z-10 scale-110 border-0 bg-gradient-to-br from-primary to-primary/80 font-black text-white ring-2 ring-primary/30 ring-offset-1 shadow-md'
                               : done
                               ? 'border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
@@ -876,7 +877,7 @@ export function TestInterface() {
                         >
                           {q.globalIndex}
                           {done && !active && (
-                            <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-slate-50 bg-blue-500" />
+                            <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-slate-50 bg-primary/80" />
                           )}
                         </button>
                       );

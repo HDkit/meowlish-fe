@@ -63,7 +63,7 @@ export default function BlogManagementPage() {
 
     if (!currUser || (!isStaff && !isHeadStaff)) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-purple-50">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-secondary/10">
                 <Card className="w-96 border-0 shadow-xl">
                     <CardHeader>
                         <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -131,10 +131,10 @@ export default function BlogManagementPage() {
     const totalViews = blogs.reduce((sum, b) => sum + (b.views ?? 0), 0);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-secondary/10 to-secondary/5">
 
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 text-white">
+            <div className="relative overflow-hidden bg-gradient-to-r from-secondary to-secondary/80 text-white">
                 <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative px-6 py-8">
@@ -146,7 +146,7 @@ export default function BlogManagementPage() {
                             </h1>
                             <p className="text-secondary-foreground mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
                         </div>
-                        <Button onClick={openCreateDialog} className="bg-white text-purple-700 hover:bg-purple-50 font-semibold shadow border-0">
+                        <Button onClick={openCreateDialog} className="bg-white text-secondary hover:bg-secondary/10 font-semibold shadow border-0">
                             <Plus className="mr-2 h-4 w-4" />
                             Tạo bài viết
                         </Button>
@@ -203,7 +203,7 @@ export default function BlogManagementPage() {
                         <BookOpen className="h-12 w-12 text-gray-200 mx-auto mb-4" />
                         <p className="text-gray-500 font-medium">Chưa có bài viết nào</p>
                         <p className="text-gray-400 text-sm mt-1">Nhấn &quot;Tạo bài viết&quot; để bắt đầu</p>
-                        <Button onClick={openCreateDialog} className="mt-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                        <Button onClick={openCreateDialog} className="mt-4 bg-gradient-to-r from-secondary to-secondary/80 text-white border-0">
                             <Plus className="h-4 w-4 mr-2" />
                             Tạo bài viết đầu tiên
                         </Button>

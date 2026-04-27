@@ -228,10 +228,10 @@ export function WritingTest() {
 			<div className="max-w-7xl mx-auto space-y-8">
 				{/* Main Content */}
 				<Card className="border-0 shadow-xl shadow-gray-200/50 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm -mt-4">
-					<div className="h-1.5 w-full bg-gradient-to-r from-purple-400 to-pink-500" />
+					<div className="h-1.5 w-full bg-gradient-to-r from-secondary to-secondary/80" />
 					<CardHeader className="bg-gray-50/50 pb-4 border-b border-gray-100">
 						<CardTitle className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
-							<PenTool className="h-6 w-6 text-purple-600" />
+							<PenTool className="h-6 w-6 text-secondary" />
 							Phòng thi Writing
 						</CardTitle>
 						<CardDescription className="text-gray-500 font-medium">
@@ -356,7 +356,7 @@ export function WritingTest() {
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{/* Score & Feedback */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+							<CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-xl">Điểm & nhận xét chung</CardTitle>
 									<div className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md">
@@ -399,7 +399,7 @@ export function WritingTest() {
 
 						{/* Corrections */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950">
+							<CardHeader className="bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10">
 								<CardTitle className="text-xl">Bài viết chỉnh sửa & lỗi cụ thể</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-6 pt-6">
@@ -407,7 +407,7 @@ export function WritingTest() {
 								{results.corrected_version && (
 									<div className="space-y-3">
 										<div className="flex items-center gap-2 text-sm font-medium">
-											<span className="w-3 h-3 rounded-full bg-purple-500"></span>
+											<span className="w-3 h-3 rounded-full bg-secondary"></span>
 											<span>Phiên bản đã chỉnh sửa</span>
 										</div>
 										<div className="text-sm whitespace-pre-wrap bg-green-50 dark:bg-green-950/30 p-5 rounded-lg border-2 border-green-200 dark:border-green-800 max-h-[250px] overflow-y-auto leading-relaxed">

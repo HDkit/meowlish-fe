@@ -549,7 +549,7 @@ export function ExamDetailPage() {
 									<div className='space-y-3'>
 										<label className='text-sm font-medium text-gray-700 block'>Giới hạn thời gian (tùy chọn)</label>
 										<select
-											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-primary outline-none'
+											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary outline-none'
 											value={timer}
 											onChange={(e) => setTimer(e.target.value)}
 										>
@@ -571,7 +571,7 @@ export function ExamDetailPage() {
 					{/* Full Test Mode */}
 					{activeTab === 'fulltest' && (
 						<div className='space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4'>
-							<Card className='border-0 shadow-lg ring-1 ring-blue-500/20 bg-gradient-to-br from-primary/10 via-white to-primary/5 rounded-2xl overflow-hidden relative'>
+							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-gradient-to-br from-primary/10 via-white to-primary/5 rounded-2xl overflow-hidden relative'>
 								<div className="absolute top-0 right-0 w-64 h-64 bg-primary/60 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
 								<div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80"></div>
 
@@ -617,7 +617,7 @@ export function ExamDetailPage() {
 							<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
 								<Textarea
 									placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-									className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
+									className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
 									value={commentInput}
 									onChange={(e) => setCommentInput(e.target.value)}
 									onKeyDown={(e) => {
@@ -633,7 +633,7 @@ export function ExamDetailPage() {
 										<select
 											value={examRating}
 											onChange={(e) => setExamRating(e.target.value as Difficulty)}
-											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-primary outline-none text-slate-700 shadow-sm'
+											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
 										>
 											<option value={Difficulty.Beginner}>Cơ bản</option>
 											<option value={Difficulty.Intermediate}>Trung bình</option>
@@ -779,7 +779,7 @@ export function ExamDetailPage() {
 						<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
 							<Textarea
 								placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-								className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
+								className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
 								value={commentInput}
 								onChange={(e) => setCommentInput(e.target.value)}
 								onKeyDown={(e) => {
@@ -795,7 +795,7 @@ export function ExamDetailPage() {
 									<select
 										value={examRating}
 										onChange={(e) => setExamRating(e.target.value as Difficulty)}
-										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-primary outline-none text-slate-700 shadow-sm'
+										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
 									>
 										<option value={Difficulty.Beginner}>Cơ bản</option>
 										<option value={Difficulty.Intermediate}>Trung bình</option>

@@ -167,14 +167,14 @@ function BlogDetail({
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Banner of Detail */}
-			<div className="bg-gradient-to-b from-blue-900 to-indigo-900 border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
+			<div className="bg-gradient-to-b from-primary/90 to-primary border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
 				<div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay"></div>
 				<div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/80 rounded-full blur-[100px] opacity-30"></div>
 
 				<div className="max-w-4xl mx-auto w-full px-6 pb-12 relative z-10 pt-20">
 					<button
 						onClick={onBack}
-						className="flex items-center gap-2 text-blue-200 hover:text-white mb-8 transition-colors bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
+						className="flex items-center gap-2 text-primary-foreground/80 hover:text-white mb-8 transition-colors bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
 					>
 						<ChevronRight className="h-4 w-4 rotate-180" />
 						Quay lại danh sách
@@ -299,12 +299,12 @@ export function BlogPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-20">
+		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10 pb-20">
 			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white shadow-lg">
+			<div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-secondary text-white shadow-lg">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 left-0 w-[500px] h-[500px] bg-white/5 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2" />
-				<div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 translate-x-1/3" />
+				<div className="absolute bottom-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 translate-x-1/3" />
 
 				<div className="relative px-6 py-16 max-w-7xl mx-auto text-center flex flex-col items-center">
 					<div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md mb-6 inline-block border border-white/10 shadow-xl">
@@ -320,7 +320,7 @@ export function BlogPage() {
 					{/* Search trong Hero */}
 					<div className="mt-10 w-full max-w-2xl mx-auto relative group">
 						<div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
-						<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-blue-300 transition-colors p-1">
+						<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-primary transition-colors p-1">
 							<div className="pl-5 pr-3 text-gray-400 shrink-0">
 								<Search className="h-5 w-5" />
 							</div>
@@ -357,7 +357,7 @@ export function BlogPage() {
 											}`}
 									>
 										<span className="font-semibold">Tất cả bài viết</span>
-										<Badge className={`${selectedCategory === '__all__' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>{blogs.length}</Badge>
+										<Badge className={`${selectedCategory === '__all__' ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>{blogs.length}</Badge>
 									</button>
 
 									<div className="h-px w-full bg-gray-100 my-2" />
@@ -376,12 +376,12 @@ export function BlogPage() {
 													}`}
 											>
 												<div className="flex items-center gap-3">
-													<div className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700'}`}>
+													<div className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700'}`}>
 														<Icon className="h-4 w-4" />
 													</div>
 													<span className={isSelected ? 'font-semibold' : 'font-medium'}>{info.label}</span>
 												</div>
-												<Badge className={`${isSelected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-0'} transition-colors`}>{info.count}</Badge>
+												<Badge className={`${isSelected ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-0'} transition-colors`}>{info.count}</Badge>
 											</button>
 										);
 									})}

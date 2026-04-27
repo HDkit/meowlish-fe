@@ -36,7 +36,7 @@ const toastVariants = cva(
     variants: {
       variant: {
         default:
-          "border-blue-100 bg-white text-gray-800 shadow-blue-100/50",
+          "border-primary/30 bg-white text-gray-800 shadow-primary/20",
         success:
           "border-emerald-100 bg-white text-gray-800 shadow-emerald-100/50",
         destructive:
@@ -54,8 +54,8 @@ const toastVariants = cva(
 // Icon map per variant
 const TOAST_ICONS: Record<string, React.ReactNode> = {
   default: (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50">
-      <Info className="h-4 w-4 text-blue-500" />
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+      <Info className="h-4 w-4 text-primary" />
     </span>
   ),
   success: (
@@ -77,7 +77,7 @@ const TOAST_ICONS: Record<string, React.ReactNode> = {
 
 // Accent bar color per variant
 const ACCENT_COLORS: Record<string, string> = {
-  default: "bg-blue-500",
+  default: "bg-primary",
   success: "bg-emerald-500",
   destructive: "bg-red-500",
   warning: "bg-amber-500",

@@ -206,9 +206,9 @@ export default function UserManagementPage() {
   const bannedCount = users.filter((u) => u.status === 'banned').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-accent/80 text-white">
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="relative px-6 py-8">
@@ -223,7 +223,7 @@ export default function UserManagementPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Button onClick={openCreateDialog} className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow border-0">
+              <Button onClick={openCreateDialog} className="bg-white text-primary hover:bg-primary/10 font-semibold shadow border-0">
                 <Plus className="mr-2 h-4 w-4" />
                 Tạo người dùng
               </Button>
@@ -315,7 +315,7 @@ export default function UserManagementPage() {
                   filteredUsers.map((user) => (
                     <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                        <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">
                           {user.fullName}
                         </p>
                       </td>
@@ -334,7 +334,7 @@ export default function UserManagementPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-white border-gray-200 text-gray-700 hover:bg-blue-50 hover:text-blue-600 gap-1.5 px-3"
+                            className="bg-white border-gray-200 text-gray-700 hover:bg-primary/10 hover:text-primary gap-1.5 px-3"
                             onClick={() => openEditDialog(user)}
                             disabled={user.id === currUser.id}
                           >
@@ -440,7 +440,7 @@ export default function UserManagementPage() {
                   Hủy
                 </Button>
                 <Button
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-primary hover:bg-primary/90 text-white"
                   onClick={handleCreate}
                   disabled={!formData.email || !formData.password || !formData.fullName}
                 >
@@ -530,7 +530,7 @@ export default function UserManagementPage() {
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Hủy
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleEdit}>
+                <Button className="bg-primary hover:bg-primary/90 text-white" onClick={handleEdit}>
                   <UserCheck className="h-4 w-4 mr-2" />
                   Cập nhật
                 </Button>

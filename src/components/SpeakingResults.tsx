@@ -202,7 +202,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
   const avgAnswerLength = data.userAnswers.reduce((sum, a) => sum + a.duration, 0) / data.userAnswers.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -224,7 +224,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
           <CardContent className="space-y-6">
             {/* Main Score */}
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary to-secondary text-white">
                 <div>
                   <div className="text-5xl font-bold">{overallScore}</div>
                   <div className="text-sm opacity-90">/ 9.0</div>

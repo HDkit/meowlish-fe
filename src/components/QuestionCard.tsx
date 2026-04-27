@@ -21,7 +21,7 @@ export function QuestionCardModal({
 			<div className='bg-white rounded-lg p-6 w-11/12 max-w-md'>
 				{title && <h3 className='text-lg font-semibold mb-4'>{title}</h3>}
 				<div>{children}</div>
-				<button className='mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' onClick={onClose}>
+				<button className='mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90' onClick={onClose}>
 					Close
 				</button>
 			</div>
