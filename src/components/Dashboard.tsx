@@ -111,8 +111,8 @@ export function Dashboard() {
 	}, [calendarHistory]);
 
 	if (loading) {
-		return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-			<div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+		return <div className="min-h-screen bg-background flex items-center justify-center">
+			<div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
 		</div>;
 	}
 
@@ -139,9 +139,9 @@ export function Dashboard() {
 	};
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-10'>
+		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-primary/5 to-cyan-50 pb-10'>
 			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
 				<div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
@@ -152,14 +152,14 @@ export function Dashboard() {
 							<h1 className="text-3xl font-bold mb-2">
 								Chào mừng trở lại, {currentUser.fullName}! 👋
 							</h1>
-							<p className="text-blue-100 text-lg">
+							<p className="text-primary-foreground/80 text-lg">
 								Hôm nay là một ngày tuyệt vời để nâng cao kỹ năng Tiếng Anh của bạn.
 							</p>
 						</div>
 						<Button
 							size="lg"
 							onClick={() => router.push('/test-selection')}
-							className="bg-white text-blue-700 hover:bg-blue-50 font-bold shadow-lg border-0 px-6 py-6"
+							className="bg-white text-primary hover:bg-primary/10 font-bold shadow-lg border-0 px-6 py-6"
 						>
 							<PlayCircle className="h-5 w-5 mr-2" />
 							Làm bài tập ngay
@@ -170,12 +170,12 @@ export function Dashboard() {
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
 						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
-								<div className="p-2 bg-blue-500/30 rounded-lg">
-									<BookOpen className="h-5 w-5 text-blue-100" />
+								<div className="p-2 bg-primary/30 rounded-lg">
+									<BookOpen className="h-5 w-5 text-primary-foreground/80" />
 								</div>
 								<div>
 									<div className="text-2xl font-bold">{completedAttemptsCount}</div>
-									<div className="text-xs text-blue-200">Đề đã làm</div>
+									<div className="text-xs text-primary-foreground/60">Đề đã làm</div>
 								</div>
 							</div>
 						</div>
@@ -186,7 +186,7 @@ export function Dashboard() {
 								</div>
 								<div>
 									<div className="text-2xl font-bold">{averageScore}%</div>
-									<div className="text-xs text-blue-200">Điểm trung bình</div>
+									<div className="text-xs text-primary-foreground/60">Điểm trung bình</div>
 								</div>
 							</div>
 						</div>
@@ -197,18 +197,18 @@ export function Dashboard() {
 								</div>
 								<div>
 									<div className="text-2xl font-bold">{inProgressAttemptsCount}</div>
-									<div className="text-xs text-blue-200">Đang thực hiện</div>
+									<div className="text-xs text-primary-foreground/60">Đang thực hiện</div>
 								</div>
 							</div>
 						</div>
 						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
-								<div className="p-2 bg-purple-500/30 rounded-lg">
-									<Trophy className="h-5 w-5 text-purple-100" />
+								<div className="p-2 bg-secondary/30 rounded-lg">
+									<Trophy className="h-5 w-5 text-secondary-foreground" />
 								</div>
 								<div>
 									<div className="text-2xl font-bold">{totalExamsDisplay}</div>
-									<div className="text-xs text-blue-200">Đề thi có sẵn</div>
+									<div className="text-xs text-primary-foreground/60">Đề thi có sẵn</div>
 								</div>
 							</div>
 						</div>
@@ -285,10 +285,10 @@ export function Dashboard() {
 				<div className="space-y-4">
 					<div className="flex items-center justify-between border-b pb-2">
 						<div className="flex items-center gap-2 text-gray-900">
-							<Sparkles className="h-5 w-5 text-purple-500" />
+							<Sparkles className="h-5 w-5 text-secondary/80" />
 							<h2 className="text-xl font-bold">Đề xuất cho bạn</h2>
 						</div>
-						<Button variant="ghost" className="text-blue-600 hover:text-blue-800" onClick={() => router.push('/test-selection')}>
+						<Button variant="ghost" className="text-primary hover:text-primary/80" onClick={() => router.push('/test-selection')}>
 							Xem tất cả <ChevronRight className="h-4 w-4 ml-1" />
 						</Button>
 					</div>
@@ -307,14 +307,14 @@ export function Dashboard() {
 										<div className="inline-block self-start px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 mb-3 uppercase tracking-wider">
 											{exam.tags && exam.tags.find((t: string) => t.toLowerCase() === 'ielts' || t.toLowerCase() === 'toeic') || 'EXAM'}
 										</div>
-										<h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+										<h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
 											{exam.name}
 										</h3>
 										<p className="text-sm text-gray-500 line-clamp-2 mb-4">
 											Bao gồm {exam.questionsCount} câu hỏi
 										</p>
 										<div className="mt-auto">
-											<Button className="w-full bg-slate-900 hover:bg-blue-600 text-white transition-colors" onClick={() => router.push(`/test/${exam.id}`)}>
+											<Button className="w-full bg-slate-900 hover:bg-primary/90 text-white transition-colors" onClick={() => router.push(`/test/${exam.id}`)}>
 												Xem chi tiết
 											</Button>
 										</div>
@@ -340,7 +340,7 @@ export function Dashboard() {
 								icon: TrendingUp,
 								title: 'Phản hồi tức thì',
 								desc: 'Nhận giải thích chi tiết và gợi ý cải thiện ngay lập tức',
-								color: 'bg-blue-100 text-blue-600'
+								color: 'bg-primary/15 text-primary'
 							},
 							{
 								icon: BookOpen,

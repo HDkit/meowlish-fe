@@ -59,7 +59,7 @@ function FlashcardCard({
 		>
 			<CardContent className="p-6 flex-1 flex flex-col relative z-10">
 				{/* Decorative elements */}
-				{!isFlipped && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>}
+				{!isFlipped && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>}
 				{isFlipped && <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>}
 
 				{/* Header với actions */}
@@ -75,7 +75,7 @@ function FlashcardCard({
 						<Button
 							variant={isFlipped ? 'ghost' : 'outline'}
 							size="icon"
-							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`}
+							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-blue-50'}`}
 							onClick={(e) => {
 								e.stopPropagation();
 								onEdit();
@@ -102,7 +102,7 @@ function FlashcardCard({
 					<div className="text-center w-full max-h-full overflow-y-auto custom-scrollbar">
 						{isFlipped ? (
 							<div className="space-y-3 px-2">
-								<p className="text-xs font-bold uppercase tracking-widest text-blue-200">Ghi chú & Giải nghĩa</p>
+								<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60">Ghi chú & Giải nghĩa</p>
 								<p className="text-lg font-medium text-white whitespace-pre-wrap leading-relaxed">
 									{flashcard.notes || 'Không có ghi chú'}
 								</p>
@@ -119,7 +119,7 @@ function FlashcardCard({
 
 				{/* Footer */}
 				<div className={`mt-4 pt-4 text-center border-t relative z-10 ${isFlipped ? 'border-white/20' : 'border-slate-100'}`}>
-					<p className={`text-xs font-bold uppercase tracking-widest ${isFlipped ? 'text-blue-200' : 'text-slate-400'}`}>
+					<p className={`text-xs font-bold uppercase tracking-widest ${isFlipped ? 'text-primary-foreground/60' : 'text-slate-400'}`}>
 						{isFlipped ? 'Nhấn thẻ để lật lại' : 'Nhấn thẻ xem ghi chú'}
 					</p>
 				</div>
@@ -175,7 +175,7 @@ function FlashcardDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
-				<div className="h-2 w-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+				<div className="h-2 w-full bg-gradient-to-r from-primary to-primary/80"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
 						{flashcard ? 'Cập Nhật Flashcard' : 'Thêm Flashcard Mới'}
@@ -374,13 +374,13 @@ export function FlashcardListDetail() {
 		<div className="min-h-screen bg-slate-50/50 pb-20">
 			{/* Premium Header Region */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-12 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-blue-50/20 to-transparent pointer-events-none'></div>
+				<div className='absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent pointer-events-none'></div>
 
 				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 					<Button
 						variant="ghost"
 						onClick={() => router.push('/flashcards')}
-						className="flex items-center gap-2 mb-6 -ml-2 text-slate-500 hover:text-blue-600 font-semibold"
+						className="flex items-center gap-2 mb-6 -ml-2 text-slate-500 hover:text-primary font-semibold"
 					>
 						<ArrowLeft className="h-4 w-4" />
 						Trở về danh sách bộ sưu tập
@@ -388,7 +388,7 @@ export function FlashcardListDetail() {
 
 					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
 						<div className="flex items-center gap-5 text-center md:text-left">
-							<div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner">
+							<div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner">
 								<Folder className="h-8 w-8" strokeWidth={2.5} />
 							</div>
 							<div>
@@ -397,7 +397,7 @@ export function FlashcardListDetail() {
 								</h1>
 								<div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
 									<div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-										<BookOpen className="h-4 w-4 text-blue-500" />
+										<BookOpen className="h-4 w-4 text-primary/80" />
 										{flashcardsInList.length} thẻ ghi nhớ
 									</div>
 									{currentList.description && (
@@ -443,7 +443,7 @@ export function FlashcardListDetail() {
 								</div>
 							</SelectTrigger>
 							<SelectContent className="rounded-xl border-slate-200">
-								<SelectItem value="__all__" className="font-semibold text-blue-600">Tất cả chủ đề</SelectItem>
+								<SelectItem value="__all__" className="font-semibold text-primary">Tất cả chủ đề</SelectItem>
 								{flashcardTags.map((tag) => (
 									<SelectItem key={tag.id} value={tag.id} className="font-medium">
 										{tag.name}

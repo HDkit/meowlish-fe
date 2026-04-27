@@ -871,7 +871,7 @@ export function ExamCreationPage() {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 rounded-xl px-2 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
+                className="h-8 rounded-xl px-2 text-primary hover:bg-primary/10 hover:text-primary"
                 onClick={(event) => {
                   event.stopPropagation();
                   void createChildSection(sectionId);
@@ -895,7 +895,7 @@ export function ExamCreationPage() {
               type="button"
               className={`block w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
                 selectedNode.type === 'question' && selectedNode.id === questionId
-                  ? 'border-purple-300 bg-purple-50 text-purple-900'
+                  ? 'border-secondary/50 bg-secondary/10 text-secondary'
                   : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
               style={{ marginLeft: (depth + 1) * 16 }}
@@ -922,7 +922,7 @@ export function ExamCreationPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-3xl font-bold">Admin Exam Editor</h1>
-              <p className="mt-1 text-sm text-blue-100">
+              <p className="mt-1 text-sm text-primary-foreground/80">
                 Editor này dùng API thật cho exam, section, question, tags và presigned upload.
               </p>
             </div>
@@ -948,19 +948,19 @@ export function ExamCreationPage() {
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Target Format</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/80">Target Format</p>
               <p className="mt-2 text-2xl font-semibold">TOEIC L&R</p>
-              <p className="mt-1 text-sm text-blue-100">7 parts · 200 questions · 120 minutes</p>
+              <p className="mt-1 text-sm text-primary-foreground/80">7 parts · 200 questions · 120 minutes</p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Current Coverage</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/80">Current Coverage</p>
               <p className="mt-2 text-2xl font-semibold">{totalQuestions}/200</p>
-              <p className="mt-1 text-sm text-blue-100">{blueprintCoverage}% of a full-test blueprint</p>
+              <p className="mt-1 text-sm text-primary-foreground/80">{blueprintCoverage}% of a full-test blueprint</p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.2em] text-blue-100">Build Flow</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/80">Build Flow</p>
               <p className="mt-2 text-base font-semibold">Exam info → Sections → Questions → Review</p>
-              <p className="mt-1 text-sm text-blue-100">Create the structure first, then fill each part like a real exam.</p>
+              <p className="mt-1 text-sm text-primary-foreground/80">Create the structure first, then fill each part like a real exam.</p>
             </div>
           </div>
         </div>
@@ -971,7 +971,7 @@ export function ExamCreationPage() {
           <Card className="border-0 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Layers className="h-5 w-5 text-blue-600" />
+                <Layers className="h-5 w-5 text-primary" />
                 Structure
               </CardTitle>
             </CardHeader>
@@ -1014,10 +1014,10 @@ export function ExamCreationPage() {
                 <p className="text-xs uppercase tracking-wide text-gray-500">Sections / Questions</p>
                 <p className="text-sm font-medium text-gray-900">{totalSections} / {totalQuestions}</p>
               </div>
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-blue-600">TOEIC Target</p>
-                <p className="text-sm font-medium text-blue-900">Listen 100 + Read 100</p>
-                <p className="mt-1 text-xs text-blue-700">Keep the familiar pacing of a full test: Parts 1-4 then Parts 5-7.</p>
+              <div className="rounded-xl border border-primary/20 bg-primary/10 p-3">
+                <p className="text-xs uppercase tracking-wide text-primary">TOEIC Target</p>
+                <p className="text-sm font-medium text-primary">Listen 100 + Read 100</p>
+                <p className="mt-1 text-xs text-primary">Keep the familiar pacing of a full test: Parts 1-4 then Parts 5-7.</p>
               </div>
             </CardContent>
           </Card>
@@ -1035,7 +1035,7 @@ export function ExamCreationPage() {
               <Card className="border-0 shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <ClipboardPen className="h-5 w-5 text-blue-600" />
+                    <ClipboardPen className="h-5 w-5 text-primary" />
                     Authoring Workflow
                   </CardTitle>
                 </CardHeader>
@@ -1090,7 +1090,7 @@ export function ExamCreationPage() {
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <FolderTree className="h-5 w-5 text-blue-600" />
+                  <FolderTree className="h-5 w-5 text-primary" />
                   Exam Info
                 </CardTitle>
               </CardHeader>
@@ -1174,7 +1174,7 @@ export function ExamCreationPage() {
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <FolderTree className="h-5 w-5 text-blue-600" />
+                    <FolderTree className="h-5 w-5 text-primary" />
                     Section Detail
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -1259,7 +1259,7 @@ export function ExamCreationPage() {
 
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
                     <div className="flex items-center gap-2">
-                      <Move className="h-4 w-4 text-blue-600" />
+                      <Move className="h-4 w-4 text-primary" />
                       <h3 className="font-medium text-gray-900">Move Section</h3>
                     </div>
                     <div className="grid gap-4 md:grid-cols-3">
@@ -1334,7 +1334,7 @@ export function ExamCreationPage() {
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <HelpCircle className="h-5 w-5 text-purple-600" />
+                    <HelpCircle className="h-5 w-5 text-secondary" />
                     Question Detail
                   </CardTitle>
                   <Button variant="destructive" size="sm" onClick={() => void deleteQuestion(selectedQuestion.id)} disabled={actionLoading === `delete-question-${selectedQuestion.id}`}>
@@ -1434,7 +1434,7 @@ export function ExamCreationPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <HelpCircle className="h-4 w-4 text-purple-600" />
+                            <HelpCircle className="h-4 w-4 text-secondary" />
                             <h3 className="font-medium text-gray-900">Choices</h3>
                           </div>
                           <p className="mt-1 text-xs text-gray-500">
@@ -1542,7 +1542,7 @@ export function ExamCreationPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <HelpCircle className="h-4 w-4 text-purple-600" />
+                            <HelpCircle className="h-4 w-4 text-secondary" />
                             <h3 className="font-medium text-gray-900">Answers ({selectedQuestion.type === 'Fill' ? 'Exact Match' : 'Match Any'})</h3>
                           </div>
                           <p className="mt-1 text-xs text-gray-500">
@@ -1635,7 +1635,7 @@ export function ExamCreationPage() {
 
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
                     <div className="flex items-center gap-2">
-                      <Move className="h-4 w-4 text-blue-600" />
+                      <Move className="h-4 w-4 text-primary" />
                       <h3 className="font-medium text-gray-900">Move Question</h3>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">

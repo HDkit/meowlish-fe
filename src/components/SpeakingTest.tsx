@@ -122,8 +122,8 @@ export function SpeakingTest() {
             <Card key={idx} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 rounded-2xl">
               <CardContent className="pt-6 pb-6 text-center space-y-3">
                 <div className="flex justify-center">
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <feature.icon className="h-6 w-6 text-blue-600" />
+                  <div className="p-3 bg-primary/10 rounded-xl">
+                    <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                 </div>
                 <div>
@@ -142,17 +142,17 @@ export function SpeakingTest() {
               key={part.part}
               className="bg-white border-0 hover:shadow-xl shadow-md transition-all rounded-2xl overflow-hidden group"
             >
-              <div className="h-1.5 w-full bg-gradient-to-r from-blue-400 to-indigo-500" />
+              <div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80" />
               <CardHeader className="space-y-4 bg-gray-50/50 pb-4">
                 <div className="space-y-3">
                   <Badge
                     variant="outline"
-                    className="bg-blue-100 text-blue-700 border-0 text-xs font-bold px-3 py-1 uppercase tracking-wider"
+                    className="bg-primary/10 text-primary border-0 text-xs font-bold px-3 py-1 uppercase tracking-wider"
                   >
                     Part {part.part}
                   </Badge>
                   <div>
-                    <CardTitle className="text-xl font-extrabold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                    <CardTitle className="text-xl font-extrabold text-gray-900 mb-2 group-hover:text-primary transition-colors">
                       {part.title.split(': ')[1]}
                     </CardTitle>
                     <CardDescription className="text-sm text-gray-600 font-medium">
@@ -166,7 +166,7 @@ export function SpeakingTest() {
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-blue-500" />
+                    <Clock className="h-4 w-4 text-primary/80" />
                     <span className="text-sm font-semibold text-gray-700">{part.duration}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ export function SpeakingTest() {
                 {/* Topics */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-purple-500" />
+                    <BookOpen className="h-4 w-4 text-secondary/80" />
                     <span className="font-bold text-sm text-gray-800">Chủ đề thường gặp:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -204,10 +204,10 @@ export function SpeakingTest() {
         </div>
 
         {/* Instructions */}
-        <Card className="bg-blue-50/80 border-0 shadow-sm rounded-2xl relative overflow-hidden">
+        <Card className="bg-primary/10 border-0 shadow-sm rounded-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-900 font-bold">
+            <CardTitle className="flex items-center gap-2 text-primary font-bold">
               <BookOpen className="h-5 w-5" />
               Hướng dẫn sử dụng phòng Speaking
             </CardTitle>
@@ -215,19 +215,19 @@ export function SpeakingTest() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
               <div className="space-y-3">
-                <h4 className="font-bold text-sm text-blue-800 uppercase tracking-wider">Chuẩn bị trước khi nói:</h4>
+                <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Chuẩn bị trước khi nói:</h4>
                 <ul className="text-sm font-medium text-gray-700 space-y-2">
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Kiểm tra microphone và cấp quyền truy cập trình duyệt</li>
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Tìm nơi yên tĩnh để luyện tập tránh tạp âm</li>
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Sẵn sàng trả lời liên tục trong 4-5 phút</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Kiểm tra microphone và cấp quyền truy cập trình duyệt</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Tìm nơi yên tĩnh để luyện tập tránh tạp âm</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Sẵn sàng trả lời liên tục trong 4-5 phút</li>
                 </ul>
               </div>
               <div className="space-y-3">
-                <h4 className="font-bold text-sm text-blue-800 uppercase tracking-wider">Trong khi nói:</h4>
+                <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Trong khi nói:</h4>
                 <ul className="text-sm font-medium text-gray-700 space-y-2">
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Nói rõ ràng, tốc độ vừa phải và tự nhiên</li>
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Trả lời đầy đủ câu, sử dụng từ nối để phát triển ý</li>
-                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> Dùng đa dạng từ vựng và ngữ pháp để ghi điểm cao</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Nói rõ ràng, tốc độ vừa phải và tự nhiên</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Trả lời đầy đủ câu, sử dụng từ nối để phát triển ý</li>
+                  <li className="flex gap-2 items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary/80 inline-block" /> Dùng đa dạng từ vựng và ngữ pháp để ghi điểm cao</li>
                 </ul>
               </div>
             </div>

@@ -34,10 +34,10 @@ type BlogFormData = {
 };
 
 const CATEGORY_OPTIONS: { value: BlogCategory; label: string; icon: React.ElementType; color: string }[] = [
-    { value: BlogCategory.WebUsage, label: 'Cách sử dụng web', icon: FileText, color: 'bg-blue-100 text-blue-800' },
+    { value: BlogCategory.WebUsage, label: 'Cách sử dụng web', icon: FileText, color: 'bg-primary/10 text-primary' },
     { value: BlogCategory.LanguageLearning, label: 'Học ngôn ngữ', icon: GraduationCap, color: 'bg-green-100 text-green-800' },
     { value: BlogCategory.ExamTips, label: 'Cách làm bài thi', icon: Lightbulb, color: 'bg-yellow-100 text-yellow-800' },
-    { value: BlogCategory.StudentReview, label: 'Review học viên', icon: Star, color: 'bg-purple-100 text-purple-800' },
+    { value: BlogCategory.StudentReview, label: 'Review học viên', icon: Star, color: 'bg-secondary/10 text-secondary' },
     { value: BlogCategory.StudyAbroad, label: 'Du học', icon: Globe, color: 'bg-orange-100 text-orange-800' },
 ];
 
@@ -141,10 +141,10 @@ export default function BlogManagementPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold flex items-center gap-2">
-                                <BookOpen className="h-6 w-6 text-pink-200" />
+                                <BookOpen className="h-6 w-6 text-secondary-foreground" />
                                 Quản lý bài viết
                             </h1>
-                            <p className="text-purple-100 mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
+                            <p className="text-secondary-foreground mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
                         </div>
                         <Button onClick={openCreateDialog} className="bg-white text-purple-700 hover:bg-purple-50 font-semibold shadow border-0">
                             <Plus className="mr-2 h-4 w-4" />
@@ -154,12 +154,12 @@ export default function BlogManagementPage() {
                     <div className="grid grid-cols-3 gap-3 mt-6">
                         {[
                             { label: 'Tổng bài viết', value: blogs.length, color: 'bg-white/20' },
-                            { label: 'Lượt xem', value: totalViews.toLocaleString(), color: 'bg-pink-400/30' },
+                            { label: 'Lượt xem', value: totalViews.toLocaleString(), color: 'bg-secondary/30' },
                             { label: 'Đang hiển thị', value: filteredBlogs.length, color: 'bg-rose-400/30' },
                         ].map(({ label, value, color }) => (
                             <div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
                                 <div className="text-2xl font-bold">{value}</div>
-                                <div className="text-xs text-purple-100 mt-0.5">{label}</div>
+                                <div className="text-xs text-secondary-foreground mt-0.5">{label}</div>
                             </div>
                         ))}
                     </div>
@@ -226,7 +226,7 @@ export default function BlogManagementPage() {
                                     const catInfo = getCategoryInfo(blog.category);
                                     const CatIcon = catInfo.icon;
                                     return (
-                                        <tr key={blog.id} className="hover:bg-purple-50/40 transition-colors group">
+                                        <tr key={blog.id} className="hover:bg-secondary/10 transition-colors group">
                                             <td className="px-5 py-4">
                                                 <p className="font-semibold text-gray-800 truncate max-w-xs">{blog.title}</p>
                                                 <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{blog.summary}</p>
@@ -250,7 +250,7 @@ export default function BlogManagementPage() {
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button size="sm" variant="outline" onClick={() => openEditDialog(blog)}
-                                                        className="text-purple-600 border-purple-200 hover:bg-purple-50 h-8 px-3">
+                                                        className="text-secondary border-secondary/30 hover:bg-secondary/10 h-8 px-3">
                                                         <Edit className="h-3.5 w-3.5 mr-1.5" />
                                                         Chỉnh sửa
                                                     </Button>

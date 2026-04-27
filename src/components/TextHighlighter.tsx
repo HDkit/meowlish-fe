@@ -223,7 +223,7 @@ const FlashcardFormModal = ({
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-sm font-bold text-gray-800">Từ mới</label>
-              <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded uppercase">mới</span>
+              <span className="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded uppercase">mới</span>
             </div>
             <input
               type="text"
@@ -250,7 +250,7 @@ const FlashcardFormModal = ({
 
           {/* Expand options */}
           <div className="pt-2">
-            <button type="button" className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1 transition-colors">
+            <button type="button" className="text-primary text-sm font-medium hover:text-primary/80 flex items-center gap-1 transition-colors">
               Thêm phiên âm, ví dụ, ảnh, ghi chú ... 
               <ChevronDown size={14} />
             </button>
@@ -575,7 +575,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
                 className={`w-6 h-6 rounded-full border border-gray-200 transition-all hover:scale-110 ${c.class} ${
                   (isEditMode && editingHighlight?.color === c.class) || 
                   (!isEditMode && selectedColor === c.class) 
-                    ? 'ring-2 ring-blue-500 ring-offset-1' 
+                    ? 'ring-2 ring-primary ring-offset-1' 
                     : ''
                 }`}
                 onMouseDown={(e) => {

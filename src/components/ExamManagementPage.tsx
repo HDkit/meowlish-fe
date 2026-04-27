@@ -154,7 +154,7 @@ export function ExamManagementPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold">Quản lý đề thi</h1>
-                            <p className="text-blue-100 mt-1 text-sm">Tạo, chỉnh sửa và theo dõi trạng thái phê duyệt đề thi</p>
+                            <p className="text-primary-foreground/80 mt-1 text-sm">Tạo, chỉnh sửa và theo dõi trạng thái phê duyệt đề thi</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
@@ -186,7 +186,7 @@ export function ExamManagementPage() {
                         ].map(({ label, value, color }) => (
                             <div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
                                 <div className="text-2xl font-bold">{value}</div>
-                                <div className="text-xs text-blue-100 mt-0.5">{label}</div>
+                                <div className="text-xs text-primary-foreground/80 mt-0.5">{label}</div>
                             </div>
                         ))}
                     </div>
@@ -228,7 +228,7 @@ export function ExamManagementPage() {
                 {/* Exam Table */}
                 {loading ? (
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
-                        <RefreshCw className="h-8 w-8 text-blue-400 mx-auto mb-4 animate-spin" />
+                        <RefreshCw className="h-8 w-8 text-primary/80 mx-auto mb-4 animate-spin" />
                         <p className="text-gray-500 font-medium">Đang tải danh sách đề thi...</p>
                     </div>
                 ) : filtered.length === 0 ? (
@@ -263,7 +263,7 @@ export function ExamManagementPage() {
                                     return (
                                         <tr
                                             key={exam.id}
-                                            className="hover:bg-blue-50/40 transition-colors group"
+                                            className="hover:bg-primary/10 transition-colors group"
                                         >
                                             {/* Title */}
                                             <td className="px-5 py-4">
@@ -273,7 +273,7 @@ export function ExamManagementPage() {
                                                 >
                                                     <p className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors flex items-center gap-1.5">
                                                         {exam.title}
-                                                        <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+                                                        <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary/80" />
                                                     </p>
                                                     {exam.description && (
                                                         <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{exam.description}</p>
@@ -323,7 +323,7 @@ export function ExamManagementPage() {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => handleEdit(exam)}
-                                                            className="w-[100px] justify-center text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-3"
+                                                            className="w-[100px] justify-center text-primary border-primary/30 hover:bg-primary/10 h-8 px-3"
                                                         >
                                                             <FileEdit className="h-3.5 w-3.5 mr-1.5" />
                                                             Chỉnh sửa

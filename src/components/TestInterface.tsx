@@ -190,7 +190,7 @@ function MCQOption({
     <label
       className={`flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-sm ${
         isSelected
-          ? 'border-blue-500 bg-blue-50/80 font-bold text-blue-900 ring-1 ring-blue-200'
+          ? 'border-primary bg-primary/10 font-bold text-primary ring-1 ring-primary/30'
           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
       }`}
     >
@@ -199,11 +199,11 @@ function MCQOption({
           isSelected ? 'border-blue-600 bg-white' : 'border-slate-300'
         }`}
       >
-        {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
+        {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-primary" />}
       </div>
       <input type="radio" className="hidden" checked={isSelected} onChange={onSelect} />
       <div className="flex items-baseline gap-2.5">
-        <span className={`font-black ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
+        <span className={`font-black ${isSelected ? 'text-primary' : 'text-slate-400'}`}>
           {choice.key}.
         </span>
         <span className="leading-relaxed text-slate-700">{choice.content}</span>
@@ -226,13 +226,13 @@ function MCQMultiOption({
     <label
       className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all ${
         isChecked
-          ? 'border-blue-500 bg-blue-100 font-medium text-blue-900'
+          ? 'border-primary bg-primary/10 font-medium text-primary'
           : 'border-gray-200 bg-white hover:bg-gray-50'
       }`}
     >
       <div
         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-          isChecked ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+          isChecked ? 'border-blue-600 bg-primary' : 'border-slate-300 bg-white'
         }`}
       >
         {isChecked && (
@@ -243,7 +243,7 @@ function MCQMultiOption({
       </div>
       <input type="checkbox" className="hidden" checked={isChecked} onChange={(e) => onToggle(e.target.checked)} />
       <div className="flex items-baseline gap-2.5">
-        <span className={`font-black ${isChecked ? 'text-blue-700' : 'text-slate-400'}`}>
+        <span className={`font-black ${isChecked ? 'text-primary' : 'text-slate-400'}`}>
           {choice.key}.
         </span>
         <span className="leading-relaxed text-slate-700">{choice.content}</span>
@@ -569,7 +569,7 @@ export function TestInterface() {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="font-medium text-slate-500">Đang tải dữ liệu bài thi...</p>
         </div>
       </div>
@@ -604,7 +604,7 @@ export function TestInterface() {
                 }}
                 className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
                   activePartId === part.id
-                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                    ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
                     : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700'
                 }`}
               >
@@ -618,7 +618,7 @@ export function TestInterface() {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Highlight</span>
             <button
               onClick={() => setHighlightEnabled((v) => !v)}
-              className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+              className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-primary' : 'bg-gray-300'}`}
             >
               <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'}`} />
             </button>
@@ -683,7 +683,7 @@ export function TestInterface() {
                               id={`q-${q.id}`}
                               className={`rounded-xl border transition-all ${
                                 isActive
-                                  ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
+                                  ? 'border-primary/30 bg-primary/5 shadow-sm ring-1 ring-primary/20'
                                   : 'border-slate-100 bg-white hover:border-blue-100'
                               }`}
                               onClick={() => setActiveQuestionId(q.id)}
@@ -721,7 +721,7 @@ export function TestInterface() {
                             id={`q-${q.id}`}
                             className={`rounded-xl border transition-all ${
                               isActive
-                                ? 'border-blue-200 bg-blue-50/30 shadow-sm ring-1 ring-blue-500/20'
+                                ? 'border-primary/30 bg-primary/5 shadow-sm ring-1 ring-primary/20'
                                 : 'border-slate-100 bg-white hover:border-blue-100'
                             }`}
                             onClick={() => setActiveQuestionId(q.id)}
@@ -803,8 +803,8 @@ export function TestInterface() {
         <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Timer */}
           <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-blue-50/50 to-white p-6 text-center">
-            <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-blue-100" />
-            <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600/80">
+            <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-primary-foreground/80" />
+            <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/80">
               <Clock className="h-3.5 w-3.5" />
               Thời gian còn lại
             </div>
@@ -832,7 +832,7 @@ export function TestInterface() {
             <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-600">
               {allQuestions.length} câu
             </span>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
               Đã làm {answeredCount}
             </span>
           </div>
@@ -870,7 +870,7 @@ export function TestInterface() {
                             active
                               ? 'z-10 scale-110 border-0 bg-gradient-to-br from-blue-500 to-indigo-600 font-black text-white ring-2 ring-blue-300 ring-offset-1 shadow-md'
                               : done
-                              ? 'border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              ? 'border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
                           }`}
                         >

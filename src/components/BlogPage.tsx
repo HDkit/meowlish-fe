@@ -33,13 +33,13 @@ function BlogCard({
 	const getCategoryInfo = (category: BlogCategory) => {
 		switch (category) {
 			case BlogCategory.WebUsage:
-				return { label: 'Cách sử dụng web', icon: FileText, color: 'bg-blue-100 text-blue-800' };
+				return { label: 'Cách sử dụng web', icon: FileText, color: 'bg-primary/10 text-primary' };
 			case BlogCategory.LanguageLearning:
 				return { label: 'Học ngôn ngữ', icon: GraduationCap, color: 'bg-green-100 text-green-800' };
 			case BlogCategory.ExamTips:
 				return { label: 'Cách làm bài thi', icon: Lightbulb, color: 'bg-yellow-100 text-yellow-800' };
 			case BlogCategory.StudentReview:
-				return { label: 'Review học viên', icon: Star, color: 'bg-purple-100 text-purple-800' };
+				return { label: 'Review học viên', icon: Star, color: 'bg-secondary/10 text-secondary' };
 			case BlogCategory.StudyAbroad:
 				return { label: 'Du học', icon: Globe, color: 'bg-orange-100 text-orange-800' };
 			default:
@@ -63,14 +63,14 @@ function BlogCard({
 			className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col overflow-hidden border-gray-100 group"
 			onClick={onClick}
 		>
-			<div className="h-1.5 shrink-0 bg-gradient-to-r from-blue-400 to-indigo-500" />
+			<div className="h-1.5 shrink-0 bg-gradient-to-r from-primary to-primary/80" />
 			<CardHeader className="pb-3 flex-1">
 				<div className="flex flex-col gap-3">
 					<Badge className={`${categoryInfo.color} self-start border-0 uppercase tracking-wider text-[10px] items-center py-1`}>
 						<CategoryIcon className="h-3 w-3 mr-1" />
 						{categoryInfo.label}
 					</Badge>
-					<CardTitle className="text-xl line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">{blog.title}</CardTitle>
+					<CardTitle className="text-xl line-clamp-2 leading-tight group-hover:text-primary transition-colors">{blog.title}</CardTitle>
 				</div>
 				<p className="text-gray-500 mt-2 line-clamp-3 text-sm leading-relaxed flex-1">{blog.summary}</p>
 			</CardHeader>
@@ -89,7 +89,7 @@ function BlogCard({
 						</div>
 					</div>
 					{blog.views !== undefined && (
-						<div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md">
+						<div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2 py-1 rounded-md">
 							<Eye className="h-3.5 w-3.5" />
 							<span>{blog.views.toLocaleString()}</span>
 						</div>
@@ -113,13 +113,13 @@ function BlogDetail({
 	const getCategoryInfo = (category: BlogCategory) => {
 		switch (category) {
 			case BlogCategory.WebUsage:
-				return { label: 'Cách sử dụng web', icon: FileText, color: 'bg-blue-100 text-blue-800' };
+				return { label: 'Cách sử dụng web', icon: FileText, color: 'bg-primary/10 text-primary' };
 			case BlogCategory.LanguageLearning:
 				return { label: 'Học ngôn ngữ', icon: GraduationCap, color: 'bg-green-100 text-green-800' };
 			case BlogCategory.ExamTips:
 				return { label: 'Cách làm bài thi', icon: Lightbulb, color: 'bg-yellow-100 text-yellow-800' };
 			case BlogCategory.StudentReview:
-				return { label: 'Review học viên', icon: Star, color: 'bg-purple-100 text-purple-800' };
+				return { label: 'Review học viên', icon: Star, color: 'bg-secondary/10 text-secondary' };
 			case BlogCategory.StudyAbroad:
 				return { label: 'Du học', icon: Globe, color: 'bg-orange-100 text-orange-800' };
 			default:
@@ -169,7 +169,7 @@ function BlogDetail({
 			{/* Banner of Detail */}
 			<div className="bg-gradient-to-b from-blue-900 to-indigo-900 border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
 				<div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay"></div>
-				<div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-500 rounded-full blur-[100px] opacity-30"></div>
+				<div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/80 rounded-full blur-[100px] opacity-30"></div>
 
 				<div className="max-w-4xl mx-auto w-full px-6 pb-12 relative z-10 pt-20">
 					<button
@@ -185,10 +185,10 @@ function BlogDetail({
 						{categoryInfo.label}
 					</Badge>
 					<h1 className="text-4xl md:text-5xl font-extrabold text-white mb-6 leading-tight drop-shadow-sm">{blog.title}</h1>
-					<div className="flex flex-wrap items-center gap-6 text-sm text-blue-100 font-medium">
+					<div className="flex flex-wrap items-center gap-6 text-sm text-primary-foreground/80 font-medium">
 						{authorName && (
 							<div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-								<div className="h-6 w-6 rounded-full bg-blue-500/50 flex items-center justify-center border border-blue-400">
+								<div className="h-6 w-6 rounded-full bg-primary/50 flex items-center justify-center border border-primary/80">
 									<User className="h-3.5 w-3.5 text-white" />
 								</div>
 								<span>{authorName}</span>
@@ -211,8 +211,8 @@ function BlogDetail({
 			<article className="max-w-4xl mx-auto bg-white shadow-xl shadow-gray-200/50 rounded-2xl -mt-8 relative z-20 p-8 md:p-12 mb-20 border border-gray-100">
 				{/* Summary Highlight */}
 				{blog.summary && (
-					<div className="bg-blue-50/50 border-l-4 border-blue-500 p-6 rounded-r-xl mb-10">
-						<p className="text-blue-900 text-lg font-medium leading-relaxed italic">
+					<div className="bg-primary/5 border-l-4 border-primary p-6 rounded-r-xl mb-10">
+						<p className="text-primary text-lg font-medium leading-relaxed italic">
 							{blog.summary}
 						</p>
 					</div>
@@ -308,18 +308,18 @@ export function BlogPage() {
 
 				<div className="relative px-6 py-16 max-w-7xl mx-auto text-center flex flex-col items-center">
 					<div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md mb-6 inline-block border border-white/10 shadow-xl">
-						<BookOpen className="h-10 w-10 text-blue-100" />
+						<BookOpen className="h-10 w-10 text-primary-foreground/80" />
 					</div>
 					<h1 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight drop-shadow-md">
 						Thư viện Kiến thức
 					</h1>
-					<p className="text-blue-100 text-lg md:text-xl max-w-2xl mx-auto font-medium">
+					<p className="text-primary-foreground/80 text-lg md:text-xl max-w-2xl mx-auto font-medium">
 						Khám phá các bài viết hữu ích về chiến lược học tiếng Anh, kỹ năng làm bài thi, và kinh nghiệm học viên.
 					</p>
 
 					{/* Search trong Hero */}
 					<div className="mt-10 w-full max-w-2xl mx-auto relative group">
-						<div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
+						<div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
 						<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-blue-300 transition-colors p-1">
 							<div className="pl-5 pr-3 text-gray-400 shrink-0">
 								<Search className="h-5 w-5" />
@@ -341,10 +341,10 @@ export function BlogPage() {
 					<aside className="w-full lg:w-72 flex-shrink-0 order-2 lg:order-1">
 						<div className="sticky top-6">
 							<Card className="border-0 shadow-xl shadow-gray-200/40 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-xl">
-								<div className="h-1.5 w-full bg-gradient-to-r from-blue-500 to-indigo-500" />
+								<div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80" />
 								<CardHeader className="pb-4 bg-gray-50/50 border-b border-gray-100">
 									<CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
-										<FileText className="h-5 w-5 text-blue-500" />
+										<FileText className="h-5 w-5 text-primary/80" />
 										Mục lục
 									</CardTitle>
 								</CardHeader>
@@ -352,7 +352,7 @@ export function BlogPage() {
 									<button
 										onClick={() => setSelectedCategory('__all__')}
 										className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${selectedCategory === '__all__'
-											? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100'
+											? 'bg-primary/10 text-primary shadow-sm border border-primary/20'
 											: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100'
 											}`}
 									>
@@ -371,7 +371,7 @@ export function BlogPage() {
 												key={category}
 												onClick={() => setSelectedCategory(category)}
 												className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected
-													? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100'
+													? 'bg-primary/10 text-primary shadow-sm border border-primary/20'
 													: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100'
 													}`}
 											>

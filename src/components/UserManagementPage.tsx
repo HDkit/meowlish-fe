@@ -218,7 +218,7 @@ export default function UserManagementPage() {
                 <UserCheck className="h-6 w-6" />
                 Quản lý người dùng
               </h1>
-              <p className="text-blue-100 mt-1">
+              <p className="text-primary-foreground/80 mt-1">
                 Quản lý tài khoản, vai trò và phân quyền hệ thống
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function UserManagementPage() {
             ].map(({ label, value, color }) => (
               <div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
                 <div className="text-2xl font-bold">{value}</div>
-                <div className="text-xs text-blue-100 mt-0.5">{label}</div>
+                <div className="text-xs text-primary-foreground/80 mt-0.5">{label}</div>
               </div>
             ))}
           </div>

@@ -217,7 +217,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
         </div>
 
         {/* Overall Score Card */}
-        <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+        <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-secondary/10">
           <CardHeader>
             <CardTitle className="text-center text-3xl">Kết quả Part {data.part}</CardTitle>
           </CardHeader>
@@ -236,12 +236,12 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <Clock className="h-5 w-5 mx-auto mb-2 text-blue-600" />
+                <Clock className="h-5 w-5 mx-auto mb-2 text-primary" />
                 <div className="text-2xl font-bold">{formatTime(data.totalDuration)}</div>
                 <div className="text-xs text-muted-foreground">Tổng thời gian</div>
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <MessageSquare className="h-5 w-5 mx-auto mb-2 text-purple-600" />
+                <MessageSquare className="h-5 w-5 mx-auto mb-2 text-secondary" />
                 <div className="text-2xl font-bold">{data.userAnswers.length}</div>
                 <div className="text-xs text-muted-foreground">Số câu trả lời</div>
               </div>
@@ -263,10 +263,10 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
 
         {/* Loading State */}
         {isGeneratingFeedback && (
-          <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+          <Card className="border-2 border-primary/30 bg-primary/10">
             <CardContent className="p-6">
               <div className="flex items-center justify-center space-x-4">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <div className="text-center">
                   <h3 className="text-lg font-semibold">Đang phân tích với AI...</h3>
                   <p className="text-sm text-muted-foreground">
@@ -301,7 +301,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-blue-600" />
+                  <Award className="h-5 w-5 text-primary" />
                   Điểm số chi tiết
                 </CardTitle>
                 <CardDescription>
@@ -319,7 +319,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-blue-600">{item.score}</div>
+                        <div className="text-3xl font-bold text-primary">{item.score}</div>
                         <div className="text-xs text-muted-foreground">/ {item.maxScore}</div>
                       </div>
                     </div>
@@ -375,7 +375,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
 
                   {/* Examples */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold flex items-center gap-2 text-blue-600">
+                    <h4 className="font-semibold flex items-center gap-2 text-primary">
                       <AlertCircle className="h-4 w-4" />
                       Ví dụ từ bài nói
                     </h4>
@@ -392,10 +392,10 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             ))}
 
             {/* Overall Recommendations */}
-            <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+            <Card className="border-2 border-primary/30 bg-primary/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5 text-blue-600" />
+                  <Lightbulb className="h-5 w-5 text-primary" />
                   Khuyến nghị chung
                 </CardTitle>
               </CardHeader>
@@ -404,19 +404,19 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
                   <h4 className="font-semibold">Để đạt điểm cao hơn:</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground">
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
+                      <span className="text-primary mt-1">•</span>
                       <span>Luyện tập hàng ngày ít nhất 15-20 phút để cải thiện fluency</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
+                      <span className="text-primary mt-1">•</span>
                       <span>Mở rộng vốn từ vựng theo chủ đề (topic-based vocabulary)</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
+                      <span className="text-primary mt-1">•</span>
                       <span>Ghi âm và nghe lại để tự đánh giá và sửa lỗi phát âm</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
+                      <span className="text-primary mt-1">•</span>
                       <span>Học cách phát triển ý với PEEL method (Point, Explain, Example, Link)</span>
                     </li>
                   </ul>
@@ -430,7 +430,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <BookOpen className="h-5 w-5 text-primary" />
                   Toàn bộ hội thoại
                 </CardTitle>
                 <CardDescription>
@@ -456,12 +456,12 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
                         {/* Answer */}
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <Badge className="bg-blue-600">Câu trả lời</Badge>
+                            <Badge className="bg-primary">Câu trả lời</Badge>
                             <span className="text-xs text-muted-foreground">
                               {answer.duration}s
                             </span>
                           </div>
-                          <p className="text-sm bg-blue-50 dark:bg-blue-950 p-3 rounded">
+                          <p className="text-sm bg-primary/10 p-3 rounded">
                             {answer.transcript}
                           </p>
                         </div>
@@ -488,7 +488,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại menu
           </Button>
-          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+          <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90">
             <Target className="h-4 w-4 mr-2" />
             Luyện part khác
           </Button>
