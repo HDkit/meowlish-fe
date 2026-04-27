@@ -40,7 +40,7 @@ export function LandingPage() {
 					<h1 className='text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 tracking-tight text-foreground drop-shadow-sm'>
 						Chinh phục IELTS &amp; TOEIC
 						<br />
-						với <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">trí tuệ nhân tạo</span>
+						với <span className="text-primary/90">trí tuệ nhân tạo</span>
 					</h1>
 					<p className='text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto px-4 leading-relaxed font-medium'>
 						Hệ thống luyện thi tiếng Anh chuẩn mực với công nghệ AI chấm điểm tự động. Xây dựng lộ trình cá nhân hóa, dự đoán điểm số và giúp bạn đạt mục tiêu nhanh hơn gấp 3 lần.
@@ -146,7 +146,7 @@ export function LandingPage() {
 							<div className='w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-white rounded-full flex items-center justify-center text-xl md:text-2xl font-bold mx-auto mb-4 md:mb-6 shadow-2xl ring-4 ring-primary/20 hover:ring-primary/30 transition-all'>
 								1
 							</div>
-							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent'>Đánh giá trình độ</h3>
+							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 text-primary'>Đánh giá trình độ</h3>
 							<p className='text-sm md:text-base text-muted-foreground px-2 leading-relaxed'>
 								Làm bài test đầu vào để AI phân tích chính xác trình độ hiện tại của bạn
 							</p>
@@ -155,7 +155,7 @@ export function LandingPage() {
 							<div className='w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-secondary via-secondary/90 to-secondary/70 text-white rounded-full flex items-center justify-center text-xl md:text-2xl font-bold mx-auto mb-4 md:mb-6 shadow-2xl ring-4 ring-secondary/20 hover:ring-secondary/30 transition-all'>
 								2
 							</div>
-							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent'>Luyện thi cá nhân hóa</h3>
+							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 text-secondary'>Luyện thi cá nhân hóa</h3>
 							<p className='text-sm md:text-base text-muted-foreground px-2 leading-relaxed'>
 								AI tạo lộ trình học tập riêng với các bài thi phù hợp với trình độ và mục tiêu
 							</p>
@@ -164,7 +164,7 @@ export function LandingPage() {
 							<div className='w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-accent via-accent/90 to-accent/70 text-white rounded-full flex items-center justify-center text-xl md:text-2xl font-bold mx-auto mb-4 md:mb-6 shadow-2xl ring-4 ring-accent/20 hover:ring-accent/30 transition-all'>
 								3
 							</div>
-							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-accent to-accent/70 bg-clip-text text-transparent'>Đạt mục tiêu</h3>
+							<h3 className='text-lg md:text-xl font-bold mb-3 md:mb-4 text-accent'>Đạt mục tiêu</h3>
 							<p className='text-sm md:text-base text-muted-foreground px-2 leading-relaxed'>
 								Theo dõi tiến độ và điều chỉnh chiến lược để đạt band điểm mong muốn
 							</p>
@@ -178,8 +178,8 @@ export function LandingPage() {
 				<div className='container mx-auto px-4 md:px-6 lg:px-8'>
 					<div className='text-center mb-10 md:mb-12 lg:mb-16'>
 						<h2 className='text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 text-foreground'>
-							<span className='bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent'>Học viên</span>{' '}
-							<span className='bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent'>nói gì về chúng tôi</span>
+							<span className='text-primary'>Học viên</span>{' '}
+							<span className='text-secondary'>nói gì về chúng tôi</span>
 						</h2>
 					</div>
 
