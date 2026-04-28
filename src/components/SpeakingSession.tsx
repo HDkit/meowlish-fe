@@ -537,7 +537,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
   const questionProgress = (messages.filter(m => m.role === 'user').length / MAX_QUESTIONS) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
         <Card className="border-2">
@@ -706,7 +706,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
 
                     {/* ElevenLabs Processing Info */}
                     {isWhisperEnabled && (
-                      <div className="bg-gradient-to-r from-secondary/10 to-primary/10 dark:from-secondary/20 dark:to-primary/20 p-3 rounded-lg border border-secondary/30 dark:border-secondary/50">
+                      <div className="bg-secondary/10 dark:bg-secondary/20 p-3 rounded-lg border border-secondary/30 dark:border-secondary/50">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium text-secondary dark:text-secondary/80">
                             🤖 ElevenLabs AI Enhancement
@@ -770,7 +770,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                       <Button
                         onClick={handleStopRecording}
                         size="lg"
-                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-8 py-6 shadow-lg"
+                        className="bg-green-600 hover:bg-green-700 px-8 py-6 shadow-lg"
                         disabled={isProcessing}
                       >
                         <Send className="h-6 w-6 mr-2" />
@@ -848,7 +848,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
 
               {/* Processing Status */}
               {isProcessing && (
-                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950 dark:to-orange-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div className="bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-5 w-5 animate-spin text-yellow-600" />
                     <div className="flex-1">
@@ -894,7 +894,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
           
           <div className="space-y-4">
             {/* Current Session Stats */}
-            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/10 dark:to-secondary/10 p-4 rounded-lg border">
+            <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border">
               <h4 className="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-300">📊 Thống kê phiên thi:</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex flex-col">

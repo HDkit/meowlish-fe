@@ -202,7 +202,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
   const avgAnswerLength = data.userAnswers.reduce((sum, a) => sum + a.duration, 0) / data.userAnswers.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -210,21 +210,21 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại
           </Button>
-          <Badge className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2">
+          <Badge className="bg-green-600 text-white px-4 py-2">
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Hoàn thành
           </Badge>
         </div>
 
         {/* Overall Score Card */}
-        <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-secondary/10">
+        <Card className="border-2 border-primary/30 bg-primary/10">
           <CardHeader>
             <CardTitle className="text-center text-3xl">Kết quả Part {data.part}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Main Score */}
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary to-secondary text-white">
+              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-primary text-white">
                 <div>
                   <div className="text-5xl font-bold">{overallScore}</div>
                   <div className="text-sm opacity-90">/ 9.0</div>
@@ -488,7 +488,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại menu
           </Button>
-          <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90">
+          <Button size="lg" className="bg-primary hover:bg-primary/90">
             <Target className="h-4 w-4 mr-2" />
             Luyện part khác
           </Button>

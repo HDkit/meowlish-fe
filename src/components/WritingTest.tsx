@@ -228,7 +228,7 @@ export function WritingTest() {
 			<div className="max-w-7xl mx-auto space-y-8">
 				{/* Main Content */}
 				<Card className="border-0 shadow-xl shadow-gray-200/50 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm -mt-4">
-					<div className="h-1.5 w-full bg-gradient-to-r from-secondary to-secondary/80" />
+					<div className="h-1.5 w-full bg-secondary" />
 					<CardHeader className="bg-gray-50/50 pb-4 border-b border-gray-100">
 						<CardTitle className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
 							<PenTool className="h-6 w-6 text-secondary" />
@@ -356,7 +356,7 @@ export function WritingTest() {
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{/* Score & Feedback */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20">
+							<CardHeader className="bg-primary/10 dark:bg-primary/20">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-xl">Điểm & nhận xét chung</CardTitle>
 									<div className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md">
@@ -399,7 +399,7 @@ export function WritingTest() {
 
 						{/* Corrections */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10">
+							<CardHeader className="bg-secondary/10 dark:bg-secondary/20">
 								<CardTitle className="text-xl">Bài viết chỉnh sửa & lỗi cụ thể</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-6 pt-6">

@@ -826,14 +826,14 @@ export function ExamCreationPage() {
         <div
           className={`relative rounded-2xl border px-3 py-3 text-sm cursor-pointer transition-all ${
             isSelected
-              ? 'border-primary/30 bg-gradient-to-r from-primary/10 to-accent/10 text-primary shadow-sm'
+              ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
               : 'border-gray-200 bg-white hover:border-primary/20 hover:bg-gray-50'
           }`}
           style={{ marginLeft: depth * 18 }}
           onClick={() => setSelectedNode({ type: 'section', id: sectionId })}
         >
           {depth > 0 && (
-            <div className="absolute -left-3 top-0 bottom-0 w-px bg-gradient-to-b from-primary/30 via-slate-200 to-transparent" />
+            <div className="absolute -left-3 top-0 bottom-0 w-px bg-primary/30" />
           )}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -915,9 +915,9 @@ export function ExamCreationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
-      <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_26%),linear-gradient(110deg,#1d4ed8_0%,#0891b2_48%,#0f766e_100%)] text-white">
-        <div className="absolute inset-0 bg-[linear-gradient(transparent_0%,rgba(0,0,0,0.1)_100%)]" />
+    <div className="min-h-screen bg-background">
+      <div className="relative overflow-hidden bg-primary text-white">
+        <div className="absolute inset-0 bg-black/10" />
         <div className="relative mx-auto max-w-7xl px-6 py-10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
