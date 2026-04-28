@@ -54,7 +54,7 @@ function FlashcardCard({
 
 	return (
 		<Card
-			className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[18rem] h-full flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden relative ${isFlipped ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'bg-white ring-1 ring-slate-200/50'}`}
+			className={`group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-h-[18rem] h-full flex flex-col border-0 shadow-sm rounded-2xl overflow-hidden relative ${isFlipped ? 'bg-primary text-white' : 'bg-white ring-1 ring-slate-200/50'}`}
 			onClick={() => setIsFlipped(!isFlipped)}
 		>
 			<CardContent className="p-6 flex-1 flex flex-col relative z-10">
@@ -175,7 +175,7 @@ function FlashcardDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
-				<div className="h-2 w-full bg-gradient-to-r from-primary to-primary/80"></div>
+				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
 						{flashcard ? 'Cập Nhật Flashcard' : 'Thêm Flashcard Mới'}
@@ -374,7 +374,7 @@ export function FlashcardListDetail() {
 		<div className="min-h-screen bg-slate-50/50 pb-20">
 			{/* Premium Header Region */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-12 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent pointer-events-none'></div>
+				<div className='absolute inset-0 bg-primary/5 pointer-events-none'></div>
 
 				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 					<Button

@@ -67,7 +67,7 @@ function ListDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
-				<div className="h-2 w-full bg-gradient-to-r from-primary to-primary"></div>
+				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
 						{list ? 'Cập Nhật Bộ Flashcard' : 'Tạo Bộ Flashcard Mới'}
@@ -189,7 +189,7 @@ export function FlashcardPage() {
 		<div className="min-h-screen bg-slate-50/50 pb-20">
 			{/* Premium Header */}
 			<div className='bg-white border-b border-gray-200 mb-8 md:mb-12 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-r from-primary to-primary/80 pointer-events-none'></div>
+				<div className='absolute inset-0 bg-primary pointer-events-none'></div>
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -224,7 +224,7 @@ export function FlashcardPage() {
 				{/* Lists Section */}
 				{myLists.length === 0 ? (
 					<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
-						<div className="w-24 h-24 bg-gradient-to-br from-primary/10 to-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+						<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
 							<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
 						</div>
 						<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Flashcard Nào</h3>
@@ -262,7 +262,7 @@ export function FlashcardPage() {
 										{/* Header */}
 										<div className="flex items-start justify-between mb-5">
 											<div className="flex items-start gap-4 flex-1">
-												<div className="w-12 h-12 bg-gradient-to-br from-primary/10 to-primary/10 border border-primary/20 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+												<div className="w-12 h-12 bg-primary/10 border border-primary/20 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
 													<Folder className="h-6 w-6" strokeWidth={2} />
 												</div>
 												<div className="flex-1 min-w-0 pt-0.5">

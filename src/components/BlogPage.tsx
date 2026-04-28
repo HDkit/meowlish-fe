@@ -63,7 +63,7 @@ function BlogCard({
 			className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col overflow-hidden border-gray-100 group"
 			onClick={onClick}
 		>
-			<div className="h-1.5 shrink-0 bg-gradient-to-r from-primary to-primary/80" />
+			<div className="h-1.5 shrink-0 bg-primary" />
 			<CardHeader className="pb-3 flex-1">
 				<div className="flex flex-col gap-3">
 					<Badge className={`${categoryInfo.color} self-start border-0 uppercase tracking-wider text-[10px] items-center py-1`}>
@@ -167,7 +167,7 @@ function BlogDetail({
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Banner of Detail */}
-			<div className="bg-gradient-to-b from-primary/90 to-primary border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
+			<div className="bg-primary border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
 				<div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay"></div>
 				<div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/80 rounded-full blur-[100px] opacity-30"></div>
 
@@ -299,9 +299,9 @@ export function BlogPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10 pb-20">
+		<div className="min-h-screen bg-background pb-20">
 			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-secondary text-white shadow-lg">
+			<div className="relative overflow-hidden bg-primary text-white shadow-lg">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 left-0 w-[500px] h-[500px] bg-white/5 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2" />
 				<div className="absolute bottom-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 translate-x-1/3" />
@@ -319,8 +319,7 @@ export function BlogPage() {
 
 					{/* Search trong Hero */}
 					<div className="mt-10 w-full max-w-2xl mx-auto relative group">
-						<div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
-						<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-primary transition-colors p-1">
+					<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-primary transition-colors p-1">
 							<div className="pl-5 pr-3 text-gray-400 shrink-0">
 								<Search className="h-5 w-5" />
 							</div>
@@ -341,7 +340,7 @@ export function BlogPage() {
 					<aside className="w-full lg:w-72 flex-shrink-0 order-2 lg:order-1">
 						<div className="sticky top-6">
 							<Card className="border-0 shadow-xl shadow-gray-200/40 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-xl">
-								<div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80" />
+								<div className="h-1.5 w-full bg-primary" />
 								<CardHeader className="pb-4 bg-gray-50/50 border-b border-gray-100">
 									<CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
 										<FileText className="h-5 w-5 text-primary/80" />

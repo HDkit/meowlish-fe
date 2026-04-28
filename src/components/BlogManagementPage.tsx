@@ -63,7 +63,7 @@ export default function BlogManagementPage() {
 
     if (!currUser || (!isStaff && !isHeadStaff)) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-secondary/10">
+            <div className="min-h-screen flex items-center justify-center bg-background">
                 <Card className="w-96 border-0 shadow-xl">
                     <CardHeader>
                         <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -131,10 +131,10 @@ export default function BlogManagementPage() {
     const totalViews = blogs.reduce((sum, b) => sum + (b.views ?? 0), 0);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-secondary/10 to-secondary/5">
+        <div className="min-h-screen bg-background">
 
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-secondary to-secondary/80 text-white">
+            <div className="relative overflow-hidden bg-secondary text-white">
                 <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative px-6 py-8">
@@ -203,7 +203,7 @@ export default function BlogManagementPage() {
                         <BookOpen className="h-12 w-12 text-gray-200 mx-auto mb-4" />
                         <p className="text-gray-500 font-medium">Chưa có bài viết nào</p>
                         <p className="text-gray-400 text-sm mt-1">Nhấn &quot;Tạo bài viết&quot; để bắt đầu</p>
-                        <Button onClick={openCreateDialog} className="mt-4 bg-gradient-to-r from-secondary to-secondary/80 text-white border-0">
+                        <Button onClick={openCreateDialog} className="mt-4 bg-secondary text-white border-0">
                             <Plus className="h-4 w-4 mr-2" />
                             Tạo bài viết đầu tiên
                         </Button>
