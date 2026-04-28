@@ -315,7 +315,7 @@ export function ExamDetailPage() {
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
 			{/* Premium Header */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-10 pb-12 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-r from-primary to-primary/80 pointer-events-none'></div>
+				<div className='absolute inset-0 bg-primary pointer-events-none'></div>
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -423,7 +423,7 @@ export function ExamDetailPage() {
 
 					{/* Banner: Bài thi dang dở */}
 					{ongoingAttempt && (
-						<div className='relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-md'>
+						<div className='relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-[#fff6dc] p-5 shadow-md'>
 							<div className='absolute -top-6 -right-6 w-28 h-28 bg-amber-300 rounded-full blur-[40px] opacity-40 pointer-events-none' />
 							<div className='relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4'>
 								<div className='flex items-center gap-3 flex-1'>
@@ -538,7 +538,7 @@ export function ExamDetailPage() {
 
 							{/* Timer Selection */}
 							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>
-								<div className="h-1.5 w-full bg-gradient-to-r from-teal-400 to-emerald-500"></div>
+								<div className="h-1.5 w-full bg-primary"></div>
 								<CardHeader className="pb-4">
 									<CardTitle className='text-xl flex items-center gap-2 text-slate-800'>
 										<Clock className="w-5 h-5 text-emerald-500" />
@@ -571,9 +571,9 @@ export function ExamDetailPage() {
 					{/* Full Test Mode */}
 					{activeTab === 'fulltest' && (
 						<div className='space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4'>
-							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-gradient-to-br from-primary/10 via-white to-primary/5 rounded-2xl overflow-hidden relative'>
+							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-card rounded-2xl overflow-hidden relative'>
 								<div className="absolute top-0 right-0 w-64 h-64 bg-primary/60 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
-								<div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80"></div>
+								<div className="h-1.5 w-full bg-primary"></div>
 
 								<CardContent className='p-8 relative z-10'>
 									<div className='flex flex-col md:flex-row items-center md:items-start gap-8'>
@@ -662,7 +662,7 @@ export function ExamDetailPage() {
 										return (
 											<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
 												<div className='flex items-start gap-4'>
-													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
+													<div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
 														{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
 													</div>
 													<div className='flex-1'>
@@ -824,7 +824,7 @@ export function ExamDetailPage() {
 									return (
 										<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
 											<div className='flex items-start gap-4'>
-												<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
+												<div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
 													{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
 												</div>
 												<div className='flex-1'>

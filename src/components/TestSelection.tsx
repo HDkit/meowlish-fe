@@ -156,7 +156,7 @@ export function TestSelection() {
 					<div className='flex items-start justify-between'>
 						<div className='space-y-3'>
 							<div className='flex items-center gap-3'>
-								<div className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary p-2.5 rounded-xl border border-primary/20 shadow-sm">
+								<div className="bg-primary/10 text-primary p-2.5 rounded-xl border border-primary/20 shadow-sm">
 									<Icon className='h-5 w-5' strokeWidth={2.5} />
 								</div>
 								<CardTitle className='text-xl font-bold text-slate-800 line-clamp-1'>{exam.title}</CardTitle>
@@ -215,7 +215,7 @@ export function TestSelection() {
 	return (
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
 			{/* Modern Premium Header */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-secondary text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
+			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
@@ -251,7 +251,7 @@ export function TestSelection() {
 
 					<TabsContent value='ielts' className='space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500'>
 						<div className='text-center space-y-3 mb-10'>
-							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80'>IELTS - International English Language Testing System</h3>
+							<h3 className='text-2xl font-bold text-primary'>IELTS - International English Language Testing System</h3>
 							<p className='text-slate-600 font-medium max-w-3xl mx-auto text-[15px]'>Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết phục vụ cho du học và định cư.</p>
 						</div>
 
@@ -273,7 +273,7 @@ export function TestSelection() {
 
 					<TabsContent value='toeic' className='space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500'>
 						<div className='text-center space-y-3 mb-10'>
-							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-secondary to-secondary/80'>TOEIC - Test of English for International Communication</h3>
+							<h3 className='text-2xl font-bold text-secondary'>TOEIC - Test of English for International Communication</h3>
 							<p className='text-slate-600 font-medium max-w-3xl mx-auto text-[15px]'>Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên nghiệp.</p>
 						</div>
 
