@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
-import { ThemeSwitcher } from './theme/ThemeSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -141,7 +141,7 @@ export function MainNavbar() {
 
 				{/* User / Auth Buttons */}
 				<div className='flex items-center space-x-4 ml-auto'>
-				<ThemeSwitcher compact />
+				<ThemeToggle />
 					{user ? (
 						<>
 							{/* Desktop User Info + Logout */}
