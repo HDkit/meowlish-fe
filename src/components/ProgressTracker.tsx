@@ -96,7 +96,7 @@ export function ProgressTracker() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-blue-500" />
+              <Trophy className="h-4 w-4 text-primary" />
               Current TOEIC
             </CardTitle>
           </CardHeader>
@@ -130,7 +130,7 @@ export function ProgressTracker() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4 text-purple-500" />
+              <Clock className="h-4 w-4 text-secondary" />
               This Week
             </CardTitle>
           </CardHeader>
@@ -352,12 +352,12 @@ export function ProgressTracker() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="border-l-4 border-blue-500 pl-4">
+                  <div className="border-l-4 border-primary pl-4">
                     <h4 className="font-medium">This Week</h4>
                     <p className="text-sm text-muted-foreground">Focus on writing Task 1 structure and practice 3 reading passages daily</p>
                   </div>
                   
-                  <div className="border-l-4 border-purple-500 pl-4">
+                  <div className="border-l-4 border-secondary pl-4">
                     <h4 className="font-medium">Next Week</h4>
                     <p className="text-sm text-muted-foreground">Speaking fluency exercises and complete 2 full practice tests</p>
                   </div>

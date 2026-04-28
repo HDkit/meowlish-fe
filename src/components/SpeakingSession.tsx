@@ -528,7 +528,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
     
     const sizeKB = Math.round(blob.size / 1024);
     const quality = sizeKB > 100 ? 'Excellent' : sizeKB > 50 ? 'Good' : sizeKB > 20 ? 'Fair' : 'Low';
-    const color = sizeKB > 100 ? 'text-green-600' : sizeKB > 50 ? 'text-blue-600' : sizeKB > 20 ? 'text-yellow-600' : 'text-red-600';
+    const color = sizeKB > 100 ? 'text-green-600' : sizeKB > 50 ? 'text-primary' : sizeKB > 20 ? 'text-yellow-600' : 'text-red-600';
     
     return { sizeKB, quality, color };
   };
@@ -537,7 +537,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
   const questionProgress = (messages.filter(m => m.role === 'user').length / MAX_QUESTIONS) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
       <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
         <Card className="border-2">
@@ -545,7 +545,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2">
-                  <Mic className="h-5 w-5 text-blue-600" />
+                  <Mic className="h-5 w-5 text-primary" />
                   Speaking Test - Part {part}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -616,7 +616,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                       message.role === 'user'
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                     }`}
                   >
@@ -653,16 +653,16 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
         </Card>
 
         {/* Recording Controls */}
-        <Card className="border-2 border-blue-200 dark:border-blue-800">
+        <Card className="border-2 border-primary/30 dark:border-primary/30">
           <CardContent className="p-6">
             <div className="space-y-4">
               {/* Live Transcript */}
               {isRecording && (
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border border-primary/30 dark:border-primary/30">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-semibold text-blue-600">Live Speech Recognition</span>
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-semibold text-primary">Live Speech Recognition</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
@@ -706,13 +706,13 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
 
                     {/* ElevenLabs Processing Info */}
                     {isWhisperEnabled && (
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 p-3 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <div className="bg-gradient-to-r from-secondary/10 to-primary/10 dark:from-secondary/20 dark:to-primary/20 p-3 rounded-lg border border-secondary/30 dark:border-secondary/50">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                          <span className="text-xs font-medium text-secondary dark:text-secondary/80">
                             🤖 ElevenLabs AI Enhancement
                           </span>
                         </div>
-                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                        <p className="text-xs text-secondary dark:text-secondary/80">
                           Sau khi dứt lời, AI sẽ cải thiện độ chính xác transcription
                         </p>
                       </div>
@@ -806,12 +806,12 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                 <div className="space-y-3">
                   {/* Instructions */}
                   {messages.length === 0 ? (
-                    <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border border-primary/30 dark:border-primary/30">
                       <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-semibold text-blue-600">Chờ examiner đặt câu hỏi</span>
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">Chờ examiner đặt câu hỏi</span>
                       </div>
-                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                      <p className="text-sm text-primary dark:text-primary/80">
                         AI examiner sẽ đặt câu hỏi cho bạn. Sau đó bạn có thể nhấn nút ghi âm để trả lời.
                       </p>
                     </div>
@@ -894,12 +894,12 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
           
           <div className="space-y-4">
             {/* Current Session Stats */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 p-4 rounded-lg border">
+            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/10 dark:to-secondary/10 p-4 rounded-lg border">
               <h4 className="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-300">📊 Thống kê phiên thi:</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex flex-col">
                   <span className="text-muted-foreground">Thời gian:</span>
-                  <span className="font-semibold text-blue-600">{formatTime(sessionTime)} / {formatTime(MAX_DURATION)}</span>
+                  <span className="font-semibold text-primary">{formatTime(sessionTime)} / {formatTime(MAX_DURATION)}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-muted-foreground">Câu trả lời:</span>

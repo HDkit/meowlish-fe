@@ -329,12 +329,12 @@ export function UserPage() {
 	});
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 pb-20'>
+		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50 pb-20'>
 			{/* ── Profile Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white shadow-xl mb-8">
+			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white shadow-xl mb-8">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-				<div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
 				<div className="relative px-6 py-12 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
 					<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
@@ -350,12 +350,12 @@ export function UserPage() {
 					</Avatar>
 					<div className='flex-1 text-center md:text-left'>
 						<h1 className='text-4xl font-extrabold mb-2 text-white drop-shadow-md'>{currUser?.fullName || 'Người dùng'}</h1>
-						<div className='flex flex-col md:flex-row items-center gap-4 text-blue-100 font-medium'>
+						<div className='flex flex-col md:flex-row items-center gap-4 text-primary-foreground/80 font-medium'>
 							<p className='flex items-center gap-2'>
 								<Mail className='h-5 w-5' />
 								{currUser?.email || 'Chưa có email'}
 							</p>
-							<span className="hidden md:block text-blue-300">•</span>
+							<span className="hidden md:block text-primary-foreground/60">•</span>
 							{currUser?.createdAt && (
 								<p className='flex items-center gap-2'>
 									<Calendar className='h-5 w-5' />
@@ -371,7 +371,7 @@ export function UserPage() {
 						<Button className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'>
 							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
-						<Button className='bg-white/10 hover:bg-white/20 text-blue-100 border-0 backdrop-blur-md w-full md:w-auto justify-start'>
+						<Button className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'>
 							<Settings className='h-4 w-4 mr-2' /> Cài đặt tài khoản
 						</Button>
 					</div>
@@ -384,17 +384,17 @@ export function UserPage() {
 				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
 					<div className='flex items-center justify-between mb-6 border-b border-gray-100 pb-4'>
 						<h2 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
-							<Target className="h-6 w-6 text-blue-600" /> Mục tiêu của bạn
+							<Target className="h-6 w-6 text-primary" /> Mục tiêu của bạn
 						</h2>
 						<AddGoalButton />
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
 						{userGoals.map((goal) => (
-							<Card key={goal.id} className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-gradient-to-br from-white to-blue-50/50'>
-								<CardHeader className='pb-3 bg-blue-600/5 rounded-t-xl'>
+							<Card key={goal.id} className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-gradient-to-br from-white to-primary/5'>
+								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
 										<div className='space-y-1'>
-											<p className='text-sm text-blue-700 font-semibold flex items-center gap-1.5'>
+											<p className='text-sm text-primary font-semibold flex items-center gap-1.5'>
 												<Calendar className='h-4 w-4' />
 												{formatDate(goal.dueDate)}
 											</p>
@@ -404,7 +404,7 @@ export function UserPage() {
 									</div>
 								</CardHeader>
 								<CardContent className="pt-4 pb-6">
-									<p className='text-5xl font-extrabold text-blue-600 drop-shadow-sm'>{goal.target}</p>
+									<p className='text-5xl font-extrabold text-primary drop-shadow-sm'>{goal.target}</p>
 								</CardContent>
 							</Card>
 						))}
@@ -420,13 +420,13 @@ export function UserPage() {
 				<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'overview' | 'achievements' | 'history')} className="mt-8">
 					<div className="flex justify-center mb-6">
 						<TabsList className='bg-white/90 backdrop-blur-xl p-2 rounded-full shadow-lg border border-gray-100/50 w-fit inline-flex'>
-							<TabsTrigger value='overview' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
+							<TabsTrigger value='overview' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
 								<TrendingUp className="h-4 w-4 mr-2 inline" /> Thống kê & Tổng quan
 							</TabsTrigger>
 							<TabsTrigger value='achievements' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
 								<Award className="h-4 w-4 mr-2 inline" /> Danh hiệu ({earnedBadges.length})
 							</TabsTrigger>
-							<TabsTrigger value='history' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
+							<TabsTrigger value='history' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-secondary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
 								<Edit className="h-4 w-4 mr-2 inline" /> Lịch sử luyện tập
 							</TabsTrigger>
 						</TabsList>
@@ -448,7 +448,7 @@ export function UserPage() {
 												<PolarGrid strokeDasharray="3 3" />
 												<PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 13, fontWeight: 500 }} />
 												<PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-												<Radar name="Kỹ năng" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+												<Radar name="Kỹ năng" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
 												<RechartsTooltip formatter={(value) => [`${value}%`, 'Tỷ lệ']} />
 											</RadarChart>
 										</ResponsiveContainer>
@@ -525,12 +525,12 @@ export function UserPage() {
 												<div className='space-y-3'>
 													<div className='flex justify-between items-center'>
 														<span className='font-medium text-slate-500'>Điểm trung bình</span>
-														<span className='text-3xl font-extrabold text-blue-600'>
+														<span className='text-3xl font-extrabold text-primary'>
 															{hasAttempts ? displayScore : '--'} <span className="text-xl text-gray-400 font-medium">/ {maxScore}</span>
 														</span>
 													</div>
 													{hasAttempts && (
-														<Progress value={(displayScore / maxScore) * 100} className='h-2.5 [&>div]:bg-blue-600' />
+														<Progress value={(displayScore / maxScore) * 100} className='h-2.5 [&>div]:bg-primary' />
 													)}
 												</div>
 
@@ -605,7 +605,7 @@ export function UserPage() {
 															)}
 														</div>
 													</div>
-													{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2.5 [&>div]:bg-indigo-500' />}
+													{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2.5 [&>div]:bg-primary' />}
 													{!hasAttempts && (
 														<div className='h-2.5 bg-gray-100 rounded-full w-full' />
 													)}
@@ -618,25 +618,25 @@ export function UserPage() {
 
 							{/* Overall Statistics */}
 							<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-white'>
 									<CardContent className='p-6 relative'>
 										<BookOpen className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<BookOpen className='h-8 w-8 text-blue-100' />
+											<BookOpen className='h-8 w-8 text-primary-foreground/80' />
 											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Tổng quát</span>
 										</div>
 										<div className='relative z-10'>
 											<p className='text-3xl font-extrabold mb-1'>{attemptsWithExam.length}</p>
-											<p className='text-sm text-blue-100 font-medium'>Số bài kiểm tra đã làm</p>
+											<p className='text-sm text-primary-foreground/80 font-medium'>Số bài kiểm tra đã làm</p>
 										</div>
 									</CardContent>
 								</Card>
 
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-primary/80 to-secondary text-white'>
 									<CardContent className='p-6 relative'>
 										<TrendingUp className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<TrendingUp className='h-8 w-8 text-indigo-100' />
+											<TrendingUp className='h-8 w-8 text-primary-foreground/80' />
 											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Hiệu suất</span>
 										</div>
 										<div className='relative z-10'>
@@ -651,21 +651,21 @@ export function UserPage() {
 													) / 10
 													: '--'}
 											</p>
-											<p className='text-sm text-indigo-100 font-medium'>Điểm trung bình toàn khoá</p>
+											<p className='text-sm text-primary-foreground/80 font-medium'>Điểm trung bình toàn khoá</p>
 										</div>
 									</CardContent>
 								</Card>
 
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-pink-500 to-rose-500 text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-secondary to-secondary/80 text-white'>
 									<CardContent className='p-6 relative'>
 										<Target className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<Target className='h-8 w-8 text-pink-100' />
+											<Target className='h-8 w-8 text-secondary-foreground' />
 											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Mục tiêu</span>
 										</div>
 										<div className='relative z-10'>
 											<p className='text-3xl font-extrabold mb-1'>{userGoals.length}</p>
-											<p className='text-sm text-pink-100 font-medium'>Số mục tiêu học tập đang chạy</p>
+											<p className='text-sm text-secondary-foreground font-medium'>Số mục tiêu học tập đang chạy</p>
 										</div>
 									</CardContent>
 								</Card>
@@ -679,7 +679,7 @@ export function UserPage() {
 						<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
 							<CardHeader className="bg-slate-50 border-b border-gray-100">
 								<CardTitle className='flex items-center gap-2 text-lg text-gray-800'>
-									<Filter className='h-5 w-5 text-blue-600' />
+									<Filter className='h-5 w-5 text-primary' />
 									Bộ lọc & Tuỳ chỉnh hiển thị
 								</CardTitle>
 							</CardHeader>
@@ -739,7 +739,7 @@ export function UserPage() {
 						<div className='border-0 shadow-md bg-white/90 backdrop-blur-sm rounded-xl overflow-hidden'>
 							<div className='p-6 border-b bg-slate-50'>
 								<h3 className='font-bold text-gray-800 text-lg flex items-center gap-2'>
-									<Calendar className="w-5 h-5 text-indigo-500" />
+									<Calendar className="w-5 h-5 text-primary" />
 									Lịch sử làm bài ({sortedHistory.length})
 								</h3>
 							</div>
@@ -751,7 +751,7 @@ export function UserPage() {
 												<Badge
 													variant='outline'
 													className={`${item.exam.testType === TestType.IELTS
-														? 'border-blue-500 text-blue-700 bg-blue-50'
+														? 'border-primary text-primary bg-primary/10'
 														: 'border-orange-500 text-orange-700 bg-orange-50'
 														} font-semibold`}
 												>
@@ -839,7 +839,7 @@ export function UserPage() {
 										</div>
 										<h3 className="text-xl font-bold text-gray-800 mb-2">Chưa có danh hiệu nào</h3>
 										<p className="text-gray-500 mb-6">Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
-										<Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => router.push('/test-selection')}>
+										<Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push('/test-selection')}>
 											Luyện tập ngay
 										</Button>
 									</div>
@@ -848,7 +848,7 @@ export function UserPage() {
 										{earnedBadges.map((badge: any, index: number) => {
 											// Tự động generate CSS class theo tên danh hiệu để cho đẹp
 											const colorClass = index % 3 === 0 ? 'from-amber-300 to-orange-500' 
-															: index % 3 === 1 ? 'from-purple-400 to-indigo-600' 
+															: index % 3 === 1 ? 'from-secondary to-primary/80' 
 															: 'from-emerald-300 to-teal-500';
 											
 											return (
@@ -860,7 +860,7 @@ export function UserPage() {
 														<div className="absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</div>
 														<div className="absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75">✨</div>
 													</div>
-													<h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-tight mb-1">{badge.displayName || badge.name}</h4>
+													<h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight mb-1">{badge.displayName || badge.name}</h4>
 													<p className="text-xs text-gray-500 line-clamp-2">{badge.description}</p>
 													{badge.date && (
 														<p className="text-[10px] text-gray-400 mt-2">Đạt được: {formatDate(new Date(badge.date))}</p>

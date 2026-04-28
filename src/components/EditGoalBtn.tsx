@@ -76,7 +76,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 							<select
 								value={testType}
 								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
-								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all'
+								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all'
 							>
 								<option value={TestType.IELTS}>IELTS</option>
 								<option value={TestType.TOEIC}>TOEIC</option>
@@ -90,7 +90,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 								type='number'
 								value={target}
 								onChange={(e) => setTarget(Number(e.target.value))}
-								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all'
+								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all'
 								placeholder='Nhập điểm mục tiêu'
 							/>
 						</div>
@@ -102,7 +102,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 								type='date'
 								value={dueDate}
 								onChange={(e) => setDueDate(e.target.value)}
-								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all'
+								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all'
 							/>
 						</div>
 
@@ -116,7 +116,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 							</button>
 							<button
 								onClick={handleUpdate}
-								className='px-5 py-2.5 font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all'
+								className='px-5 py-2.5 font-medium bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md shadow-primary/20 transition-all'
 							>
 								Cập nhật
 							</button>

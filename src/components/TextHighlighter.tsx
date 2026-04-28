@@ -194,13 +194,13 @@ const FlashcardFormModal = ({
                   type="text"
                   value={formData.listTitle}
                   onChange={(e) => setFormData(prev => ({ ...prev, listTitle: e.target.value }))}
-                  className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white"
                   placeholder="Nhập tiêu đề cho list từ"
                 />
                 <textarea
                   value={formData.listDescription}
                   onChange={(e) => setFormData(prev => ({ ...prev, listDescription: e.target.value }))}
-                  className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-white"
+                  className="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none bg-white"
                   rows={2}
                   placeholder="Nhập mô tả cho list từ"
                 ></textarea>
@@ -209,7 +209,7 @@ const FlashcardFormModal = ({
               <select
                 value={formData.selectedListId}
                 onChange={(e) => setFormData(prev => ({ ...prev, selectedListId: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-700"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white text-gray-700"
               >
                 {flashcardLists.length === 0 && <option value="">(Chưa có danh sách nào)</option>}
                 {flashcardLists.map(list => (
@@ -223,13 +223,13 @@ const FlashcardFormModal = ({
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-sm font-bold text-gray-800">Từ mới</label>
-              <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded uppercase">mới</span>
+              <span className="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded uppercase">mới</span>
             </div>
             <input
               type="text"
               value={formData.word}
               onChange={(e) => setFormData(prev => ({ ...prev, word: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 shadow-sm"
+              className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none text-gray-900 shadow-sm"
               placeholder="Nhập từ mới"
             />
           </div>
@@ -243,14 +243,14 @@ const FlashcardFormModal = ({
             <textarea
               value={formData.definition}
               onChange={(e) => setFormData(prev => ({ ...prev, definition: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none min-h-[100px] resize-y text-base shadow-sm"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none min-h-[100px] resize-y text-base shadow-sm"
               placeholder="Nhập định nghĩa"
             ></textarea>
           </div>
 
           {/* Expand options */}
           <div className="pt-2">
-            <button type="button" className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1 transition-colors">
+            <button type="button" className="text-primary text-sm font-medium hover:text-primary/80 flex items-center gap-1 transition-colors">
               Thêm phiên âm, ví dụ, ảnh, ghi chú ... 
               <ChevronDown size={14} />
             </button>
@@ -261,7 +261,7 @@ const FlashcardFormModal = ({
         <div className="px-6 py-4 flex justify-end pb-6">
           <button
             type="submit"
-            className="px-8 py-2 text-sm font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none shadow transition-all"
+            className="px-8 py-2 text-sm font-bold text-white bg-primary rounded-md hover:bg-primary/90 focus:outline-none shadow transition-all"
           >
             Lưu
           </button>
@@ -523,7 +523,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
     <div className={`relative group ${className || ''}`}>
       <div
         ref={textRef}
-        className="whitespace-pre-wrap text-justify selection:bg-blue-100 selection:text-blue-900"
+        className="whitespace-pre-wrap text-justify selection:bg-primary/20 selection:text-primary"
         onMouseUp={handleMouseUp}
         onClick={(e) => {
           // Only close toolbar if no text is selected and not clicking on highlight or toolbar
@@ -575,7 +575,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
                 className={`w-6 h-6 rounded-full border border-gray-200 transition-all hover:scale-110 ${c.class} ${
                   (isEditMode && editingHighlight?.color === c.class) || 
                   (!isEditMode && selectedColor === c.class) 
-                    ? 'ring-2 ring-blue-500 ring-offset-1' 
+                    ? 'ring-2 ring-primary ring-offset-1' 
                     : ''
                 }`}
                 onMouseDown={(e) => {

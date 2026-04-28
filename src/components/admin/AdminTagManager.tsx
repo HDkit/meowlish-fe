@@ -37,7 +37,7 @@ function TagTree({ nodes, onRename, onMove, onDelete }: {
               <p className="text-xs text-gray-500">id: {node.id}</p>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => onRename(node.id, node.name)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/90 hover:bg-primary/10" onClick={() => onRename(node.id, node.name)}>
                 <Edit2 className="h-3 w-3" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={() => onMove(node.id)}>
@@ -212,7 +212,7 @@ export function AdminTagManager() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
             <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
-              <Network className="h-4 w-4 text-blue-600" />
+              <Network className="h-4 w-4 text-primary" />
               <h3 className="font-medium text-gray-900">Tag Tree</h3>
             </div>
             {loading ? (
@@ -226,7 +226,7 @@ export function AdminTagManager() {
 
           <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
             <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
-              <ListTree className="h-4 w-4 text-purple-600" />
+              <ListTree className="h-4 w-4 text-secondary" />
               <h3 className="font-medium text-gray-900">Tag List (Phẳng)</h3>
             </div>
             {loading ? (
@@ -242,7 +242,7 @@ export function AdminTagManager() {
                       <p className="text-xs text-gray-500">id: <span className="font-mono">{tag.id}</span> • parent: <span className="font-mono">{tag.parentId ?? 'root'}</span></p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => handleRename(tag.id, tag.name)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/90 hover:bg-primary/10" onClick={() => handleRename(tag.id, tag.name)}>
                         <Edit2 className="h-3 w-3" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={() => handleMove(tag.id)}>

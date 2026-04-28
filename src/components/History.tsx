@@ -188,10 +188,10 @@ export function History({ userId }: HistoryProps) {
 				<Card>
 					<CardContent className='p-4'>
 						<div className='flex items-center space-x-2'>
-							<Award className='h-5 w-5 text-blue-600' />
+							<Award className='h-5 w-5 text-primary' />
 							<div>
 								<p className='text-sm font-medium'>TOEIC cao nhất</p>
-								<p className='text-2xl font-semibold text-blue-600'>{stats.bestTOEIC}</p>
+								<p className='text-2xl font-semibold text-primary'>{stats.bestTOEIC}</p>
 							</div>
 						</div>
 					</CardContent>

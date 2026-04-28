@@ -214,7 +214,7 @@ export function ExamApproval(){
           onClick={() => setFilterStatus('all')}
           className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
             filterStatus === 'all'
-              ? 'border-blue-500 text-blue-600'
+              ? 'border-primary text-primary'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -285,7 +285,7 @@ export function ExamApproval(){
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                      <span className="px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded">
                         {exam.type}
                       </span>
                     </td>

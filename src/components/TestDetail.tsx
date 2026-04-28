@@ -315,7 +315,7 @@ export function ExamDetailPage() {
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
 			{/* Premium Header */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-10 pb-12 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 pointer-events-none'></div>
+				<div className='absolute inset-0 bg-gradient-to-r from-primary to-primary/80 pointer-events-none'></div>
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -323,7 +323,7 @@ export function ExamDetailPage() {
 					<Button
 						variant="ghost"
 						onClick={() => router.push('/test-selection')}
-						className="flex items-center gap-2 mb-8 -ml-2 text-blue-100 hover:text-white hover:bg-white/10 transition-colors font-semibold"
+						className="flex items-center gap-2 mb-8 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
 					>
 						<ArrowLeft className="h-4 w-4" />
 						Trở về danh sách đề thi
@@ -348,17 +348,17 @@ export function ExamDetailPage() {
 									</Badge>
 								</div>
 								<h1 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight'>{examData.name}</h1>
-								<p className='text-blue-100 text-lg md:text-xl font-medium max-w-3xl leading-relaxed opacity-90'>{examData.description}</p>
+								<p className='text-primary-foreground/80 text-lg md:text-xl font-medium max-w-3xl leading-relaxed opacity-90'>{examData.description}</p>
 							</div>
 						</div>
 
-						<div className='flex items-center gap-6 text-sm flex-wrap text-blue-50 pt-2'>
+						<div className='flex items-center gap-6 text-sm flex-wrap text-primary-foreground/80 pt-2'>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
-								<Clock className='h-5 w-5 text-blue-200' />
+								<Clock className='h-5 w-5 text-primary-foreground/80' />
 								<span className="font-semibold text-base">{examData.duration} giây</span>
 							</div>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
-								<FileText className='h-5 w-5 text-indigo-200' />
+								<FileText className='h-5 w-5 text-primary-foreground/80' />
 								<span className="font-semibold text-base">{rootSections.length} phần thi</span>
 							</div>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
@@ -372,8 +372,8 @@ export function ExamDetailPage() {
 						</div>
 
 						{activeTab === 'fulltest' && (
-							<div className='bg-white/10 border-l-4 border-blue-400 backdrop-blur-md rounded-r-xl p-4 flex gap-3 text-blue-50 text-sm mt-4 shadow-sm'>
-								<Info className='shrink-0 h-5 w-5 mt-0.5 text-blue-300' />
+							<div className='bg-white/10 border-l-4 border-primary/60 backdrop-blur-md rounded-r-xl p-4 flex gap-3 text-primary-foreground/80 text-sm mt-4 shadow-sm'>
+								<Info className='shrink-0 h-5 w-5 mt-0.5 text-primary/60' />
 								<p className="font-medium text-[15px]">
 									Chế độ <strong>Full Test</strong> sẽ mô phỏng kỳ thi thực tế. Hệ thống sẽ căn cứ vào đây để tính <strong>Scaled Score</strong> (điểm chuẩn) cho bạn (VD: Band 9.0 IELTS hoặc 990 TOEIC).
 								</p>
@@ -390,7 +390,7 @@ export function ExamDetailPage() {
 					<div className='inline-flex bg-slate-200/50 p-1.5 rounded-2xl shadow-inner border border-slate-200/60'>
 						<button
 							className={`px-6 py-2.5 rounded-xl text-[15px] font-bold transition-all ${activeTab === 'practice'
-									? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50'
+									? 'bg-white text-primary shadow-sm ring-1 ring-slate-200/50'
 									: 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
 								}`}
 							onClick={() => setActiveTab('practice')}
@@ -399,7 +399,7 @@ export function ExamDetailPage() {
 						</button>
 						<button
 							className={`px-6 py-2.5 rounded-xl text-[15px] font-bold transition-all ${activeTab === 'fulltest'
-									? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50'
+									? 'bg-white text-primary shadow-sm ring-1 ring-slate-200/50'
 									: 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
 								}`}
 							onClick={() => setActiveTab('fulltest')}
@@ -408,7 +408,7 @@ export function ExamDetailPage() {
 						</button>
 						<button
 							className={`px-6 py-2.5 rounded-xl text-[15px] font-bold transition-all ${activeTab === 'discuss'
-									? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50'
+									? 'bg-white text-primary shadow-sm ring-1 ring-slate-200/50'
 									: 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
 								}`}
 							onClick={() => setActiveTab('discuss')}
@@ -473,7 +473,7 @@ export function ExamDetailPage() {
 						<div className='space-y-6'>
 							<div>
 								<h3 className='text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2'>
-									<Target className="w-6 h-6 text-blue-600" />
+									<Target className="w-6 h-6 text-primary" />
 									Cấu trúc đề thi
 								</h3>
 
@@ -486,23 +486,23 @@ export function ExamDetailPage() {
 										return (
 											<Card
 												key={section.id}
-												className={`cursor-pointer transition-all duration-300 hover:-translate-y-1 border-2 overflow-hidden relative group ${isSelected ? 'border-blue-500 bg-blue-50/50 shadow-md ring-4 ring-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-lg'
+												className={`cursor-pointer transition-all duration-300 hover:-translate-y-1 border-2 overflow-hidden relative group ${isSelected ? 'border-primary bg-primary/10 shadow-md ring-4 ring-primary/10' : 'border-slate-200 bg-white hover:border-primary/50 hover:shadow-lg'
 													}`}
 												onClick={() => toggleSection(section.id)}
 											>
-												{isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400 rounded-full blur-[40px] opacity-20 pointer-events-none"></div>}
+												{isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-primary/80 rounded-full blur-[40px] opacity-20 pointer-events-none"></div>}
 												<CardContent className='p-6 relative z-10'>
 													<div className='flex items-start gap-4'>
-														<div className={`mt-0.5 rounded-full p-1 transition-colors ${isSelected ? 'bg-blue-100' : 'bg-slate-100 group-hover:bg-blue-50'}`}>
+														<div className={`mt-0.5 rounded-full p-1 transition-colors ${isSelected ? 'bg-primary/10' : 'bg-slate-100 group-hover:bg-primary/10'}`}>
 															{isSelected ? (
-																<CheckCircle2 className='h-6 w-6 text-blue-600' />
+																<CheckCircle2 className='h-6 w-6 text-primary' />
 															) : (
-																<Circle className='h-6 w-6 text-slate-400 group-hover:text-blue-400' />
+																<Circle className='h-6 w-6 text-slate-400 group-hover:text-primary/80' />
 															)}
 														</div>
 														<div className='flex-1 space-y-3.5'>
 															<div>
-																<h4 className={`font-bold text-lg mb-1.5 transition-colors ${isSelected ? 'text-blue-900' : 'text-slate-800 group-hover:text-blue-700'}`}>
+																<h4 className={`font-bold text-lg mb-1.5 transition-colors ${isSelected ? 'text-primary' : 'text-slate-800 group-hover:text-primary'}`}>
 																	{getPartName(section, index)}
 																</h4>
 																<div className='flex items-center gap-4 text-sm font-semibold mb-2'>
@@ -549,7 +549,7 @@ export function ExamDetailPage() {
 									<div className='space-y-3'>
 										<label className='text-sm font-medium text-gray-700 block'>Giới hạn thời gian (tùy chọn)</label>
 										<select
-											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary outline-none'
 											value={timer}
 											onChange={(e) => setTimer(e.target.value)}
 										>
@@ -571,14 +571,14 @@ export function ExamDetailPage() {
 					{/* Full Test Mode */}
 					{activeTab === 'fulltest' && (
 						<div className='space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4'>
-							<Card className='border-0 shadow-lg ring-1 ring-blue-500/20 bg-gradient-to-br from-blue-50 via-white to-indigo-50/50 rounded-2xl overflow-hidden relative'>
-								<div className="absolute top-0 right-0 w-64 h-64 bg-blue-300 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
-								<div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-gradient-to-br from-primary/10 via-white to-primary/5 rounded-2xl overflow-hidden relative'>
+								<div className="absolute top-0 right-0 w-64 h-64 bg-primary/60 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
+								<div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80"></div>
 
 								<CardContent className='p-8 relative z-10'>
 									<div className='flex flex-col md:flex-row items-center md:items-start gap-8'>
-										<div className='bg-white shadow-md border border-blue-100 rounded-3xl p-6 flex-shrink-0 animate-bounce-slow'>
-											<FileText className='h-12 w-12 text-blue-600' strokeWidth={1.5} />
+										<div className='bg-white shadow-md border border-primary/20 rounded-3xl p-6 flex-shrink-0 animate-bounce-slow'>
+											<FileText className='h-12 w-12 text-primary' strokeWidth={1.5} />
 										</div>
 										<div className='flex-1 text-center md:text-left'>
 											<h3 className='text-3xl font-black text-slate-800 mb-3 tracking-tight'>Mô Phỏng Kỳ Thi Thực Tế</h3>
@@ -588,7 +588,7 @@ export function ExamDetailPage() {
 											<div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Tổng số phần thi</span>
-													<span className='text-2xl font-black text-blue-700'>{rootSections.length}</span>
+													<span className='text-2xl font-black text-primary'>{rootSections.length}</span>
 												</div>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Tổng câu hỏi</span>
@@ -610,14 +610,14 @@ export function ExamDetailPage() {
 					{activeTab === 'discuss' && (
 						<div className="animate-in fade-in duration-500 slide-in-from-bottom-4 pb-12">
 							<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
-								<MessageSquare className="w-6 h-6 text-blue-500" />
+								<MessageSquare className="w-6 h-6 text-primary/80" />
 								Khu Vực Thảo Luận ({examComments.length} bình luận)
 							</h3>
 
 							<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
 								<Textarea
 									placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-									className='flex-1 min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
+									className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
 									value={commentInput}
 									onChange={(e) => setCommentInput(e.target.value)}
 									onKeyDown={(e) => {
@@ -633,7 +633,7 @@ export function ExamDetailPage() {
 										<select
 											value={examRating}
 											onChange={(e) => setExamRating(e.target.value as Difficulty)}
-											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 shadow-sm'
+											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
 										>
 											<option value={Difficulty.Beginner}>Cơ bản</option>
 											<option value={Difficulty.Intermediate}>Trung bình</option>
@@ -642,7 +642,7 @@ export function ExamDetailPage() {
 									</div>
 									<Button
 										onClick={handleCommentSubmit}
-										className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
+										className='bg-primary hover:bg-primary/90 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
 										disabled={!commentInput.trim() || !currentUser}
 									>
 										Gửi
@@ -662,7 +662,7 @@ export function ExamDetailPage() {
 										return (
 											<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
 												<div className='flex items-start gap-4'>
-													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-bold flex items-center justify-center flex-shrink-0 text-lg border border-blue-200">
+													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
 														{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
 													</div>
 													<div className='flex-1'>
@@ -704,7 +704,7 @@ export function ExamDetailPage() {
 								</span>
 							</Button>
 							{activeTab === 'practice' && selectedSectionIds.length > 0 && (
-								<div className='text-sm font-bold text-blue-600 bg-blue-100/50 px-4 py-2.5 rounded-xl border border-blue-200'>
+								<div className='text-sm font-bold text-primary bg-primary/10 px-4 py-2.5 rounded-xl border border-primary/30'>
 									Đã chọn sẵn {selectedSectionIds.length} phần thi
 								</div>
 							)}
@@ -738,7 +738,7 @@ export function ExamDetailPage() {
 									<div className='flex flex-col sm:flex-row gap-3'>
 										{pendingAttemptDialog.attemptId && (
 											<Button
-												className='flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 rounded-2xl shadow-md'
+												className='flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-2xl shadow-md'
 												onClick={() => {
 													setPendingAttemptDialog({ open: false, attemptId: null });
 													router.push(`/test/do/${pendingAttemptDialog.attemptId}`);
@@ -772,14 +772,14 @@ export function ExamDetailPage() {
 				{activeTab !== 'discuss' && (
 					<div className='pt-12 mt-12 border-t border-slate-200/60'>
 						<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
-							<MessageSquare className="w-6 h-6 text-blue-500" />
+							<MessageSquare className="w-6 h-6 text-primary/80" />
 							Bình luận & Thảo luận
 						</h3>
 
 						<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
 							<Textarea
 								placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-								className='flex-1 min-h-[100px] border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl resize-none bg-slate-50'
+								className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
 								value={commentInput}
 								onChange={(e) => setCommentInput(e.target.value)}
 								onKeyDown={(e) => {
@@ -795,7 +795,7 @@ export function ExamDetailPage() {
 									<select
 										value={examRating}
 										onChange={(e) => setExamRating(e.target.value as Difficulty)}
-										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 shadow-sm'
+										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
 									>
 										<option value={Difficulty.Beginner}>Cơ bản</option>
 										<option value={Difficulty.Intermediate}>Trung bình</option>
@@ -804,7 +804,7 @@ export function ExamDetailPage() {
 								</div>
 								<Button
 									onClick={handleCommentSubmit}
-									className='bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
+									className='bg-primary hover:bg-primary/90 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
 									disabled={!commentInput.trim() || !currentUser}
 								>
 									Gửi
@@ -824,7 +824,7 @@ export function ExamDetailPage() {
 									return (
 										<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
 											<div className='flex items-start gap-4'>
-												<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-bold flex items-center justify-center flex-shrink-0 text-lg border border-blue-200">
+												<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
 													{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
 												</div>
 												<div className='flex-1'>
@@ -848,7 +848,7 @@ export function ExamDetailPage() {
 									<Button
 										variant='outline'
 										onClick={() => setActiveTab('discuss')}
-										className='text-blue-700 border-blue-200 hover:bg-blue-50 font-bold px-8 rounded-xl h-12'
+										className='text-primary border-primary/30 hover:bg-primary/10 font-bold px-8 rounded-xl h-12'
 									>
 										Xem tất cả {examComments.length} bình luận
 									</Button>

@@ -111,7 +111,7 @@ export default function ExamApprovalPage() {
   // Access check
   if (!currUser || !isHeadStaff || !canApproveExams) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-secondary/10">
         <Card className="w-96 border-0 shadow-xl">
           <CardHeader>
             <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -202,9 +202,9 @@ export default function ExamApprovalPage() {
   const pendingCount = exams.filter((e) => e.status === 'InDraft').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50">
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-r from-primary via-cyan-600 to-teal-600 text-white">
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="relative px-6 py-8">
@@ -214,7 +214,7 @@ export default function ExamApprovalPage() {
                 <ClipboardCheck className="h-6 w-6" />
                 Duyệt đề thi
               </h1>
-              <p className="text-blue-100 mt-1">
+              <p className="text-primary-foreground/80 mt-1">
                 Xem xét và phê duyệt các đề thi do staff tạo ra
               </p>
             </div>
@@ -271,7 +271,7 @@ export default function ExamApprovalPage() {
           {/* Table */}
           {loading ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
-              <RefreshCw className="h-8 w-8 text-blue-400 mx-auto mb-4 animate-spin" />
+              <RefreshCw className="h-8 w-8 text-primary/80 mx-auto mb-4 animate-spin" />
               <p className="text-gray-500 font-medium">Đang tải danh sách đề thi...</p>
             </div>
           ) : sortedExams.length === 0 ? (
@@ -295,7 +295,7 @@ export default function ExamApprovalPage() {
                   {sortedExams.map((exam) => (
                     <tr key={exam.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                        <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">
                           {exam.title}
                         </p>
                         {exam.rejectionReason && (

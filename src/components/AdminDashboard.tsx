@@ -39,7 +39,7 @@ export default function AdminDashboard() {
 
   if (!currUser || (!isStaff && !isHeadStaff)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/10">
         <Card className="w-96 border-0 shadow-xl">
           <CardHeader>
             <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -72,11 +72,11 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-primary/10">
       {/* Hero Header */}
       <div className={`relative overflow-hidden ${isHeadStaff
-        ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600'
-        : 'bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500'
+        ? 'bg-gradient-to-r from-primary to-primary/80'
+        : 'bg-gradient-to-r from-primary/80 via-cyan-500 to-teal-500'
         } text-white`}>
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -152,11 +152,11 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500" />
+                <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Users className="h-4 w-4 text-blue-500" />
+                  <div className="p-2 bg-primary/15 rounded-lg">
+                    <Users className="h-4 w-4 text-primary/80" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -210,11 +210,11 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-blue-400 to-cyan-500" />
+                <div className="h-1.5 bg-gradient-to-r from-primary to-cyan-500" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <FileText className="h-4 w-4 text-blue-500" />
+                  <div className="p-2 bg-primary/15 rounded-lg">
+                    <FileText className="h-4 w-4 text-primary/80" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
           <Card className="border-0 shadow-md">
             <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-indigo-500" />
+                <FileText className="h-5 w-5 text-primary/80" />
                 <CardTitle className="text-base font-semibold text-gray-800">
                   {isStaff ? 'Đề thi của tôi' : 'Đề thi gần đây'}
                 </CardTitle>
@@ -261,7 +261,7 @@ export default function AdminDashboard() {
                     className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <div className="flex-1 min-w-0 flex items-center gap-3">
-                      <div className="p-2 bg-indigo-50 text-indigo-500 rounded-lg">
+                      <div className="p-2 bg-primary/10 text-primary/80 rounded-lg">
                         <FileText className="h-4 w-4" />
                       </div>
                       <div>
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
                     <p className="text-sm font-medium text-gray-500">Chưa có đề thi nào</p>
                     <p className="text-xs text-gray-400 mt-1">Các đề thi bạn tạo sẽ hiển thị tại đây</p>
                     <Link href="/exam-creation">
-                      <Button className="mt-4 bg-indigo-500 hover:bg-indigo-600 border-0" size="sm">
+                      <Button className="mt-4 bg-primary hover:bg-primary/90 border-0" size="sm">
                         Tạo đề thi đầu tiên
                       </Button>
                     </Link>
@@ -292,7 +292,7 @@ export default function AdminDashboard() {
                 {!loading && myExams.length > 5 && (
                   <div className="mt-4 text-center">
                     <Link href="/exam-management">
-                      <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-sm">
+                      <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 text-sm">
                         Xem tất cả {myExams.length} đề thi →
                       </Button>
                     </Link>

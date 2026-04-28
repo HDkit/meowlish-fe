@@ -156,7 +156,7 @@ export function TestSelection() {
 					<div className='flex items-start justify-between'>
 						<div className='space-y-3'>
 							<div className='flex items-center gap-3'>
-								<div className="bg-gradient-to-br from-indigo-50 to-blue-50 text-indigo-600 p-2.5 rounded-xl border border-indigo-100/50 shadow-sm">
+								<div className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary p-2.5 rounded-xl border border-primary/20 shadow-sm">
 									<Icon className='h-5 w-5' strokeWidth={2.5} />
 								</div>
 								<CardTitle className='text-xl font-bold text-slate-800 line-clamp-1'>{exam.title}</CardTitle>
@@ -175,7 +175,7 @@ export function TestSelection() {
 					<div className='grid grid-cols-3 gap-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100'>
 						<div className='text-center border-r border-slate-200 last:border-0 p-1'>
 							<div className='flex flex-col items-center justify-center'>
-								<Clock className='h-4 w-4 mb-1.5 text-blue-500' />
+								<Clock className='h-4 w-4 mb-1.5 text-primary/80' />
 								<span className="text-[13px] font-bold text-slate-700">{exam.duration}</span>
 								<span className="text-[10px] text-slate-500 font-semibold uppercase">Phút</span>
 							</div>
@@ -215,10 +215,10 @@ export function TestSelection() {
 	return (
 		<div className='min-h-screen bg-slate-50/50 pb-20'>
 			{/* Modern Premium Header */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
+			<div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-secondary text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-				<div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
 				<div className='relative z-10 max-w-3xl mx-auto space-y-4'>
 					<div className="flex justify-center">
@@ -229,7 +229,7 @@ export function TestSelection() {
 					<h2 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5'>
 						Lựa Chọn Thử Thách Của Bạn
 					</h2>
-					<p className='text-blue-100 text-lg md:text-xl font-medium'>
+					<p className='text-primary-foreground/80 text-lg md:text-xl font-medium'>
 						Danh sách các bài thi được tuyển chọn, mô phỏng đúng cấu trúc và độ khó thực tế. Hãy bắt đầu hành trình nâng cao trình độ ngay hôm nay.
 					</p>
 				</div>
@@ -240,10 +240,10 @@ export function TestSelection() {
 				<Tabs defaultValue='ielts' value={selectedTab} onValueChange={(value: any) => setSelectedTab(value)} className="w-full">
 					<div className="flex justify-center mb-12">
 						<TabsList className='bg-slate-100/80 p-1.5 rounded-2xl shadow-inner border border-slate-200/60 inline-flex'>
-							<TabsTrigger value='ielts' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all'>
+							<TabsTrigger value='ielts' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all'>
 								IELTS Exam
 							</TabsTrigger>
-							<TabsTrigger value='toeic' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm transition-all'>
+							<TabsTrigger value='toeic' className='rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-secondary data-[state=active]:shadow-sm transition-all'>
 								TOEIC Exam
 							</TabsTrigger>
 						</TabsList>
@@ -251,7 +251,7 @@ export function TestSelection() {
 
 					<TabsContent value='ielts' className='space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500'>
 						<div className='text-center space-y-3 mb-10'>
-							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700'>IELTS - International English Language Testing System</h3>
+							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80'>IELTS - International English Language Testing System</h3>
 							<p className='text-slate-600 font-medium max-w-3xl mx-auto text-[15px]'>Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết phục vụ cho du học và định cư.</p>
 						</div>
 
@@ -273,7 +273,7 @@ export function TestSelection() {
 
 					<TabsContent value='toeic' className='space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500'>
 						<div className='text-center space-y-3 mb-10'>
-							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-pink-700'>TOEIC - Test of English for International Communication</h3>
+							<h3 className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-secondary to-secondary/80'>TOEIC - Test of English for International Communication</h3>
 							<p className='text-slate-600 font-medium max-w-3xl mx-auto text-[15px]'>Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên nghiệp.</p>
 						</div>
 

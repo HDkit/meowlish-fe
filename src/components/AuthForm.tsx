@@ -288,22 +288,22 @@ export function AuthForm() {
 	};
 
 	return (
-		<div className='min-h-screen w-full flex bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 relative overflow-hidden'>
+		<div className='min-h-screen w-full flex bg-gradient-to-br from-slate-50 via-primary/5 to-cyan-50 relative overflow-hidden'>
 			{/* Premium background blobs */}
 			<div className='absolute inset-0 overflow-hidden pointer-events-none'>
-				<div className='absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-3xl animate-blob'></div>
-				<div className='absolute top-1/2 -left-40 w-[25rem] h-[25rem] bg-blue-400/10 rounded-full blur-3xl animate-blob animation-delay-2000'></div>
-				<div className='absolute -bottom-40 right-1/4 w-[25rem] h-[25rem] bg-purple-400/10 rounded-full blur-3xl animate-blob animation-delay-4000'></div>
+				<div className='absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-primary/10 rounded-full blur-3xl animate-blob'></div>
+				<div className='absolute top-1/2 -left-40 w-[25rem] h-[25rem] bg-primary/10 rounded-full blur-3xl animate-blob animation-delay-2000'></div>
+				<div className='absolute -bottom-40 right-1/4 w-[25rem] h-[25rem] bg-secondary/10 rounded-full blur-3xl animate-blob animation-delay-4000'></div>
 			</div>
 
 			{/* Left Side: Marketing / Illustration */}
 			<div className='hidden lg:flex flex-1 flex-col justify-center items-start pl-12 lg:pl-20 xl:pl-32 relative z-10'>
 				<div className='max-w-3xl w-full'>
-					<h1 className='text-5xl lg:text-7xl font-extrabold text-slate-900 leading-[1.1] mb-6 tracking-tight'>
+					<h1 className='text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1] mb-6 tracking-tight'>
 						Bắt đầu <br />
-						hành trình chinh phục <br /> <span className='text-blue-600'>mục tiêu của bạn</span>
+						hành trình chinh phục <br /> <span className='text-primary'>mục tiêu của bạn</span>
 					</h1>
-					<p className='text-xl text-slate-600 font-medium mb-12 max-w-md leading-relaxed'>
+					<p className='text-xl text-muted-foreground font-medium mb-12 max-w-md leading-relaxed'>
 						Hệ thống luyện thi thông minh giúp tối đa hóa điểm IELTS & TOEIC bằng sức mạnh cốt lõi của Trí Tuệ Nhân Tạo.
 					</p>
 
@@ -312,11 +312,11 @@ export function AuthForm() {
 						{/* Floating Card 1 */}
 						<div className='absolute top-0 right-10 animate-blob' style={{ animationDuration: '7s' }}>
 							<div className='bg-white p-4 rounded-3xl shadow-xl border border-gray-100/50 rotate-[4deg] w-64 transform transition-transform hover:scale-105'>
-								<div className='w-full h-32 bg-blue-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
-									<Sparkles className='w-12 h-12 text-blue-400' />
+								<div className='w-full h-32 bg-primary/10 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
+									<Sparkles className='w-12 h-12 text-primary/60' />
 								</div>
 								<div className='flex items-center gap-3'>
-									<div className='w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full' />
+									<div className='w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full' />
 									<div>
 										<div className='h-3 w-24 bg-gray-200 rounded-full mb-2' />
 										<div className='h-2 w-16 bg-gray-100 rounded-full' />
@@ -328,8 +328,8 @@ export function AuthForm() {
 						{/* Floating Card 2 */}
 						<div className='absolute bottom-10 left-0 animate-blob animation-delay-2000' style={{ animationDuration: '8s' }}>
 							<div className='bg-white p-4 rounded-3xl shadow-xl border border-gray-100/50 rotate-[-4deg] w-56 transform transition-transform hover:scale-105'>
-								<div className='w-full h-40 bg-pink-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
-									<Target className='w-12 h-12 text-pink-400' />
+								<div className='w-full h-40 bg-secondary/10 rounded-2xl mb-4 flex items-center justify-center overflow-hidden'>
+									<Target className='w-12 h-12 text-secondary/80' />
 								</div>
 								<div className='space-y-2 pb-2'>
 									<div className='h-3 w-full bg-gray-200 rounded-full' />
@@ -354,23 +354,23 @@ export function AuthForm() {
 
 			{/* Right Side: Auth Form */}
 			<div className='w-full lg:w-[480px] xl:w-[560px] flex-shrink-0 min-h-screen flex flex-col justify-center relative z-20 bg-white shadow-2xl xl:shadow-[-20px_0_40px_rgba(0,0,0,0.08)] backdrop-blur-xl'>
-				<div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+				<div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-primary to-secondary" />
 
 				<div className='w-full max-w-[400px] mx-auto px-6 py-12 flex flex-col'>
 					{/* Header */}
 					<div className='text-center space-y-4 pb-8'>
 						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
-							<div className='p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
+							<div className='p-3 bg-gradient-to-br from-primary to-primary rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
 								<Brain className='h-8 w-8 text-white' />
 							</div>
 							<div>
-								<h1 className='text-3xl font-extrabold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent'>EnglishAI Pro</h1>
-								<p className='text-sm font-semibold text-slate-500 mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
+								<h1 className='text-3xl font-extrabold bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent'>EnglishAI Pro</h1>
+								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
 							</div>
 						</Link>
 						<div className="pt-4">
 							<h2 className='text-2xl font-bold text-gray-900'>{isLogin ? 'Chào mừng bạn trở lại' : 'Tạo tài khoản mới'}</h2>
-							<p className='text-[15px] font-medium text-slate-500 mt-2'>
+							<p className='text-[15px] font-medium text-muted-foreground mt-2'>
 								{isLogin ? 'Đăng nhập để tiếp tục hành trình luyện thi' : 'Bắt đầu hành trình chinh phục tiếng Anh cùng AI'}
 							</p>
 						</div>
@@ -388,11 +388,11 @@ export function AuthForm() {
 								<div className='space-y-2'>
 									<Label className='text-gray-700 font-semibold'>Username</Label>
 									<div className='relative'>
-										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-500' />
+										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input
 											value={formData.fullName}
 											onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-											className='pl-10 border-2 focus:border-purple-400 transition-colors h-11'
+											className='pl-10 border-2 focus:border-primary transition-colors h-11'
 											placeholder='Nhập username'
 										/>
 									</div>
@@ -403,11 +403,11 @@ export function AuthForm() {
 							<div className='space-y-2'>
 								<Label className='text-gray-700 font-semibold'>Email</Label>
 								<div className='relative'>
-									<Mail className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500' />
+									<Mail className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/80' />
 									<Input
 										value={formData.email}
 										onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-										className='pl-10 border-2 focus:border-blue-400 transition-colors h-11'
+										className='pl-10 border-2 focus:border-primary transition-colors h-11'
 										placeholder='Nhập email của bạn'
 									/>
 								</div>
@@ -417,12 +417,12 @@ export function AuthForm() {
 							<div className='space-y-2'>
 								<Label className='text-gray-700 font-semibold'>Mật khẩu</Label>
 								<div className='relative'>
-									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
+									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 									<Input
 										type={showPassword ? 'text' : 'password'}
 										value={formData.password}
 										onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-										className='pl-10 pr-10 border-2 focus:border-pink-400 transition-colors h-11'
+										className='pl-10 pr-10 border-2 focus:border-secondary transition-colors h-11'
 										placeholder='Nhập mật khẩu'
 									/>
 									<Button
@@ -442,12 +442,12 @@ export function AuthForm() {
 								<div className='space-y-2'>
 									<Label className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
 									<div className='relative'>
-										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-pink-500' />
+										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input
 											type={showConfirmPassword ? 'text' : 'password'}
 											value={formData.confirmPassword}
 											onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-											className='pl-10 pr-10 border-2 focus:border-pink-400 transition-colors h-11'
+											className='pl-10 pr-10 border-2 focus:border-secondary transition-colors h-11'
 											placeholder='Nhập lại mật khẩu'
 										/>
 										<Button
@@ -466,7 +466,7 @@ export function AuthForm() {
 								</div>
 							)}
 
-							<Button className='w-full h-13 py-3 text-base font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all duration-200' disabled={loading}>
+							<Button className='w-full h-13 py-3 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all duration-200' disabled={loading}>
 								{loading ? 'Đang xử lý...' : isLogin ? 'Đăng nhập vào hệ thống' : 'Đăng ký tài khoản'}
 								<ArrowRight className='ml-2 h-5 w-5' />
 							</Button>
@@ -486,7 +486,7 @@ export function AuthForm() {
 							{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
 						</Button>
 						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={() => handleSocialLogin('facebook')} disabled={loading}>
-							<FaFacebook className='w-5 h-5 text-blue-600 mr-2' />
+							<FaFacebook className='w-5 h-5 text-primary mr-2' />
 							{isLogin ? 'Tiếp tục với Facebook' : 'Đăng ký bằng Facebook'}
 						</Button>
 						{/* Dev Quick Login – real token + mocked role */}
@@ -503,7 +503,7 @@ export function AuthForm() {
 										size='sm'
 										type='button'
 										disabled={!!devLoading}
-										className='border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs h-9'
+										className='border-primary/30 text-primary hover:bg-primary/10 text-xs h-9'
 										onClick={() => devLogin('role-staff')}
 									>
 										{devLoading === 'staff' ? '⏳ Đang tạo...' : '🧑‍💼 Đăng nhập Staff'}
@@ -513,7 +513,7 @@ export function AuthForm() {
 										size='sm'
 										type='button'
 										disabled={!!devLoading}
-										className='border-purple-200 text-purple-700 hover:bg-purple-50 text-xs h-9'
+										className='border-secondary/30 text-secondary hover:bg-secondary/10 text-xs h-9'
 										onClick={() => devLogin('role-head-staff')}
 									>
 										{devLoading === 'head-staff' ? '⏳ Đang tạo...' : '⭐ Đăng nhập Head Staff'}
@@ -524,7 +524,7 @@ export function AuthForm() {
 
 						<p className='text-center text-sm mt-2 text-gray-600'>
 							{isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
-							<Button variant='link' className='p-0 font-semibold text-purple-600 hover:text-purple-700' onClick={toggleMode}>
+							<Button variant='link' className='p-0 font-semibold text-secondary hover:text-secondary/80' onClick={toggleMode}>
 								{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
 							</Button>
 						</p>
