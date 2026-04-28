@@ -690,7 +690,7 @@ export function TestInterface() {
                             >
                               <div className="flex gap-4 p-4">
                                 <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
-                                  isActive ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                  isActive ? 'bg-primary text-white' : 'border border-slate-200 bg-white text-slate-600'
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
@@ -740,7 +740,7 @@ export function TestInterface() {
                                   <div className="flex items-start gap-3">
                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                                       isActive
-                                      ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                      ? 'bg-primary text-white' : 'border border-slate-200 bg-white text-slate-600'
                                     }`}>{q.globalIndex}</div>
                                     {q.content && (
                                       <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
@@ -754,7 +754,7 @@ export function TestInterface() {
                               // Normal stacked
                               <div className="flex gap-4 p-5">
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black mt-0.5 ${
-                                  isActive ? 'bg-gradient-to-br from-primary to-primary/80 text-white' : 'border border-slate-200 bg-white text-slate-600'
+                                  isActive ? 'bg-primary text-white' : 'border border-slate-200 bg-white text-slate-600'
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
@@ -803,7 +803,7 @@ export function TestInterface() {
         {/* Sticky Header: Timer, Submit, Progress */}
         <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Timer */}
-          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-b from-primary/5 to-white p-6 text-center">
+          <div className="relative overflow-hidden border-b border-slate-100 bg-muted/30 p-6 text-center">
             <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-primary-foreground/80" />
             <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/80">
               <Clock className="h-3.5 w-3.5" />
@@ -822,7 +822,7 @@ export function TestInterface() {
           <div className="bg-white p-5">
             <Button
               onClick={() => performSubmit(false)}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-primary to-primary/80 font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-primary/90 hover:to-primary/70 hover:shadow-lg"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-primary font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg"
             >
               <Send className="h-4 w-4" /> Nộp bài
             </Button>
@@ -869,7 +869,7 @@ export function TestInterface() {
                           }}
                           className={`relative flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold shadow-sm transition-all ${
                             active
-                              ? 'z-10 scale-110 border-0 bg-gradient-to-br from-primary to-primary/80 font-black text-white ring-2 ring-primary/30 ring-offset-1 shadow-md'
+                              ? 'z-10 scale-110 border-0 bg-primary font-black text-white ring-2 ring-primary/30 ring-offset-1 shadow-md'
                               : done
                               ? 'border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'

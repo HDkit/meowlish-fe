@@ -142,7 +142,7 @@ export function SpeakingTest() {
               key={part.part}
               className="bg-white border-0 hover:shadow-xl shadow-md transition-all rounded-2xl overflow-hidden group"
             >
-              <div className="h-1.5 w-full bg-gradient-to-r from-primary to-primary/80" />
+              <div className="h-1.5 w-full bg-primary" />
               <CardHeader className="space-y-4 bg-gray-50/50 pb-4">
                 <div className="space-y-3">
                   <Badge

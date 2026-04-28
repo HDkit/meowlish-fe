@@ -206,9 +206,9 @@ export default function UserManagementPage() {
   const bannedCount = users.filter((u) => u.status === 'banned').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
+    <div className="min-h-screen bg-background">
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-accent/80 text-white">
+      <div className="relative overflow-hidden bg-primary text-white">
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="relative px-6 py-8">

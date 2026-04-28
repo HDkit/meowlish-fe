@@ -8,9 +8,9 @@ export function SpeakingWritingPage() {
 	const [activeTab, setActiveTab] = useState<'speaking' | 'writing'>('speaking');
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50 pb-20">
+		<div className="min-h-screen bg-background pb-20">
 			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-primary bg-gradient-to-r from-primary to-primary/80 text-white shadow-lg">
+			<div className="relative overflow-hidden bg-primary text-white shadow-lg">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
