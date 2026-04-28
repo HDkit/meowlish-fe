@@ -24,6 +24,7 @@ export class SpeechRecognitionService {
   private isSupported: boolean = false;
   private isListening: boolean = false;
   private currentTranscript: string = '';
+  private isInitialized: boolean = false;
   
   // Event handlers
   private onResultHandler: SpeechRecognitionEventHandler | null = null;
@@ -32,16 +33,24 @@ export class SpeechRecognitionService {
   private onEndHandler: (() => void) | null = null;
 
   constructor() {
-    this.checkSupport();
-    this.initializeRecognition();
+    // Only initialize on client-side
+    if (typeof window !== 'undefined') {
+      this.checkSupport();
+      this.initializeRecognition();
+      this.isInitialized = true;
+    }
   }
 
   private checkSupport(): void {
+    if (typeof window === 'undefined') {
+      this.isSupported = false;
+      return;
+    }
     this.isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
   }
 
   private initializeRecognition(): void {
-    if (!this.isSupported) {
+    if (typeof window === 'undefined' || !this.isSupported) {
       console.warn('Speech Recognition API is not supported in this browser');
       return;
     }
@@ -141,6 +150,13 @@ export class SpeechRecognitionService {
 
   // Start speech recognition
   start(options?: SpeechRecognitionOptions): void {
+    // Lazy initialize if not done yet
+    if (typeof window !== 'undefined' && !this.isInitialized) {
+      this.checkSupport();
+      this.initializeRecognition();
+      this.isInitialized = true;
+    }
+
     if (!this.isSupported) {
       this.onErrorHandler?.('Trình duyệt không hỗ trợ nhận diện giọng nói');
       return;
