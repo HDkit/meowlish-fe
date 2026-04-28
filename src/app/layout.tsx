@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes';
 import StoreProvider from '@/lib/store/StoreProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiClientProvider } from '@/components/ApiClientProvider';
+import { FloatingLeaves } from '@/components/FloatingLeaves';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body>
         <StoreProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+            <FloatingLeaves count={8} opacity={0.2} />
             <ApiClientProvider>
               {children}
               <Toaster />
