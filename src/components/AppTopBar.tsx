@@ -25,11 +25,13 @@ export function AppTopBar() {
   const title = pageTitles[pathname ?? ''] ?? '';
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3">
-      <SidebarTrigger className="md:hidden" />
-      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-      <div className="ml-auto">
-        <ThemeToggle />
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-white/82 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/88">
+      <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-3 px-4 md:px-6 lg:px-8 xl:px-10">
+        <SidebarTrigger className="md:hidden" />
+        <h1 className="truncate text-xl font-semibold text-foreground">{title}</h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

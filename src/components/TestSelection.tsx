@@ -34,6 +34,18 @@ export function TestSelection() {
 	const router = useRouter();
 	const dispatch = useAppDispatch();
 
+	const deduceTestType = (raw: any): TestType => {
+		const lowerTags: string[] = raw?.tags?.map((t: string) => String(t).toLowerCase()) || [];
+		if (lowerTags.includes('ielts')) return TestType.IELTS;
+		if (lowerTags.includes('toeic')) return TestType.TOEIC;
+
+		const name = String(raw?.name ?? raw?.title ?? '').trim().toLowerCase();
+		if (name.startsWith('ielts')) return TestType.IELTS;
+		if (name.startsWith('toeic')) return TestType.TOEIC;
+
+		return TestType.IELTS;
+	};
+
 	useEffect(() => {
 		if (!currentUser) {
 			router.push('/auth'); // redirect if not logged in
@@ -59,7 +71,7 @@ export function TestSelection() {
 						duration: e.duration,
 						// Parse tags to deduce the testType, difficulty, and skill
 						difficulty: lowerTags.includes('beginner') ? 'beginner' : lowerTags.includes('advanced') ? 'advanced' : 'intermediate',
-						testType: lowerTags.includes('ielts') ? TestType.IELTS : TestType.TOEIC,
+						testType: deduceTestType(e),
 						skill: lowerTags.includes('listening') ? 'listening' : lowerTags.includes('speaking') ? 'speaking' : lowerTags.includes('writing') ? 'writing' : 'reading',
 						tagIds: e.tags || [],
 						status: ExamStatus.Published,
@@ -213,9 +225,9 @@ export function TestSelection() {
 	};
 
 	return (
-		<div className='min-h-screen bg-slate-50/50 pb-20'>
+		<div className='w-full pb-20'>
 			{/* Modern Premium Header */}
-			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-6 sm:px-10 text-center">
+			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
@@ -235,7 +247,7 @@ export function TestSelection() {
 				</div>
 			</div>
 
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+			<div className='w-full'>
 				{/* Exam Selection Tabs */}
 				<Tabs defaultValue='ielts' value={selectedTab} onValueChange={(value: any) => setSelectedTab(value)} className="w-full">
 					<div className="flex justify-center mb-12">

@@ -50,35 +50,37 @@
 }
 
 .dark {
-  --background: 220 20% 10%;
-  --foreground: 0 0% 98%;
-  --card: 220 20% 12%;
-  --card-foreground: 0 0% 98%;
-  --popover: 220 20% 12%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 144 50% 50%;
-  --primary-foreground: 220 20% 10%;
-  --secondary: 32 80% 55%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 220 15% 18%;
-  --muted-foreground: 220 10% 70%;
-  --accent: 46 85% 65%;
-  --accent-foreground: 220 20% 10%;
-  --destructive: 0 62.8% 50%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 220 20% 20%;
-  --input: 220 20% 20%;
-  --ring: 144 50% 50%;
+  --background: 155 24% 9%;
+  --foreground: 210 40% 96%;
+  --card: 156 20% 12%;
+  --card-foreground: 210 40% 96%;
+  --popover: 156 20% 12%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 149 45% 52%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 36 84% 61%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 156 16% 16%;
+  --muted-foreground: 214 18% 72%;
+  --accent: 160 22% 18%;
+  --accent-foreground: 210 40% 96%;
+  --destructive: 0 70% 56%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 156 16% 20%;
+  --input: 156 16% 20%;
+  --ring: 149 45% 52%;
+  --input-background: hsl(156 18% 13%);
+  --switch-background: hsl(156 12% 24%);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --sidebar: 220 20% 14%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 144 50% 50%;
+  --sidebar: 156 22% 11%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-primary: 149 45% 52%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 15% 18%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 220 20% 20%;
-  --sidebar-ring: 144 50% 50%;
+  --sidebar-accent: 156 18% 16%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-border: 156 16% 19%;
+  --sidebar-ring: 149 45% 52%;
 }
 
 
@@ -154,6 +156,12 @@ body {
     @apply bg-background text-foreground font-body;
   }
 
+  .dark body {
+    background-image:
+      radial-gradient(circle at top, rgba(22, 163, 74, 0.08), transparent 26%),
+      linear-gradient(180deg, rgba(8, 12, 11, 0.98), rgba(12, 20, 18, 1));
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold;
   }
@@ -173,6 +181,78 @@ body[style*="overflow"] {
 }
 
 @layer utilities {
+  .dark .bg-white {
+    background-color: hsl(156 20% 12%) !important;
+  }
+
+  .dark .bg-slate-50,
+  .dark .bg-slate-100,
+  .dark .bg-gray-50,
+  .dark .bg-gray-100 {
+    background-color: hsl(156 16% 16%) !important;
+  }
+
+  .dark .bg-slate-50\/50,
+  .dark .bg-white\/80,
+  .dark .bg-white\/90 {
+    background-color: hsl(156 18% 14% / 0.82) !important;
+  }
+
+  .dark .text-slate-900,
+  .dark .text-slate-800,
+  .dark .text-gray-900,
+  .dark .text-gray-800 {
+    color: hsl(210 40% 96%) !important;
+  }
+
+  .dark .text-slate-700,
+  .dark .text-gray-700 {
+    color: hsl(214 22% 84%) !important;
+  }
+
+  .dark .text-slate-600,
+  .dark .text-gray-600 {
+    color: hsl(214 16% 72%) !important;
+  }
+
+  .dark .text-slate-500,
+  .dark .text-gray-500,
+  .dark .text-slate-400,
+  .dark .text-gray-400 {
+    color: hsl(214 14% 62%) !important;
+  }
+
+  .dark .border-slate-50,
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-gray-50,
+  .dark .border-gray-100,
+  .dark .border-gray-200 {
+    border-color: hsl(156 16% 20%) !important;
+  }
+
+  .dark .border-slate-300,
+  .dark .border-gray-300,
+  .dark .border-dashed {
+    border-color: hsl(156 14% 24%) !important;
+  }
+
+  .dark .shadow-sm,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl {
+    --tw-shadow-color: rgba(0, 0, 0, 0.38) !important;
+  }
+
+  .dark .bg-primary {
+    background-color: hsl(var(--primary)) !important;
+  }
+
+  .dark .text-primary-foreground,
+  .dark .text-secondary-foreground {
+    color: hsl(0 0% 100%) !important;
+  }
+
   .animate-fade-in-up {
     animation: fadeInUp 0.6s ease-out forwards;
   }
