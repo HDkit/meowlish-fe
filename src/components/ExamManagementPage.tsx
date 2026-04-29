@@ -144,10 +144,10 @@ export function ExamManagementPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-accent/10">
+        <div className="min-h-screen bg-background">
 
             {/* ── Hero Header ── */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-primary via-accent to-accent/80 text-white">
+            <div className="relative overflow-hidden bg-primary text-white">
                 <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative px-6 py-8">
@@ -238,7 +238,7 @@ export function ExamManagementPage() {
                         <p className="text-gray-400 text-sm mt-1">Nhấn "Tạo đề mới" để bắt đầu</p>
                         <Button
                             onClick={() => router.push('/exam-creation')}
-                            className="mt-4 bg-gradient-to-r from-primary to-accent text-white border-0"
+                            className="mt-4 bg-primary text-white border-0"
                         >
                             <FilePlus className="h-4 w-4 mr-2" />
                             Tạo đề thi đầu tiên

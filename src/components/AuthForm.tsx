@@ -288,7 +288,7 @@ export function AuthForm() {
 	};
 
 	return (
-		<div className='min-h-screen w-full flex bg-gradient-to-br from-slate-50 via-primary/5 to-cyan-50 relative overflow-hidden'>
+		<div className='min-h-screen w-full flex bg-background relative overflow-hidden'>
 			{/* Premium background blobs */}
 			<div className='absolute inset-0 overflow-hidden pointer-events-none'>
 				<div className='absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-primary/10 rounded-full blur-3xl animate-blob'></div>
@@ -316,7 +316,7 @@ export function AuthForm() {
 									<Sparkles className='w-12 h-12 text-primary/60' />
 								</div>
 								<div className='flex items-center gap-3'>
-									<div className='w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full' />
+									<div className='w-10 h-10 bg-primary' />
 									<div>
 										<div className='h-3 w-24 bg-gray-200 rounded-full mb-2' />
 										<div className='h-2 w-16 bg-gray-100 rounded-full' />
@@ -354,17 +354,17 @@ export function AuthForm() {
 
 			{/* Right Side: Auth Form */}
 			<div className='w-full lg:w-[480px] xl:w-[560px] flex-shrink-0 min-h-screen flex flex-col justify-center relative z-20 bg-white shadow-2xl xl:shadow-[-20px_0_40px_rgba(0,0,0,0.08)] backdrop-blur-xl'>
-				<div className="absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r from-primary to-secondary" />
+				<div className="absolute top-0 left-0 h-1.5 w-full bg-primary" />
 
 				<div className='w-full max-w-[400px] mx-auto px-6 py-12 flex flex-col'>
 					{/* Header */}
 					<div className='text-center space-y-4 pb-8'>
 						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
-							<div className='p-3 bg-gradient-to-br from-primary to-primary rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
+							<div className='p-3 bg-primary rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
 								<Brain className='h-8 w-8 text-white' />
 							</div>
 							<div>
-								<h1 className='text-3xl font-extrabold bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent'>EnglishAI Pro</h1>
+								<h1 className='text-3xl font-extrabold text-primary'>EnglishAI Pro</h1>
 								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
 							</div>
 						</Link>

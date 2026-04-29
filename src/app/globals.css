@@ -35,16 +35,17 @@
   --chart-4: 170 77% 27%;
   --chart-5: 16 88% 64%;
   --radius: 1rem;
-  --shadow-soft: 0 4px 20px hsl(220 15% 15% / 0.08);
-  --shadow-medium: 0 8px 30px hsl(220 15% 15% / 0.12);
+  --shadow-soft: 0 4px 20px hsl(144 46% 55% / 0.06);
+  --shadow-medium: 0 8px 30px hsl(144 46% 55% / 0.12);
+  --shadow-heavy: 0 8px 30px hsl(144 46% 55% / 0.24);
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: 240 5.3% 26.1%;
-  --sidebar-primary: 240 5.9% 10%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 240 4.8% 95.9%;
-  --sidebar-accent-foreground: 240 5.9% 10%;
-  --sidebar-border: 220 13% 91%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222.2 84% 4.9%;
+  --sidebar-primary: 144 46% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 144 30% 92%;
+  --sidebar-accent-foreground: 222.2 84% 4.9%;
+  --sidebar-border: 214.3 31.8% 91.4%;
   --sidebar-ring: 144 46% 55%;
 }
 
@@ -55,90 +56,31 @@
   --card-foreground: 0 0% 98%;
   --popover: 220 20% 12%;
   --popover-foreground: 0 0% 98%;
-  --primary: 84 86% 48%;
+  --primary: 144 50% 50%;
   --primary-foreground: 220 20% 10%;
-  --secondary: 230 62% 61%;
+  --secondary: 32 80% 55%;
   --secondary-foreground: 0 0% 98%;
-  --muted: 220 20% 18%;
+  --muted: 220 15% 18%;
   --muted-foreground: 220 10% 70%;
-  --accent: 56 100% 81%;
+  --accent: 46 85% 65%;
   --accent-foreground: 220 20% 10%;
   --destructive: 0 62.8% 50%;
   --destructive-foreground: 0 0% 98%;
   --border: 220 20% 20%;
   --input: 220 20% 20%;
-  --ring: 84 86% 48%;
+  --ring: 144 50% 50%;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --sidebar: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar: 220 20% 14%;
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 144 50% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+  --sidebar-accent: 220 15% 18%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 220 20% 20%;
+  --sidebar-ring: 144 50% 50%;
 }
 
-:root[data-app-theme='mint-productivity'] {
-  --background: 150 55% 96%;
-  --foreground: 168 38% 16%;
-  --card: 0 0% 100%;
-  --card-foreground: 168 38% 16%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 168 38% 16%;
-  --primary: 170 77% 27%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 43 93% 58%;
-  --secondary-foreground: 164 40% 15%;
-  --muted: 150 32% 90%;
-  --muted-foreground: 170 22% 38%;
-  --accent: 158 60% 43%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 160 22% 82%;
-  --input: 160 22% 82%;
-  --ring: 170 77% 27%;
-  --sidebar: 152 46% 93%;
-  --sidebar-foreground: 168 32% 20%;
-  --sidebar-primary: 170 77% 27%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 152 24% 88%;
-  --sidebar-accent-foreground: 168 32% 20%;
-  --sidebar-border: 160 22% 80%;
-  --sidebar-ring: 170 77% 27%;
-}
-
-:root[data-app-theme='forest-focus'] {
-  --background: 142 28% 95%;
-  --foreground: 156 32% 18%;
-  --card: 0 0% 100%;
-  --card-foreground: 156 32% 18%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 156 32% 18%;
-  --primary: 146 45% 31%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 16 88% 64%;
-  --secondary-foreground: 156 40% 12%;
-  --muted: 143 20% 88%;
-  --muted-foreground: 156 18% 35%;
-  --accent: 16 88% 64%;
-  --accent-foreground: 156 40% 12%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 145 18% 79%;
-  --input: 145 18% 79%;
-  --ring: 146 45% 31%;
-  --sidebar: 142 24% 91%;
-  --sidebar-foreground: 156 32% 20%;
-  --sidebar-primary: 146 45% 31%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 142 15% 85%;
-  --sidebar-accent-foreground: 156 32% 20%;
-  --sidebar-border: 145 18% 74%;
-  --sidebar-ring: 146 45% 31%;
-}
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -269,4 +211,14 @@ body[style*="overflow"] {
   }
   .animate-blob-morph { animation: blob-morph 12s ease-in-out infinite; }
   .animate-blob-morph-alt { animation: blob-morph-alt 10s ease-in-out infinite; }
+
+  @keyframes leaf-drift {
+    0%   { transform: translateX(0) translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateX(150px) translateY(100vh) rotate(390deg); opacity: 0; }
+  }
+  .animate-leaf-drift {
+    animation: leaf-drift var(--leaf-duration, 18s) linear infinite;
+  }
 }

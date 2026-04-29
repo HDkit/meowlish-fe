@@ -130,21 +130,18 @@ export function Dashboard() {
 	};
 
 	const getHeatmapColor = (count: number, isFuture: boolean) => {
-		if (isFuture) return 'bg-transparent border border-dashed border-gray-200';
-		if (count === 0) return 'bg-slate-100';
-		if (count === 1) return 'bg-[#c6e48b]'; // Github colors (light green)
-		if (count >= 2 && count <= 3) return 'bg-[#7bc96f]';
-		if (count >= 4 && count <= 5) return 'bg-[#239a3b]';
-		return 'bg-[#196127]'; // Dark green
+		if (isFuture) return 'bg-transparent border border-dashed border-muted';
+		if (count === 0) return 'bg-muted';
+		if (count === 1) return 'bg-primary/20';
+		if (count >= 2 && count <= 3) return 'bg-primary/40';
+		if (count >= 4 && count <= 5) return 'bg-primary/60';
+		return 'bg-primary';
 	};
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-primary/5 to-cyan-50 pb-10'>
+		<div className='min-h-screen bg-background pb-10'>
 			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white">
-				<div className="absolute inset-0 bg-black/10" />
-				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-				<div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3" />
+			<div className="relative overflow-hidden bg-primary text-primary-foreground">
 
 				<div className="relative px-6 py-10 max-w-6xl mx-auto">
 					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -168,7 +165,7 @@ export function Dashboard() {
 
 					{/* Stats */}
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-primary/30 rounded-lg">
 									<BookOpen className="h-5 w-5 text-primary-foreground/80" />
@@ -179,7 +176,7 @@ export function Dashboard() {
 								</div>
 							</div>
 						</div>
-						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-emerald-500/30 rounded-lg">
 									<Target className="h-5 w-5 text-emerald-100" />
@@ -190,7 +187,7 @@ export function Dashboard() {
 								</div>
 							</div>
 						</div>
-						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-amber-500/30 rounded-lg">
 									<Clock className="h-5 w-5 text-amber-100" />
@@ -201,7 +198,7 @@ export function Dashboard() {
 								</div>
 							</div>
 						</div>
-						<div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-secondary/30 rounded-lg">
 									<Trophy className="h-5 w-5 text-secondary-foreground" />
@@ -268,11 +265,11 @@ export function Dashboard() {
 								<div className="flex items-center gap-1.5">
 									<span>Ít</span>
 									<div className="flex gap-[3px]">
-										<div className="w-3 h-3 rounded-[2px] bg-slate-100" />
-										<div className="w-3 h-3 rounded-[2px] bg-[#c6e48b]" />
-										<div className="w-3 h-3 rounded-[2px] bg-[#7bc96f]" />
-										<div className="w-3 h-3 rounded-[2px] bg-[#239a3b]" />
-										<div className="w-3 h-3 rounded-[2px] bg-[#196127]" />
+										<div className="w-3 h-3 rounded-[2px] bg-muted" />
+										<div className="w-3 h-3 rounded-[2px] bg-primary/20" />
+										<div className="w-3 h-3 rounded-[2px] bg-primary/40" />
+										<div className="w-3 h-3 rounded-[2px] bg-primary/60" />
+										<div className="w-3 h-3 rounded-[2px] bg-primary" />
 									</div>
 									<span>Nhiều</span>
 								</div>
@@ -302,7 +299,7 @@ export function Dashboard() {
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 							{recommendedExams.map(exam => (
 								<Card key={exam.id} className="flex flex-col hover:shadow-lg transition-all border-gray-100 group overflow-hidden">
-									<div className="h-1 shrink-0 bg-gradient-to-r from-primary/80 to-cyan-400" />
+									<div className="h-1 shrink-0 bg-primary" />
 									<CardContent className="p-5 flex flex-col flex-1">
 										<div className="inline-block self-start px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 mb-3 uppercase tracking-wider">
 											{exam.tags && exam.tags.find((t: string) => t.toLowerCase() === 'ielts' || t.toLowerCase() === 'toeic') || 'EXAM'}

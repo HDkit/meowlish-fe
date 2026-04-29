@@ -120,7 +120,7 @@ export function TestResult() {
 		<div className='min-h-screen bg-slate-50 pb-20'>
 			{/* Premium Header */}
 			<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden'>
-				<div className='absolute inset-0 bg-gradient-to-r from-primary to-primary/80 pointer-events-none'></div>
+				<div className='absolute inset-0 bg-primary pointer-events-none'></div>
 				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
@@ -149,7 +149,7 @@ export function TestResult() {
 
 						{/* Score Circle / Badge */}
 						<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-48 shrink-0 relative overflow-hidden group">
-							<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+							<div className="absolute inset-0 bg-white/5 pointer-events-none"></div>
 							<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">Tổng điểm</span>
 							<div className="flex items-baseline gap-1">
 								<span className="text-5xl font-black text-white drop-shadow-md">{reviewData.totalPoints !== undefined ? Number(reviewData.totalPoints).toFixed(1) : 0}</span>

@@ -41,7 +41,8 @@ const config: Config = {
 		extend: {
 			fontFamily: {
 				heading: ['Momo Trust Display', 'sans-serif'],
-				body: ['Google Sans Flex', 'sans-serif'],
+				body:    ['Google Sans Flex', 'sans-serif'],
+				display: ['Monda', 'sans-serif'],
 			},
 			colors: {
 				background: 'hsl(var(--background))',

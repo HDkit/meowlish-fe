@@ -329,9 +329,9 @@ export function UserPage() {
 	});
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50 pb-20'>
+		<div className='min-h-screen bg-background pb-20'>
 			{/* ── Profile Hero Header ── */}
-			<div className="relative overflow-hidden bg-gradient-to-r from-primary to-secondary text-white shadow-xl mb-8">
+			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-8">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
@@ -339,7 +339,7 @@ export function UserPage() {
 				<div className="relative px-6 py-12 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
 					<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
 						<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
-						<AvatarFallback className='bg-gradient-to-br from-red-500 to-pink-500 text-white text-4xl font-bold'>
+						<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
 							{(currUser?.fullName || 'User')
 								.split(' ')
 								.map((n) => n[0])
@@ -390,7 +390,7 @@ export function UserPage() {
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
 						{userGoals.map((goal) => (
-							<Card key={goal.id} className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-gradient-to-br from-white to-primary/5'>
+							<Card key={goal.id} className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
 								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
 										<div className='space-y-1'>
@@ -618,7 +618,7 @@ export function UserPage() {
 
 							{/* Overall Statistics */}
 							<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-primary text-white'>
 									<CardContent className='p-6 relative'>
 										<BookOpen className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
@@ -632,7 +632,7 @@ export function UserPage() {
 									</CardContent>
 								</Card>
 
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-primary/80 to-secondary text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-primary/80 text-white'>
 									<CardContent className='p-6 relative'>
 										<TrendingUp className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
@@ -656,7 +656,7 @@ export function UserPage() {
 									</CardContent>
 								</Card>
 
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-gradient-to-br from-secondary to-secondary/80 text-white'>
+								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-secondary text-white'>
 									<CardContent className='p-6 relative'>
 										<Target className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
 										<div className='flex items-center justify-between mb-4 relative z-10'>
@@ -847,13 +847,13 @@ export function UserPage() {
 									<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
 										{earnedBadges.map((badge: any, index: number) => {
 											// Tự động generate CSS class theo tên danh hiệu để cho đẹp
-											const colorClass = index % 3 === 0 ? 'from-amber-300 to-orange-500' 
-															: index % 3 === 1 ? 'from-secondary to-primary/80' 
-															: 'from-emerald-300 to-teal-500';
+											const colorClass = index % 3 === 0 ? 'bg-amber-400' 
+															: index % 3 === 1 ? 'bg-secondary' 
+															: 'bg-emerald-500';
 											
 											return (
 												<div key={badge.id || index} className="flex flex-col items-center text-center group cursor-pointer">
-													<div className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center bg-gradient-to-br ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}>
+													<div className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}>
 														<Award className="w-12 h-12 text-white drop-shadow-sm" />
 														
 														{/* Sparkle effects on hover */}

@@ -1,7 +1,11 @@
-'use client';
-
+import { LandingNavbar } from '@/components/LandingNavbar';
 import { LandingPage } from '@/components/LandingPage';
 
-export default function LandingPageRoute() {
-	return <LandingPage />;
+export default function Landing() {
+  return (
+    <>
+      <LandingNavbar />
+      <LandingPage />
+    </>
+  );
 }

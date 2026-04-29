@@ -39,7 +39,7 @@ export default function AdminDashboard() {
 
   if (!currUser || (!isStaff && !isHeadStaff)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-primary/10">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96 border-0 shadow-xl">
           <CardHeader>
             <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -72,11 +72,11 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-primary/10">
+    <div className="min-h-screen bg-background">
       {/* Hero Header */}
       <div className={`relative overflow-hidden ${isHeadStaff
-        ? 'bg-gradient-to-r from-primary to-primary/80'
-        : 'bg-gradient-to-r from-primary/80 via-cyan-500 to-teal-500'
+        ? 'bg-primary'
+        : 'bg-primary'
         } text-white`}>
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
           {isHeadStaff ? (
             <>
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-orange-400 to-amber-400" />
+                <div className="h-1.5 bg-secondary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Chờ duyệt</CardTitle>
                   <div className="p-2 bg-orange-100 rounded-lg">
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-green-500" />
+                <div className="h-1.5 bg-primary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-red-400 to-rose-500" />
+                <div className="h-1.5 bg-destructive" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
                   <div className="p-2 bg-red-100 rounded-lg">
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-primary to-primary" />
+                <div className="h-1.5 bg-primary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
                   <div className="p-2 bg-primary/15 rounded-lg">
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-slate-400 to-gray-500" />
+                <div className="h-1.5 bg-muted" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Bản nháp của tôi</CardTitle>
                   <div className="p-2 bg-slate-100 rounded-lg">
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                <div className="h-1.5 bg-primary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-red-400 to-rose-500" />
+                <div className="h-1.5 bg-destructive" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
                   <div className="p-2 bg-red-100 rounded-lg">
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-gradient-to-r from-primary to-cyan-500" />
+                <div className="h-1.5 bg-primary" />
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
                   <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
                   <div className="p-2 bg-primary/15 rounded-lg">
@@ -306,7 +306,7 @@ export default function AdminDashboard() {
         {/* Pending Approvals (Head Staff only) */}
         {isHeadStaff && pendingApprovalExams.length > 0 && (
           <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400" />
+            <div className="h-1 bg-secondary" />
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold text-gray-800">🕐 Đề thi chờ duyệt</CardTitle>
               <CardDescription>Các đề thi đang chờ bạn xét duyệt</CardDescription>

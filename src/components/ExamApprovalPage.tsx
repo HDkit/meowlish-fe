@@ -111,7 +111,7 @@ export default function ExamApprovalPage() {
   // Access check
   if (!currUser || !isHeadStaff || !canApproveExams) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-secondary/10">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96 border-0 shadow-xl">
           <CardHeader>
             <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
@@ -202,9 +202,9 @@ export default function ExamApprovalPage() {
   const pendingCount = exams.filter((e) => e.status === 'InDraft').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-cyan-50">
+    <div className="min-h-screen bg-background">
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-primary via-cyan-600 to-teal-600 text-white">
+      <div className="relative overflow-hidden bg-primary text-white">
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="relative px-6 py-8">
