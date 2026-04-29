@@ -1,6 +1,6 @@
 import type { ResponseTokensDto } from './models/ResponseTokensDto';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com';
 
 export const ACCESS_TOKEN_STORAGE_KEY = 'access_token';
 export const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';

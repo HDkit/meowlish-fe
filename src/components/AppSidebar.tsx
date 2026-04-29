@@ -184,7 +184,7 @@ export function AppSidebar() {
                 className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900/80"
               >
                 <Settings className="h-5 w-5" />
-                <span>{userDisplayName}</span>
+                <span suppressHydrationWarning>{userDisplayName}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

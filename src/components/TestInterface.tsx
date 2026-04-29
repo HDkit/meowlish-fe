@@ -628,7 +628,7 @@ export function TestInterface() {
         {/* Questions area */}
         <div id="questions-container" className="bg-white px-6 py-5">
           <div className="flex flex-col gap-6">
-            {questionGroups.map((group) => {
+            {questionGroups.map((group, groupIdx) => {
               // Audio URL for this section group
               const groupAudioUrl = group.section.fileUrls?.find((u) =>
                 u.match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i),
@@ -641,7 +641,12 @@ export function TestInterface() {
               const hasSectionImages = groupImageUrls.length > 0;
 
               return (
-                <div key={group.sectionId} className="flex flex-col gap-3">
+                <React.Fragment key={group.sectionId}>
+                  {/* ── Thick divider between question groups ── */}
+                  {groupIdx > 0 && (
+                    <hr className="my-2 border-t-4 border-slate-300" />
+                  )}
+                  <div className="flex flex-col gap-3">
                   {/* Group audio */}
                   {groupAudioUrl && <AudioPlayer url={formatMediaUrl(groupAudioUrl)} />}
 
@@ -771,6 +776,7 @@ export function TestInterface() {
                     </div>
                   )}
                 </div>
+                </React.Fragment>
               );
             })}
 

@@ -1,26 +1,44 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 interface FloatingLeavesProps {
   count?: number;
   opacity?: number;
 }
 
-export function FloatingLeaves({ count = 8, opacity = 0.25 }: FloatingLeavesProps) {
-  const leaves = useMemo(() => {
-    return Array.from({ length: count }, (_, i) => {
-      const hue = 90 + Math.random() * 65;
-      const sat = 40 + Math.random() * 20;
-      const lit = 50 + Math.random() * 15;
-      const size = 12 + Math.random() * 10;
-      const left = Math.random() * 100;
-      const delay = Math.random() * 18;
-      const duration = 14 + Math.random() * 8;
+interface Leaf {
+  id: number;
+  hue: number;
+  sat: number;
+  lit: number;
+  size: number;
+  left: number;
+  delay: number;
+  duration: number;
+}
 
-      return { id: i, hue, sat, lit, size, left, delay, duration };
-    });
+export function FloatingLeaves({ count = 8, opacity = 0.25 }: FloatingLeavesProps) {
+  // Initialize to empty so SSR and first client render match (no leaves)
+  const [leaves, setLeaves] = useState<Leaf[]>([]);
+
+  useEffect(() => {
+    // Only generate random values client-side, after hydration
+    setLeaves(
+      Array.from({ length: count }, (_, i) => {
+        const hue = 90 + Math.random() * 65;
+        const sat = 40 + Math.random() * 20;
+        const lit = 50 + Math.random() * 15;
+        const size = 12 + Math.random() * 10;
+        const left = Math.random() * 100;
+        const delay = Math.random() * 18;
+        const duration = 14 + Math.random() * 8;
+        return { id: i, hue, sat, lit, size, left, delay, duration };
+      }),
+    );
   }, [count]);
+
+  if (leaves.length === 0) return null;
 
   return (
     <div

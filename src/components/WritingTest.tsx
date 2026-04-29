@@ -11,20 +11,60 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from './ui/select';
-import { PenTool, Loader2, CheckCircle2 } from 'lucide-react';
+import { PenTool, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
+import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
+import type { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
 
 interface WritingEvaluationResult {
 	overall_score: number;
 	sub_scores?: Record<string, number>;
 	detailed_feedback?: string;
 	corrected_version?: string;
+	additionalData?: string;
 	corrections?: Array<{
 		error_type?: string;
 		original_text?: string;
 		corrected_text?: string;
 		explanation?: string;
 	}>;
+}
+
+/**
+ * Parse additionalData string (JSON hoặc plain text) thành WritingEvaluationResult.
+ * Logic giống hệt TestResult.tsx: thử JSON.parse trước, fallback về plain text.
+ */
+function parseAdditionalData(additionalData: string): WritingEvaluationResult {
+	try {
+		const parsed = JSON.parse(additionalData);
+		return {
+			...parsed,
+			additionalData,
+		};
+	} catch {
+		// Không phải JSON → hiển thị raw text dưới dạng detailed_feedback
+		return {
+			overall_score: 0,
+			detailed_feedback: additionalData,
+			additionalData,
+		};
+	}
+}
+
+/**
+ * Tìm response có additionalData trong AttemptReviewDto.
+ * Duyệt qua reviewData.responses (giống TestResult.tsx dùng reviewData.responses?.find).
+ */
+function extractWritingResultFromReview(reviewData: AttemptReviewDto): WritingEvaluationResult | null {
+	// Tìm câu trả lời đầu tiên có additionalData (thường là câu writing)
+	const writingResponse = reviewData.responses?.find(
+		(r) => r.additionalData && r.additionalData.trim().length > 0
+	);
+
+	if (!writingResponse?.additionalData) return null;
+
+	return parseAdditionalData(writingResponse.additionalData);
 }
 
 // Mock data cho testing
@@ -50,21 +90,12 @@ const getMockData = (examType: 'IELTS' | 'TOEIC'): WritingEvaluationResult => {
 - Could develop ideas more fully with specific examples
 - Some sentences could be more complex
 - Minor spelling errors in a few places
-- Could use more sophisticated grammatical structures
-
-**Recommendations:**
-To reach Band 8+, focus on:
-1. Adding more specific examples and evidence
-2. Using more complex sentence structures
-3. Expanding vocabulary range further
-4. Proofreading for spelling and punctuation errors`,
+- Could use more sophisticated grammatical structures`,
 			corrected_version: `The question of whether technology has improved our lives is a topic of ongoing debate. While some argue that technology has created more problems than it has solved, I firmly believe that technological advancements have significantly enhanced our quality of life.
 
-To begin with, technology has revolutionized communication. In the past, people had to wait weeks or months to receive letters from distant relatives. Today, we can instantly connect with anyone around the world through video calls and messaging apps. This has brought families closer together and made long-distance relationships more manageable.
+To begin with, technology has revolutionized communication. In the past, people had to wait weeks or months to receive letters from distant relatives. Today, we can instantly connect with anyone around the world through video calls and messaging apps.
 
-Furthermore, medical technology has saved countless lives. Advanced diagnostic tools allow doctors to detect diseases earlier, and modern treatments have cured conditions that were once fatal. For example, vaccines have eradicated diseases like smallpox and significantly reduced the spread of others.
-
-However, it is important to acknowledge that technology also has drawbacks. Some people spend too much time on their devices, which can lead to social isolation. Additionally, privacy concerns have emerged as personal data becomes more accessible.
+Furthermore, medical technology has saved countless lives. Advanced diagnostic tools allow doctors to detect diseases earlier, and modern treatments have cured conditions that were once fatal.
 
 In conclusion, despite some negative aspects, I believe technology has overwhelmingly improved our lives. The benefits in communication, healthcare, and daily convenience far outweigh the disadvantages.`,
 			corrections: [
@@ -111,18 +142,10 @@ In conclusion, despite some negative aspects, I believe technology has overwhelm
 **Areas for Improvement:**
 - Could use more varied sentence structures
 - Some vocabulary could be more precise
-- Minor grammatical errors throughout
-
-**Score Breakdown:**
-- Content: 85/100 - Good ideas but could be more developed
-- Organization: 80/100 - Clear structure but transitions could be smoother`,
+- Minor grammatical errors throughout`,
 			corrected_version: `Technology has transformed the way we live and work in the 21st century. While some people worry about the negative effects of technology, I believe that its benefits far outweigh its drawbacks.
 
-First, technology has made communication much easier. We can now contact people anywhere in the world instantly through email, video calls, and social media. This has helped businesses operate globally and families stay connected.
-
-Second, technology has improved healthcare significantly. Doctors can now diagnose diseases more accurately and treat patients more effectively. Medical research has also advanced rapidly thanks to new technologies.
-
-However, technology does have some disadvantages. Some people spend too much time on their devices and neglect face-to-face relationships. There are also concerns about privacy and data security.
+First, technology has made communication much easier. We can now contact people anywhere in the world instantly through email, video calls, and social media.
 
 In conclusion, technology has brought many positive changes to our lives. Although there are some challenges, I believe we should embrace technology while being aware of its potential risks.`,
 			corrections: [
@@ -151,6 +174,7 @@ export function WritingTest() {
 	const [content, setContent] = useState<string>('');
 	const [isEvaluating, setIsEvaluating] = useState(false);
 	const [results, setResults] = useState<WritingEvaluationResult | null>(null);
+	const [attemptId, setAttemptId] = useState<string | null>(null);
 
 	const handleEvaluate = async () => {
 		if (!question.trim() || !content.trim()) {
@@ -162,8 +186,39 @@ export function WritingTest() {
 		setResults(null);
 
 		try {
-			const API_BASE = window.location.origin;
-			const response = await fetch(`${API_BASE}/writing/evaluate`, {
+			// TRƯỜNG HỢP 1: Có attemptId → dùng Review API (giống TestResult.tsx)
+			if (attemptId) {
+				// Bước 1: Nộp bài
+				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
+
+				// Bước 2: Lấy review (giống hệt cách TestResult.tsx gọi)
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetAttemptReviewV1(attemptId);
+
+				if (res.data) {
+					const reviewData = res.data as AttemptReviewDto;
+
+					// Bước 3: Parse additionalData (dùng hàm tái sử dụng từ TestResult.tsx logic)
+					const writingResult = extractWritingResultFromReview(reviewData);
+
+					if (writingResult) {
+						setResults(writingResult);
+						toast.success('Lấy nhận xét thành công!');
+					} else {
+						// Fallback: nếu không có additionalData, thử lấy totalPoints từ review
+						setResults({
+							overall_score: reviewData.totalPoints ?? 0,
+							detailed_feedback: 'Không tìm thấy nhận xét chi tiết trong bài làm.',
+						});
+						toast.warning('Không tìm thấy nhận xét chi tiết. Chỉ hiển thị điểm tổng.');
+					}
+				} else {
+					throw new Error('Không nhận được dữ liệu từ review API.');
+				}
+				return;
+			}
+
+			// TRƯỜNG HỢP 2: Không có attemptId → Gọi Proxy API
+			const response = await fetch('/api/writing/evaluate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -176,21 +231,46 @@ export function WritingTest() {
 			});
 
 			if (!response.ok) {
-				throw new Error('Failed to evaluate writing');
+				throw new Error(`API lỗi: ${response.status}`);
 			}
 
-			const data: WritingEvaluationResult = await response.json();
-			setResults(data);
-			toast.success('Chấm bài thành công!');
+			const responseData = await response.json();
+
+			// Proxy API có thể trả về dạng AttemptReviewDto hoặc trực tiếp WritingEvaluationResult
+			// → Thử parse theo cả hai hướng
+			let finalResult: WritingEvaluationResult | null = null;
+
+			// Hướng 1: Proxy trả về cấu trúc AttemptReviewDto (data.responses[].additionalData)
+			if (responseData?.data?.responses) {
+				const reviewData = responseData.data as AttemptReviewDto;
+				finalResult = extractWritingResultFromReview(reviewData);
+			}
+
+			// Hướng 2: Proxy trả về trực tiếp (có overall_score hoặc additionalData ở root)
+			if (!finalResult) {
+				if (responseData?.additionalData) {
+					finalResult = parseAdditionalData(responseData.additionalData);
+				} else if (responseData?.overall_score !== undefined) {
+					finalResult = responseData as WritingEvaluationResult;
+				}
+			}
+
+			if (finalResult) {
+				setResults(finalResult);
+				toast.success('Chấm bài thành công!');
+			} else {
+				throw new Error('Không thể parse kết quả từ API.');
+			}
 		} catch (error) {
 			console.error('Error evaluating writing:', error);
-			// Fallback to mock data if API fails
-			console.log('Using mock data for testing...');
+			// Fallback sang mock data nếu API thất bại
+			console.warn('Falling back to mock data...');
 			setTimeout(() => {
-				const mockData = getMockData(examType);
-				setResults(mockData);
+				setResults(getMockData(examType));
 				toast.success('Chấm bài thành công! (Mock data)');
-			}, 1000);
+				setIsEvaluating(false);
+			}, 800);
+			return;
 		} finally {
 			setIsEvaluating(false);
 		}
@@ -200,7 +280,6 @@ export function WritingTest() {
 		setIsEvaluating(true);
 		setResults(null);
 
-		// Set some sample data
 		if (!question.trim()) {
 			setQuestion('Some people think that technology has made our lives more complicated. Others believe it has made our lives easier. Discuss both views and give your own opinion.');
 		}
@@ -209,8 +288,7 @@ export function WritingTest() {
 		}
 
 		setTimeout(() => {
-			const mockData = getMockData(examType);
-			setResults(mockData);
+			setResults(getMockData(examType));
 			setIsEvaluating(false);
 			toast.success('Đã tải mock data thành công!');
 		}, 1000);
@@ -277,9 +355,7 @@ export function WritingTest() {
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="targetScore">
-									Mục tiêu điểm (tùy chọn)
-								</Label>
+								<Label htmlFor="targetScore">Mục tiêu điểm (tùy chọn)</Label>
 								<Input
 									id="targetScore"
 									type="number"
@@ -373,9 +449,7 @@ export function WritingTest() {
 											<div key={name} className="flex items-center justify-between py-3 px-4 bg-muted/30 rounded-lg border border-border/50">
 												<span className="text-sm font-medium text-foreground">{name}</span>
 												<div className="flex items-center gap-2">
-													<span className="font-bold text-lg text-primary">
-														{value}
-													</span>
+													<span className="font-bold text-lg text-primary">{value}</span>
 													<span className="text-xs text-muted-foreground">
 														/{examType === 'IELTS' ? '9.0' : '100'}
 													</span>
@@ -391,6 +465,19 @@ export function WritingTest() {
 										<h4 className="font-semibold text-base">Nhận xét chi tiết</h4>
 										<div className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-5 rounded-lg border border-border/50 leading-relaxed">
 											{results.detailed_feedback}
+										</div>
+									</div>
+								)}
+
+								{/* Hiển thị raw additionalData nếu không parse được → giống cách TestResult.tsx fallback */}
+								{!results.detailed_feedback && results.additionalData && (
+									<div className="space-y-3">
+										<h4 className="font-semibold text-base flex items-center gap-2">
+											<AlertCircle className="h-4 w-4 text-amber-500" />
+											Nhận xét từ hệ thống
+										</h4>
+										<div className="text-sm text-foreground whitespace-pre-wrap bg-amber-50 dark:bg-amber-950/30 p-5 rounded-lg border border-amber-200 dark:border-amber-800 leading-relaxed">
+											{results.additionalData}
 										</div>
 									</div>
 								)}
@@ -418,7 +505,9 @@ export function WritingTest() {
 
 								{/* Corrections List */}
 								<div className="space-y-3">
-									<h4 className="font-semibold text-base">Danh sách lỗi ({results.corrections?.length || 0})</h4>
+									<h4 className="font-semibold text-base">
+										Danh sách lỗi ({results.corrections?.length || 0})
+									</h4>
 									{results.corrections && results.corrections.length > 0 ? (
 										<div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
 											{results.corrections.map((correction, idx) => (
@@ -470,4 +559,3 @@ export function WritingTest() {
 		</div>
 	);
 }
-

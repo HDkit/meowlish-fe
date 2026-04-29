@@ -19,7 +19,7 @@ import {
 	TrendingUp,
 	Target,
 	ChevronRight,
-	Tag,
+	FileText,
 } from 'lucide-react';
 
 import { useSelector } from 'react-redux';
@@ -28,6 +28,13 @@ import { Exam, Question, Section, TestType, ExamStatus } from '../types/client';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
+
+type ExamStats = {
+	duration?: number;
+	sectionsCount?: number;
+	questionsCount?: number;
+	attemptsCount?: number;
+};
 
 export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
@@ -55,6 +62,7 @@ export function TestSelection() {
 
 	const [exams, setExams] = useState<any[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
+	const [examStatsById, setExamStatsById] = useState<Record<string, ExamStats>>({});
 
 	useEffect(() => {
 		const fetchExams = async () => {
@@ -89,6 +97,60 @@ export function TestSelection() {
 			fetchExams();
 		}
 	}, [currentUser]);
+
+	useEffect(() => {
+		if (!currentUser) return;
+		if (!exams.length) return;
+
+		let cancelled = false;
+
+		const fetchExamStats = async (examId: string) => {
+			try {
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1(examId);
+				const payload: any = response?.data;
+				const sections = Array.isArray(payload?.sections) ? payload.sections : [];
+				const questionsCount = sections.reduce((acc: number, cur: any) => acc + (Number(cur?.questionsCount) || 0), 0);
+
+				if (cancelled) return;
+				setExamStatsById((prev) => ({
+					...prev,
+					[examId]: {
+						duration: payload?.duration,
+						sectionsCount: sections.length,
+						questionsCount,
+						attemptsCount: payload?.attemptsCount,
+					},
+				}));
+			} catch (e) {
+				// Ignore per-exam failures to avoid breaking the whole page
+			}
+		};
+
+		const missingIds = exams
+			.map((e) => e?.id)
+			.filter((id) => typeof id === 'string' && id.length > 0)
+			.filter((id) => !examStatsById[id]);
+
+		if (!missingIds.length) return;
+
+		const runWithConcurrency = async (ids: string[], concurrency: number) => {
+			let index = 0;
+			const workers = new Array(Math.min(concurrency, ids.length)).fill(0).map(async () => {
+				while (!cancelled) {
+					const current = ids[index++];
+					if (!current) return;
+					await fetchExamStats(current);
+				}
+			});
+			await Promise.allSettled(workers);
+		};
+
+		runWithConcurrency(missingIds, 6);
+
+		return () => {
+			cancelled = true;
+		};
+	}, [currentUser, exams, examStatsById]);
 
 	// Keep these to satisfy ExamCard typing for now if not fully replaced
 	const sections = useSelector((state: RootState) => state.sections.list);
@@ -136,6 +198,10 @@ export function TestSelection() {
 		const Icon = skillIcons[exam.skill];
 
 		const difficulty = exam.difficulty;
+		const stats = examStatsById[String(exam.id)] ?? {};
+		const durationSeconds = typeof stats.duration === 'number' ? stats.duration : (typeof (exam as any).duration === 'number' ? (exam as any).duration : undefined);
+		const sectionsCount = stats.sectionsCount;
+		const questionsCount = stats.questionsCount;
 
 		function countQuestionsInExam(examId: string, sections: Section[], questions: Question[]): number {
 			// Collect all section IDs under this exam (including nested sections)
@@ -188,24 +254,22 @@ export function TestSelection() {
 						<div className='text-center border-r border-slate-200 last:border-0 p-1'>
 							<div className='flex flex-col items-center justify-center'>
 								<Clock className='h-4 w-4 mb-1.5 text-primary/80' />
-								<span className="text-[13px] font-bold text-slate-700">{exam.duration}</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Phút</span>
+								<span className="text-[13px] font-bold text-slate-700">{typeof durationSeconds === 'number' ? durationSeconds : '—'}</span>
+								<span className="text-[10px] text-slate-500 font-semibold uppercase">Giây</span>
 							</div>
 						</div>
 						<div className='text-center border-r border-slate-200 last:border-0 p-1'>
 							<div className='flex flex-col items-center justify-center'>
-								<Target className='h-4 w-4 mb-1.5 text-rose-500' />
-								<span className="text-[13px] font-bold text-slate-700">N/A</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Câu Hỏi</span>
+								<FileText className='h-4 w-4 mb-1.5 text-emerald-600' />
+								<span className="text-[13px] font-bold text-slate-700">{typeof sectionsCount === 'number' ? sectionsCount : '—'}</span>
+								<span className="text-[10px] text-slate-500 font-semibold uppercase">Phần Thi</span>
 							</div>
 						</div>
 						<div className='text-center p-1'>
 							<div className='flex flex-col items-center justify-center'>
-								<Tag className='h-4 w-4 mb-1.5 text-amber-500' />
-								<span className="text-[13px] font-bold text-slate-700 line-clamp-1 px-1">
-									{exam.tagIds.join(', ') || 'Chung'}
-								</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Chủ Đề</span>
+								<Target className='h-4 w-4 mb-1.5 text-rose-500' />
+								<span className="text-[13px] font-bold text-slate-700">{typeof questionsCount === 'number' ? questionsCount : '—'}</span>
+								<span className="text-[10px] text-slate-500 font-semibold uppercase">Câu Hỏi</span>
 							</div>
 						</div>
 					</div>
