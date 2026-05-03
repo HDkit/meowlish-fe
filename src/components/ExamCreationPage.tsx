@@ -17,10 +17,9 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useToast } from './ui/use-toast';
+import { Plus, Trash2, Save, MoreVertical, GripVertical, Layers, ChevronDown, ChevronRight, FileText, List, CheckCircle2, AlertCircle, Upload, X, FileAudio, FileImage, FileQuestion, Brain, ShieldCheck, Send, Search, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import {
-  Plus, RefreshCw, Save, Trash2, ChevronRight, ChevronDown,
-  Send, FilePlus2, ShieldCheck, Upload, X, ImageIcon,
-  FileQuestion, Layers, GripVertical, Check, AlertTriangle,
+  RefreshCw, Check, AlertTriangle,
   BookOpen, Clock, Tag, Eye,
 } from 'lucide-react';
 
@@ -904,6 +903,35 @@ export function ExamCreationPage() {
                         setUploading={setUploadingSection}
                       />
                     </div>
+
+                    {/* Questions list */}
+                    {selectedSection.questionIds && selectedSection.questionIds.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Danh sách câu hỏi ({selectedSection.questionIds.length})</Label>
+                        <div className="rounded-lg border border-gray-200 divide-y">
+                          {selectedSection.questionIds.map((qId, idx) => {
+                            const q = questions[qId];
+                            if (!q) return null;
+                            return (
+                              <div
+                                key={qId}
+                                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                                onClick={() => setSelectedNode({ type: 'question', id: qId })}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm font-medium text-gray-500">Câu {idx + 1}</span>
+                                  <span className="text-sm text-gray-900 truncate max-w-[300px]">
+                                    {q.content?.substring(0, 50) || 'Không có nội dung'}...
+                                  </span>
+                                  <span className="text-xs text-gray-400">({q.type})</span>
+                                </div>
+                                <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Move section */}
                     <details className="rounded-lg border border-gray-200">
