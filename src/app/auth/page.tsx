@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { AuthForm } from '@/components/AuthForm';
-import { AuthService } from '@/lib/api-client';
-import { setApiTokensState } from '@/lib/api-client';
+import { setApiTokensState, OpenAPI } from '@/lib/api-client';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from '@/components/store/currUserSlice';
 import { jwtDecode } from 'jwt-decode';
@@ -55,8 +54,14 @@ export default function AuthPage() {
     const handleLoginToken = async () => {
       setIsProcessingToken(true);
       try {
-        const res = await AuthService.authGatewayControllerGetGoogleTokensV1({ loginToken });
-        const data = res.data as { accessToken?: string; refreshToken?: string };
+        const baseUrl = OpenAPI.BASE || '';
+        const res = await fetch(`${baseUrl}/api/v1/auth/google/tokens?loginToken=${encodeURIComponent(loginToken)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const result = await res.json();
+        const data = result.data as { accessToken?: string; refreshToken?: string };
 
         if (!data?.accessToken) {
           throw new Error('Không nhận được access token');
