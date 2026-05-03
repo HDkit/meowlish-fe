@@ -86,7 +86,7 @@ export function ExamManagementPage() {
 
         setLoading(true);
         try {
-            const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
+            const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1(undefined, undefined, 100);
             setAllExams(res.data?.exams ?? []);
         } catch (err) {
             console.warn('ExamManagement: failed to load exams', err);
@@ -134,7 +134,7 @@ export function ExamManagementPage() {
         }
 
         try {
-            await ExamManagementService.examManagementGatewayControllerDeleteExamV1({ id: examId });
+            await ExamManagementService.examManagementGatewayControllerDeleteExamV1(examId);
             setAllExams(prev => prev.filter(e => e.id !== examId));
             toast({ title: 'Đã xóa đề thi', description: 'Đề thi đã được xóa thành công.' });
         } catch (err) {

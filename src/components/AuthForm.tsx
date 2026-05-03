@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles, FlaskConical } from 'lucide-react';
-import { FaGoogle, FaFacebook } from 'react-icons/fa';
+import { FaGoogle } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
@@ -260,26 +260,11 @@ export function AuthForm() {
 		else await handleRegisterSubmit();
 	};
 
-	// Social login (Google/Facebook)
-	const handleSocialLogin = async (_provider: 'google' | 'facebook') => {
-		// setLoading(true);
-		// setError('');
-		// try {
-		// 	await new Promise((res) => setTimeout(res, 600));
-		// 	dispatch(
-		// 		setUser({
-		// 			id: 'social-456',
-		// 			email: 'social@example.com',
-		// 			fullName: provider === 'google' ? 'Google User' : 'Facebook User',
-		// 			createdAt: new Date(),
-		// 		})
-		// 	);
-		// 	navigate('/dashboard');
-		// } catch (e) {
-		// 	setError('Đăng nhập thất bại');
-		// } finally {
-		// 	setLoading(false);
-		// }
+	// Social login (Google) - Direct redirect to avoid CORS
+	const handleGoogleLogin = () => {
+		// Direct redirect to backend OAuth endpoint
+		// This avoids CORS issues with fetch API
+		window.location.href = '/api/v1/auth/google';
 	};
 
 	const toggleMode = () => {
@@ -481,14 +466,13 @@ export function AuthForm() {
 							</div>
 						</div>
 
-						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={() => handleSocialLogin('google')} disabled={loading}>
-							<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
-							{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
-						</Button>
-						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={() => handleSocialLogin('facebook')} disabled={loading}>
-							<FaFacebook className='w-5 h-5 text-primary mr-2' />
-							{isLogin ? 'Tiếp tục với Facebook' : 'Đăng ký bằng Facebook'}
-						</Button>
+						{/* Google OAuth chỉ hoạt động ở production (cần cấu hình redirect URI trong Google Cloud Console) */}
+						{process.env.NODE_ENV === 'production' && (
+							<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={handleGoogleLogin} disabled={loading}>
+								<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
+								{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
+							</Button>
+						)}
 						{/* Dev Quick Login – real token + mocked role */}
 						{isLogin && process.env.NODE_ENV !== 'production' && (
 							<div className='mt-4 pt-4 border-t border-dashed border-gray-200'>

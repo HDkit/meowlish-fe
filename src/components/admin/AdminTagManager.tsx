@@ -19,6 +19,7 @@ type TagListItem = {
   id: string;
   name: string;
   parentId?: string;
+  parentName?: string;
 };
 
 function TagTree({ nodes, onRename, onMove, onDelete }: { 
@@ -34,7 +35,6 @@ function TagTree({ nodes, onRename, onMove, onDelete }: {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-900">{node.name}</p>
-              <p className="text-xs text-gray-500">id: {node.id}</p>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/90 hover:bg-primary/10" onClick={() => onRename(node.id, node.name)}>
@@ -77,8 +77,16 @@ export function AdminTagManager() {
         TagsService.tagGatewayControllerGetTagListV1(),
       ]);
 
+      const rawList = extractEntityData<{ list: TagListItem[] }>(listResponse)?.list ?? [];
+      
+      // Map parentName cho dễ hiển thị
+      const mappedList = rawList.map(tag => {
+        const parent = rawList.find(t => t.id === tag.parentId);
+        return { ...tag, parentName: parent?.name };
+      });
+
       setTree(extractEntityData<{ trees: TagTreeNode[] }>(treeResponse)?.trees ?? []);
-      setList(extractEntityData<{ list: TagListItem[] }>(listResponse)?.list ?? []);
+      setList(mappedList);
     } catch (error) {
       toast({
         title: 'Không tải được tag',
@@ -142,10 +150,9 @@ export function AdminTagManager() {
     }
   };
 
-  const handleMove = async (id: string) => {
-    const newParentId = window.prompt('Nhập ID của tag cha mới (để trống nếu muốn đưa lên Root):');
-    if (newParentId === null) return; // User cancelled
+  const [movingTagId, setMovingTagId] = useState<string | null>(null);
 
+  const executeMove = async (id: string, newParentId: string) => {
     setLoading(true);
     try {
       await TagsService.tagGatewayControllerMoveTagV1({
@@ -157,7 +164,13 @@ export function AdminTagManager() {
     } catch (error) {
       toast({ title: 'Di chuyển thất bại', description: extractApiErrorMessage(error, 'Lỗi'), variant: 'destructive' });
       setLoading(false);
+    } finally {
+      setMovingTagId(null);
     }
+  };
+
+  const handleMove = (id: string) => {
+    setMovingTagId(id);
   };
 
   const handleDelete = async (id: string) => {
@@ -192,20 +205,49 @@ export function AdminTagManager() {
             value={tagName}
             onChange={(event) => setTagName(event.target.value)}
           />
-          <Input
-            placeholder="Parent tag id (tuỳ chọn)"
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
             value={parentId}
             onChange={(event) => setParentId(event.target.value)}
-          />
+          >
+            <option value="">-- Không có cha (Root) --</option>
+            {list.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
           <Button onClick={() => void handleCreateTag()} disabled={submitting}>
             <Plus className="h-4 w-4 mr-2" />
             {submitting ? 'Đang tạo...' : 'Tạo tag'}
           </Button>
         </div>
 
+        {movingTagId && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-sm font-semibold text-amber-900">Chọn Tag cha mới cho: {list.find(t => t.id === movingTagId)?.name}</p>
+            <div className="flex gap-2">
+              <select
+                className="flex h-10 flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                id="new-parent-select"
+              >
+                <option value="">-- Root (Không có cha) --</option>
+                {list.filter(t => t.id !== movingTagId).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <Button onClick={() => {
+                const select = document.getElementById('new-parent-select') as HTMLSelectElement;
+                if (select) executeMove(movingTagId, select.value);
+              }}>
+                Xác nhận
+              </Button>
+              <Button variant="ghost" onClick={() => setMovingTagId(null)}>Hủy</Button>
+            </div>
+          </div>
+        )}
+
         {createdTagId && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            Tag vừa tạo có id: <span className="font-mono">{createdTagId}</span>
+            Đã tạo thành công tag "{tagName}".
           </div>
         )}
 
@@ -239,7 +281,7 @@ export function AdminTagManager() {
                   <div key={tag.id} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm flex justify-between items-center">
                     <div>
                       <p className="font-medium text-gray-900">{tag.name}</p>
-                      <p className="text-xs text-gray-500">id: <span className="font-mono">{tag.id}</span> • parent: <span className="font-mono">{tag.parentId ?? 'root'}</span></p>
+                      {tag.parentName && <p className="text-xs text-gray-500">parent: <span className="font-medium">{tag.parentName}</span></p>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/90 hover:bg-primary/10" onClick={() => handleRename(tag.id, tag.name)}>

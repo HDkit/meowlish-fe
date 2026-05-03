@@ -6,6 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Progress } from './ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 import {
 	Mail,
 	Calendar,
@@ -25,15 +35,22 @@ import {
 	Filter,
 	CheckSquare,
 	Lock,
+	User,
+	Key,
+	Eye,
+	EyeOff,
+	Loader2,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
-import { useAppSelector } from './store/main/hook';
+import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { Attempt, Exam, Skill, TestType } from '../types/client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ExamPracticeService, AchievementsService } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService } from '@/lib/api-client';
+import { setUser } from './store/currUserSlice';
+import { useToast } from '@/components/ui/use-toast';
 
 interface UserType {
 	fullName: string;
@@ -72,7 +89,25 @@ export function UserPage() {
 	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
 	const [streak, setStreak] = useState(0);
 
+	// Profile update state
+	const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+	const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
+	const [profileForm, setProfileForm] = useState({
+		username: '',
+		fullName: '',
+		bio: '',
+	});
+	const [passwordForm, setPasswordForm] = useState({
+		currentPassword: '',
+		newPassword: '',
+		confirmPassword: '',
+	});
+	const [showPassword, setShowPassword] = useState(false);
+
 	// Get data from Redux store
+	const dispatch = useAppDispatch();
+	const { toast } = useToast();
 	const currUser = useAppSelector((state) => state.currUser.current);
 
 	useEffect(() => {
@@ -128,6 +163,110 @@ export function UserPage() {
 			fetchProfileData();
 		}
 	}, [currUser]);
+
+	// Initialize profile form when user data is available
+	useEffect(() => {
+		if (currUser) {
+			setProfileForm({
+				username: currUser.email?.split('@')[0] || '',
+				fullName: currUser.fullName || '',
+				bio: '',
+			});
+		}
+	}, [currUser]);
+
+	// Handle profile update
+	const handleUpdateProfile = async () => {
+		if (!currUser) return;
+		setIsLoading(true);
+		try {
+			await AuthService.authGatewayControllerUpdateIdentityV1({
+				username: profileForm.username || undefined,
+				fullName: profileForm.fullName || undefined,
+				bio: profileForm.bio || undefined,
+			});
+
+			// Update Redux store
+			dispatch(setUser({
+				...currUser,
+				fullName: profileForm.fullName || currUser.fullName,
+			}));
+
+			toast({
+				title: 'Cập nhật thành công',
+				description: 'Thông tin cá nhân đã được cập nhật.',
+			});
+			setIsProfileDialogOpen(false);
+		} catch (err: any) {
+			console.error('Failed to update profile:', err);
+			toast({
+				title: 'Cập nhật thất bại',
+				description: err?.body?.error || 'Không thể cập nhật thông tin.',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// Handle password change
+	const handleChangePassword = async () => {
+		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+			toast({
+				title: 'Mật khẩu không khớp',
+				description: 'Mật khẩu mới và xác nhận mật khẩu phải giống nhau.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		if (passwordForm.newPassword.length < 6) {
+			toast({
+				title: 'Mật khẩu quá ngắn',
+				description: 'Mật khẩu mới phải có ít nhất 6 ký tự.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		setIsLoading(true);
+		try {
+			// Note: API requires credential ID - we need to fetch credentials first
+			const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
+			const mailCredential = credsRes.data?.credentials?.find((c: any) => c.type === 'mail');
+
+			if (!mailCredential?.id) {
+				toast({
+					title: 'Không tìm thấy credential',
+					description: 'Không thể xác định credential email để đổi mật khẩu.',
+					variant: 'destructive',
+				});
+				return;
+			}
+
+			await AuthService.authGatewayControllerUpdateMailPasswordV1({
+				id: mailCredential.id,
+				password: passwordForm.newPassword,
+			});
+
+			toast({
+				title: 'Đổi mật khẩu thành công',
+				description: 'Mật khẩu của bạn đã được cập nhật.',
+			});
+			setIsPasswordDialogOpen(false);
+			setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+		} catch (err: any) {
+			console.error('Failed to change password:', err);
+			toast({
+				title: 'Đổi mật khẩu thất bại',
+				description: err?.body?.error || 'Không thể đổi mật khẩu.',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	const attempts = useAppSelector((state) => state.attempts.list);
 	const exams = useAppSelector((state) => state.exams.list);
 	const questions = useAppSelector((state) => state.questions.list);
@@ -371,8 +510,17 @@ export function UserPage() {
 						<Button className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'>
 							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
-						<Button className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'>
-							<Settings className='h-4 w-4 mr-2' /> Cài đặt tài khoản
+						<Button
+							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
+							onClick={() => setIsProfileDialogOpen(true)}
+						>
+							<User className='h-4 w-4 mr-2' /> Cập nhật hồ sơ
+						</Button>
+						<Button
+							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
+							onClick={() => setIsPasswordDialogOpen(true)}
+						>
+							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
 						</Button>
 					</div>
 				</div>
@@ -875,6 +1023,116 @@ export function UserPage() {
 					</TabsContent>
 				</Tabs>
 			</div>
+
+			{/* Profile Update Dialog */}
+			<Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle className='flex items-center gap-2'>
+							<User className='h-5 w-5' />
+							Cập nhật hồ sơ
+						</DialogTitle>
+						<DialogDescription>
+							Cập nhật thông tin cá nhân của bạn
+						</DialogDescription>
+					</DialogHeader>
+					<div className='grid gap-4 py-4'>
+						<div className='grid gap-2'>
+							<Label htmlFor='username'>Tên đăng nhập</Label>
+							<Input
+								id='username'
+								value={profileForm.username}
+								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+								placeholder='Nhập tên đăng nhập'
+							/>
+						</div>
+						<div className='grid gap-2'>
+							<Label htmlFor='fullName'>Họ và tên</Label>
+							<Input
+								id='fullName'
+								value={profileForm.fullName}
+								onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+								placeholder='Nhập họ và tên'
+							/>
+						</div>
+						<div className='grid gap-2'>
+							<Label htmlFor='bio'>Giới thiệu</Label>
+							<Input
+								id='bio'
+								value={profileForm.bio}
+								onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+								placeholder='Mô tả về bản thân'
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant='outline' onClick={() => setIsProfileDialogOpen(false)} disabled={isLoading}>
+							Hủy
+						</Button>
+						<Button onClick={handleUpdateProfile} disabled={isLoading}>
+							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							Lưu thay đổi
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Password Change Dialog */}
+			<Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle className='flex items-center gap-2'>
+							<Key className='h-5 w-5' />
+							Đổi mật khẩu
+						</DialogTitle>
+						<DialogDescription>
+							Cập nhật mật khẩu mới cho tài khoản của bạn
+						</DialogDescription>
+					</DialogHeader>
+					<div className='grid gap-4 py-4'>
+						<div className='grid gap-2'>
+							<Label htmlFor='newPassword'>Mật khẩu mới</Label>
+							<div className='relative'>
+								<Input
+									id='newPassword'
+									type={showPassword ? 'text' : 'password'}
+									value={passwordForm.newPassword}
+									onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+									placeholder='Nhập mật khẩu mới'
+								/>
+								<Button
+									type='button'
+									variant='ghost'
+									size='sm'
+									className='absolute right-0 top-0 h-full px-3'
+									onClick={() => setShowPassword(!showPassword)}
+								>
+									{showPassword ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+								</Button>
+							</div>
+						</div>
+						<div className='grid gap-2'>
+							<Label htmlFor='confirmPassword'>Xác nhận mật khẩu</Label>
+							<Input
+								id='confirmPassword'
+								type='password'
+								value={passwordForm.confirmPassword}
+								onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+								placeholder='Nhập lại mật khẩu mới'
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant='outline' onClick={() => setIsPasswordDialogOpen(false)} disabled={isLoading}>
+							Hủy
+						</Button>
+						<Button onClick={handleChangePassword} disabled={isLoading}>
+							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							Đổi mật khẩu
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

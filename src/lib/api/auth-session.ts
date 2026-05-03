@@ -1,6 +1,6 @@
 import type { ResponseTokensDto } from './models/ResponseTokensDto';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com';
 
 export const ACCESS_TOKEN_STORAGE_KEY = 'access_token';
 export const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
@@ -23,7 +23,15 @@ const getStorage = (): Storage | null => {
     }
 };
 
-export const getApiBaseUrl = (): string => API_BASE_URL.replace(/\/+$/, '');
+export const getApiBaseUrl = (): string => {
+    // In browser, use relative paths to leverage Next.js rewrite rules
+    // This routes /api/* to the backend server via next.config.ts rewrites
+    if (isBrowser()) {
+        return '';
+    }
+    // For SSR/server-side, use full URL
+    return API_BASE_URL.replace(/\/+$/, '');
+};
 
 const getCookieValue = (name: string): string | undefined => {
     if (!isBrowser()) {

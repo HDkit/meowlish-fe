@@ -297,7 +297,7 @@ export function TestResult() {
 	const endedAtMs = reviewData ? new Date(reviewData.endedAt).getTime() : 0;
 	const timeTakenSeconds = Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1000));
 
-	const scoreLabel = isToeicLike ? 'Tổng điểm TOEIC' : 'Tổng điểm';
+	const scoreLabel = isToeicLike ? 'Điểm TOEIC' : 'Điểm';
 	const scoreValue = isToeicLike ? (toeicScore?.totalScaled ?? 0) : reviewData?.totalPoints ?? 0;
 	const scoreDenom = isToeicLike ? 990 : 100;
 

@@ -297,6 +297,16 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             const formData = getFormData(options);
             const body = getRequestBody(options);
             let headers = await getHeaders(config, options);
+            
+            // Debug logging
+            console.log('[API Request]', {
+                method: options.method,
+                url,
+                body: body,
+                bodyType: typeof body,
+                contentType: headers.get('Content-Type'),
+                authHeader: headers.get('Authorization'),
+            });
 
             if (!onCancel.isCancelled) {
                 let response = await sendRequest(config, options, url, body, formData, headers, onCancel);
@@ -314,6 +324,14 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
                 
                 const responseBody = await getResponseBody(response);
                 const responseHeader = getResponseHeader(response, options.responseHeader);
+                
+                // Debug logging
+                console.log('[API Response]', {
+                    url,
+                    status: response.status,
+                    ok: response.ok,
+                    body: responseBody,
+                });
 
                 const result: ApiResult = {
                     url,
