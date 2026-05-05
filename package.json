@@ -71,7 +71,7 @@
             "vite": "6.3.5"
       },
       "scripts": {
-            "dev": "next dev",
+            "dev": "next dev -p 6767",
             "dev:plain": "next dev",
             "build": "next build",
             "start": "next start",
