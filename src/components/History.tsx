@@ -1,160 +1,119 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Calendar, Clock, Target, Award, BookOpen, Headphones, PenTool, Mic, Filter, Loader2 } from 'lucide-react';
-import type { TestType, Skill, TestSession } from '../slop';
+import { Calendar, Clock, Target, Award, CheckCircle2, Circle, Filter, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
+import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
+import type { AttemptsHistoryDto } from '@/lib/api/models/AttemptsHistoryDto';
+import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
 
-interface HistoryProps {
-	userId?: string;
+const { key: SortKey, direction: SortDir } = get_users_attempt_history_req_dto_SortOptionsDto;
+
+const LIMIT = 15;
+
+type SortOption = 'endedAt_desc' | 'startedAt_desc' | 'score_desc' | 'score_asc';
+
+const SORT_MAP: Record<SortOption, get_users_attempt_history_req_dto_SortOptionsDto> = {
+	endedAt_desc: { key: SortKey.ENDED_AT, direction: SortDir.DESC },
+	startedAt_desc: { key: SortKey.STARTED_AT, direction: SortDir.DESC },
+	score_desc: { key: SortKey.SCORE, direction: SortDir.DESC },
+	score_asc: { key: SortKey.SCORE, direction: SortDir.ASC },
+};
+
+function formatDuration(seconds: number): string {
+	if (seconds < 60) return `${seconds}s`;
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	if (h > 0) return `${h}h ${m}m`;
+	return `${m} phút`;
 }
 
-// Mock data for history
-const mockSessions: (TestSession & {
-	completedAt: Date;
-	score: number;
-	accuracy: number;
-	pendingAI?: boolean;
-	attemptId?: string;
-})[] = [
-	{
-		id: 'session-1',
-		testType: 'ielts',
-		skill: 'reading',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-15T10:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-15T11:30:00'),
-		score: 7.5,
-		accuracy: 85,
-	},
-	{
-		id: 'session-2',
-		testType: 'toeic',
-		skill: 'listening',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-14T14:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-14T15:15:00'),
-		score: 800,
-		accuracy: 78,
-	},
-	{
-		id: 'session-3',
-		testType: 'ielts',
-		skill: 'writing',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-13T09:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-13T10:45:00'),
-		score: 6.5,
-		accuracy: 72,
-	},
-	{
-		id: 'session-6',
-		testType: 'ielts',
-		skill: 'writing',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-16T08:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-16T09:00:00'),
-		score: 0,
-		accuracy: 0,
-		pendingAI: true,
-		attemptId: 'attempt-pending-001',
-	},
-	{
-		id: 'session-4',
-		testType: 'ielts',
-		skill: 'speaking',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-12T16:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-12T16:30:00'),
-		score: 7.0,
-		accuracy: 80,
-	},
-	{
-		id: 'session-5',
-		testType: 'toeic',
-		skill: 'reading',
-		questions: [],
-		currentQuestionIndex: 0,
-		answers: [],
-		startTime: new Date('2024-01-11T11:00:00'),
-		completed: true,
-		completedAt: new Date('2024-01-11T12:30:00'),
-		score: 750,
-		accuracy: 76,
-	},
-];
+function formatElapsed(startedAt: string, endedAt?: string): string {
+	const start = new Date(startedAt).getTime();
+	const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+	const diffSeconds = Math.round((end - start) / 1000);
+	return formatDuration(diffSeconds);
+}
 
-export function History({ userId }: HistoryProps) {
-	const [filterTestType, setFilterTestType] = useState<TestType | 'all'>('all');
-	const [filterSkill, setFilterSkill] = useState<Skill | 'all'>('all');
-	const [sortBy, setSortBy] = useState<'date' | 'score' | 'accuracy'>('date');
-
-	const skillIcons = {
-		reading: BookOpen,
-		listening: Headphones,
-		speaking: Mic,
-		writing: PenTool,
-	};
-
-	const getSkillIcon = (skill: Skill) => {
-		const Icon = skillIcons[skill];
-		return <Icon className='h-4 w-4' />;
-	};
-
-	const getBadgeVariant = (testType: TestType) => {
-		return testType === 'ielts' ? 'default' : 'secondary';
-	};
-
-	const getScoreColor = (score: number, testType: TestType) => {
-		if (testType === 'ielts') {
-			return score >= 7 ? 'text-green-600' : score >= 6 ? 'text-yellow-600' : 'text-red-600';
-		} else {
-			return score >= 785 ? 'text-green-600' : score >= 605 ? 'text-yellow-600' : 'text-red-600';
-		}
-	};
-
-	const filteredSessions = mockSessions.filter((session) => {
-		const testTypeMatch = filterTestType === 'all' || session.testType === filterTestType;
-		const skillMatch = filterSkill === 'all' || session.skill === filterSkill;
-		return testTypeMatch && skillMatch;
+function formatDate(dateStr: string): string {
+	return new Date(dateStr).toLocaleDateString('vi-VN', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
 	});
+}
 
-	const sortedSessions = [...filteredSessions].sort((a, b) => {
-		switch (sortBy) {
-			case 'date':
-				return b.completedAt.getTime() - a.completedAt.getTime();
-			case 'score':
-				return b.score - a.score;
-			case 'accuracy':
-				return b.accuracy - a.accuracy;
-			default:
-				return 0;
-		}
-	});
+function getScorePercent(attempt: MinimalAttemptInfoDto): number | null {
+	if (attempt.score == null || attempt.totalPoints == null || attempt.totalPoints === 0) return null;
+	return Math.round((attempt.score / attempt.totalPoints) * 100);
+}
 
-	const stats = {
-		totalSessions: mockSessions.length,
-		averageAccuracy: Math.round(mockSessions.reduce((sum, s) => sum + s.accuracy, 0) / mockSessions.length),
-		bestIELTS: Math.max(...mockSessions.filter((s) => s.testType === 'ielts').map((s) => s.score)),
-		bestTOEIC: Math.max(...mockSessions.filter((s) => s.testType === 'toeic').map((s) => s.score)),
+function ScoreColor({ pct }: { pct: number }) {
+	const cls = pct >= 80 ? 'text-green-600' : pct >= 60 ? 'text-yellow-600' : 'text-red-600';
+	return <span className={`font-semibold ${cls}`}>{pct}%</span>;
+}
+
+export function History() {
+	const [attempts, setAttempts] = useState<MinimalAttemptInfoDto[]>([]);
+	const [cursor, setCursor] = useState<string | undefined>(undefined);
+	const [hasMore, setHasMore] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [sortOption, setSortOption] = useState<SortOption>('endedAt_desc');
+
+	const fetchHistory = useCallback(
+		async (reset: boolean, nextCursor?: string) => {
+			try {
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+					undefined,
+					nextCursor,
+					LIMIT,
+					SORT_MAP[sortOption],
+				);
+
+				if (!res.success || !res.data) {
+					throw new Error((res.error as any)?.message ?? 'Không thể tải lịch sử');
+				}
+
+				const data = res.data as unknown as AttemptsHistoryDto;
+				const newAttempts = data.attempts ?? [];
+				const newCursor = data.cursor || undefined;
+
+				setAttempts(prev => (reset ? newAttempts : [...prev, ...newAttempts]));
+				setCursor(newCursor);
+				setHasMore(newAttempts.length >= LIMIT && !!newCursor);
+			} catch (err: any) {
+				setError(err?.message ?? 'Đã xảy ra lỗi khi tải dữ liệu');
+			}
+		},
+		[sortOption],
+	);
+
+	// Initial load + reload when sort changes
+	useEffect(() => {
+		setLoading(true);
+		setError(null);
+		setCursor(undefined);
+		setAttempts([]);
+		fetchHistory(true).finally(() => setLoading(false));
+	}, [sortOption]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const handleLoadMore = async () => {
+		if (!cursor || loadingMore) return;
+		setLoadingMore(true);
+		await fetchHistory(false, cursor);
+		setLoadingMore(false);
 	};
+
+	// Stats
+	const completed = attempts.filter(a => a.endedAt != null && a.score != null);
+	const pcts = completed.map(a => getScorePercent(a)).filter((v): v is number => v !== null);
+	const avgScore = pcts.length > 0 ? Math.round(pcts.reduce((s, v) => s + v, 0) / pcts.length) : null;
+	const bestScore = pcts.length > 0 ? Math.max(...pcts) : null;
 
 	return (
 		<div className='space-y-6'>
@@ -164,15 +123,27 @@ export function History({ userId }: HistoryProps) {
 				<p className='text-muted-foreground'>Xem lại các bài kiểm tra đã hoàn thành và theo dõi tiến bộ của bạn</p>
 			</div>
 
-			{/* Statistics Overview */}
-			<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+			{/* Stats */}
+			<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
 				<Card>
 					<CardContent className='p-4'>
 						<div className='flex items-center space-x-2'>
 							<Award className='h-5 w-5 text-primary' />
 							<div>
-								<p className='text-sm font-medium'>Tổng số bài</p>
-								<p className='text-2xl font-semibold'>{stats.totalSessions}</p>
+								<p className='text-sm font-medium text-muted-foreground'>Tổng số bài</p>
+								<p className='text-2xl font-semibold'>{loading ? '—' : attempts.length}</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardContent className='p-4'>
+						<div className='flex items-center space-x-2'>
+							<CheckCircle2 className='h-5 w-5 text-green-600' />
+							<div>
+								<p className='text-sm font-medium text-muted-foreground'>Hoàn thành</p>
+								<p className='text-2xl font-semibold'>{loading ? '—' : completed.length}</p>
 							</div>
 						</div>
 					</CardContent>
@@ -183,8 +154,8 @@ export function History({ userId }: HistoryProps) {
 						<div className='flex items-center space-x-2'>
 							<Target className='h-5 w-5 text-primary' />
 							<div>
-								<p className='text-sm font-medium'>Độ chính xác TB</p>
-								<p className='text-2xl font-semibold'>{stats.averageAccuracy}%</p>
+								<p className='text-sm font-medium text-muted-foreground'>Điểm TB</p>
+								<p className='text-2xl font-semibold'>{loading ? '—' : avgScore != null ? `${avgScore}%` : '—'}</p>
 							</div>
 						</div>
 					</CardContent>
@@ -195,20 +166,10 @@ export function History({ userId }: HistoryProps) {
 						<div className='flex items-center space-x-2'>
 							<Award className='h-5 w-5 text-green-600' />
 							<div>
-								<p className='text-sm font-medium'>IELTS cao nhất</p>
-								<p className='text-2xl font-semibold text-green-600'>{stats.bestIELTS}</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardContent className='p-4'>
-						<div className='flex items-center space-x-2'>
-							<Award className='h-5 w-5 text-primary' />
-							<div>
-								<p className='text-sm font-medium'>TOEIC cao nhất</p>
-								<p className='text-2xl font-semibold text-primary'>{stats.bestTOEIC}</p>
+								<p className='text-sm font-medium text-muted-foreground'>Điểm cao nhất</p>
+								<p className='text-2xl font-semibold text-green-600'>
+									{loading ? '—' : bestScore != null ? `${bestScore}%` : '—'}
+								</p>
 							</div>
 						</div>
 					</CardContent>
@@ -218,137 +179,162 @@ export function History({ userId }: HistoryProps) {
 			{/* Filters */}
 			<Card>
 				<CardHeader>
-					<CardTitle className='flex items-center gap-2'>
-						<Filter className='h-5 w-5' />
-						Bộ lọc và sắp xếp
+					<CardTitle className='flex items-center gap-2 text-base'>
+						<Filter className='h-4 w-4' />
+						Sắp xếp
 					</CardTitle>
 				</CardHeader>
-				<CardContent className='space-y-4'>
-					<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>Loại thi</label>
-							<Select value={filterTestType} onValueChange={(value: TestType | 'all') => setFilterTestType(value)}>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value='all'>Tất cả</SelectItem>
-									<SelectItem value='ielts'>IELTS</SelectItem>
-									<SelectItem value='toeic'>TOEIC</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>Kỹ năng</label>
-							<Select value={filterSkill} onValueChange={(value: Skill | 'all') => setFilterSkill(value)}>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value='all'>Tất cả</SelectItem>
-									<SelectItem value='reading'>Reading</SelectItem>
-									<SelectItem value='listening'>Listening</SelectItem>
-									<SelectItem value='writing'>Writing</SelectItem>
-									<SelectItem value='speaking'>Speaking</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>Sắp xếp theo</label>
-							<Select value={sortBy} onValueChange={(value: 'date' | 'score' | 'accuracy') => setSortBy(value)}>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value='date'>Ngày làm bài</SelectItem>
-									<SelectItem value='score'>Điểm số</SelectItem>
-									<SelectItem value='accuracy'>Độ chính xác</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+				<CardContent>
+					<div className='max-w-xs'>
+						<Select value={sortOption} onValueChange={(v: SortOption) => setSortOption(v)}>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='endedAt_desc'>Ngày kết thúc (mới nhất)</SelectItem>
+								<SelectItem value='startedAt_desc'>Ngày bắt đầu (mới nhất)</SelectItem>
+								<SelectItem value='score_desc'>Điểm cao nhất</SelectItem>
+								<SelectItem value='score_asc'>Điểm thấp nhất</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 				</CardContent>
 			</Card>
 
-			{/* History List */}
+			{/* List */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Lịch sử chi tiết ({sortedSessions.length} bài)</CardTitle>
+					<CardTitle>
+						Lịch sử chi tiết
+						{!loading && <span className='font-normal text-muted-foreground text-sm ml-2'>({attempts.length} bài)</span>}
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className='space-y-4'>
-						{sortedSessions.map((session) => (
-							<div key={session.id} className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'>
-								<div className='flex items-center justify-between'>
-									<div className='flex items-center space-x-4'>
-										<div className='flex items-center space-x-2'>
-											{getSkillIcon(session.skill)}
-											<Badge variant={getBadgeVariant(session.testType)}>{session.testType.toUpperCase()}</Badge>
-											<span className='font-medium capitalize'>{session.skill}</span>
+					{loading ? (
+						<div className='flex items-center justify-center py-16 text-muted-foreground gap-2'>
+							<Loader2 className='h-5 w-5 animate-spin' />
+							<span>Đang tải...</span>
+						</div>
+					) : error ? (
+						<div className='flex items-center justify-center py-16 text-destructive gap-2'>
+							<AlertCircle className='h-5 w-5' />
+							<span>{error}</span>
+						</div>
+					) : attempts.length === 0 ? (
+						<div className='text-center py-16 text-muted-foreground'>
+							<Calendar className='h-12 w-12 mx-auto mb-3 opacity-30' />
+							<p>Bạn chưa có bài kiểm tra nào.</p>
+						</div>
+					) : (
+						<div className='space-y-3'>
+							{attempts.map(attempt => {
+								const isPending = !attempt.endedAt;
+								const scorePct = getScorePercent(attempt);
+
+								return (
+									<div
+										key={attempt.id}
+										className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'
+									>
+										<div className='flex items-center justify-between flex-wrap gap-3'>
+											{/* Left: status + dates */}
+											<div className='flex items-center gap-3 flex-wrap'>
+												{isPending ? (
+													<span className='flex items-center gap-1.5 text-amber-600 text-sm font-medium'>
+														<Circle className='h-4 w-4' />
+														Đang làm
+													</span>
+												) : (
+													<span className='flex items-center gap-1.5 text-green-600 text-sm font-medium'>
+														<CheckCircle2 className='h-4 w-4' />
+														Hoàn thành
+													</span>
+												)}
+
+												<div className='text-sm text-muted-foreground flex items-center gap-1'>
+													<Calendar className='h-3.5 w-3.5' />
+													{formatDate(attempt.startedAt)}
+												</div>
+
+												{attempt.isStrict && (
+													<span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200'>
+														Strict
+													</span>
+												)}
+											</div>
+
+											{/* Right: score, duration, actions */}
+											<div className='flex items-center gap-5 flex-wrap'>
+												{isPending ? (
+													<div className='flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 text-sm font-medium'>
+														<Loader2 className='h-3.5 w-3.5 animate-spin' />
+														Chưa nộp
+													</div>
+												) : (
+													<>
+														<div className='text-right'>
+															<p className='text-xs text-muted-foreground'>Điểm</p>
+															{scorePct != null ? (
+																<ScoreColor pct={scorePct} />
+															) : (
+																<span className='text-sm text-muted-foreground'>Chưa có</span>
+															)}
+														</div>
+
+														{attempt.score != null && attempt.totalPoints != null && (
+															<div className='text-right'>
+																<p className='text-xs text-muted-foreground'>Thô</p>
+																<span className='font-medium text-sm'>
+																	{attempt.score}/{attempt.totalPoints}
+																</span>
+															</div>
+														)}
+													</>
+												)}
+
+												<div className='text-right'>
+													<p className='text-xs text-muted-foreground'>Thời gian</p>
+													<span className='font-medium text-sm flex items-center gap-1'>
+														<Clock className='h-3.5 w-3.5 text-muted-foreground' />
+														{attempt.endedAt
+															? formatElapsed(attempt.startedAt, attempt.endedAt)
+															: formatDuration(attempt.durationLimit)}
+													</span>
+												</div>
+
+												<Button
+													variant='outline'
+													size='sm'
+													onClick={() => (window.location.href = `/results/${attempt.id}`)}
+												>
+													Xem chi tiết
+												</Button>
+											</div>
 										</div>
 									</div>
+								);
+							})}
 
-								<div className='flex items-center space-x-6'>
-									{session.pendingAI ? (
-										<div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 text-sm font-semibold'>
+							{/* Load more */}
+							{hasMore && (
+								<div className='flex justify-center pt-2'>
+									<Button
+										variant='outline'
+										onClick={handleLoadMore}
+										disabled={loadingMore}
+										className='gap-2'
+									>
+										{loadingMore ? (
 											<Loader2 className='h-4 w-4 animate-spin' />
-											AI đang chấm
-										</div>
-									) : (
-										<>
-											<div className='text-right'>
-												<p className='text-sm text-muted-foreground'>Điểm số</p>
-												<p className={`font-semibold ${getScoreColor(session.score, session.testType)}`}>
-													{session.score}
-												</p>
-											</div>
-
-											<div className='text-right'>
-												<p className='text-sm text-muted-foreground'>Độ chính xác</p>
-												<p className='font-semibold'>{session.accuracy}%</p>
-											</div>
-										</>
-									)}
-
-									<div className='text-right'>
-										<p className='text-sm text-muted-foreground'>Thời gian</p>
-										<p className='font-semibold'>
-											{Math.round((session.completedAt.getTime() - session.startTime.getTime()) / (1000 * 60))} phút
-										</p>
-									</div>
-
-									<div className='text-right'>
-										<p className='text-sm text-muted-foreground'>Ngày làm</p>
-										<p className='font-semibold'>{session.completedAt.toLocaleDateString('vi-VN')}</p>
-									</div>
-
-									{session.pendingAI ? (
-										<Button
-											variant='outline'
-											size='sm'
-											onClick={() => session.attemptId && (window.location.href = `/results/${session.attemptId}`)}
-											className='border-amber-300 text-amber-700 hover:bg-amber-50'
-										>
-											Kiểm tra kết quả
-										</Button>
-									) : (
-										<Button variant='outline' size='sm'>
-											Xem chi tiết
-										</Button>
-									)}
+										) : (
+											<ChevronDown className='h-4 w-4' />
+										)}
+										Tải thêm
+									</Button>
 								</div>
-								</div>
-							</div>
-						))}
-
-						{sortedSessions.length === 0 && (
-							<div className='text-center py-8'>
-								<p className='text-muted-foreground'>Không tìm thấy bài kiểm tra nào phù hợp với bộ lọc.</p>
-							</div>
-						)}
-					</div>
+							)}
+						</div>
+					)}
 				</CardContent>
 			</Card>
 		</div>

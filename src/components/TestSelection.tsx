@@ -25,7 +25,7 @@ import {
 import { useSelector } from 'react-redux';
 import { RootState } from './store/main/store';
 import { Exam, Question, Section, TestType, ExamStatus } from '../types/client';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
 
@@ -38,6 +38,7 @@ type ExamStats = {
 
 export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
+	const isHydrated = useIsStoreHydrated();
 	const router = useRouter();
 	const dispatch = useAppDispatch();
 
@@ -53,11 +54,13 @@ export function TestSelection() {
 		return TestType.IELTS;
 	};
 
+	// Redirect if not logged in (wait for Redux rehydration first)
 	useEffect(() => {
+		if (!isHydrated) return;
 		if (!currentUser) {
-			router.push('/auth'); // redirect if not logged in
+			router.push('/auth');
 		}
-	}, [currentUser, router]);
+	}, [isHydrated, currentUser, router]);
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic' | 'practice'>('ielts');
 
 	const [exams, setExams] = useState<any[]>([]);

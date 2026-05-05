@@ -105,7 +105,36 @@ type FlatQuestion = {
 	sectionId: string;
 	sectionName?: string;
 	sectionType?: string;
+	/** Top-level section id (same idea as TestInterface `ancestorSections[0]`) */
+	rootSectionId: string;
+	rootSectionName?: string;
+	/** Media URLs on the section that directly owns this question */
+	ownerSectionFileUrls: string[];
+	/** 1-based index across the whole exam after sort */
+	globalIndex: number;
 };
+
+/** Same as TestInterface — BE often returns host-only paths without a scheme */
+function formatMediaUrl(url: string): string {
+	if (!url) return '';
+	const t = url.trim();
+	if (t.startsWith('http://') || t.startsWith('https://')) return t;
+	if (t.startsWith('//')) return `https:${t}`;
+	// Absolute path on current site (avoid invalid "http:///path")
+	if (t.startsWith('/')) {
+		if (typeof window !== 'undefined') return `${window.location.origin}${t}`;
+		return t;
+	}
+	return `http://${t}`;
+}
+
+function isImageUrl(url: string): boolean {
+	return !!url.trim().match(/\.(jpe?g|png|gif|webp|svg)(\?.*)?$/i);
+}
+
+function isAudioUrl(url: string): boolean {
+	return !!url.trim().match(/\.(mp3|wav|ogg|m4a)(\?.*)?$/i);
+}
 
 function extractToeicPart(text: string | undefined): number | null {
 	if (!text) return null;
@@ -226,10 +255,11 @@ export function TestResult() {
 
 	const flatQuestions = useMemo((): FlatQuestion[] => {
 		if (!reviewData) return [];
-		const out: FlatQuestion[] = [];
+		const out: Omit<FlatQuestion, 'globalIndex'>[] = [];
 
-		const walk = (sections: SectionReviewDto[], inheritedPart: number | null) => {
+		const walk = (sections: SectionReviewDto[], inheritedPart: number | null, rootSection: SectionReviewDto | null) => {
 			for (const s of sections || []) {
+				const root = rootSection ?? s;
 				const sectionPart = extractToeicPart(s.name) ?? extractToeicPart(s.directive) ?? inheritedPart;
 
 				for (const q of s.questions || []) {
@@ -240,17 +270,37 @@ export function TestResult() {
 						sectionId: s.id,
 						sectionName: s.name,
 						sectionType: s.type,
+						rootSectionId: root.id,
+						rootSectionName: root.name,
+						ownerSectionFileUrls: s.fileUrls ?? [],
 					});
 				}
 
-				if (s.sections && s.sections.length > 0) walk(s.sections, sectionPart);
+				if (s.sections && s.sections.length > 0) walk(s.sections, sectionPart, root);
 			}
 		};
 
-		walk(reviewData.sections || [], null);
+		walk(reviewData.sections || [], null, null);
 		out.sort((a, b) => (a.q.order ?? 0) - (b.q.order ?? 0) || a.q.id.localeCompare(b.q.id));
-		return out;
+		return out.map((item, i) => ({ ...item, globalIndex: i + 1 }));
 	}, [reviewData]);
+
+	/** Root-level parts in exam order (matches TestInterface tracker) */
+	const reviewParts = useMemo(() => {
+		const seen = new Set<string>();
+		const parts: { id: string; name: string }[] = [];
+		let fallback = 1;
+		for (const item of flatQuestions) {
+			if (!seen.has(item.rootSectionId)) {
+				seen.add(item.rootSectionId);
+				parts.push({
+					id: item.rootSectionId,
+					name: item.rootSectionName?.trim() || `Part ${fallback++}`,
+				});
+			}
+		}
+		return parts;
+	}, [flatQuestions]);
 
 	const toeicParts = useMemo(() => {
 		const set = new Set<number>();
@@ -378,6 +428,22 @@ export function TestResult() {
 		if (filter === 'all') return list;
 		return list.filter((x) => (questionStatusById.get(x.q.id) || 'skipped') === filter);
 	}, [activePart, filter, flatQuestions, questionStatusById]);
+
+	/** Sidebar: same part grouping as TestInterface (root section per group) */
+	const activeQuestionsByPart = useMemo(() => {
+		const grouped = new Map<string, FlatQuestion[]>();
+		for (const item of activeQuestions) {
+			const pid = item.rootSectionId;
+			if (!grouped.has(pid)) grouped.set(pid, []);
+			grouped.get(pid)!.push(item);
+		}
+		const result: { part: { id: string; name: string }; items: FlatQuestion[] }[] = [];
+		for (const p of reviewParts) {
+			const items = grouped.get(p.id);
+			if (items?.length) result.push({ part: p, items });
+		}
+		return result;
+	}, [activeQuestions, reviewParts]);
 
 	const startedAtMs = reviewData ? new Date(reviewData.startedAt).getTime() : 0;
 	const endedAtMs = reviewData ? new Date(reviewData.endedAt).getTime() : 0;
@@ -628,7 +694,7 @@ export function TestResult() {
 					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 						<Button
 							variant="ghost"
-							onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
+							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
 							className="flex items-center gap-2 mb-6 -ml-2 text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
 						>
 							<ArrowLeft className="h-4 w-4" />
@@ -668,7 +734,7 @@ export function TestResult() {
 					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 						<Button
 							variant="ghost"
-							onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
+							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
 							className="flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
 						>
 							<ArrowLeft className="h-4 w-4" />
@@ -908,7 +974,7 @@ export function TestResult() {
 									<div id={`q-${q.id}`} key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${theme.borderClass}`}>
 										<div className={`px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 ${theme.bgHeaderClass} border-b border-slate-100`}>
 											<div className="flex items-center gap-3">
-												<div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-bold text-slate-700">{index + 1}</div>
+												<div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${status === 'correct' ? 'bg-green-500 text-white' : status === 'incorrect' ? 'bg-red-500 text-white' : status === 'manual' ? 'bg-slate-400 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{index + 1}</div>
 												{isWriting && writingData ? (
 													<span className="inline-flex items-center gap-1.5 font-bold text-sm px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700">
 														<Trophy className="w-3.5 h-3.5" />
@@ -933,16 +999,33 @@ export function TestResult() {
 												<p className="text-slate-800 text-lg font-medium leading-relaxed">{q.content}</p>
 											</div>
 
-											{q.fileUrls && q.fileUrls.length > 0 && (
-												<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-													{q.fileUrls.slice(0, 4).map((url, i) => (
-														<div key={i} className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-															{/* eslint-disable-next-line @next/next/no-img-element */}
-															<img src={url} alt={`asset-${i}`} className="w-full h-auto object-contain" />
-														</div>
-													))}
-												</div>
-											)}
+											{(() => {
+												const raw = [...new Set([...(item.ownerSectionFileUrls ?? []), ...(q.fileUrls ?? [])])];
+												const audioUrls = raw.filter(isAudioUrl).map(formatMediaUrl);
+												const imageUrls = raw.filter(isImageUrl).map(formatMediaUrl);
+												if (audioUrls.length === 0 && imageUrls.length === 0) return null;
+												return (
+													<div className="space-y-4">
+														{audioUrls.map((url) => (
+															<div key={url} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+																<audio controls className="h-8 w-full outline-none">
+																	<source src={url} />
+																</audio>
+															</div>
+														))}
+														{imageUrls.length > 0 && (
+															<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+																{imageUrls.map((url, i) => (
+																	<div key={`${url}-${i}`} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+																		{/* eslint-disable-next-line @next/next/no-img-element */}
+																		<img src={url} alt="" className="h-auto w-full object-contain" />
+																	</div>
+																))}
+															</div>
+														)}
+													</div>
+												);
+											})()}
 
 											{/* Writing Result UI */}
 											{isWriting && writingData ? (
@@ -1038,59 +1121,96 @@ export function TestResult() {
 												</div>
 											) : (
 												<>
-												{/* Regular question options */}
-												{options && options.length > 0 && (
-													<div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-														<p className="mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide">Các lựa chọn:</p>
-														<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-															{q.choices.map((op, i) => {
-																const opKey = String.fromCharCode(65 + i);
-																const isChecked = userAnswers.includes(op.key);
-																return (
-																	<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
-																		<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-primary border-primary text-primary-foreground' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
-																			{opKey}
-																		</div>
-																		<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op.content || op.key}</span>
+											{/* Regular question options (old style) */}
+											{options && options.length > 0 && (
+												<div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+													<p className="mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide">Các lựa chọn:</p>
+													<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+														{q.choices.map((op, i) => {
+															const opKey = String.fromCharCode(65 + i);
+															const isChecked = userAnswers.includes(op.key);
+															return (
+																<div
+																	key={op.key}
+																	className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${
+																		isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'
+																	}`}
+																>
+																	<div
+																		className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${
+																			isChecked
+																				? 'bg-primary border-primary text-primary-foreground'
+																				: 'bg-slate-100 border-slate-300 text-slate-500'
+																		}`}
+																	>
+																		{opKey}
 																	</div>
-																);
-																})}
-															</div>
-														</div>
-													)}
-												</>
-											)}
-
-											{/* Câu trả lời / Đáp án đúng — only for non-writing questions */}
-											{!isWriting && (
-												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-													<div className={`p-5 rounded-xl border ${status === 'correct' ? 'bg-green-50/50 border-green-200' : status === 'incorrect' ? 'bg-red-50/50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-														<div className="flex items-center gap-2 mb-2">
-															<UserIcon className={`w-4 h-4 ${status === 'correct' ? 'text-green-600' : status === 'incorrect' ? 'text-red-600' : 'text-slate-500'}`} />
-															<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Câu trả lời của bạn</p>
-														</div>
-														<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-															{userAnswerStr ? (
-																<span className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${status === 'correct' ? 'text-green-700 border-green-200' : status === 'incorrect' ? 'text-red-600 border-red-200' : 'text-slate-700 border-slate-300'}`}>
-																	{userAnswerStr}
-																</span>
-															) : (
-																<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
-															)}
-														</div>
-													</div>
-
-													<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
-														<div className="flex items-center gap-2 mb-2">
-															<CheckCircle2 className="w-4 h-4 text-primary" />
-															<p className="text-xs uppercase font-bold text-primary tracking-wider">Đáp án đúng</p>
-														</div>
-														<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-															<QuestionCard q={q} status={status} />
-														</div>
+																	<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
+																		{op.content || op.key}
+																	</span>
+																</div>
+															);
+														})}
 													</div>
 												</div>
 											)}
+											</>
+										)}
+
+										{/* Câu trả lời / Đáp án đúng — old style for all non-writing questions */}
+										{!isWriting && (
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div
+													className={`p-5 rounded-xl border ${
+														status === 'correct'
+															? 'bg-green-50/50 border-green-200'
+															: status === 'incorrect'
+																? 'bg-red-50/50 border-red-200'
+																: 'bg-slate-50 border-slate-200'
+													}`}
+												>
+													<div className="flex items-center gap-2 mb-2">
+														<UserIcon
+															className={`w-4 h-4 ${
+																status === 'correct'
+																	? 'text-green-600'
+																	: status === 'incorrect'
+																		? 'text-red-600'
+																		: 'text-slate-500'
+															}`}
+														/>
+														<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Câu trả lời của bạn</p>
+													</div>
+													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
+														{userAnswerStr ? (
+															<span
+																className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${
+																	status === 'correct'
+																		? 'text-green-700 border-green-200'
+																		: status === 'incorrect'
+																			? 'text-red-600 border-red-200'
+																			: 'text-slate-700 border-slate-300'
+																}`}
+															>
+																{userAnswerStr}
+															</span>
+														) : (
+															<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
+														)}
+													</div>
+												</div>
+
+												<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
+													<div className="flex items-center gap-2 mb-2">
+														<CheckCircle2 className="w-4 h-4 text-primary" />
+														<p className="text-xs uppercase font-bold text-primary tracking-wider">Đáp án đúng</p>
+													</div>
+													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
+														<QuestionCard q={q} status={status} />
+													</div>
+												</div>
+											</div>
+										)}
 
 											{/* additionalData fallback — only for non-writing questions (writing uses the card above) */}
 											{!isWriting && res?.additionalData && (
@@ -1145,33 +1265,42 @@ export function TestResult() {
 									<div className="font-extrabold text-slate-800 text-sm">Danh sách câu</div>
 									<div className="text-xs text-slate-500 font-bold">{activeQuestions.length} câu</div>
 								</div>
-							<div className="grid grid-cols-8 gap-2">
-								{activeQuestions.map((item, idx) => {
-									const st = questionStatusById.get(item.q.id) || 'skipped';
-									const isWritingQ = item.q.type?.toLowerCase() === 'writing' || item.q.tags?.some((t) => t.toLowerCase().includes('writing'));
-									const bg = isWritingQ
-										? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-										: st === 'correct'
-											? 'bg-green-100 text-green-800 border-green-200'
-											: st === 'incorrect'
-												? 'bg-red-100 text-red-800 border-red-200'
-												: 'bg-slate-100 text-slate-700 border-slate-200';
-									return (
-										<button
-											key={item.q.id}
-											type="button"
-											onClick={() => {
-												const el = document.getElementById(`q-${item.q.id}`);
-												el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-											}}
-											className={`h-8 rounded-lg border text-xs font-extrabold ${bg} hover:brightness-95 transition`}
-											title={`Bài ${idx + 1}`}
-										>
-											{idx + 1}
-										</button>
-									);
-								})}
-							</div>
+								<div className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto pr-1">
+									{activeQuestionsByPart.map(({ part: partInfo, items }) => (
+										<div key={partInfo.id}>
+											<h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">{partInfo.name}</h3>
+											<div className="grid grid-cols-5 gap-2">
+												{items.map((item) => {
+													const st = questionStatusById.get(item.q.id) || 'skipped';
+													const isWritingQ =
+														item.q.type?.toLowerCase() === 'writing' ||
+														item.q.tags?.some((t) => t.toLowerCase().includes('writing'));
+													const bg = isWritingQ
+														? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+														: st === 'correct'
+															? 'border-green-200 bg-green-100 text-green-800'
+															: st === 'incorrect'
+																? 'border-red-200 bg-red-100 text-red-800'
+																: 'border-slate-200 bg-slate-100 text-slate-700';
+													return (
+														<button
+															key={item.q.id}
+															type="button"
+															onClick={() => {
+																const el = document.getElementById(`q-${item.q.id}`);
+																el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+															}}
+															className={`flex h-9 items-center justify-center rounded-lg border text-xs font-extrabold transition hover:brightness-95 ${bg}`}
+															title={`${partInfo.name} · Câu ${item.globalIndex}`}
+														>
+															{item.globalIndex}
+														</button>
+													);
+												})}
+											</div>
+										</div>
+									))}
+								</div>
 							{isWritingTest ? (
 								<div className="mt-4 flex items-center gap-3 text-xs font-bold text-slate-600">
 									<span className="inline-flex items-center gap-2">

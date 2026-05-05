@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashCard, Tag, TagType } from '../types/client';
 import { addFlashCard, removeFlashCard, updateFlashCard } from './store/flashCardSlice';
 import { Card, CardContent } from './ui/card';
@@ -242,18 +242,20 @@ export function FlashcardListDetail() {
 	const params = useParams();
 	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
+	const isHydrated = useIsStoreHydrated();
 	const flashcards = useAppSelector((state) => state.flashCards.list);
 	const lists = useAppSelector((state) => state.flashcardLists.list);
 	const tags = useAppSelector((state) => state.tags.list);
 
 	const listId = params?.listId as string;
 
-	// Redirect if not logged in
+	// Redirect if not logged in (wait for Redux rehydration first)
 	useEffect(() => {
+		if (!isHydrated) return;
 		if (!currentUser) {
 			router.push('/auth');
 		}
-	}, [currentUser, router]);
+	}, [isHydrated, currentUser, router]);
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
@@ -335,7 +337,7 @@ export function FlashcardListDetail() {
 		return tags.find((t) => t.id === tagId);
 	};
 
-	if (!currentUser) {
+	if (!isHydrated || !currentUser) {
 		return null;
 	}
 
