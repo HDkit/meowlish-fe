@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, RefreshCw, Target, Trophy, UserIcon, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, PenTool, RefreshCw, Sparkles, Target, Trophy, XCircle } from 'lucide-react';
 
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
 import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
@@ -14,6 +14,90 @@ import { Button } from './ui/button';
 import { AICard, QuestionCard } from './QuestionCard';
 
 type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
+
+/** Canonical writing-feedback shape used throughout this file */
+type WritingFeedback = {
+	overall_score: number;
+	sub_scores?: Record<string, number>;
+	detailed_feedback?: string;
+	corrected_version?: string;
+	corrections?: Array<{ type: string; original: string; corrected: string; explanation: string }>;
+};
+
+/**
+ * Parse `additionalData` from the BE and normalise it to `WritingFeedback`.
+ *
+ * The AI service (exam.writing.scored) returns a Result-Event envelope:
+ *   { "status": "success", "attempt_id": "…", "data": { "overall_score": 7.5, … } }
+ *
+ * The BE may store the full envelope OR only the inner `data` object.
+ * A `status:"error"` result is converted into a failure feedback so the UI
+ * can show the error message instead of staying in "pending" state.
+ */
+function parseWritingFeedback(additionalData: string | null | undefined): WritingFeedback | null {
+	if (!additionalData?.trim()) return null;
+	let raw: unknown;
+	try {
+		raw = JSON.parse(additionalData);
+		// BE sometimes double-encodes: the stored string is itself a JSON string
+		if (typeof raw === 'string') {
+			raw = JSON.parse(raw);
+		}
+	} catch {
+		return null;
+	}
+
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+	let obj = raw as Record<string, any>;
+
+	// ── Unwrap the Result-Event envelope if the BE stored the full payload ──
+	if ('status' in obj) {
+		if (obj.status === 'error') {
+			// Grading completed with a failure — surface error message, stop polling
+			return {
+				overall_score: 0,
+				detailed_feedback: `Chấm bài thất bại: ${obj.error_message ?? obj.error_code ?? 'Lỗi không xác định'}`,
+			};
+		}
+		if (obj.status === 'success' && obj.data && typeof obj.data === 'object') {
+			obj = obj.data as Record<string, any>;
+		}
+	}
+
+	// ── Extract fields — exact AI-service names (README) first, aliases second ──
+	const overall =
+		obj.overall_score ?? obj.score ?? obj.band_score ?? obj.bandScore ??
+		obj.total_score ?? obj.overall ?? obj.band;
+	if (overall === undefined || overall === null) return null;
+
+	const sub: Record<string, number> | undefined =
+		obj.sub_scores ?? obj.subScores ?? obj.criteria ?? obj.subscores ??
+		obj.breakdown ?? obj.scores ?? undefined;
+
+	const feedback: string | undefined =
+		obj.detailed_feedback ?? obj.detailedFeedback ?? obj.feedback ??
+		obj.comment ?? obj.comments ?? undefined;
+
+	const corrected: string | undefined =
+		obj.corrected_version ?? obj.correctedVersion ?? obj.corrected_essay ?? undefined;
+
+	// Corrections: the AI service prompt uses error_type / original_text / corrected_text
+	const rawCorrections: any[] = obj.corrections ?? obj.errors ?? obj.mistakes ?? [];
+	const corrections = rawCorrections.map((c: any) => ({
+		type:        c.error_type     ?? c.type        ?? c.errorType    ?? 'Lỗi',
+		original:    c.original_text  ?? c.original    ?? c.originalText ?? '',
+		corrected:   c.corrected_text ?? c.corrected   ?? c.correctedText ?? '',
+		explanation: c.explanation    ?? c.reason      ?? c.note         ?? '',
+	}));
+
+	return {
+		overall_score: Number(overall),
+		sub_scores: sub,
+		detailed_feedback: feedback,
+		corrected_version: corrected,
+		corrections,
+	};
+}
 
 type FlatQuestion = {
 	q: QuestionReviewDto;
@@ -112,6 +196,8 @@ export function TestResult() {
 
 	const [activePart, setActivePart] = useState<'overview' | number>('overview');
 	const [filter, setFilter] = useState<'all' | 'incorrect' | 'skipped'>('all');
+	const [pollElapsed, setPollElapsed] = useState(0);
+	const [pollingTimedOut, setPollingTimedOut] = useState(false);
 
 	useEffect(() => {
 		const fetchReview = async () => {
@@ -297,10 +383,11 @@ export function TestResult() {
 	const endedAtMs = reviewData ? new Date(reviewData.endedAt).getTime() : 0;
 	const timeTakenSeconds = Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1000));
 
-	// Detect if this is a Writing-only test
+	// Detect if this is a Writing-only test (case-insensitive type check)
 	const isWritingTest = useMemo(() => {
-		return flatQuestions.length > 0 && flatQuestions.every(q => 
-			q.q.type === 'Writing' || q.q.tags?.some(t => t.toLowerCase().includes('writing'))
+		return flatQuestions.length > 0 && flatQuestions.every(q =>
+			q.q.type?.toLowerCase() === 'writing' ||
+			q.q.tags?.some(t => t.toLowerCase().includes('writing'))
 		);
 	}, [flatQuestions]);
 
@@ -311,18 +398,74 @@ export function TestResult() {
 		let count = 0;
 		for (const { q } of flatQuestions) {
 			const res = reviewData.responses?.find((r) => r.questionId === q.id);
-			if (res?.additionalData) {
-				try {
-					const parsed = JSON.parse(res.additionalData);
-					if (parsed.overall_score !== undefined) {
-						totalScore += parsed.overall_score;
-						count++;
-					}
-				} catch { /* ignore */ }
+			const fb = parseWritingFeedback(res?.additionalData);
+			if (fb && fb.overall_score > 0) {
+				totalScore += fb.overall_score;
+				count++;
 			}
 		}
 		return count > 0 ? (totalScore / count).toFixed(1) : 0;
 	}, [flatQuestions, reviewData, isWritingTest]);
+
+	// Pending as long as ANY writing question still lacks AI feedback
+	const isPendingGrading = useMemo(() => {
+		if (!isWritingTest || !reviewData || flatQuestions.length === 0) return false;
+		return flatQuestions.some(({ q }) => {
+			const res = reviewData.responses?.find((r) => r.questionId === q.id);
+			return !res?.additionalData?.trim();
+		});
+	}, [isWritingTest, reviewData, flatQuestions]);
+
+	// How many essays have been graded so far (for progress display)
+	const gradedCount = useMemo(() => {
+		if (!isWritingTest || !reviewData) return 0;
+		return flatQuestions.filter(({ q }) => {
+			const res = reviewData.responses?.find((r) => r.questionId === q.id);
+			return !!res?.additionalData?.trim();
+		}).length;
+	}, [isWritingTest, reviewData, flatQuestions]);
+
+	// Elapsed-time ticker while AI grading is pending
+	useEffect(() => {
+		if (!isPendingGrading) return;
+		const timer = setInterval(() => setPollElapsed((s) => s + 1), 1000);
+		return () => clearInterval(timer);
+	}, [isPendingGrading]);
+
+	// Poll for results every 5 s (max 3 min = 36 attempts)
+	useEffect(() => {
+		if (!isPendingGrading || !id || pollingTimedOut) return;
+		let count = 0;
+		const MAX_POLLS = 36;
+
+		const intervalId = setInterval(async () => {
+			count++;
+			if (count >= MAX_POLLS) {
+				clearInterval(intervalId);
+				setPollingTimedOut(true);
+				return;
+			}
+			try {
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetAttemptReviewV1(id as string);
+				if (res.data) {
+					const responses = (res.data as AttemptReviewDto).responses ?? [];
+					// Always update reviewData so partial progress (1/2 graded) is visible
+					setReviewData(res.data as AttemptReviewDto);
+					const anyData = res.data as any;
+					if (anyData?.examId) setExamId(String(anyData.examId));
+					// Stop polling only when ALL responses have received AI feedback
+					const allGraded = responses.length > 0 && responses.every((r) => r.additionalData?.trim());
+					if (allGraded) {
+						clearInterval(intervalId);
+					}
+				}
+			} catch (err) {
+				console.error('Polling error:', err);
+			}
+		}, 5000);
+
+		return () => clearInterval(intervalId);
+	}, [isPendingGrading, id, pollingTimedOut]);
 
 	const scoreLabel = isToeicLike ? 'Điểm TOEIC' : isWritingTest ? 'Band IELTS trung bình' : 'Điểm';
 	const scoreValue = isToeicLike ? (toeicScore?.totalScaled ?? 0) : isWritingTest ? writingAvgScore : reviewData?.totalPoints ?? 0;
@@ -351,55 +494,220 @@ export function TestResult() {
 		);
 	}
 
-	return (
-		<div className="min-h-screen bg-slate-50 pb-20">
-			{/* Header */}
-			<div className="bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden">
-				<div className="absolute inset-0 bg-primary pointer-events-none" />
-				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
-				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+	if (isPendingGrading) {
+		return (
+			<div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col">
+				{/* Top bar */}
+				<div className="relative overflow-hidden bg-primary shadow-lg">
+					<div className="absolute inset-0 bg-black/10" />
+					<div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+					<div className="relative px-6 py-6 max-w-7xl mx-auto">
+						<Button
+							variant="ghost"
+							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
+							className="flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							Trở về
+						</Button>
+					</div>
+				</div>
 
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-					<Button
-						variant="ghost"
-						onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
-						className="flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Trở về
-					</Button>
-
-					<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
-						<div className="flex-1">
-							<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
-								<Trophy className="w-4 h-4 text-yellow-300" /> KẾT QUẢ BÀI THI
+				{/* Waiting card */}
+				<div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+					<div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-10 max-w-md w-full text-center space-y-8">
+						{/* Animated icon */}
+						<div className="relative inline-flex items-center justify-center mx-auto">
+							<div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
+								<Sparkles className="w-11 h-11 text-primary animate-pulse" />
 							</div>
-							<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">{title}</h1>
-							<p className="text-primary-foreground/80 font-medium text-lg max-w-2xl leading-relaxed">
-								Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
-							</p>
+							<div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
 						</div>
 
-						<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
-							<div className="absolute inset-0 bg-white/5 pointer-events-none" />
-							<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">{scoreLabel}</span>
-							<div className="flex items-baseline gap-1">
-								<span className="text-5xl font-black text-white drop-shadow-md">{isToeicLike ? scoreValue : Number(scoreValue).toFixed(1)}</span>
-								<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">/{scoreDenom}</span>
+					<div className="space-y-3">
+						<h2 className="text-2xl font-extrabold text-slate-800">AI đang chấm bài viết của bạn</h2>
+						<p className="text-slate-500 font-medium leading-relaxed">
+							Quá trình này có thể mất từ 1–2 phút.<br />Bạn có thể chờ tại đây hoặc quay lại sau.
+						</p>
+					</div>
+
+					{/* Progress: X / N bài đã chấm xong */}
+					{flatQuestions.length > 1 && (
+						<div className="w-full space-y-2">
+							<div className="flex justify-between text-sm font-bold text-slate-600">
+								<span>Tiến trình chấm bài</span>
+								<span>{gradedCount} / {flatQuestions.length} bài</span>
 							</div>
-							{isToeicLike && toeicScore && (
-								<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">
-									<span className="block">Listening {toeicScore.listening.scaled}/495</span>
-									<span className="block">Reading {toeicScore.reading.scaled}/495</span>
+							<div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+								<div
+									className="h-full bg-primary rounded-full transition-all duration-700"
+									style={{ width: `${flatQuestions.length > 0 ? (gradedCount / flatQuestions.length) * 100 : 0}%` }}
+								/>
+							</div>
+						</div>
+					)}
+
+					{/* Elapsed timer */}
+					<div className="flex items-center justify-center gap-2 text-slate-600">
+						<Clock className="w-4 h-4" />
+						<span className="font-mono text-xl font-bold tabular-nums">{formatTime(pollElapsed)}</span>
+					</div>
+
+					{/* Bouncing dots */}
+					<div className="flex justify-center gap-2.5">
+						{[0, 1, 2].map((i) => (
+							<div
+								key={i}
+								className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce"
+								style={{ animationDelay: `${i * 0.18}s` }}
+							/>
+						))}
+					</div>
+
+						{pollingTimedOut ? (
+							<div className="space-y-4">
+								<p className="text-amber-600 font-semibold text-sm bg-amber-50 px-4 py-3 rounded-xl border border-amber-200">
+									Kết quả chưa sẵn sàng. Vui lòng quay lại sau để xem điểm và nhận xét.
+								</p>
+								<div className="flex gap-3 justify-center">
+									<Button
+										onClick={() => router.push('/history')}
+										className="bg-primary hover:bg-primary/90 text-white font-bold px-6 h-11 rounded-xl"
+									>
+										Xem lịch sử
+									</Button>
+									<Button
+										variant="outline"
+										onClick={() => {
+											setPollingTimedOut(false);
+											setPollElapsed(0);
+										}}
+										className="font-bold px-6 h-11 rounded-xl"
+									>
+										Thử lại
+									</Button>
 								</div>
-							)}
+							</div>
+						) : (
+							<Button
+								variant="outline"
+								onClick={() => router.push('/history')}
+								className="font-bold px-8 h-11 rounded-xl w-full border-slate-200 hover:bg-slate-50"
+							>
+								Quay lại sau
+							</Button>
+						)}
+					</div>
+
+					<p className="mt-8 text-sm text-slate-500 text-center max-w-sm">
+						Kết quả sẽ được lưu tự động. Bạn có thể xem lại trong{' '}
+						<button
+							type="button"
+							onClick={() => router.push('/history')}
+							className="font-bold text-primary hover:underline"
+						>
+							Lịch sử làm bài
+						</button>
+						.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="min-h-screen bg-slate-50 pb-20">
+			{/* Header — writing variant */}
+			{isWritingTest ? (
+				<div className="mb-8 pt-6 pb-16 relative overflow-hidden">
+					<div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-green-700 pointer-events-none" />
+					<div className="absolute inset-0 bg-black/10 pointer-events-none" />
+					<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+					<div className="absolute bottom-0 left-0 w-72 h-72 bg-white/5 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+						<Button
+							variant="ghost"
+							onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
+							className="flex items-center gap-2 mb-6 -ml-2 text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							Trở về
+						</Button>
+
+						<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
+							<div className="flex-1">
+								<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
+									<PenTool className="w-4 h-4 text-emerald-200" /> KẾT QUẢ WRITING
+								</div>
+								<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">{title}</h1>
+								<p className="text-white/80 font-medium text-lg max-w-2xl leading-relaxed">
+									Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
+								</p>
+							</div>
+
+							<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
+								<div className="absolute inset-0 bg-white/5 pointer-events-none" />
+								<span className="text-sm font-bold text-white/80 uppercase tracking-widest mb-1">Band trung bình</span>
+								<div className="flex items-baseline gap-1">
+									<span className="text-5xl font-black text-white drop-shadow-md">{Number(writingAvgScore).toFixed(1)}</span>
+									<span className="text-xl font-bold text-white bg-emerald-700 px-2.5 py-1 rounded-lg shadow-md">/9.0</span>
+								</div>
+								<div className="mt-2 text-xs text-white/70 font-semibold">{flatQuestions.length} bài viết</div>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			) : (
+				/* Header — standard variant */
+				<div className="bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden">
+					<div className="absolute inset-0 bg-primary pointer-events-none" />
+					<div className="absolute inset-0 bg-black/10 pointer-events-none" />
+					<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+						<Button
+							variant="ghost"
+							onClick={() => router.push(examId ? `/tests/${examId}` : '/dashboard')}
+							className="flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							Trở về
+						</Button>
+
+						<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
+							<div className="flex-1">
+								<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
+									<Trophy className="w-4 h-4 text-yellow-300" /> KẾT QUẢ BÀI THI
+								</div>
+								<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">{title}</h1>
+								<p className="text-primary-foreground/80 font-medium text-lg max-w-2xl leading-relaxed">
+									Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
+								</p>
+							</div>
+
+							<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
+								<div className="absolute inset-0 bg-white/5 pointer-events-none" />
+								<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">{scoreLabel}</span>
+								<div className="flex items-baseline gap-1">
+									<span className="text-5xl font-black text-white drop-shadow-md">{isToeicLike ? scoreValue : Number(scoreValue).toFixed(1)}</span>
+									<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">/{scoreDenom}</span>
+								</div>
+								{isToeicLike && toeicScore && (
+									<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">
+										<span className="block">Listening {toeicScore.listening.scaled}/495</span>
+										<span className="block">Reading {toeicScore.reading.scaled}/495</span>
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20">
-				{/* Part tabs + filter */}
+				{/* Part tabs + filter — hidden for writing exams */}
+				{!isWritingTest && (
 				<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
 					<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 						<div className="flex flex-wrap gap-2">
@@ -416,37 +724,35 @@ export function TestResult() {
 								</button>
 							))}
 						</div>
-						{!isWritingTest && (
-							<div className="flex flex-wrap gap-2">
-								<button
-									type="button"
-									onClick={() => setFilter('all')}
-									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-										filter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-									}`}
-								>
-									Tất cả
-								</button>
-								<button
-									type="button"
-									onClick={() => setFilter('incorrect')}
-									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-										filter === 'incorrect' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-									}`}
-								>
-									Câu sai
-								</button>
-								<button
-									type="button"
-									onClick={() => setFilter('skipped')}
-									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-										filter === 'skipped' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-									}`}
-								>
-									Bỏ qua
-								</button>
-							</div>
-						)}
+						<div className="flex flex-wrap gap-2">
+							<button
+								type="button"
+								onClick={() => setFilter('all')}
+								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+									filter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+								}`}
+							>
+								Tất cả
+							</button>
+							<button
+								type="button"
+								onClick={() => setFilter('incorrect')}
+								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+									filter === 'incorrect' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+								}`}
+							>
+								Câu sai
+							</button>
+							<button
+								type="button"
+								onClick={() => setFilter('skipped')}
+								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+									filter === 'skipped' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+								}`}
+							>
+								Bỏ qua
+							</button>
+						</div>
 					</div>
 
 					{activePart === 'overview' && isToeicLike && toeicParts.length > 0 && (
@@ -497,6 +803,7 @@ export function TestResult() {
 						</div>
 					)}
 				</div>
+				)} {/* end !isWritingTest part-tabs */}
 
 				{/* Stats */}
 				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
@@ -566,8 +873,10 @@ export function TestResult() {
 				{/* Detailed results */}
 				<div className="space-y-6">
 					<div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-6">
-						<Target className="w-6 h-6 text-primary" />
-						<h2 className="text-2xl font-extrabold text-slate-800">Đáp án chi tiết</h2>
+						{isWritingTest ? <PenTool className="w-6 h-6 text-emerald-600" /> : <Target className="w-6 h-6 text-primary" />}
+						<h2 className="text-2xl font-extrabold text-slate-800">
+							{isWritingTest ? 'Nhận xét chi tiết từ AI' : 'Đáp án chi tiết'}
+						</h2>
 					</div>
 
 					<div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 items-start">
@@ -588,28 +897,12 @@ export function TestResult() {
 								const theme = statusTheme(status);
 								const options = q.choices?.map((c) => c.key) || [];
 
-								// Check if this is a Writing question
-								const isWriting = q.type === 'Writing' || q.tags?.some(t => t.toLowerCase().includes('writing'));
+								// Check if this is a Writing question (case-insensitive)
+								const isWriting = q.type?.toLowerCase() === 'writing' || q.tags?.some(t => t.toLowerCase().includes('writing'));
 
-								// Parse writing feedback data
-								let writingData: {
-									overall_score?: number;
-									sub_scores?: Record<string, number>;
-									detailed_feedback?: string;
-									corrected_version?: string;
-									corrections?: Array<{ original: string; corrected: string; explanation: string; type?: string }>;
-								} | null = null;
-
-								if (isWriting && res?.additionalData) {
-									try {
-										const parsed = JSON.parse(res.additionalData);
-										if (parsed.overall_score !== undefined) {
-											writingData = parsed;
-										}
-									} catch {
-										// Not valid writing data
-									}
-								}
+								// Parse & normalise AI-service feedback (handles envelope + all field-name variants)
+								const writingData: WritingFeedback | null =
+									isWriting ? parseWritingFeedback(res?.additionalData) : null;
 
 								return (
 									<div id={`q-${q.id}`} key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${theme.borderClass}`}>
@@ -768,35 +1061,39 @@ export function TestResult() {
 												</>
 											)}
 
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-												<div className={`p-5 rounded-xl border ${status === 'correct' ? 'bg-green-50/50 border-green-200' : status === 'incorrect' ? 'bg-red-50/50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-													<div className="flex items-center gap-2 mb-2">
-														<UserIcon className={`w-4 h-4 ${status === 'correct' ? 'text-green-600' : status === 'incorrect' ? 'text-red-600' : 'text-slate-500'}`} />
-														<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Câu trả lời của bạn</p>
+											{/* Câu trả lời / Đáp án đúng — only for non-writing questions */}
+											{!isWriting && (
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+													<div className={`p-5 rounded-xl border ${status === 'correct' ? 'bg-green-50/50 border-green-200' : status === 'incorrect' ? 'bg-red-50/50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+														<div className="flex items-center gap-2 mb-2">
+															<UserIcon className={`w-4 h-4 ${status === 'correct' ? 'text-green-600' : status === 'incorrect' ? 'text-red-600' : 'text-slate-500'}`} />
+															<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Câu trả lời của bạn</p>
+														</div>
+														<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
+															{userAnswerStr ? (
+																<span className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${status === 'correct' ? 'text-green-700 border-green-200' : status === 'incorrect' ? 'text-red-600 border-red-200' : 'text-slate-700 border-slate-300'}`}>
+																	{userAnswerStr}
+																</span>
+															) : (
+																<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
+															)}
+														</div>
 													</div>
-													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-														{userAnswerStr ? (
-															<span className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${status === 'correct' ? 'text-green-700 border-green-200' : status === 'incorrect' ? 'text-red-600 border-red-200' : 'text-slate-700 border-slate-300'}`}>
-																{userAnswerStr}
-															</span>
-														) : (
-															<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
-														)}
-													</div>
-												</div>
 
-												<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
-													<div className="flex items-center gap-2 mb-2">
-														<CheckCircle2 className="w-4 h-4 text-primary" />
-														<p className="text-xs uppercase font-bold text-primary tracking-wider">Đáp án đúng</p>
-													</div>
-													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-														<QuestionCard q={q} status={status} />
+													<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
+														<div className="flex items-center gap-2 mb-2">
+															<CheckCircle2 className="w-4 h-4 text-primary" />
+															<p className="text-xs uppercase font-bold text-primary tracking-wider">Đáp án đúng</p>
+														</div>
+														<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
+															<QuestionCard q={q} status={status} />
+														</div>
 													</div>
 												</div>
-											</div>
-											
-											{res?.additionalData && (
+											)}
+
+											{/* additionalData fallback — only for non-writing questions (writing uses the card above) */}
+											{!isWriting && res?.additionalData && (
 												<div className="mt-6 p-5 rounded-xl border bg-amber-50/50 border-amber-200">
 													<div className="flex items-center gap-2 mb-3">
 														<AlertCircle className="w-5 h-5 text-amber-500" />
@@ -829,7 +1126,6 @@ export function TestResult() {
 																	</div>
 																);
 															} catch (e) {
-																// If not JSON, just show text
 																return <div>{res.additionalData}</div>;
 															}
 														})()}
@@ -849,31 +1145,41 @@ export function TestResult() {
 									<div className="font-extrabold text-slate-800 text-sm">Danh sách câu</div>
 									<div className="text-xs text-slate-500 font-bold">{activeQuestions.length} câu</div>
 								</div>
-								<div className="grid grid-cols-8 gap-2">
-									{activeQuestions.map((item, idx) => {
-										const st = questionStatusById.get(item.q.id) || 'skipped';
-										const bg =
-											st === 'correct'
-												? 'bg-green-100 text-green-800 border-green-200'
-												: st === 'incorrect'
-													? 'bg-red-100 text-red-800 border-red-200'
-													: 'bg-slate-100 text-slate-700 border-slate-200';
-										return (
-											<button
-												key={item.q.id}
-												type="button"
-												onClick={() => {
-													const el = document.getElementById(`q-${item.q.id}`);
-													el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-												}}
-												className={`h-8 rounded-lg border text-xs font-extrabold ${bg} hover:brightness-95 transition`}
-												title={`Câu ${idx + 1}`}
-											>
-												{idx + 1}
-											</button>
-										);
-									})}
+							<div className="grid grid-cols-8 gap-2">
+								{activeQuestions.map((item, idx) => {
+									const st = questionStatusById.get(item.q.id) || 'skipped';
+									const isWritingQ = item.q.type?.toLowerCase() === 'writing' || item.q.tags?.some((t) => t.toLowerCase().includes('writing'));
+									const bg = isWritingQ
+										? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+										: st === 'correct'
+											? 'bg-green-100 text-green-800 border-green-200'
+											: st === 'incorrect'
+												? 'bg-red-100 text-red-800 border-red-200'
+												: 'bg-slate-100 text-slate-700 border-slate-200';
+									return (
+										<button
+											key={item.q.id}
+											type="button"
+											onClick={() => {
+												const el = document.getElementById(`q-${item.q.id}`);
+												el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+											}}
+											className={`h-8 rounded-lg border text-xs font-extrabold ${bg} hover:brightness-95 transition`}
+											title={`Bài ${idx + 1}`}
+										>
+											{idx + 1}
+										</button>
+									);
+								})}
+							</div>
+							{isWritingTest ? (
+								<div className="mt-4 flex items-center gap-3 text-xs font-bold text-slate-600">
+									<span className="inline-flex items-center gap-2">
+										<span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" />
+										Bài viết
+									</span>
 								</div>
+							) : (
 								<div className="mt-4 flex items-center gap-3 text-xs font-bold text-slate-600">
 									<span className="inline-flex items-center gap-2">
 										<span className="w-3 h-3 rounded bg-green-100 border border-green-200" />
@@ -888,6 +1194,7 @@ export function TestResult() {
 										Bỏ
 									</span>
 								</div>
+							)}
 							</div>
 						</div>
 					</div>

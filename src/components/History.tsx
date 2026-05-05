@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Calendar, Clock, Target, Award, BookOpen, Headphones, PenTool, Mic, Filter } from 'lucide-react';
+import { Calendar, Clock, Target, Award, BookOpen, Headphones, PenTool, Mic, Filter, Loader2 } from 'lucide-react';
 import type { TestType, Skill, TestSession } from '../slop';
 
 interface HistoryProps {
@@ -16,6 +16,8 @@ const mockSessions: (TestSession & {
 	completedAt: Date;
 	score: number;
 	accuracy: number;
+	pendingAI?: boolean;
+	attemptId?: string;
 })[] = [
 	{
 		id: 'session-1',
@@ -55,6 +57,21 @@ const mockSessions: (TestSession & {
 		completedAt: new Date('2024-01-13T10:45:00'),
 		score: 6.5,
 		accuracy: 72,
+	},
+	{
+		id: 'session-6',
+		testType: 'ielts',
+		skill: 'writing',
+		questions: [],
+		currentQuestionIndex: 0,
+		answers: [],
+		startTime: new Date('2024-01-16T08:00:00'),
+		completed: true,
+		completedAt: new Date('2024-01-16T09:00:00'),
+		score: 0,
+		accuracy: 0,
+		pendingAI: true,
+		attemptId: 'attempt-pending-001',
 	},
 	{
 		id: 'session-4',
@@ -273,35 +290,55 @@ export function History({ userId }: HistoryProps) {
 										</div>
 									</div>
 
-									<div className='flex items-center space-x-6'>
-										<div className='text-right'>
-											<p className='text-sm text-muted-foreground'>Điểm số</p>
-											<p className={`font-semibold ${getScoreColor(session.score, session.testType)}`}>
-												{session.score}
-											</p>
+								<div className='flex items-center space-x-6'>
+									{session.pendingAI ? (
+										<div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 text-sm font-semibold'>
+											<Loader2 className='h-4 w-4 animate-spin' />
+											AI đang chấm
 										</div>
+									) : (
+										<>
+											<div className='text-right'>
+												<p className='text-sm text-muted-foreground'>Điểm số</p>
+												<p className={`font-semibold ${getScoreColor(session.score, session.testType)}`}>
+													{session.score}
+												</p>
+											</div>
 
-										<div className='text-right'>
-											<p className='text-sm text-muted-foreground'>Độ chính xác</p>
-											<p className='font-semibold'>{session.accuracy}%</p>
-										</div>
+											<div className='text-right'>
+												<p className='text-sm text-muted-foreground'>Độ chính xác</p>
+												<p className='font-semibold'>{session.accuracy}%</p>
+											</div>
+										</>
+									)}
 
-										<div className='text-right'>
-											<p className='text-sm text-muted-foreground'>Thời gian</p>
-											<p className='font-semibold'>
-												{Math.round((session.completedAt.getTime() - session.startTime.getTime()) / (1000 * 60))} phút
-											</p>
-										</div>
+									<div className='text-right'>
+										<p className='text-sm text-muted-foreground'>Thời gian</p>
+										<p className='font-semibold'>
+											{Math.round((session.completedAt.getTime() - session.startTime.getTime()) / (1000 * 60))} phút
+										</p>
+									</div>
 
-										<div className='text-right'>
-											<p className='text-sm text-muted-foreground'>Ngày làm</p>
-											<p className='font-semibold'>{session.completedAt.toLocaleDateString('vi-VN')}</p>
-										</div>
+									<div className='text-right'>
+										<p className='text-sm text-muted-foreground'>Ngày làm</p>
+										<p className='font-semibold'>{session.completedAt.toLocaleDateString('vi-VN')}</p>
+									</div>
 
+									{session.pendingAI ? (
+										<Button
+											variant='outline'
+											size='sm'
+											onClick={() => session.attemptId && (window.location.href = `/results/${session.attemptId}`)}
+											className='border-amber-300 text-amber-700 hover:bg-amber-50'
+										>
+											Kiểm tra kết quả
+										</Button>
+									) : (
 										<Button variant='outline' size='sm'>
 											Xem chi tiết
 										</Button>
-									</div>
+									)}
+								</div>
 								</div>
 							</div>
 						))}

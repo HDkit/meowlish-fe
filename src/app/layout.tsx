@@ -1,10 +1,18 @@
 import type { Metadata } from 'next';
+import { Be_Vietnam_Pro } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import StoreProvider from '@/lib/store/StoreProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiClientProvider } from '@/components/ApiClientProvider';
 import { FloatingLeaves } from '@/components/FloatingLeaves';
 import './globals.css';
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['vietnamese', 'latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-be-vietnam-pro',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'AI English Exam Prep System',
@@ -17,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning className={beVietnamPro.variable}>
       <body>
         <StoreProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
