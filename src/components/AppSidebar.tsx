@@ -106,7 +106,7 @@ export function AppSidebar() {
               <Leaf className="h-4.5 w-4.5 shrink-0" />
             </div>
             <span className="truncate text-lg font-display font-semibold text-emerald-600 group-data-[collapsible=icon]:hidden dark:text-emerald-400">
-              EnglishPrep
+              Lingriser
             </span>
           </button>
           <button

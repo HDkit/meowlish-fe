@@ -15,7 +15,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'AI English Exam Prep System',
+  title: 'Lingriser',
   description: 'AI-powered English exam preparation with speaking and writing practice',
 };
 

@@ -349,7 +349,7 @@ export function AuthForm() {
 								<Brain className='h-8 w-8 text-white' />
 							</div>
 							<div>
-								<h1 className='text-3xl font-extrabold text-primary'>EnglishAI Pro</h1>
+								<h1 className='text-3xl font-extrabold text-primary'>Lingriser</h1>
 								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
 							</div>
 						</Link>

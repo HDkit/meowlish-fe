@@ -144,7 +144,7 @@ export function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl font-display font-semibold">EnglishPrep</span>
+                <span className="text-xl font-display font-semibold">Lingriser</span>
               </div>
               <p className="text-background/60 text-sm">
                 Hệ thống luyện thi tiếng Anh với AI
@@ -159,12 +159,12 @@ export function LandingPage() {
               </div>
               <div className="space-y-2">
                 <p className="text-background font-medium">Liên hệ</p>
-                <p>support@englishprep.vn</p>
+                <p>support@lingriser.vn</p>
               </div>
             </div>
           </div>
           <div className="mt-8 pt-6 border-t border-background/10 text-center text-sm text-background/40">
-            © 2026 EnglishPrep. All rights reserved.
+            © 2026 Lingriser. All rights reserved.
           </div>
         </div>
       </footer>

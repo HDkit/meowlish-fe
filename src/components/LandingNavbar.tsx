@@ -17,7 +17,7 @@ export function LandingNavbar() {
         >
           <Leaf className="h-7 w-7 text-primary" />
           <span className="text-xl font-display font-semibold text-primary">
-            EnglishPrep
+            Lingriser
           </span>
         </button>
 
