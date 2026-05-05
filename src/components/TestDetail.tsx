@@ -75,9 +75,12 @@ export function ExamDetailPage() {
 					{ key: 'startedAt', direction: 'DESC' }
 				);
 				const attempts: any[] = res?.data?.attempts ?? [];
+				console.log('[TestDetail] Attempts from API:', attempts);
 				// Attempt chưa nộp = endedAt null/undefined
 				const inProgress = attempts.find((a) => !a.endedAt);
+				console.log('[TestDetail] In-progress attempt:', inProgress);
 				if (inProgress) {
+					console.log('[TestDetail] Setting ongoing attempt:', inProgress);
 					setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
 				}
 			} catch (e) {
@@ -177,16 +180,19 @@ export function ExamDetailPage() {
 		if (!ongoingAttempt) return;
 		setIsSubmittingOld(true);
 		const idToSubmit = ongoingAttempt.id;
-		setOngoingAttempt(null);
 		try {
 			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(idToSubmit);
+			// Chờ backend cập nhật trạng thái (race condition fix)
+			await new Promise(resolve => setTimeout(resolve, 500));
+			// Chỉ clear ongoingAttempt và bắt đầu bài mới khi nộp THÀNH CÔNG
+			setOngoingAttempt(null);
+			await handleStart();
 		} catch (e) {
 			console.error('Failed to submit ongoing attempt:', e);
+			setStartError('Không thể nộp bài cũ. Vui lòng thử lại sau.');
 		} finally {
 			setIsSubmittingOld(false);
 		}
-		// Tự động bắt đầu bài mới ngay sau khi nộp xong
-		await handleStart();
 	};
 
 	// Nộp attempt cũ từ fallback dialog (499 khi không tìm được từ history)

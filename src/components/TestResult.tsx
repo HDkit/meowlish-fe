@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, RefreshCw, Target, Trophy, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, RefreshCw, Target, Trophy, UserIcon, XCircle } from 'lucide-react';
 
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
 import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
@@ -297,9 +297,36 @@ export function TestResult() {
 	const endedAtMs = reviewData ? new Date(reviewData.endedAt).getTime() : 0;
 	const timeTakenSeconds = Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1000));
 
-	const scoreLabel = isToeicLike ? 'Điểm TOEIC' : 'Điểm';
-	const scoreValue = isToeicLike ? (toeicScore?.totalScaled ?? 0) : reviewData?.totalPoints ?? 0;
-	const scoreDenom = isToeicLike ? 990 : 100;
+	// Detect if this is a Writing-only test
+	const isWritingTest = useMemo(() => {
+		return flatQuestions.length > 0 && flatQuestions.every(q => 
+			q.q.type === 'Writing' || q.q.tags?.some(t => t.toLowerCase().includes('writing'))
+		);
+	}, [flatQuestions]);
+
+	// Calculate average Writing band score
+	const writingAvgScore = useMemo(() => {
+		if (!isWritingTest || !reviewData) return 0;
+		let totalScore = 0;
+		let count = 0;
+		for (const { q } of flatQuestions) {
+			const res = reviewData.responses?.find((r) => r.questionId === q.id);
+			if (res?.additionalData) {
+				try {
+					const parsed = JSON.parse(res.additionalData);
+					if (parsed.overall_score !== undefined) {
+						totalScore += parsed.overall_score;
+						count++;
+					}
+				} catch { /* ignore */ }
+			}
+		}
+		return count > 0 ? (totalScore / count).toFixed(1) : 0;
+	}, [flatQuestions, reviewData, isWritingTest]);
+
+	const scoreLabel = isToeicLike ? 'Điểm TOEIC' : isWritingTest ? 'Band IELTS trung bình' : 'Điểm';
+	const scoreValue = isToeicLike ? (toeicScore?.totalScaled ?? 0) : isWritingTest ? writingAvgScore : reviewData?.totalPoints ?? 0;
+	const scoreDenom = isToeicLike ? 990 : isWritingTest ? '9.0' : 100;
 
 	if (loading) {
 		return (
@@ -389,35 +416,37 @@ export function TestResult() {
 								</button>
 							))}
 						</div>
-						<div className="flex flex-wrap gap-2">
-							<button
-								type="button"
-								onClick={() => setFilter('all')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Tất cả
-							</button>
-							<button
-								type="button"
-								onClick={() => setFilter('incorrect')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'incorrect' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Câu sai
-							</button>
-							<button
-								type="button"
-								onClick={() => setFilter('skipped')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'skipped' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Bỏ qua
-							</button>
-						</div>
+						{!isWritingTest && (
+							<div className="flex flex-wrap gap-2">
+								<button
+									type="button"
+									onClick={() => setFilter('all')}
+									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+										filter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+									}`}
+								>
+									Tất cả
+								</button>
+								<button
+									type="button"
+									onClick={() => setFilter('incorrect')}
+									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+										filter === 'incorrect' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+									}`}
+								>
+									Câu sai
+								</button>
+								<button
+									type="button"
+									onClick={() => setFilter('skipped')}
+									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
+										filter === 'skipped' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+									}`}
+								>
+									Bỏ qua
+								</button>
+							</div>
+						)}
 					</div>
 
 					{activePart === 'overview' && isToeicLike && toeicParts.length > 0 && (
@@ -470,7 +499,7 @@ export function TestResult() {
 				</div>
 
 				{/* Stats */}
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
 					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
 						<div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100">
 							<Clock className="h-6 w-6" />
@@ -478,28 +507,41 @@ export function TestResult() {
 						<span className="text-sm font-bold text-slate-500 uppercase">Thời gian</span>
 						<span className="text-2xl font-black text-slate-800">{formatTime(timeTakenSeconds)}</span>
 					</div>
-					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-						<div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-500 mb-1 border border-green-100">
-							<CheckCircle2 className="h-6 w-6" />
+					{!isWritingTest && (
+						<>
+							<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+								<div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-500 mb-1 border border-green-100">
+									<CheckCircle2 className="h-6 w-6" />
+								</div>
+								<span className="text-sm font-bold text-slate-500 uppercase">Đúng</span>
+								<span className="text-2xl font-black text-green-600">
+									{stats.correct} / {stats.total}
+								</span>
+							</div>
+							<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+								<div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-1 border border-red-100">
+									<XCircle className="h-6 w-6" />
+								</div>
+								<span className="text-sm font-bold text-slate-500 uppercase">Sai</span>
+								<span className="text-2xl font-black text-red-600">{stats.incorrect}</span>
+							</div>
+						</>
+					)}
+					{isWritingTest && (
+						<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
+							<div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 mb-1 border border-emerald-100">
+								<Trophy className="h-6 w-6" />
+							</div>
+							<span className="text-sm font-bold text-slate-500 uppercase">Band trung bình</span>
+							<span className="text-2xl font-black text-emerald-600">{writingAvgScore}</span>
 						</div>
-						<span className="text-sm font-bold text-slate-500 uppercase">Đúng</span>
-						<span className="text-2xl font-black text-green-600">
-							{stats.correct} / {stats.total}
-						</span>
-					</div>
-					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-						<div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-1 border border-red-100">
-							<XCircle className="h-6 w-6" />
-						</div>
-						<span className="text-sm font-bold text-slate-500 uppercase">Sai</span>
-						<span className="text-2xl font-black text-red-600">{stats.incorrect}</span>
-					</div>
+					)}
 					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
 						<div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100">
 							<AlertCircle className="h-6 w-6" />
 						</div>
-						<span className="text-sm font-bold text-slate-500 uppercase">Bỏ qua</span>
-						<span className="text-2xl font-black text-slate-800">{stats.skipped}</span>
+						<span className="text-sm font-bold text-slate-500 uppercase">{isWritingTest ? 'Số bài viết' : 'Bỏ qua'}</span>
+						<span className="text-2xl font-black text-slate-800">{isWritingTest ? flatQuestions.length : stats.skipped}</span>
 					</div>
 				</div>
 
@@ -546,15 +588,45 @@ export function TestResult() {
 								const theme = statusTheme(status);
 								const options = q.choices?.map((c) => c.key) || [];
 
+								// Check if this is a Writing question
+								const isWriting = q.type === 'Writing' || q.tags?.some(t => t.toLowerCase().includes('writing'));
+
+								// Parse writing feedback data
+								let writingData: {
+									overall_score?: number;
+									sub_scores?: Record<string, number>;
+									detailed_feedback?: string;
+									corrected_version?: string;
+									corrections?: Array<{ original: string; corrected: string; explanation: string; type?: string }>;
+								} | null = null;
+
+								if (isWriting && res?.additionalData) {
+									try {
+										const parsed = JSON.parse(res.additionalData);
+										if (parsed.overall_score !== undefined) {
+											writingData = parsed;
+										}
+									} catch {
+										// Not valid writing data
+									}
+								}
+
 								return (
 									<div id={`q-${q.id}`} key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${theme.borderClass}`}>
 										<div className={`px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 ${theme.bgHeaderClass} border-b border-slate-100`}>
 											<div className="flex items-center gap-3">
 												<div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-bold text-slate-700">{index + 1}</div>
-												<span className={`inline-flex items-center gap-1.5 font-bold uppercase text-xs px-3 py-1.5 rounded-full ${theme.badgeBg} ${theme.badgeText}`}>
-													<theme.Icon className="w-3.5 h-3.5" />
-													{statusLabel(status)}
-												</span>
+												{isWriting && writingData ? (
+													<span className="inline-flex items-center gap-1.5 font-bold text-sm px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700">
+														<Trophy className="w-3.5 h-3.5" />
+														{writingData.overall_score} Band
+													</span>
+												) : (
+													<span className={`inline-flex items-center gap-1.5 font-bold uppercase text-xs px-3 py-1.5 rounded-full ${theme.badgeBg} ${theme.badgeText}`}>
+														<theme.Icon className="w-3.5 h-3.5" />
+														{statusLabel(status)}
+													</span>
+												)}
 												{item.part && <span className="text-xs font-extrabold px-2 py-1 rounded-lg bg-white/70 border border-slate-200 text-slate-700">Part {item.part}</span>}
 											</div>
 											<div className="flex items-center gap-4">
@@ -579,24 +651,121 @@ export function TestResult() {
 												</div>
 											)}
 
-											{options && options.length > 0 && (
-												<div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-													<p className="mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide">Các lựa chọn:</p>
-													<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-														{q.choices.map((op, i) => {
-															const opKey = String.fromCharCode(65 + i);
-															const isChecked = userAnswers.includes(op.key);
-															return (
-																<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
-																	<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-primary border-primary text-primary-foreground' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
-																		{opKey}
+											{/* Writing Result UI */}
+											{isWriting && writingData ? (
+												<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+													{/* Left column - Scores & Feedback */}
+													<div className="space-y-6">
+														{/* Overall Score */}
+														<div className="bg-emerald-50/50 rounded-xl p-5 border border-emerald-200">
+															<div className="flex items-center justify-between mb-4">
+																<span className="font-bold text-slate-700">Điểm & nhận xét chung</span>
+																<span className="text-2xl font-black text-emerald-600">{writingData.overall_score} Band</span>
+															</div>
+
+															{/* Sub-scores */}
+															<div className="space-y-3">
+																<p className="text-sm font-bold text-slate-600 mb-2">Điểm chi tiết:</p>
+																{writingData.sub_scores && Object.entries(writingData.sub_scores).map(([key, score]) => (
+																	<div key={key} className="flex items-center justify-between bg-white rounded-lg px-4 py-2 border border-emerald-100">
+																		<span className="text-sm text-slate-600">{key}</span>
+																		<span className="font-bold text-emerald-600">{score}<span className="text-slate-400 font-normal">/9.0</span></span>
 																	</div>
-																	<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op.content || op.key}</span>
+																))}
+															</div>
+														</div>
+
+														{/* Detailed Feedback */}
+														{writingData.detailed_feedback && (
+															<div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+																<p className="font-bold text-slate-700 mb-3">Nhận xét chi tiết</p>
+																<div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+																	{writingData.detailed_feedback}
 																</div>
-															);
-														})}
+															</div>
+														)}
+													</div>
+
+													{/* Right column - Essay & Corrections */}
+													<div className="space-y-6">
+														{/* User's Answer */}
+														<div className="bg-amber-50/50 rounded-xl p-5 border border-amber-200">
+															<div className="flex items-center gap-2 mb-3">
+																<AlertCircle className="w-4 h-4 text-amber-600" />
+																<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Bài viết của bạn</p>
+															</div>
+															<div className="bg-white rounded-lg p-4 border border-amber-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+																{userAnswerStr || <span className="text-slate-400 italic">Chưa có bài viết</span>}
+															</div>
+														</div>
+
+														{/* Corrected Version */}
+														{writingData.corrected_version && (
+															<div className="bg-emerald-50/30 rounded-xl p-5 border border-emerald-200">
+																<div className="flex items-center gap-2 mb-3">
+																	<div className="w-2 h-2 rounded-full bg-emerald-500" />
+																	<p className="text-sm font-bold text-slate-700">Phiên bản đã chỉnh sửa</p>
+																</div>
+																<div className="bg-white rounded-lg p-4 border border-emerald-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+																	{writingData.corrected_version}
+																</div>
+															</div>
+														)}
+
+														{/* Corrections List */}
+														{writingData.corrections && writingData.corrections.length > 0 && (
+															<div className="bg-white rounded-xl p-5 border border-slate-200">
+																<p className="font-bold text-slate-700 mb-4">Danh sách lỗi ({writingData.corrections.length})</p>
+																<div className="space-y-3">
+																	{writingData.corrections.map((correction, idx) => (
+																		<div key={idx} className="bg-red-50/50 rounded-lg p-3 border border-red-100 border-dashed">
+																		<div className="flex items-center gap-2 mb-2">
+																			<div className="w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">{idx + 1}</div>
+																			<span className="text-xs font-bold text-red-700 uppercase">{correction.type || 'Lỗi'}</span>
+																		</div>
+																		<div className="grid grid-cols-2 gap-2 text-sm">
+																			<div>
+																				<span className="text-slate-500 text-xs">Gốc:</span>
+																				<p className="text-red-600 line-through">{correction.original}</p>
+																				</div>
+																			<div>
+																				<span className="text-slate-500 text-xs">Sửa:</span>
+																				<p className="text-emerald-600 font-medium">{correction.corrected}</p>
+																				</div>
+																		</div>
+																		{correction.explanation && (
+																			<p className="text-xs text-slate-500 mt-2"><span className="font-medium">Giải thích:</span> {correction.explanation}</p>
+																		)}
+																	</div>
+																	))}
+																</div>
+															</div>
+														)}
 													</div>
 												</div>
+											) : (
+												<>
+												{/* Regular question options */}
+												{options && options.length > 0 && (
+													<div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+														<p className="mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide">Các lựa chọn:</p>
+														<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+															{q.choices.map((op, i) => {
+																const opKey = String.fromCharCode(65 + i);
+																const isChecked = userAnswers.includes(op.key);
+																return (
+																	<div key={i} className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'}`}>
+																		<div className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${isChecked ? 'bg-primary border-primary text-primary-foreground' : 'bg-slate-100 border-slate-300 text-slate-500'}`}>
+																			{opKey}
+																		</div>
+																		<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>{op.content || op.key}</span>
+																	</div>
+																);
+																})}
+															</div>
+														</div>
+													)}
+												</>
 											)}
 
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">

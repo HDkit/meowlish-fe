@@ -376,6 +376,10 @@ export function TestInterface() {
   const isSubmittingRef = useRef(false);
   /** Per-answer debounce: key = `${questionId}:${answerValue}` */
   const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  /** Track pending writing saves for emergency flush on beforeunload */
+  const pendingWritingSavesRef = useRef<Set<string>>(new Set());
+  /** Track last saved content to avoid redundant saves */
+  const lastSavedContentRef = useRef<Record<string, string>>({});
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const activeQuestion = allQuestions.find((q) => q.id === activeQuestionId) ?? null;
@@ -443,6 +447,98 @@ export function TestInterface() {
     return () => clearInterval(timerIntervalRef.current!);
   }, [serverAttemptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-save for Writing questions ────────────────────────────────────────
+
+  /**
+   * Force immediate save of a writing answer.
+   * Used for emergency saves before page unload.
+   */
+  const forceSaveWriting = useCallback(async (questionId: string, content: string) => {
+    if (!attemptId || isSubmittingRef.current) return;
+    try {
+      await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
+        attemptId, questionId, { answer: content },
+      );
+      lastSavedContentRef.current[questionId] = content;
+      pendingWritingSavesRef.current.delete(questionId);
+    } catch (err) {
+      console.error('Force save failed:', err);
+    }
+  }, [attemptId]);
+
+  /**
+   * Flush all pending writing saves immediately.
+   * Called on beforeunload and visibility change.
+   */
+  const flushPendingSaves = useCallback(async () => {
+    if (!attemptId || isSubmittingRef.current) return;
+
+    const pending = Array.from(pendingWritingSavesRef.current);
+    if (pending.length === 0) return;
+
+    // Clear debounce timers for pending saves
+    for (const questionId of pending) {
+      for (const key of Object.keys(debounceTimersRef.current)) {
+        if (key.startsWith(`${questionId}:`)) {
+          clearTimeout(debounceTimersRef.current[key]);
+          delete debounceTimersRef.current[key];
+        }
+      }
+    }
+
+    // Force save all pending
+    const saves = pending.map(async (questionId) => {
+      const content = answersMap[questionId]?.[0] || '';
+      if (content && content !== lastSavedContentRef.current[questionId]) {
+        return forceSaveWriting(questionId, content);
+      }
+    });
+
+    await Promise.all(saves);
+  }, [attemptId, answersMap, forceSaveWriting]);
+
+  /** Handle beforeunload - warn user and attempt emergency save */
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Check if there are pending writing saves
+      if (pendingWritingSavesRef.current.size > 0) {
+        // Attempt synchronous save
+        flushPendingSaves();
+
+        // Show warning
+        e.preventDefault();
+        e.returnValue = 'Bạn có bài viết chưa được lưu. Bạn có chắc muốn rời khỏi?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [flushPendingSaves]);
+
+  /** Handle visibility change - save when user switches tabs */
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingSaves();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [flushPendingSaves]);
+
+  /** Periodic auto-save every 30 seconds for writing questions */
+  useEffect(() => {
+    if (!attemptId) return;
+
+    const intervalId = setInterval(() => {
+      flushPendingSaves();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [attemptId, flushPendingSaves]);
+
   // ── Submit ─────────────────────────────────────────────────────────────────
   const performSubmit = useCallback(
     async (isAuto: boolean) => {
@@ -485,7 +581,11 @@ export function TestInterface() {
             await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
               attemptId, questionId, { answer },
             );
+            // Track successful save for writing questions
+            lastSavedContentRef.current[questionId] = answer;
           }
+          // Clear pending save after successful API call
+          pendingWritingSavesRef.current.delete(questionId);
         } catch (err: any) {
           if (err?.status === 403 || err?.body?.statusCode === 403) return;
           console.error('Answer API error:', err);
@@ -501,6 +601,10 @@ export function TestInterface() {
    */
   const handleSingleAnswer = useCallback(
     (questionId: string, value: string) => {
+      // Check if this is a writing question
+      const question = allQuestions.find(q => q.id === questionId);
+      const isWriting = question?.type === 'Writing';
+
       setAnswersMap((prev) => {
         const old = prev[questionId]?.[0];
         // Debounce DELETE of old value if it changed
@@ -511,8 +615,13 @@ export function TestInterface() {
         if (value !== '') debouncedApi(questionId, value, false);
         return { ...prev, [questionId]: value !== '' ? [value] : [] };
       });
+
+      // Track writing questions for auto-save
+      if (isWriting && value !== '') {
+        pendingWritingSavesRef.current.add(questionId);
+      }
     },
-    [debouncedApi],
+    [debouncedApi, allQuestions],
   );
 
   /**
