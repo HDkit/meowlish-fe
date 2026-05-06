@@ -13,6 +13,8 @@ const protectedRoutes = [
 	'/flashcards',
 	'/blog',
 	'/speaking-writing',
+	'/speaking',
+	'/writing',
 	'/exam-approval',
 	'/exam-creation',
 	'/exam-management',

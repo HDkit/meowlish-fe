@@ -17,6 +17,11 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: 'Lingriser',
   description: 'AI-powered English exam preparation with speaking and writing practice',
+  icons: {
+    icon: '/logos/logo.svg',
+    shortcut: '/logos/logo.svg',
+    apple: '/logos/logo.svg',
+  },
 };
 
 export default function RootLayout({

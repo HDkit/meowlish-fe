@@ -236,6 +236,13 @@ export function History() {
 										key={attempt.id}
 										className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'
 									>
+										{/* Exam Title */}
+										<div className='mb-3'>
+											<h3 className='text-base font-semibold text-foreground leading-tight'>
+												{attempt.examName || 'Đề thi không có tên'}
+											</h3>
+										</div>
+
 										<div className='flex items-center justify-between flex-wrap gap-3'>
 											{/* Left: status + dates */}
 											<div className='flex items-center gap-3 flex-wrap'>

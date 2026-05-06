@@ -222,6 +222,8 @@ export function TestResult() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [examId, setExamId] = useState<string>('');
+	// Tổng điểm user đạt được cho attempt hiện tại (non-TOEIC, non-writing)
+	const [attemptScore, setAttemptScore] = useState<number | null>(null);
 
 	const [activePart, setActivePart] = useState<'overview' | number>('overview');
 	const [filter, setFilter] = useState<'all' | 'incorrect' | 'skipped'>('all');
@@ -238,6 +240,10 @@ export function TestResult() {
 					setReviewData(res.data as AttemptReviewDto);
 					const anyData = res.data as any;
 					if (anyData?.examId) setExamId(String(anyData.examId));
+					// Backend có thể trả thêm trường score (điểm user) trên attempt
+					if (typeof anyData?.score === 'number') {
+						setAttemptScore(Number(anyData.score));
+					}
 				}
 			} catch (err: any) {
 				console.error(err);
@@ -519,6 +525,9 @@ export function TestResult() {
 					setReviewData(res.data as AttemptReviewDto);
 					const anyData = res.data as any;
 					if (anyData?.examId) setExamId(String(anyData.examId));
+					if (typeof anyData?.score === 'number') {
+						setAttemptScore(Number(anyData.score));
+					}
 					// Stop polling only when ALL responses have received AI feedback
 					const allGraded = responses.length > 0 && responses.every((r) => r.additionalData?.trim());
 					if (allGraded) {
@@ -533,16 +542,47 @@ export function TestResult() {
 		return () => clearInterval(intervalId);
 	}, [isPendingGrading, id, pollingTimedOut]);
 
-	const scoreLabel = isToeicLike ? 'Điểm TOEIC' : isWritingTest ? 'Band IELTS trung bình' : 'Điểm';
-	const scoreValue = isToeicLike ? (toeicScore?.totalScaled ?? 0) : isWritingTest ? writingAvgScore : reviewData?.totalPoints ?? 0;
-	const scoreDenom = isToeicLike ? 990 : isWritingTest ? '9.0' : 100;
+	const rawTotalPoints = reviewData?.totalPoints ?? 0;
+
+	const scoreLabel = isToeicLike
+		? 'Điểm TOEIC'
+		: isWritingTest
+			? 'Band IELTS trung bình'
+			: 'Điểm';
+
+	// Giá trị điểm chính để hiển thị:
+	// - TOEIC: điểm scaled 0–990 tự tính từ số câu đúng
+	// - Writing: band trung bình 0–9
+	// - Bài khác: score (điểm user đạt được), fallback 0 nếu BE chưa trả
+	const scoreMain = isToeicLike
+		? toeicScore?.totalScaled ?? 0
+		: isWritingTest
+			? Number(writingAvgScore || 0)
+			: attemptScore != null
+				? attemptScore === 0 && stats.correct > 0
+					? stats.correct
+					: attemptScore
+				: stats.correct ?? 0;
+
+	// Mẫu số hiển thị cạnh điểm
+	const scoreDenom = isToeicLike
+		? 990
+		: isWritingTest
+			? '9.0'
+			: rawTotalPoints || stats.total || 100;
+
+	// % cho các bài thường (non-TOEIC, non-writing) nếu có đủ dữ liệu
+	const scorePercent =
+		!isToeicLike && !isWritingTest && rawTotalPoints > 0
+			? Math.round((((attemptScore != null ? (attemptScore === 0 && stats.correct > 0 ? stats.correct : attemptScore) : stats.correct) || 0) / rawTotalPoints) * 100)
+			: null;
 
 	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
 				<div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
 				<p className="mt-4 text-slate-600 font-medium">Đang tải kết quả...</p>
-			</div>
+			</div>	
 		);
 	}
 
@@ -755,9 +795,20 @@ export function TestResult() {
 							<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
 								<div className="absolute inset-0 bg-white/5 pointer-events-none" />
 								<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">{scoreLabel}</span>
-								<div className="flex items-baseline gap-1">
-									<span className="text-5xl font-black text-white drop-shadow-md">{isToeicLike ? scoreValue : Number(scoreValue).toFixed(1)}</span>
-									<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">/{scoreDenom}</span>
+								<div className="flex flex-col items-center gap-1">
+									<div className="flex items-baseline gap-1">
+										<span className="text-5xl font-black text-white drop-shadow-md">
+											{isToeicLike ? scoreMain : Number(scoreMain).toFixed(1)}
+										</span>
+										<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">
+											/{scoreDenom}
+										</span>
+									</div>
+									{!isToeicLike && !isWritingTest && scorePercent != null && (
+										<div className="text-xs font-semibold text-primary-foreground/80">
+											{scoreMain}/{rawTotalPoints} điểm ({scorePercent}%)
+										</div>
+									)}
 								</div>
 								{isToeicLike && toeicScore && (
 									<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">

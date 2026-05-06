@@ -1,7 +1,14 @@
 'use client';
 
-import { SpeakingWritingPage } from '@/components/SpeakingWritingPage';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function SpeakingWritingTestPage() {
-	return <SpeakingWritingPage />;
+export default function SpeakingWritingRedirect() {
+	const router = useRouter();
+
+	useEffect(() => {
+		router.replace('/speaking');
+	}, [router]);
+
+	return null;
 }
