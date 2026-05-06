@@ -6,7 +6,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Brain, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles, FlaskConical } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles, FlaskConical } from 'lucide-react';
+import Image from 'next/image';
 import { FaGoogle } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -345,9 +346,7 @@ export function AuthForm() {
 					{/* Header */}
 					<div className='text-center space-y-4 pb-8'>
 						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
-							<div className='p-3 bg-primary rounded-2xl shadow-md group-hover:scale-105 transition-transform'>
-								<Brain className='h-8 w-8 text-white' />
-							</div>
+							<Image src='/logos/logo.svg' alt='Lingriser' width={48} height={48} className='group-hover:scale-105 transition-transform' />
 							<div>
 								<h1 className='text-3xl font-extrabold text-primary'>Lingriser</h1>
 								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>

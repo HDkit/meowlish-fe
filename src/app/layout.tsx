@@ -15,8 +15,29 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'Lingriser',
-  description: 'AI-powered English exam preparation with speaking and writing practice',
+  title: {
+    default: 'Lingriser — Luyện Thi IELTS & TOEIC Với AI',
+    template: '%s | Lingriser',
+  },
+  description: 'Hệ thống luyện thi IELTS & TOEIC với AI chấm điểm tự động. Luyện Speaking, Writing, Reading, Listening hiệu quả với feedback tức thì.',
+  keywords: ['luyện thi IELTS', 'luyện thi TOEIC', 'AI speaking', 'AI writing', 'luyện nói tiếng Anh', 'ôn thi IELTS online', 'học tiếng Anh với AI'],
+  authors: [{ name: 'Lingriser' }],
+  openGraph: {
+    type: 'website',
+    locale: 'vi_VN',
+    siteName: 'Lingriser',
+    title: 'Lingriser — Luyện Thi IELTS & TOEIC Với AI',
+    description: 'Hệ thống luyện thi IELTS & TOEIC với AI chấm điểm tự động. Luyện Speaking, Writing, Reading, Listening hiệu quả với feedback tức thì.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Lingriser — Luyện Thi IELTS & TOEIC Với AI',
+    description: 'Hệ thống luyện thi IELTS & TOEIC với AI chấm điểm tự động.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   icons: {
     icon: '/logos/logo.svg',
     shortcut: '/logos/logo.svg',
