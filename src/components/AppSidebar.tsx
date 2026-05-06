@@ -43,7 +43,6 @@ const learnerLinks = [
   { href: '/test-selection', label: 'Chọn đề thi', icon: FileText },
   { href: '/flashcards', label: 'Flashcards', icon: BookOpen },
   { href: '/speaking', label: 'Luyện Nói', icon: Mic },
-  { href: '/writing', label: 'Viết Bài', icon: PenTool },
   { href: '/progress', label: 'Tiến độ', icon: TrendingUp },
   { href: '/history', label: 'Lịch sử', icon: ClipboardList },
   { href: '/blog', label: 'Blog', icon: Newspaper },
@@ -116,12 +115,6 @@ export function AppSidebar() {
             <span className="truncate text-lg font-display font-semibold text-emerald-600 group-data-[collapsible=icon]:hidden dark:text-emerald-400">
               Lingriser
             </span>
-          </button>
-          <button
-            onClick={toggleSidebar}
-            className="rounded-xl p-2 text-muted-foreground transition hover:bg-white/80 hover:text-foreground group-data-[collapsible=icon]:hidden dark:hover:bg-slate-900/80"
-          >
-            <PanelLeftClose className="h-4 w-4" />
           </button>
         </div>
       </SidebarHeader>

@@ -61,33 +61,6 @@ export function SpeakingWritingPage({ mode }: Props) {
 				</div>
 			</div>
 
-			{/* ── Navigation Pills ── */}
-			<div className="container mx-auto px-4 flex justify-center -mt-6 relative z-20">
-				<div className="bg-white/90 dark:bg-card/90 backdrop-blur-xl p-2 rounded-full shadow-2xl border border-gray-100/50 dark:border-border w-fit flex">
-					<Link
-						href="/speaking"
-						className={`rounded-full px-8 py-3 text-base font-semibold transition-all flex items-center gap-2 ${
-							isSpeaking
-								? 'bg-primary text-white shadow-md'
-								: 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
-						}`}
-					>
-						<Mic className="h-5 w-5" />
-						Luyện Nói
-					</Link>
-					<Link
-						href="/writing"
-						className={`rounded-full px-8 py-3 text-base font-semibold transition-all flex items-center gap-2 ${
-							!isSpeaking
-								? 'bg-secondary text-white shadow-md'
-								: 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
-						}`}
-					>
-						<PenTool className="h-5 w-5" />
-						Viết Bài
-					</Link>
-				</div>
-			</div>
 
 			{/* ── Content ── */}
 			<div className="w-full pt-8">

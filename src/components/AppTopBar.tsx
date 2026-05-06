@@ -8,7 +8,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/test-selection': 'Chọn đề thi',
   '/flashcards': 'Flashcards',
-  '/speaking': 'Luyện Nói (Speaking)',
+  '/speaking': 'Lingriser Speaking',
   '/writing': 'Viết Bài (Writing)',
   '/speaking-writing': 'Luyện Nói & Viết',
   '/progress': 'Tiến độ học tập',
