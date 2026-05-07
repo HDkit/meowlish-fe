@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+	allowedDevOrigins: ['khoakomlem-internal.ddns.net'],
 	reactStrictMode: true,
 	eslint: {
 		ignoreDuringBuilds: true,

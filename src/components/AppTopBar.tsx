@@ -8,7 +8,9 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/test-selection': 'Chọn đề thi',
   '/flashcards': 'Flashcards',
-  '/speaking-writing': 'Speaking & Writing',
+  '/speaking': 'Lingriser Speaking',
+  '/writing': 'Viết Bài (Writing)',
+  '/speaking-writing': 'Luyện Nói & Viết',
   '/progress': 'Tiến độ học tập',
   '/history': 'Lịch sử làm bài',
   '/blog': 'Blog',
@@ -20,9 +22,18 @@ const pageTitles: Record<string, string> = {
   '/user': 'Thông tin cá nhân',
 };
 
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  if (pathname.startsWith('/test/do/')) return 'Làm bài thi';
+  if (pathname.startsWith('/test/')) return 'Chi tiết đề thi';
+  if (pathname.startsWith('/results/')) return 'Kết quả bài thi';
+  if (pathname.startsWith('/flashcards/')) return 'Bộ Flashcard';
+  return '';
+}
+
 export function AppTopBar() {
   const pathname = usePathname();
-  const title = pageTitles[pathname ?? ''] ?? '';
+  const title = getPageTitle(pathname ?? '');
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-white/82 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/88">

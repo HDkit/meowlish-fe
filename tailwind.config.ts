@@ -40,9 +40,9 @@ const config: Config = {
 		},
 		extend: {
 			fontFamily: {
-				heading: ['Momo Trust Display', 'sans-serif'],
-				body:    ['Google Sans Flex', 'sans-serif'],
-				display: ['Monda', 'sans-serif'],
+				heading: ['var(--font-be-vietnam-pro)', 'sans-serif'],
+				body:    ['var(--font-be-vietnam-pro)', 'sans-serif'],
+				display: ['Monda', 'var(--font-be-vietnam-pro)', 'sans-serif'],
 			},
 			colors: {
 				background: 'hsl(var(--background))',

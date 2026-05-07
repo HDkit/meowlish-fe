@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import {
@@ -11,11 +10,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from './ui/select';
-import { PenTool, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PenTool, Loader2, CheckCircle2, AlertCircle, RefreshCw, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
+import type { MinimalExamInfoDto } from '@/lib/api/models/MinimalExamInfoDto';
 import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
-import type { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
+import type { AttemptDataDto } from '@/lib/api/models/AttemptDataDto';
+import type { SectionDataDto } from '@/lib/api/models/SectionDataDto';
+
+/* ─────────────────────── Types ─────────────────────── */
 
 interface WritingEvaluationResult {
 	overall_score: number;
@@ -31,19 +34,30 @@ interface WritingEvaluationResult {
 	}>;
 }
 
+/* ─────────────── Helpers ─────────────── */
+
+/** Extract the first questionId from the nested sections tree */
+function findFirstQuestionId(sections: SectionDataDto[]): string | null {
+	for (const section of sections) {
+		if (section.questions?.length > 0) {
+			return section.questions[0].id;
+		}
+		if (section.sections?.length > 0) {
+			const found = findFirstQuestionId(section.sections);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
 /**
- * Parse additionalData string (JSON hoặc plain text) thành WritingEvaluationResult.
- * Logic giống hệt TestResult.tsx: thử JSON.parse trước, fallback về plain text.
+ * Parse additionalData (JSON or plain text) into WritingEvaluationResult.
  */
 function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 	try {
 		const parsed = JSON.parse(additionalData);
-		return {
-			...parsed,
-			additionalData,
-		};
+		return { ...parsed, additionalData };
 	} catch {
-		// Không phải JSON → hiển thị raw text dưới dạng detailed_feedback
 		return {
 			overall_score: 0,
 			detailed_feedback: additionalData,
@@ -52,133 +66,79 @@ function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 	}
 }
 
-/**
- * Tìm response có additionalData trong AttemptReviewDto.
- * Duyệt qua reviewData.responses (giống TestResult.tsx dùng reviewData.responses?.find).
- */
+/** Find response with additionalData in AttemptReviewDto */
 function extractWritingResultFromReview(reviewData: AttemptReviewDto): WritingEvaluationResult | null {
-	// Tìm câu trả lời đầu tiên có additionalData (thường là câu writing)
 	const writingResponse = reviewData.responses?.find(
 		(r) => r.additionalData && r.additionalData.trim().length > 0
 	);
-
 	if (!writingResponse?.additionalData) return null;
-
 	return parseAdditionalData(writingResponse.additionalData);
 }
 
-// Mock data cho testing
-const getMockData = (examType: 'IELTS' | 'TOEIC'): WritingEvaluationResult => {
-	if (examType === 'IELTS') {
-		return {
-			overall_score: 7.5,
-			sub_scores: {
-				'Task Achievement': 7.5,
-				'Coherence and Cohesion': 8.0,
-				'Lexical Resource': 7.0,
-				'Grammatical Range and Accuracy': 7.5,
-			},
-			detailed_feedback: `Overall, this is a well-structured essay that demonstrates good command of English. 
+/** Wait ms */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-**Strengths:**
-- Clear position is presented throughout the essay
-- Good use of linking words and cohesive devices
-- Varied vocabulary with some less common words
-- Generally accurate grammar with minor errors
-
-**Areas for Improvement:**
-- Could develop ideas more fully with specific examples
-- Some sentences could be more complex
-- Minor spelling errors in a few places
-- Could use more sophisticated grammatical structures`,
-			corrected_version: `The question of whether technology has improved our lives is a topic of ongoing debate. While some argue that technology has created more problems than it has solved, I firmly believe that technological advancements have significantly enhanced our quality of life.
-
-To begin with, technology has revolutionized communication. In the past, people had to wait weeks or months to receive letters from distant relatives. Today, we can instantly connect with anyone around the world through video calls and messaging apps.
-
-Furthermore, medical technology has saved countless lives. Advanced diagnostic tools allow doctors to detect diseases earlier, and modern treatments have cured conditions that were once fatal.
-
-In conclusion, despite some negative aspects, I believe technology has overwhelmingly improved our lives. The benefits in communication, healthcare, and daily convenience far outweigh the disadvantages.`,
-			corrections: [
-				{
-					error_type: 'Grammar',
-					original_text: 'technology have improved',
-					corrected_text: 'technology has improved',
-					explanation: 'Subject-verb agreement: "technology" is singular, so it requires "has" not "have"',
-				},
-				{
-					error_type: 'Spelling',
-					original_text: 'recieved',
-					corrected_text: 'received',
-					explanation: 'Correct spelling: "received" follows the "i before e except after c" rule',
-				},
-				{
-					error_type: 'Word Choice',
-					original_text: 'made our life better',
-					corrected_text: 'improved our quality of life',
-					explanation: 'More formal and precise expression suitable for academic writing',
-				},
-				{
-					error_type: 'Punctuation',
-					original_text: 'However it is',
-					corrected_text: 'However, it is',
-					explanation: 'Comma needed after "However" when it starts a sentence',
-				},
-			],
-		};
-	} else {
-		return {
-			overall_score: 165,
-			sub_scores: {
-				'Content': 85,
-				'Organization': 80,
-			},
-			detailed_feedback: `Your essay demonstrates a good understanding of the topic and presents clear arguments.
-
-**Strengths:**
-- Well-organized structure with clear introduction and conclusion
-- Relevant content that addresses the prompt
-- Appropriate length for the task
-
-**Areas for Improvement:**
-- Could use more varied sentence structures
-- Some vocabulary could be more precise
-- Minor grammatical errors throughout`,
-			corrected_version: `Technology has transformed the way we live and work in the 21st century. While some people worry about the negative effects of technology, I believe that its benefits far outweigh its drawbacks.
-
-First, technology has made communication much easier. We can now contact people anywhere in the world instantly through email, video calls, and social media.
-
-In conclusion, technology has brought many positive changes to our lives. Although there are some challenges, I believe we should embrace technology while being aware of its potential risks.`,
-			corrections: [
-				{
-					error_type: 'Grammar',
-					original_text: 'technology have changed',
-					corrected_text: 'technology has changed',
-					explanation: 'Subject-verb agreement error',
-				},
-				{
-					error_type: 'Word Choice',
-					original_text: 'very easy',
-					corrected_text: 'much easier',
-					explanation: 'More appropriate comparative form',
-				},
-			],
-		};
-	}
-};
+/* ─────────────── Component ─────────────── */
 
 export function WritingTest() {
-	const [examType, setExamType] = useState<'IELTS' | 'TOEIC'>('IELTS');
-	const [taskType, setTaskType] = useState<string>('Task 1');
-	const [targetScore, setTargetScore] = useState<string>('');
-	const [question, setQuestion] = useState<string>('');
-	const [content, setContent] = useState<string>('');
-	const [isEvaluating, setIsEvaluating] = useState(false);
-	const [results, setResults] = useState<WritingEvaluationResult | null>(null);
-	const [attemptId, setAttemptId] = useState<string | null>(null);
+	// --- Exam selection state ---
+	const [writingExams, setWritingExams] = useState<MinimalExamInfoDto[]>([]);
+	const [selectedExamId, setSelectedExamId] = useState<string>('');
+	const [loadingExams, setLoadingExams] = useState(true);
+	const [examError, setExamError] = useState<string | null>(null);
 
+	// --- Form state ---
+	const [content, setContent] = useState<string>('');
+
+	// --- Evaluation state ---
+	const [isEvaluating, setIsEvaluating] = useState(false);
+	const [evaluationStep, setEvaluationStep] = useState<string>('');
+	const [results, setResults] = useState<WritingEvaluationResult | null>(null);
+
+	// --- Selected exam info ---
+	const selectedExam = writingExams.find(e => e.id === selectedExamId);
+
+	/* ─── Fetch writing exams on mount ─── */
+	const fetchWritingExams = useCallback(async () => {
+		setLoadingExams(true);
+		setExamError(null);
+		try {
+			const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
+				{ tags: ['Writing'] },
+				undefined,
+				undefined,
+				50,
+			);
+
+			const data = (res as any)?.data;
+			const exams: MinimalExamInfoDto[] = data?.exams ?? [];
+
+			if (exams.length === 0) {
+				setExamError('Chưa có đề Writing nào trong hệ thống. Vui lòng liên hệ quản trị viên.');
+			} else {
+				setWritingExams(exams);
+				setSelectedExamId(exams[0].id);
+			}
+		} catch (err: any) {
+			console.error('Error fetching writing exams:', err);
+			setExamError('Không thể tải danh sách đề Writing. Vui lòng thử lại.');
+		} finally {
+			setLoadingExams(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchWritingExams();
+	}, [fetchWritingExams]);
+
+	/* ─── Main evaluation flow (BE API) ─── */
 	const handleEvaluate = async () => {
-		if (!question.trim() || !content.trim()) {
-			toast.error('Vui lòng nhập đầy đủ đề bài và bài viết.');
+		if (!content.trim()) {
+			toast.error('Vui lòng nhập bài viết.');
+			return;
+		}
+		if (!selectedExamId) {
+			toast.error('Vui lòng chọn đề bài.');
 			return;
 		}
 
@@ -186,121 +146,128 @@ export function WritingTest() {
 		setResults(null);
 
 		try {
-			// TRƯỜNG HỢP 1: Có attemptId → dùng Review API (giống TestResult.tsx)
-			if (attemptId) {
-				// Bước 1: Nộp bài
-				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
+			// Step 1: Start attempt
+			setEvaluationStep('Đang tạo bài làm...');
+			const attemptRes = await ExamPracticeService.examPracticeGatewayControllerAttemptV1(
+				selectedExamId,
+				{},
+			);
+			const attemptId: string = (attemptRes as any)?.data?.id;
+			if (!attemptId) {
+				throw new Error('Không thể tạo bài làm. Server không trả về attemptId.');
+			}
 
-				// Bước 2: Lấy review (giống hệt cách TestResult.tsx gọi)
-				const res = await ExamPracticeService.examPracticeGatewayControllerGetAttemptReviewV1(attemptId);
+			// Step 2: Get saved data to discover questionId
+			setEvaluationStep('Đang tải cấu trúc đề...');
+			const savedRes = await ExamPracticeService.examPracticeGatewayControllerGetAttemptSavedDataV1(attemptId);
+			const savedData = (savedRes as any)?.data as AttemptDataDto | undefined;
+			const questionId = savedData?.sections ? findFirstQuestionId(savedData.sections) : null;
 
-				if (res.data) {
-					const reviewData = res.data as AttemptReviewDto;
+			if (!questionId) {
+				throw new Error('Không tìm thấy câu hỏi trong đề thi. Đề thi có thể chưa có nội dung.');
+			}
 
-					// Bước 3: Parse additionalData (dùng hàm tái sử dụng từ TestResult.tsx logic)
-					const writingResult = extractWritingResultFromReview(reviewData);
+			// Step 3: Submit the writing answer
+			setEvaluationStep('Đang nộp bài viết...');
+			await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
+				attemptId,
+				questionId,
+				{ answer: content.trim() },
+			);
 
-					if (writingResult) {
-						setResults(writingResult);
-						toast.success('Lấy nhận xét thành công!');
-					} else {
-						// Fallback: nếu không có additionalData, thử lấy totalPoints từ review
-						setResults({
-							overall_score: reviewData.totalPoints ?? 0,
-							detailed_feedback: 'Không tìm thấy nhận xét chi tiết trong bài làm.',
-						});
-						toast.warning('Không tìm thấy nhận xét chi tiết. Chỉ hiển thị điểm tổng.');
+			// Step 4: End attempt (triggers BE scoring pipeline)
+			setEvaluationStep('Đang nộp bài và chờ chấm điểm...');
+			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
+
+			// Step 5: Poll for review (scoring may be async)
+			setEvaluationStep('Đang chờ AI chấm bài...');
+			let reviewResult: WritingEvaluationResult | null = null;
+			const maxRetries = 12; // 12 attempts × 5s = 60s max wait
+
+			for (let i = 0; i < maxRetries; i++) {
+				await sleep(i === 0 ? 2000 : 5000); // first wait 2s, then 5s intervals
+
+				try {
+					const reviewRes = await ExamPracticeService.examPracticeGatewayControllerGetAttemptReviewV1(attemptId);
+					const reviewData = (reviewRes as any)?.data as AttemptReviewDto | undefined;
+
+					if (reviewData) {
+						reviewResult = extractWritingResultFromReview(reviewData);
+						if (reviewResult) break;
+
+						// If we got review data but no additionalData yet, the scoring might still be processing
+						if (reviewData.totalPoints != null && reviewData.totalPoints > 0) {
+							// Has score but no detailed feedback - use basic info
+							reviewResult = {
+								overall_score: reviewData.totalPoints,
+								detailed_feedback: 'Điểm đã được chấm. Nhận xét chi tiết có thể chưa sẵn sàng.',
+							};
+							break;
+						}
 					}
-				} else {
-					throw new Error('Không nhận được dữ liệu từ review API.');
+				} catch {
+					// Review not ready yet, continue polling
 				}
-				return;
+
+				setEvaluationStep(`Đang chờ AI chấm bài... (${i + 2}/${maxRetries})`);
 			}
 
-			// TRƯỜNG HỢP 2: Không có attemptId → Gọi Proxy API
-			const response = await fetch('/api/writing/evaluate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					exam_type: examType,
-					task_type: taskType,
-					question: question.trim(),
-					content: content.trim(),
-					target_score: targetScore ? parseFloat(targetScore) : null,
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error(`API lỗi: ${response.status}`);
-			}
-
-			const responseData = await response.json();
-
-			// Proxy API có thể trả về dạng AttemptReviewDto hoặc trực tiếp WritingEvaluationResult
-			// → Thử parse theo cả hai hướng
-			let finalResult: WritingEvaluationResult | null = null;
-
-			// Hướng 1: Proxy trả về cấu trúc AttemptReviewDto (data.responses[].additionalData)
-			if (responseData?.data?.responses) {
-				const reviewData = responseData.data as AttemptReviewDto;
-				finalResult = extractWritingResultFromReview(reviewData);
-			}
-
-			// Hướng 2: Proxy trả về trực tiếp (có overall_score hoặc additionalData ở root)
-			if (!finalResult) {
-				if (responseData?.additionalData) {
-					finalResult = parseAdditionalData(responseData.additionalData);
-				} else if (responseData?.overall_score !== undefined) {
-					finalResult = responseData as WritingEvaluationResult;
-				}
-			}
-
-			if (finalResult) {
-				setResults(finalResult);
+			if (reviewResult) {
+				setResults(reviewResult);
 				toast.success('Chấm bài thành công!');
 			} else {
-				throw new Error('Không thể parse kết quả từ API.');
+				toast.warning('Bài đã được nộp nhưng chưa nhận được kết quả. Vui lòng kiểm tra lại trong Lịch sử.');
+				setResults({
+					overall_score: 0,
+					detailed_feedback: 'Bài đã được nộp thành công. Kết quả chấm bài đang được xử lý, vui lòng kiểm tra lại trong mục **Lịch sử làm bài**.',
+				});
 			}
-		} catch (error) {
-			console.error('Error evaluating writing:', error);
-			// Fallback sang mock data nếu API thất bại
-			console.warn('Falling back to mock data...');
-			setTimeout(() => {
-				setResults(getMockData(examType));
-				toast.success('Chấm bài thành công! (Mock data)');
-				setIsEvaluating(false);
-			}, 800);
-			return;
+		} catch (error: any) {
+			console.error('Error evaluating writing via BE:', error);
+			const message = error?.body?.error?.message || error?.message || 'Đã xảy ra lỗi khi chấm bài.';
+			toast.error(message);
 		} finally {
 			setIsEvaluating(false);
+			setEvaluationStep('');
 		}
-	};
-
-	const handleTestWithMockData = () => {
-		setIsEvaluating(true);
-		setResults(null);
-
-		if (!question.trim()) {
-			setQuestion('Some people think that technology has made our lives more complicated. Others believe it has made our lives easier. Discuss both views and give your own opinion.');
-		}
-		if (!content.trim()) {
-			setContent('Technology have improved our life in many ways. We can now communicate with people all over the world easily. Medical technology help doctors treat patients better. However, some people spend too much time on their devices. In conclusion, I think technology is good for us.');
-		}
-
-		setTimeout(() => {
-			setResults(getMockData(examType));
-			setIsEvaluating(false);
-			toast.success('Đã tải mock data thành công!');
-		}, 1000);
 	};
 
 	const handleReset = () => {
-		setQuestion('');
 		setContent('');
-		setTargetScore('');
 		setResults(null);
 	};
 
+	/* ─── Loading state ─── */
+	if (loadingExams) {
+		return (
+			<div className="w-full flex items-center justify-center py-24">
+				<div className="flex flex-col items-center gap-3 text-muted-foreground">
+					<Loader2 className="h-8 w-8 animate-spin text-primary" />
+					<p className="font-medium">Đang tải danh sách đề Writing...</p>
+				</div>
+			</div>
+		);
+	}
+
+	/* ─── Error state ─── */
+	if (examError) {
+		return (
+			<div className="w-full max-w-xl mx-auto py-16">
+				<Card className="border-destructive/30">
+					<CardContent className="pt-8 pb-8 text-center space-y-4">
+						<AlertCircle className="h-12 w-12 text-destructive/60 mx-auto" />
+						<p className="text-foreground font-medium">{examError}</p>
+						<Button variant="outline" onClick={fetchWritingExams} className="gap-2">
+							<RefreshCw className="h-4 w-4" />
+							Thử lại
+						</Button>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	/* ─── Main render ─── */
 	return (
 		<div className="w-full">
 			<div className="max-w-7xl mx-auto space-y-8">
@@ -313,72 +280,38 @@ export function WritingTest() {
 							Phòng thi Writing
 						</CardTitle>
 						<CardDescription className="text-gray-500 font-medium">
-							Chọn dạng bài, nhập câu hỏi và bài viết để AI phân tích & góp ý chi tiết.
+							Chọn đề bài và viết bài. Hệ thống AI sẽ tự động chấm điểm và đưa nhận xét chi tiết.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						{/* Form Grid */}
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="examType">Loại bài thi</Label>
-								<Select value={examType} onValueChange={(value: 'IELTS' | 'TOEIC') => setExamType(value)}>
-									<SelectTrigger id="examType">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="IELTS">IELTS Writing</SelectItem>
-										<SelectItem value="TOEIC">TOEIC Writing</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="taskType">Dạng / Part</Label>
-								<Select value={taskType} onValueChange={setTaskType}>
-									<SelectTrigger id="taskType">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{examType === 'IELTS' ? (
-											<>
-												<SelectItem value="Task 1">IELTS Task 1</SelectItem>
-												<SelectItem value="Task 2">IELTS Task 2</SelectItem>
-											</>
-										) : (
-											<>
-												<SelectItem value="Essay">TOEIC Essay</SelectItem>
-												<SelectItem value="Email">TOEIC Email</SelectItem>
-											</>
-										)}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="targetScore">Mục tiêu điểm (tùy chọn)</Label>
-								<Input
-									id="targetScore"
-									type="number"
-									step="0.5"
-									min="0"
-									max={examType === 'IELTS' ? '9' : '200'}
-									placeholder={examType === 'IELTS' ? '0.0–9.0' : '0–200'}
-									value={targetScore}
-									onChange={(e) => setTargetScore(e.target.value)}
-								/>
-							</div>
-						</div>
-
-						{/* Question Input */}
+						{/* Exam Selection */}
 						<div className="space-y-2">
-							<Label htmlFor="question">Đề bài / Câu hỏi</Label>
-							<Textarea
-								id="question"
-								placeholder="Nhập đầy đủ đề bài viết..."
-								value={question}
-								onChange={(e) => setQuestion(e.target.value)}
-								className="min-h-[150px] w-full"
-							/>
+							<Label htmlFor="examSelect" className="flex items-center gap-2">
+								<BookOpen className="h-4 w-4 text-primary" />
+								Chọn đề bài
+							</Label>
+							<Select value={selectedExamId} onValueChange={setSelectedExamId}>
+								<SelectTrigger id="examSelect">
+									<SelectValue placeholder="Chọn đề bài Writing..." />
+								</SelectTrigger>
+								<SelectContent>
+									{writingExams.map(exam => (
+										<SelectItem key={exam.id} value={exam.id}>
+											{exam.name}
+											{exam.tags?.length > 0 && (
+												<span className="text-muted-foreground ml-2">
+													({exam.tags.join(', ')})
+												</span>
+											)}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							{selectedExam?.description && (
+								<p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50 whitespace-pre-wrap">
+									{selectedExam.description}
+								</p>
+							)}
 						</div>
 
 						{/* Content Input */}
@@ -390,33 +323,31 @@ export function WritingTest() {
 								value={content}
 								onChange={(e) => setContent(e.target.value)}
 								className="min-h-[350px] w-full"
+								disabled={isEvaluating}
 							/>
+							<div className="flex justify-between text-xs text-muted-foreground">
+								<span>{content.split(/\s+/).filter(Boolean).length} từ</span>
+								<span>{content.length} ký tự</span>
+							</div>
 						</div>
 
 						{/* Actions */}
 						<div className="flex items-center gap-4 flex-wrap">
 							<Button
 								onClick={handleEvaluate}
-								disabled={isEvaluating || !question.trim() || !content.trim()}
+								disabled={isEvaluating || !content.trim() || !selectedExamId}
 							>
 								{isEvaluating ? (
 									<>
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-										Đang chấm...
+										{evaluationStep || 'Đang xử lý...'}
 									</>
 								) : (
 									<>
 										<PenTool className="h-4 w-4 mr-2" />
-										Chấm bài
+										Nộp & Chấm bài
 									</>
 								)}
-							</Button>
-							<Button
-								variant="outline"
-								onClick={handleTestWithMockData}
-								disabled={isEvaluating}
-							>
-								Test với Mock Data
 							</Button>
 							{results && (
 								<Button variant="outline" onClick={handleReset}>
@@ -435,9 +366,11 @@ export function WritingTest() {
 							<CardHeader className="bg-primary/10 dark:bg-primary/20">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-xl">Điểm & nhận xét chung</CardTitle>
-									<div className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md">
-										{results.overall_score} {examType === 'IELTS' ? 'Band' : 'Score'}
-									</div>
+									{results.overall_score > 0 && (
+										<div className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md">
+											{results.overall_score}
+										</div>
+									)}
 								</div>
 							</CardHeader>
 							<CardContent className="space-y-6 pt-6">
@@ -448,12 +381,7 @@ export function WritingTest() {
 										{Object.entries(results.sub_scores).map(([name, value]) => (
 											<div key={name} className="flex items-center justify-between py-3 px-4 bg-muted/30 rounded-lg border border-border/50">
 												<span className="text-sm font-medium text-foreground">{name}</span>
-												<div className="flex items-center gap-2">
-													<span className="font-bold text-lg text-primary">{value}</span>
-													<span className="text-xs text-muted-foreground">
-														/{examType === 'IELTS' ? '9.0' : '100'}
-													</span>
-												</div>
+												<span className="font-bold text-lg text-primary">{value}</span>
 											</div>
 										))}
 									</div>
@@ -469,7 +397,7 @@ export function WritingTest() {
 									</div>
 								)}
 
-								{/* Hiển thị raw additionalData nếu không parse được → giống cách TestResult.tsx fallback */}
+								{/* Raw additionalData fallback */}
 								{!results.detailed_feedback && results.additionalData && (
 									<div className="space-y-3">
 										<h4 className="font-semibold text-base flex items-center gap-2">

@@ -5,6 +5,8 @@
 export type MinimalAttemptInfoDto = {
     durationLimit: number;
     endedAt?: string;
+    examId: string;
+    examName: string;
     id: string;
     isStrict: boolean;
     score?: number;

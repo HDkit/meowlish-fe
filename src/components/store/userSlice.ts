@@ -24,7 +24,7 @@ const users: User[] = [
 	// Add initial head staff user
 	{
 		id: 'u-head-staff',
-		email: 'admin@englishprep.com',
+		email: 'admin@lingriser.com',
 		password: 'admin123',
 		fullName: 'Head Staff Admin',
 		roleId: 'role-head-staff',

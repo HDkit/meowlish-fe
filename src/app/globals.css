@@ -163,7 +163,7 @@ body {
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold;
+    @apply font-heading font-bold;
   }
 }
 
@@ -291,6 +291,11 @@ body[style*="overflow"] {
   }
   .animate-blob-morph { animation: blob-morph 12s ease-in-out infinite; }
   .animate-blob-morph-alt { animation: blob-morph-alt 10s ease-in-out infinite; }
+
+  @keyframes soundWave {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
 
   @keyframes leaf-drift {
     0%   { transform: translateX(0) translateY(0) rotate(0deg); opacity: 0; }

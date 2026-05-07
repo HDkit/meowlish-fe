@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
-import { ArrowRight, Mic, BookOpen, BarChart, Brain } from 'lucide-react';
+import { ArrowRight, Mic, BookOpen, BarChart, Brain, Headphones, MessageCircle, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 
 export function LandingPage() {
   const router = useRouter();
@@ -96,6 +97,52 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Speaking Feature Spotlight */}
+      <section className="py-16 md:py-24 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-48 h-48 bg-white rounded-full blur-3xl" />
+        </div>
+        <div className="container relative z-10 mx-auto px-6 max-w-6xl">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            <div className="flex-1 text-white">
+              <span className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold mb-6 tracking-wide">
+                Tính năng nổi bật
+              </span>
+              <h2 className="text-2xl md:text-4xl font-bold mb-4">
+                Luyện Speaking 1-1 với AI
+              </h2>
+              <p className="text-white/80 text-lg leading-relaxed mb-8 max-w-xl">
+                Luyện nói tiếng Anh mọi lúc, mọi nơi. AI phản hồi tức thì về phát âm, ngữ pháp và từ vựng — như có gia sư riêng 24/7.
+              </p>
+              <Link
+                href="/speaking"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+              >
+                Khám phá ngay
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </div>
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:max-w-md">
+              {[
+                { icon: Headphones, title: 'Nghe & Nói tự nhiên', desc: 'Hội thoại thực tế theo chủ đề IELTS Speaking' },
+                { icon: MessageCircle, title: 'Feedback tức thì', desc: 'AI chấm điểm phát âm, ngữ pháp, từ vựng ngay lập tức' },
+                { icon: TrendingUp, title: 'Theo dõi tiến bộ', desc: 'Biểu đồ chi tiết band score qua từng buổi luyện tập' },
+                { icon: Mic, title: 'Không giới hạn', desc: 'Luyện tập bao nhiêu tùy thích, không cần đặt lịch' },
+              ].map((item) => (
+                <div key={item.title} className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20 hover:bg-white/20 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center mb-3">
+                    <item.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white mb-1">{item.title}</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section id="how-it-works" className="py-16 md:py-24 bg-card">
         <div className="container mx-auto px-6 max-w-4xl">
@@ -144,7 +191,7 @@ export function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl font-display font-semibold">EnglishPrep</span>
+                <span className="text-xl font-display font-semibold">Lingriser</span>
               </div>
               <p className="text-background/60 text-sm">
                 Hệ thống luyện thi tiếng Anh với AI
@@ -159,12 +206,12 @@ export function LandingPage() {
               </div>
               <div className="space-y-2">
                 <p className="text-background font-medium">Liên hệ</p>
-                <p>support@englishprep.vn</p>
+                <p>support@lingriser.vn</p>
               </div>
             </div>
           </div>
           <div className="mt-8 pt-6 border-t border-background/10 text-center text-sm text-background/40">
-            © 2026 EnglishPrep. All rights reserved.
+            © 2026 Lingriser. All rights reserved.
           </div>
         </div>
       </footer>

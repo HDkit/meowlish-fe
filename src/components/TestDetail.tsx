@@ -4,7 +4,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
-import { ExamPracticeService } from '@/lib/api-client';
+import {
+	ExamPracticeService,
+	type AttemptsHistoryDto,
+	type MinimalAttemptInfoDto,
+	get_users_attempt_history_req_dto_SortOptionsDto,
+} from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { addComment } from './store/commentSlice';
@@ -28,7 +33,46 @@ import {
 	Info,
 	ArrowLeft,
 	History,
+	Loader2,
+	Calendar,
+	ChevronDown,
 } from 'lucide-react';
+
+const EXAM_MY_HISTORY_LIMIT = 15;
+const EXAM_MY_HISTORY_SORT: get_users_attempt_history_req_dto_SortOptionsDto = {
+	key: get_users_attempt_history_req_dto_SortOptionsDto.key.STARTED_AT,
+	direction: get_users_attempt_history_req_dto_SortOptionsDto.direction.DESC,
+};
+
+function formatDurationShort(seconds: number): string {
+	if (seconds < 60) return `${seconds}s`;
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	if (h > 0) return `${h}h ${m}m`;
+	return `${m} phút`;
+}
+
+function formatElapsedShort(startedAt: string, endedAt?: string): string {
+	const start = new Date(startedAt).getTime();
+	const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+	const diffSeconds = Math.round((end - start) / 1000);
+	return formatDurationShort(diffSeconds);
+}
+
+function formatAttemptDateVi(dateStr: string): string {
+	return new Date(dateStr).toLocaleDateString('vi-VN', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+function getAttemptScorePercent(attempt: MinimalAttemptInfoDto): number | null {
+	if (attempt.score == null || attempt.totalPoints == null || attempt.totalPoints === 0) return null;
+	return Math.round((attempt.score / attempt.totalPoints) * 100);
+}
 
 export function ExamDetailPage() {
 	const { id } = useParams();
@@ -41,6 +85,13 @@ export function ExamDetailPage() {
 	const [examData, setExamData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
+
+	const [myAttemptsForExam, setMyAttemptsForExam] = useState<MinimalAttemptInfoDto[]>([]);
+	const [myAttemptsLoading, setMyAttemptsLoading] = useState(false);
+	const [myAttemptsLoadingMore, setMyAttemptsLoadingMore] = useState(false);
+	const [myAttemptsError, setMyAttemptsError] = useState<string | null>(null);
+	const [myAttemptsCursor, setMyAttemptsCursor] = useState<string | undefined>(undefined);
+	const [myAttemptsHasMore, setMyAttemptsHasMore] = useState(false);
 
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const users = useAppSelector((state) => state.users.list);
@@ -65,33 +116,54 @@ export function ExamDetailPage() {
 			}
 		};
 
-		// Fetch attempt history để phát hiện bài dang dở
-		const fetchOngoingAttempt = async () => {
+		const fetchMyAttemptsForExam = async (reset: boolean, nextCursor?: string) => {
+			if (reset) {
+				setMyAttemptsLoading(true);
+				setOngoingAttempt(null);
+			} else {
+				setMyAttemptsLoadingMore(true);
+			}
+			setMyAttemptsError(null);
 			try {
 				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
 					examId,
-					undefined,
-					10,
-					{ key: 'startedAt', direction: 'DESC' }
+					nextCursor,
+					EXAM_MY_HISTORY_LIMIT,
+					EXAM_MY_HISTORY_SORT,
 				);
-				const attempts: any[] = res?.data?.attempts ?? [];
-				console.log('[TestDetail] Attempts from API:', attempts);
-				// Attempt chưa nộp = endedAt null/undefined
-				const inProgress = attempts.find((a) => !a.endedAt);
-				console.log('[TestDetail] In-progress attempt:', inProgress);
-				if (inProgress) {
-					console.log('[TestDetail] Setting ongoing attempt:', inProgress);
-					setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
+				if (!res.success || !res.data) {
+					throw new Error((res.error as any)?.message ?? 'Không tải được lịch sử làm bài');
+				}
+				const data = res.data as unknown as AttemptsHistoryDto;
+				const newAttempts = data.attempts ?? [];
+				setMyAttemptsForExam((prev) => (reset ? newAttempts : [...prev, ...newAttempts]));
+				const next = data.cursor || undefined;
+				setMyAttemptsCursor(next);
+				setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
+
+				if (reset) {
+					const inProgress = newAttempts.find((a) => !a.endedAt);
+					if (inProgress) {
+						setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
+					}
 				}
 			} catch (e) {
-				// Không thông báo lỗi này để không làm phiền user
-				console.warn('Could not fetch attempt history:', e);
+				console.warn('Could not fetch attempt history for this exam:', e);
+				setMyAttemptsError(extractApiErrorMessage(e, 'Không tải được lịch sử làm bài.'));
+				if (reset) {
+					setMyAttemptsForExam([]);
+					setMyAttemptsCursor(undefined);
+					setMyAttemptsHasMore(false);
+				}
+			} finally {
+				if (reset) setMyAttemptsLoading(false);
+				else setMyAttemptsLoadingMore(false);
 			}
 		};
 
 		if (examId) {
 			fetchExamData();
-			fetchOngoingAttempt();
+			fetchMyAttemptsForExam(true);
 		}
 	}, [examId]);
 
@@ -108,6 +180,34 @@ export function ExamDetailPage() {
 	const [isSubmittingOld, setIsSubmittingOld] = useState(false);
 	// Dialog fallback (giữ lại cho trường hợp 499 khi không tìm được từ history)
 	const [pendingAttemptDialog, setPendingAttemptDialog] = useState<{ open: boolean; attemptId: string | null }>({ open: false, attemptId: null });
+
+	const loadMoreMyAttemptsForExam = async () => {
+		if (!examId || !myAttemptsCursor || myAttemptsLoadingMore) return;
+		setMyAttemptsLoadingMore(true);
+		setMyAttemptsError(null);
+		try {
+			const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+				examId,
+				myAttemptsCursor,
+				EXAM_MY_HISTORY_LIMIT,
+				EXAM_MY_HISTORY_SORT,
+			);
+			if (!res.success || !res.data) {
+				throw new Error((res.error as any)?.message ?? 'Không tải thêm được lịch sử');
+			}
+			const data = res.data as unknown as AttemptsHistoryDto;
+			const newAttempts = data.attempts ?? [];
+			setMyAttemptsForExam((prev) => [...prev, ...newAttempts]);
+			const next = data.cursor || undefined;
+			setMyAttemptsCursor(next);
+			setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
+		} catch (e) {
+			console.warn('Load more exam history failed:', e);
+			setMyAttemptsError(extractApiErrorMessage(e, 'Không tải thêm được lịch sử.'));
+		} finally {
+			setMyAttemptsLoadingMore(false);
+		}
+	};
 
 	// Tạm thời bảo toàn các helper functions UI
 	const rootSections = examData?.sections || [];
@@ -541,6 +641,146 @@ export function ExamDetailPage() {
 									})}
 								</div>
 							</div>
+
+							{/* Lịch sử làm bài của bạn với đề này */}
+							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>
+								<div className='h-1 w-full bg-slate-700/90' />
+								<CardHeader className='pb-3'>
+									<CardTitle className='text-xl flex items-center gap-2 text-slate-800'>
+										<History className='w-5 h-5 text-slate-600' />
+										Lịch sử làm đề này của bạn
+										{!myAttemptsLoading && myAttemptsForExam.length > 0 && (
+											<Badge variant='secondary' className='ml-1 font-semibold'>
+												{myAttemptsForExam.length}
+												{myAttemptsHasMore ? '+' : ''} lần
+											</Badge>
+										)}
+									</CardTitle>
+								</CardHeader>
+								<CardContent className='space-y-3'>
+									{myAttemptsLoading ? (
+										<div className='flex items-center justify-center gap-2 py-12 text-slate-500 text-sm'>
+											<Loader2 className='h-5 w-5 animate-spin' />
+											Đang tải lịch sử...
+										</div>
+									) : myAttemptsError ? (
+										<div className='flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>
+											<AlertCircle className='h-4 w-4 shrink-0' />
+											{myAttemptsError}
+										</div>
+									) : myAttemptsForExam.length === 0 ? (
+										<div className='flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 py-12 text-center'>
+											<Calendar className='h-10 w-10 text-slate-300' />
+											<p className='text-sm font-medium text-slate-600'>Bạn chưa có lần làm nào với đề thi này.</p>
+											<p className='text-xs text-slate-500'>Chọn phần thi phía trên và bấm bắt đầu để ghi nhận lần đầu.</p>
+										</div>
+									) : (
+										<>
+											<div className='space-y-2'>
+												{myAttemptsForExam.map((attempt) => {
+													const isPending = !attempt.endedAt;
+													const scorePct = getAttemptScorePercent(attempt);
+													const scoreColor =
+														scorePct == null ? 'text-slate-600' : scorePct >= 80 ? 'text-green-600' : scorePct >= 60 ? 'text-amber-600' : 'text-red-600';
+
+													return (
+														<div
+															key={attempt.id}
+															className='rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 transition-colors hover:bg-slate-50'
+														>
+															<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+																<div className='flex flex-wrap items-center gap-x-3 gap-y-1'>
+																	{isPending ? (
+																		<span className='flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-700'>
+																			<Circle className='h-3.5 w-3.5' />
+																			Đang làm
+																		</span>
+																	) : (
+																		<span className='flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700'>
+																			<CheckCircle2 className='h-3.5 w-3.5' />
+																			Hoàn thành
+																		</span>
+																	)}
+																	<span className='flex items-center gap-1 text-xs text-slate-500'>
+																		<Calendar className='h-3.5 w-3.5' />
+																		{formatAttemptDateVi(attempt.startedAt)}
+																	</span>
+																	{attempt.isStrict && (
+																		<Badge variant='outline' className='text-[10px] border-orange-200 bg-orange-50 text-orange-800'>
+																			Strict
+																		</Badge>
+																	)}
+																</div>
+																<div className='flex flex-wrap items-center gap-3 sm:justify-end'>
+																	{!isPending && (
+																		<div className='text-right'>
+																			<p className='text-[10px] font-semibold uppercase text-slate-400'>Điểm</p>
+																			{scorePct != null ? (
+																				<span className={`text-sm font-bold ${scoreColor}`}>{scorePct}%</span>
+																			) : (
+																				<span className='text-sm text-slate-500'>—</span>
+																			)}
+																		</div>
+																	)}
+																	<div className='text-right'>
+																		<p className='text-[10px] font-semibold uppercase text-slate-400'>Thời gian</p>
+																		<span className='flex items-center justify-end gap-1 text-sm font-medium text-slate-700'>
+																			<Clock className='h-3.5 w-3.5 text-slate-400' />
+																			{attempt.endedAt
+																				? formatElapsedShort(attempt.startedAt, attempt.endedAt)
+																				: formatDurationShort(attempt.durationLimit)}
+																		</span>
+																	</div>
+																	{isPending ? (
+																		<Button
+																			type='button'
+																			size='sm'
+																			className='rounded-lg font-semibold'
+																			onClick={() => router.push(`/test/do/${attempt.id}`)}
+																		>
+																			<Play className='mr-1.5 h-3.5 w-3.5' />
+																			Tiếp tục
+																		</Button>
+																	) : (
+																		<Button
+																			type='button'
+																			variant='outline'
+																			size='sm'
+																			className='rounded-lg font-semibold'
+																			onClick={() => router.push(`/results/${attempt.id}`)}
+																		>
+																			Xem chi tiết
+																		</Button>
+																	)}
+																</div>
+															</div>
+														</div>
+													);
+												})}
+											</div>
+											{myAttemptsHasMore && (
+												<div className='flex justify-center pt-1'>
+													<Button
+														type='button'
+														variant='outline'
+														size='sm'
+														className='gap-2 rounded-xl font-semibold'
+														onClick={() => void loadMoreMyAttemptsForExam()}
+														disabled={myAttemptsLoadingMore}
+													>
+														{myAttemptsLoadingMore ? (
+															<Loader2 className='h-4 w-4 animate-spin' />
+														) : (
+															<ChevronDown className='h-4 w-4' />
+														)}
+														Tải thêm
+													</Button>
+												</div>
+											)}
+										</>
+									)}
+								</CardContent>
+							</Card>
 
 							{/* Timer Selection */}
 							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
+import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashcardList } from '../types/client';
 import { removeFlashCard } from './store/flashCardSlice';
 import { addFlashcardList, removeFlashcardList, updateFlashcardList } from './store/flashcardListSlice';
@@ -118,15 +118,17 @@ export function FlashcardPage() {
 	const router = useRouter();
 	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
+	const isHydrated = useIsStoreHydrated();
 	const flashcards = useAppSelector((state) => state.flashCards.list);
 	const lists = useAppSelector((state) => state.flashcardLists.list);
 
-	// Redirect if not logged in
+	// Redirect if not logged in (wait for Redux rehydration first)
 	useEffect(() => {
+		if (!isHydrated) return;
 		if (!currentUser) {
 			router.push('/auth');
 		}
-	}, [currentUser, router]);
+	}, [isHydrated, currentUser, router]);
 
 	const [listDialogOpen, setListDialogOpen] = useState(false);
 	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
@@ -181,7 +183,7 @@ export function FlashcardPage() {
 		return flashcards.filter((f) => f.listId === listId).length;
 	};
 
-	if (!currentUser) {
+	if (!isHydrated || !currentUser) {
 		return null;
 	}
 

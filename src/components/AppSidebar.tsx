@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
@@ -9,6 +10,7 @@ import {
   FileText,
   BookOpen,
   Mic,
+  PenTool,
   TrendingUp,
   Newspaper,
   FilePlus,
@@ -17,7 +19,6 @@ import {
   Users,
   Settings,
   LogOut,
-  Leaf,
   PanelLeftClose,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
@@ -42,7 +43,7 @@ const learnerLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/test-selection', label: 'Chọn đề thi', icon: FileText },
   { href: '/flashcards', label: 'Flashcards', icon: BookOpen },
-  { href: '/speaking-writing', label: 'Speaking & Writing', icon: Mic },
+  { href: '/speaking', label: 'Luyện Nói', icon: Mic },
   { href: '/progress', label: 'Tiến độ', icon: TrendingUp },
   { href: '/history', label: 'Lịch sử', icon: ClipboardList },
   { href: '/blog', label: 'Blog', icon: Newspaper },
@@ -109,18 +110,18 @@ export function AppSidebar() {
             onClick={() => router.push('/dashboard')}
             className="flex min-w-0 items-center gap-3 text-left group-data-[collapsible=icon]:justify-center"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm ring-1 ring-emerald-300/40">
-              <Leaf className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex h-9 w-9 items-center justify-center bg-white shadow-sm ring-1 ring-emerald-200/60 overflow-hidden dark:bg-slate-950 dark:ring-emerald-900/40">
+              <Image
+                src="/logos/logo.svg"
+                alt="Lingriser"
+                width={36}
+                height={36}
+                priority
+              />
             </div>
             <span className="truncate text-lg font-display font-semibold text-emerald-600 group-data-[collapsible=icon]:hidden dark:text-emerald-400">
-              EnglishPrep
+              Lingriser
             </span>
-          </button>
-          <button
-            onClick={toggleSidebar}
-            className="rounded-xl p-2 text-muted-foreground transition hover:bg-white/80 hover:text-foreground group-data-[collapsible=icon]:hidden dark:hover:bg-slate-900/80"
-          >
-            <PanelLeftClose className="h-4 w-4" />
           </button>
         </div>
       </SidebarHeader>

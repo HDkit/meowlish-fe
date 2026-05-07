@@ -1,7 +1,7 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Leaf } from 'lucide-react';
 import { Button } from './ui/button';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -15,9 +15,11 @@ export function LandingNavbar() {
           onClick={() => router.push('/landing')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <Leaf className="h-7 w-7 text-primary" />
+          <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden ring-1 ring-border bg-white">
+            <Image src="/logos/logo.svg" alt="Lingriser" width={32} height={32} priority />
+          </span>
           <span className="text-xl font-display font-semibold text-primary">
-            EnglishPrep
+            Lingriser
           </span>
         </button>
 

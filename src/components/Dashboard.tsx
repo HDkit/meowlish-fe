@@ -3,13 +3,14 @@
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Target, BookOpen, Clock, CheckCircle, Trophy, ChevronRight, Sparkles, TrendingUp, PlayCircle, Calendar } from 'lucide-react';
-import { useAppSelector } from '@/lib/store/hooks';
+import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { ExamPracticeService } from '@/lib/api-client';
 
 export function Dashboard() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
+	const isHydrated = useIsStoreHydrated();
 	const router = useRouter();
 
 	const [loading, setLoading] = useState(true);
@@ -19,6 +20,7 @@ export function Dashboard() {
 	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
 
 	useEffect(() => {
+		if (!isHydrated) return;
 		if (!currentUser) {
 			router.push('/auth');
 			return;
@@ -73,7 +75,7 @@ export function Dashboard() {
 		};
 
 		fetchDashboardData();
-	}, [currentUser, router]);
+	}, [isHydrated, currentUser, router]);
 
 	// Activity Heatmap Data
 	const heatmapWeeks = useMemo(() => {
@@ -110,7 +112,7 @@ export function Dashboard() {
 		return weeks;
 	}, [calendarHistory]);
 
-	if (loading) {
+	if (!isHydrated || loading) {
 		return <div className="min-h-screen bg-background flex items-center justify-center">
 			<div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
 		</div>;
