@@ -17,22 +17,22 @@ import { ExamManagementService, getAccessToken, getRefreshToken } from '@/lib/ap
 // ─── Status config ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    Empty: {
+    EMPTY: {
         label: 'Bản nháp',
         color: 'bg-gray-100 text-gray-600 border-gray-200',
         icon: <FileText className="h-3 w-3" />,
     },
-    InDraft: {
+    PENDING: {
         label: 'Chờ duyệt',
         color: 'bg-orange-100 text-orange-700 border-orange-200',
         icon: <Clock className="h-3 w-3" />,
     },
-    NeedsRevision: {
+    REJECTED: {
         label: 'Cần sửa',
         color: 'bg-red-100 text-red-700 border-red-200',
         icon: <AlertCircle className="h-3 w-3" />,
     },
-    Published: {
+    APPROVED: {
         label: 'Đã xuất bản',
         color: 'bg-green-100 text-green-700 border-green-200',
         icon: <CheckCircle className="h-3 w-3" />,
@@ -114,9 +114,10 @@ export function ExamManagementPage() {
 
     const stats = {
         total: staffExams.length,
-        draft: staffExams.filter(e => e.status === 'InDraft').length,
-        needsRevision: staffExams.filter(e => e.status === 'NeedsRevision').length,
-        published: staffExams.filter(e => e.status === 'Published').length,
+        draft: staffExams.filter(e => e.status === 'EMPTY').length,
+        pending: staffExams.filter(e => e.status === 'PENDING').length,
+        needsRevision: staffExams.filter(e => e.status === 'REJECTED').length,
+        published: staffExams.filter(e => e.status === 'APPROVED').length,
     };
 
     const handleEdit = (exam: ExamItem) => {
@@ -180,7 +181,7 @@ export function ExamManagementPage() {
                     <div className="grid grid-cols-4 gap-3 mt-6">
                         {[
                             { label: 'Tổng đề', value: stats.total, color: 'bg-white/20' },
-                            { label: 'Chờ duyệt', value: stats.draft, color: 'bg-orange-400/30' },
+                            { label: 'Chờ duyệt', value: stats.pending, color: 'bg-orange-400/30' },
                             { label: 'Cần sửa', value: stats.needsRevision, color: 'bg-red-400/30' },
                             { label: 'Đã xuất bản', value: stats.published, color: 'bg-green-400/30' },
                         ].map(({ label, value, color }) => (
@@ -215,10 +216,10 @@ export function ExamManagementPage() {
                             </SelectTrigger>
                             <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
                                 <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả trạng thái</SelectItem>
-                                <SelectItem value="Empty" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
-                                <SelectItem value="InDraft" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
-                                <SelectItem value="NeedsRevision" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
-                                <SelectItem value="Published" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
+                                <SelectItem value="EMPTY" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
+                                <SelectItem value="PENDING" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
+                                <SelectItem value="REJECTED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
+                                <SelectItem value="APPROVED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -250,16 +251,14 @@ export function ExamManagementPage() {
                             <thead>
                                 <tr className="border-b border-gray-100 bg-gray-50">
                                     <th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đề thi</th>
-                                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Loại / Kỹ năng</th>
-                                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Thời gian</th>
                                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
                                     <th className="text-right px-5 py-3 font-semibold text-gray-600">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {filtered.map(exam => {
-                                    const statusCfg = STATUS_CONFIG[exam.status] ?? STATUS_CONFIG['Empty'];
-                                    const canEdit = exam.status !== 'Published';
+                                    const statusCfg = STATUS_CONFIG[exam.status] ?? STATUS_CONFIG['EMPTY'];
+                                    const canEdit = exam.status !== 'APPROVED';
                                     return (
                                         <tr
                                             key={exam.id}
@@ -278,33 +277,13 @@ export function ExamManagementPage() {
                                                     {exam.description && (
                                                         <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{exam.description}</p>
                                                     )}
-                                                    {exam.status === 'NeedsRevision' && exam.rejectionReason && (
+                                                    {exam.status === 'REJECTED' && exam.rejectionReason && (
                                                         <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                                                             <AlertCircle className="h-3 w-3 shrink-0" />
                                                             {exam.rejectionReason}
                                                         </p>
                                                     )}
                                                 </button>
-                                            </td>
-
-                                            {/* Type/Skill */}
-                                            <td className="px-4 py-4 hidden md:table-cell">
-                                                <div className="space-y-0.5">
-                                                    <span className="text-xs font-medium text-gray-700 uppercase tracking-wide">
-                                                        {exam.testType?.toUpperCase()}
-                                                    </span>
-                                                    <p className="text-xs text-gray-400">
-                                                        {SKILL_LABELS[exam.skill ?? ''] ?? exam.skill}
-                                                    </p>
-                                                </div>
-                                            </td>
-
-                                            {/* Duration */}
-                                            <td className="px-4 py-4 hidden lg:table-cell">
-                                                <span className="text-gray-600 flex items-center gap-1">
-                                                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                                    {exam.duration ?? '—'} phút
-                                                </span>
                                             </td>
 
                                             {/* Status */}

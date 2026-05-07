@@ -27,22 +27,22 @@ import { CheckCircle, XCircle, Eye, Search, Filter, FileText, ClipboardCheck, Al
 import { useToast } from './ui/use-toast';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  Empty: {
+  EMPTY: {
     label: 'Bản nháp',
     color: 'bg-gray-100 text-gray-600 border-gray-200',
     icon: <FileText className="h-3 w-3" />,
   },
-  InDraft: {
+  PENDING: {
     label: 'Chờ duyệt',
     color: 'bg-orange-100 text-orange-700 border-orange-200',
     icon: <Clock className="h-3 w-3" />,
   },
-  NeedsRevision: {
+  REJECTED: {
     label: 'Cần sửa',
     color: 'bg-red-100 text-red-700 border-red-200',
     icon: <AlertCircle className="h-3 w-3" />,
   },
-  Published: {
+  APPROVED: {
     label: 'Đã xuất bản',
     color: 'bg-green-100 text-green-700 border-green-200',
     icon: <CheckCircle className="h-3 w-3" />,
@@ -57,6 +57,7 @@ interface ExamItem {
   duration?: number;
   passScore?: number;
   createdAt?: string;
+  updatedAt?: string;
   createdBy?: string;
   rejectionReason?: string;
   reviewedBy?: string;
@@ -131,8 +132,8 @@ export default function ExamApprovalPage() {
   });
 
   const sortedExams = [...filteredExams].sort((a, b) => {
-    if (a.status === 'InDraft' && b.status !== 'InDraft') return -1;
-    if (a.status !== 'InDraft' && b.status === 'InDraft') return 1;
+    if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+    if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
     return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
   });
 
@@ -150,7 +151,7 @@ export default function ExamApprovalPage() {
     try {
       await ExamManagementService.examManagementGatewayControllerReviewExamV1({
         id: examId,
-        requestBody: { status: 'Published' },
+        requestBody: { status: 'APPROVED' },
       });
       toast({ title: 'Đã phê duyệt', description: 'Đề thi đã được phê duyệt thành công.' });
       setIsPreviewOpen(false);
@@ -179,7 +180,7 @@ export default function ExamApprovalPage() {
     try {
       await ExamManagementService.examManagementGatewayControllerReviewExamV1({
         id: selectedExam.id,
-        requestBody: { status: 'NeedsRevision', reason: rejectionReason } as any,
+        requestBody: { status: 'REJECTED', reason: rejectionReason } as any,
       });
       toast({ title: 'Đã từ chối', description: 'Đề thi đã được trả về cho tác giả chỉnh sửa.' });
       setIsRejectDialogOpen(false);
@@ -196,10 +197,10 @@ export default function ExamApprovalPage() {
   };
 
   const getStatusConfig = (status: string) => {
-    return STATUS_CONFIG[status] || STATUS_CONFIG['Empty'];
+    return STATUS_CONFIG[status] || STATUS_CONFIG['EMPTY'];
   };
 
-  const pendingCount = exams.filter((e) => e.status === 'InDraft').length;
+  const pendingCount = exams.filter((e) => e.status === 'PENDING').length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -258,10 +259,10 @@ export default function ExamApprovalPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
                   <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="Empty" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
-                  <SelectItem value="InDraft" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
-                  <SelectItem value="NeedsRevision" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
-                  <SelectItem value="Published" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
+                  <SelectItem value="EMPTY" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
+                  <SelectItem value="PENDING" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
+                  <SelectItem value="REJECTED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
+                  <SelectItem value="APPROVED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -286,7 +287,9 @@ export default function ExamApprovalPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đề thi</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Người tạo</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Ngày tạo</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Cập nhật</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
                     <th className="text-right px-5 py-3 font-semibold text-gray-600 whitespace-nowrap w-[240px]">Thao tác</th>
                   </tr>
@@ -306,7 +309,13 @@ export default function ExamApprovalPage() {
                         )}
                       </td>
                       <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
+                        {exam.createdBy || '--'}
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
                         {exam.createdAt ? new Date(exam.createdAt).toLocaleDateString('vi-VN') : '--'}
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
+                        {exam.updatedAt ? new Date(exam.updatedAt).toLocaleDateString('vi-VN') : '--'}
                       </td>
                       <td className="px-4 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border w-[110px] justify-center ${getStatusConfig(exam.status).color}`}>
@@ -329,7 +338,7 @@ export default function ExamApprovalPage() {
                             <span className="hidden xl:inline">Xem</span>
                           </Button>
 
-                          {exam.status === 'InDraft' && (
+                          {exam.status === 'PENDING' && (
                             <>
                               <Button
                                 size="sm"

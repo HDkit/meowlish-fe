@@ -17,7 +17,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useToast } from './ui/use-toast';
-import { Plus, Trash2, Save, MoreVertical, GripVertical, Layers, ChevronDown, ChevronRight, FileText, List, CheckCircle2, AlertCircle, Upload, X, FileAudio, FileImage, FileQuestion, Brain, ShieldCheck, Send, Search, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Plus, Trash2, Save, MoreVertical, GripVertical, Layers, ChevronDown, ChevronRight, FileText, List, CheckCircle2, AlertCircle, Upload, X, FileAudio, FileImage, FileQuestion, Brain, ShieldCheck, Send, Search, ChevronRight as ChevronRightIcon, Image as ImageIcon } from 'lucide-react';
 import {
   RefreshCw, Check, AlertTriangle,
   BookOpen, Clock, Tag, Eye,
@@ -53,23 +53,28 @@ type QuestionMoveState = { sectionId: string; index: string };
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const QUESTION_TYPES = [
-  { value: 'multiple-choice', label: 'Một đáp án đúng' },
-  { value: 'multiple-correct-answers', label: 'Nhiều đáp án đúng' },
+  // Backend uses `MCQ` (per docs). Keep legacy values for older drafts.
+  { value: 'MCQ', label: 'MCQ (1 đáp án đúng)' },
+  { value: 'MULTI_MCQ', label: 'MCQ (nhiều đáp án đúng)' },
+  { value: 'multiple-choice', label: 'Một đáp án đúng (legacy)' },
+  { value: 'multiple-correct-answers', label: 'Nhiều đáp án đúng (legacy)' },
   { value: 'fill-blank', label: 'Điền vào chỗ trống' },
   { value: 'essay', label: 'Tự luận' },
   { value: 'speaking', label: 'Nói' },
 ];
 
 const REVIEW_STATUSES = [
-  { value: 'InDraft', label: 'Bản nháp' },
-  { value: 'Published', label: 'Xuất bản' },
-  { value: 'NeedsRevision', label: 'Cần chỉnh sửa' },
+  { value: 'EMPTY', label: 'Bản nháp' },
+  { value: 'PENDING', label: 'Chờ duyệt' },
+  { value: 'APPROVED', label: 'Đã xuất bản' },
+  { value: 'REJECTED', label: 'Cần chỉnh sửa' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  InDraft: 'bg-amber-100 text-amber-700',
-  Published: 'bg-emerald-100 text-emerald-700',
-  NeedsRevision: 'bg-red-100 text-red-700',
+  EMPTY: 'bg-gray-100 text-gray-600',
+  PENDING: 'bg-amber-100 text-amber-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-700',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -86,7 +91,26 @@ const getRootSectionIds = (examId: string, sections: SectionDetails[]): string[]
 
 const shortId = (id: string) => id.slice(0, 8);
 
+// Helper: format duration (giây) thành giờ/phút
+const formatDuration = (seconds: number | string): string => {
+  const num = Number(seconds);
+  if (!Number.isFinite(num) || num <= 0) return '0 phút';
+  const hours = Math.floor(num / 3600);
+  const mins = Math.floor((num % 3600) / 60);
+  if (hours > 0 && mins > 0) return `${hours} giờ ${mins} phút`;
+  if (hours > 0) return `${hours} giờ`;
+  return `${mins} phút`;
+};
+
 // ─── Upload helper ────────────────────────────────────────────────────────────
+
+// Helper: đảm bảo URL có protocol
+function ensureProtocol(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // Nếu URL dạng host:port/path, thêm https://
+  return `https://${url}`;
+}
 
 async function uploadFileViaPresigned(file: File): Promise<{ id: string; url: string }> {
   // 1. Xin presigned URL từ backend
@@ -98,7 +122,8 @@ async function uploadFileViaPresigned(file: File): Promise<{ id: string; url: st
   // 2. Upload thẳng lên S3/GCS
   await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
 
-  return { id: fileId, url: publicUrl };
+  // 3. Đảm bảo publicUrl có protocol
+  return { id: fileId, url: ensureProtocol(publicUrl) };
 }
 
 // ─── FileUploadZone ───────────────────────────────────────────────────────────
@@ -157,24 +182,53 @@ function FileUploadZone({
 
       {files.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
-          {files.map((f) => (
-            <div key={f.id} className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50 aspect-square">
-              {f.url ? (
-                <img src={f.url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <ImageIcon className="h-6 w-6 text-gray-400" />
-                </div>
-              )}
-              <button
-                type="button"
-                className="absolute top-1 right-1 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white"
-                onClick={() => onRemove(f.id)}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+          {files.map((f) => {
+            const isAudio = f.url?.match(/\.(mp3|wav|ogg|m4a)$/i);
+            const fixedUrl = ensureProtocol(f.url || '');
+            return (
+              <div key={f.id} className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50 aspect-square">
+                {f.url ? (
+                  isAudio ? (
+                    // Audio player
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                      <FileAudio className="h-8 w-8 text-emerald-500 mb-2" />
+                      <audio
+                        src={fixedUrl}
+                        controls
+                        className="w-full max-w-[100px] h-8"
+                        onError={(e) => {
+                          console.error('Failed to load audio:', f.url);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    // Image
+                    <img
+                      src={fixedUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Failed to load image:', f.url);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                      }}
+                    />
+                  )
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <ImageIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white"
+                  onClick={() => onRemove(f.id)}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -314,6 +368,11 @@ export function ExamCreationPage() {
   const [examId, setExamId] = useState<string | null>(queryExamId);
   const [uploadingSection, setUploadingSection] = useState(false);
   const [uploadingQuestion, setUploadingQuestion] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [exam, setExam] = useState<ExamDetails | null>(null);
   const [examDraft, setExamDraft] = useState({ title: '', description: '', duration: '60', tagsInput: '' });
@@ -333,6 +392,30 @@ export function ExamCreationPage() {
     return false;
   };
 
+  // Helper: delay để tránh rate limit
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Helper: fetch với retry logic (delay 500ms mỗi request)
+  const fetchWithRetry = async <T,>(
+    fetchFn: () => Promise<T>,
+    retries = 3
+  ): Promise<T | null> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fetchFn();
+      } catch (e: any) {
+        if (e?.status === 429 && i < retries - 1) {
+          // Rate limit - chờ 500ms rồi retry
+          console.log(`Rate limited, retrying in 500ms... (attempt ${i + 1}/${retries})`);
+          await delay(500);
+          continue;
+        }
+        throw e;
+      }
+    }
+    return null;
+  };
+
   const loadEditorData = async (id: string) => {
     if (!ensureApiSession('tải dữ liệu')) { setLoading(false); return; }
     setLoading(true);
@@ -341,22 +424,35 @@ export function ExamCreationPage() {
       const examPayload = extractEntityData<ExamDetails>(examRes);
       if (!examPayload) throw new Error('Không nhận được dữ liệu đề thi.');
 
+      // Fetch sections tuần tự với delay 1000ms để tránh rate limit
       const sectionIds = examPayload.sectionIds ?? [];
-      const sectionResponses = await Promise.all(sectionIds.map((sid) =>
-        ExamManagementService.examManagementGatewayControllerGetSectionDetailsV1(sid)
-      ));
-      const loadedSections = sectionResponses
-        .map((r) => extractEntityData<SectionDetails>(r))
-        .filter((s): s is SectionDetails => Boolean(s));
+      const loadedSections: SectionDetails[] = [];
+      for (let i = 0; i < sectionIds.length; i++) {
+        const sid = sectionIds[i];
+        console.log(`[${i + 1}/${sectionIds.length}] Loading section ${sid}...`);
+        const section = await fetchWithRetry(async () => {
+          const res = await ExamManagementService.examManagementGatewayControllerGetSectionDetailsV1(sid);
+          return extractEntityData<SectionDetails>(res);
+        }, 3);
+        if (section) loadedSections.push(section);
+        // Delay 1000ms (1s) giữa các request
+        if (i < sectionIds.length - 1) await delay(1000);
+      }
 
+      // Fetch questions tuần tự với delay 1000ms
       const questionIds = loadedSections.flatMap((s) => s.questionIds ?? []);
-      const questionResponses = await Promise.all(questionIds.map((qid) =>
-        ExamManagementService.examManagementGatewayControllerGetQuestionDetailsV1(qid)
-      ));
-      const loadedQuestions = questionResponses
-        .map((r) => extractEntityData<QuestionDetails>(r))
-        .filter((q): q is QuestionDetails => Boolean(q))
-        .map((q) => ({ ...q, choices: buildChoiceDrafts(q) }));
+      const loadedQuestions: QuestionDetails[] = [];
+      for (let i = 0; i < questionIds.length; i++) {
+        const qid = questionIds[i];
+        if (i % 10 === 0) console.log(`[${i + 1}/${questionIds.length}] Loading questions...`);
+        const question = await fetchWithRetry(async () => {
+          const res = await ExamManagementService.examManagementGatewayControllerGetQuestionDetailsV1(qid);
+          return extractEntityData<QuestionDetails>(res);
+        }, 3);
+        if (question) loadedQuestions.push({ ...question, choices: buildChoiceDrafts(question) });
+        // Delay 1000ms (1s) giữa các request
+        if (i < questionIds.length - 1) await delay(1000);
+      }
 
       const nextSections = Object.fromEntries(loadedSections.map((s) => [s.id, s]));
       const nextQuestions = Object.fromEntries(loadedQuestions.map((q) => [q.id, q]));
@@ -373,7 +469,11 @@ export function ExamCreationPage() {
       setSectionOrder(sectionIds);
       setQuestions(nextQuestions);
       setQuestionSnapshots(nextQuestions);
-      setReviewStatus(examPayload.status === 'Published' ? 'Published' : 'InDraft');
+      // Map API status sang review status
+      const statusMap: Record<string, string> = {
+        'EMPTY': 'EMPTY', 'PENDING': 'PENDING', 'APPROVED': 'APPROVED', 'REJECTED': 'REJECTED'
+      };
+      setReviewStatus(statusMap[examPayload.status] ?? 'EMPTY');
       setSectionMoveState(Object.fromEntries(loadedSections.map((s, i) => [s.id, {
         parentId: s.parentId ?? '', index: String(i), toRoot: !s.parentId || s.parentId === examPayload.id,
       }])));
@@ -645,7 +745,7 @@ export function ExamCreationPage() {
               {examDraft.title || 'Đề thi mới'}
             </span>
             {exam?.status && (
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600'}`}>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                 {REVIEW_STATUSES.find((s) => s.value === exam.status)?.label ?? exam.status}
               </span>
             )}
@@ -668,11 +768,11 @@ export function ExamCreationPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-6 grid gap-6 xl:grid-cols-[260px_1fr]">
+      <div className="mx-auto max-w-7xl px-6 py-6 grid gap-6 xl:grid-cols-[280px_1fr] items-start">
         {/* Left panel: tree */}
-        <aside className="space-y-4">
-          <Card className="border border-gray-200 shadow-none">
-            <CardContent className="p-3 space-y-1">
+        <aside className="space-y-4 h-full">
+          <Card className="border border-gray-200 shadow-none flex flex-col xl:sticky xl:top-24 max-h-[calc(100vh-120px)] overflow-hidden">
+            <CardContent className="p-3 space-y-1 flex flex-col h-full min-h-0">
               {/* Stats row */}
               <div className="flex items-center gap-3 px-1 py-2 mb-2 border-b border-gray-100">
                 <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -685,7 +785,7 @@ export function ExamCreationPage() {
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Clock className="h-3.5 w-3.5" />
-                  <span>{examDraft.duration} phút</span>
+                  <span>{formatDuration(examDraft.duration)}</span>
                 </div>
               </div>
 
@@ -701,8 +801,8 @@ export function ExamCreationPage() {
                 Thông tin đề thi
               </button>
 
-              {/* Section tree */}
-              <div className="pt-1">
+              {/* Section tree với scroll, chiếm hết chiều cao còn lại */}
+              <div className="pt-1 flex-1 min-h-0 overflow-y-auto pr-1">
                 {rootSectionIds.length === 0 ? (
                   <p className="px-2 py-3 text-xs text-gray-400 text-center">
                     {examId ? 'Chưa có section nào' : 'Tạo đề trước để thêm section'}
@@ -796,7 +896,34 @@ export function ExamCreationPage() {
                       </div>
                     </div>
 
-                    {(isHeadStaff || isStaff) && examId && (
+                    {/* Thông tin thêm từ API */}
+                    {exam && (
+                      <div className="border-t border-gray-100 pt-4 mt-4">
+                        <div className="grid gap-3 md:grid-cols-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Trạng thái:</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                              {REVIEW_STATUSES.find((s) => s.value === exam.status)?.label ?? exam.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Người tạo:</span>
+                            <span className="text-gray-700 font-mono">{exam.createdBy}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Tạo lúc:</span>
+                            <span className="text-gray-700">{exam.createdAt ? new Date(exam.createdAt).toLocaleString('vi-VN') : '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500">Cập nhật:</span>
+                            <span className="text-gray-700">{exam.updatedAt ? new Date(exam.updatedAt).toLocaleString('vi-VN') : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tránh hydration mismatch bằng mounted check */}
+                    {mounted && (isHeadStaff || isStaff) && examId && (
                       <div className="border-t border-gray-100 pt-4 flex items-end gap-3">
                         <div className="space-y-1.5 flex-1">
                           <Label className="text-sm flex items-center gap-1.5">
@@ -1090,13 +1217,13 @@ export function ExamCreationPage() {
                     </div>
 
                     {/* Choices for MCQ */}
-                    {['multiple-choice', 'multiple-correct-answers'].includes(selectedQuestion.type) && (
-                      <div className="space-y-3">
+                    {['MCQ', 'MULTI_MCQ', 'multiple-choice', 'multiple-correct-answers'].includes(selectedQuestion.type) && (
+                      <div className="space-y-3 border-t border-gray-100 pt-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm">
+                          <Label className="text-sm font-medium">
                             Đáp án lựa chọn
                             <span className="ml-2 text-xs font-normal text-gray-500">
-                              ({selectedQuestion.type === 'multiple-choice' ? 'Chỉ một đáp án đúng' : 'Có thể chọn nhiều'})
+                              ({['MCQ', 'multiple-choice'].includes(selectedQuestion.type) ? 'Chỉ một đáp án đúng' : 'Có thể chọn nhiều'})
                             </span>
                           </Label>
                           <Button
@@ -1110,6 +1237,9 @@ export function ExamCreationPage() {
                             Thêm lựa chọn
                           </Button>
                         </div>
+                        {selectedQuestion.choices.length === 0 && (
+                          <p className="text-sm text-gray-500 italic">Chưa có đáp án nào. Nhấn "Thêm lựa chọn" để tạo đáp án.</p>
+                        )}
                         <div className="space-y-2">
                           {selectedQuestion.choices.map((choice, idx) => (
                             <div key={`${choice.id ?? 'new'}-${idx}`} className="flex items-center gap-2">
@@ -1133,7 +1263,7 @@ export function ExamCreationPage() {
                                   [selectedQuestion.id]: {
                                     ...p[selectedQuestion.id],
                                     choices: p[selectedQuestion.id].choices.map((c, i) => {
-                                      if (selectedQuestion.type === 'multiple-choice') {
+                                      if (['MCQ', 'multiple-choice'].includes(selectedQuestion.type)) {
                                         return i === idx ? { ...c, isCorrect: !c.isCorrect } : { ...c, isCorrect: false };
                                       }
                                       return i === idx ? { ...c, isCorrect: !c.isCorrect } : c;

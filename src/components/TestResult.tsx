@@ -385,7 +385,7 @@ export function TestResult() {
 							<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">{scoreLabel}</span>
 							<div className="flex items-baseline gap-1">
 								<span className="text-5xl font-black text-white drop-shadow-md">{isToeicLike ? scoreValue : Number(scoreValue).toFixed(1)}</span>
-								<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">/{scoreDenom}</span>
+								<span className="text-xl font-bold text-white bg-black/30 border border-white/20 px-2.5 py-1 rounded-lg shadow-md">/{scoreDenom}</span>
 							</div>
 							{isToeicLike && toeicScore && (
 								<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">
@@ -549,6 +549,12 @@ export function TestResult() {
 				<div className="flex flex-col sm:flex-row justify-center gap-4 py-4">
 					<Button onClick={() => router.push('/')} className="bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 font-bold px-8 h-12 rounded-xl shadow-sm">
 						Về Trang Chủ
+					</Button>
+					<Button
+						onClick={() => router.push(`/results/${id}/detail`)}
+						className="bg-slate-900 hover:bg-slate-900/90 text-white font-bold px-8 h-12 rounded-xl shadow-md"
+					>
+						Xem đáp án chi tiết
 					</Button>
 					{examId && (
 						<Button
@@ -916,4 +922,3 @@ function UserIcon(props: React.SVGProps<SVGSVGElement>) {
 		</svg>
 	);
 }
-

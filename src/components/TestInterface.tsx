@@ -913,9 +913,9 @@ export function TestInterface() {
       </div>
 
       {/* ── TRACKER PANEL (right) ────────────────────────────────────────── */}
-      <div className="flex w-72 shrink-0 flex-col gap-4">
+       <div className="flex w-72 shrink-0 flex-col gap-4">
         
-        {/* Sticky Header: Timer, Submit, Progress */}
+        {/* Header: Timer, Submit, Progress */}
         <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Timer */}
           <div className="relative overflow-hidden border-b border-slate-100 bg-muted/30 p-6 text-center">
@@ -954,7 +954,7 @@ export function TestInterface() {
           </div>
         </div>
 
-        {/* Question grid by Part (Scrolls naturally) */}
+        {/* Question grid by Part (Study4-like sticky + internal scroll) */}
         <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
           <div className="flex flex-col gap-6">
             {parts.map((part) => {

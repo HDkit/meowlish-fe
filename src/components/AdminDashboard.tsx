@@ -51,23 +51,25 @@ export default function AdminDashboard() {
   }
 
   const myExams = isStaff ? exams.filter(exam => exam.createdBy === currUser.id) : exams;
-  const pendingApprovalExams = exams.filter(exam => exam.status === 'InDraft');
-  const publishedExams = exams.filter(exam => exam.status === 'Published');
-  const needsRevisionExams = exams.filter(exam => exam.status === 'NeedsRevision');
-  const myDraftExams = myExams.filter(exam => exam.status === 'Empty' || exam.status === 'InDraft');
-  const myPublishedExams = myExams.filter(exam => exam.status === 'Published');
-  const myNeedsRevisionExams = myExams.filter(exam => exam.status === 'NeedsRevision');
+  const pendingApprovalExams = exams.filter(exam => exam.status === 'PENDING');
+  const publishedExams = exams.filter(exam => exam.status === 'APPROVED');
+  const needsRevisionExams = exams.filter(exam => exam.status === 'REJECTED');
+  const myDraftExams = myExams.filter(exam => exam.status === 'EMPTY' || exam.status === 'PENDING');
+  const myPublishedExams = myExams.filter(exam => exam.status === 'APPROVED');
+  const myNeedsRevisionExams = myExams.filter(exam => exam.status === 'REJECTED');
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'Published':
+      case 'APPROVED':
         return { label: 'Đã xuất bản', color: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="h-3 w-3" /> };
-      case 'NeedsRevision':
+      case 'REJECTED':
         return { label: 'Cần sửa', color: 'bg-red-100 text-red-700 border-red-200', icon: <AlertCircle className="h-3 w-3" /> };
-      case 'InDraft':
+      case 'PENDING':
         return { label: 'Chờ duyệt', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: <Clock className="h-3 w-3" /> };
-      default:
+      case 'EMPTY':
         return { label: 'Bản nháp', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: <FileText className="h-3 w-3" /> };
+      default:
+        return { label: status || 'Không rõ', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: <FileText className="h-3 w-3" /> };
     }
   };
 

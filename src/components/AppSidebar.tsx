@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
@@ -66,6 +67,11 @@ export function AppSidebar() {
   const user = useAppSelector((state) => state.currUser.current);
   const dispatch = useAppDispatch();
   const { toggleSidebar } = useSidebar();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -79,9 +85,10 @@ export function AppSidebar() {
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
-  const navLinks = isStaff || isHeadStaff ? staffLinks : learnerLinks;
-  const managementLinks = isHeadStaff ? headStaffExtra : [];
-  const sidebarLabel = isStaff || isHeadStaff ? 'QUẢN LÝ' : 'HỌC TẬP';
+  // Tránh hydration mismatch: dùng giá trị mặc định cho server, cập nhật sau khi mount
+  const navLinks = mounted ? (isStaff || isHeadStaff ? staffLinks : learnerLinks) : learnerLinks;
+  const managementLinks = mounted && isHeadStaff ? headStaffExtra : [];
+  const sidebarLabel = mounted ? (isStaff || isHeadStaff ? 'QUẢN LÝ' : 'HỌC TẬP') : 'HỌC TẬP';
   const userDisplayName = user?.fullName ?? 'Tài khoản';
 
   return (
