@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, PenTool, RefreshCw, Sparkles, Target, Trophy, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, Loader2, PenTool, RefreshCw, Sparkles, Target, Trophy, XCircle } from 'lucide-react';
 
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
 import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
+import type { QuestionDetailDto } from '@/lib/api/models/QuestionDetailDto';
 import type { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
 import type { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
 import { useAppSelector } from '@/lib/store/hooks';
 
 import { Button } from './ui/button';
-import { AICard, QuestionCard } from './QuestionCard';
 
 type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
 
@@ -169,50 +169,6 @@ function formatTime(seconds: number) {
 	return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function statusLabel(status: QuestionStatus) {
-	if (status === 'correct') return 'Chính xác';
-	if (status === 'incorrect') return 'Sai';
-	if (status === 'manual') return 'Chờ thẩm định';
-	return 'Bỏ qua';
-}
-
-function statusTheme(status: QuestionStatus) {
-	if (status === 'correct') {
-		return {
-			borderClass: 'border-green-500 ring-1 ring-green-500/30',
-			bgHeaderClass: 'bg-green-50/50',
-			badgeBg: 'bg-green-100',
-			badgeText: 'text-green-700',
-			Icon: CheckCircle2,
-		};
-	}
-	if (status === 'incorrect') {
-		return {
-			borderClass: 'border-red-500 ring-1 ring-red-500/30',
-			bgHeaderClass: 'bg-red-50/50',
-			badgeBg: 'bg-red-100',
-			badgeText: 'text-red-700',
-			Icon: XCircle,
-		};
-	}
-	if (status === 'manual') {
-		return {
-			borderClass: 'border-slate-200 ring-1 ring-slate-200',
-			bgHeaderClass: 'bg-slate-50',
-			badgeBg: 'bg-slate-200',
-			badgeText: 'text-slate-700',
-			Icon: AlertCircle,
-		};
-	}
-	return {
-		borderClass: 'border-slate-200 ring-1 ring-slate-200',
-		bgHeaderClass: 'bg-slate-50',
-		badgeBg: 'bg-slate-200',
-		badgeText: 'text-slate-700',
-		Icon: AlertCircle,
-	};
-}
-
 export function TestResult() {
 	const { id } = useParams();
 	const router = useRouter();
@@ -225,8 +181,6 @@ export function TestResult() {
 	// Tổng điểm user đạt được cho attempt hiện tại (non-TOEIC, non-writing)
 	const [attemptScore, setAttemptScore] = useState<number | null>(null);
 
-	const [activePart, setActivePart] = useState<'overview' | number>('overview');
-	const [filter, setFilter] = useState<'all' | 'incorrect' | 'skipped'>('all');
 	const [pollElapsed, setPollElapsed] = useState(0);
 	const [pollingTimedOut, setPollingTimedOut] = useState(false);
 
@@ -424,32 +378,6 @@ export function TestResult() {
 			totalScaled,
 		};
 	}, [flatQuestions, isToeicLike, questionStatusById]);
-
-	const partOptions = useMemo(() => {
-		return [{ key: 'overview' as const, label: 'Tổng quát' }, ...toeicParts.map((p) => ({ key: p, label: `Part ${p}` }))];
-	}, [toeicParts]);
-
-	const activeQuestions = useMemo(() => {
-		const list = activePart === 'overview' ? flatQuestions : flatQuestions.filter((x) => x.part === activePart);
-		if (filter === 'all') return list;
-		return list.filter((x) => (questionStatusById.get(x.q.id) || 'skipped') === filter);
-	}, [activePart, filter, flatQuestions, questionStatusById]);
-
-	/** Sidebar: same part grouping as TestInterface (root section per group) */
-	const activeQuestionsByPart = useMemo(() => {
-		const grouped = new Map<string, FlatQuestion[]>();
-		for (const item of activeQuestions) {
-			const pid = item.rootSectionId;
-			if (!grouped.has(pid)) grouped.set(pid, []);
-			grouped.get(pid)!.push(item);
-		}
-		const result: { part: { id: string; name: string }; items: FlatQuestion[] }[] = [];
-		for (const p of reviewParts) {
-			const items = grouped.get(p.id);
-			if (items?.length) result.push({ part: p, items });
-		}
-		return result;
-	}, [activeQuestions, reviewParts]);
 
 	const startedAtMs = reviewData ? new Date(reviewData.startedAt).getTime() : 0;
 	const endedAtMs = reviewData ? new Date(reviewData.endedAt).getTime() : 0;
@@ -823,105 +751,6 @@ export function TestResult() {
 			)}
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20">
-				{/* Part tabs + filter — hidden for writing exams */}
-				{!isWritingTest && (
-				<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
-					<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-						<div className="flex flex-wrap gap-2">
-							{partOptions.map((p) => (
-								<button
-									key={String(p.key)}
-									type="button"
-									onClick={() => setActivePart(p.key)}
-									className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-										activePart === p.key ? 'bg-primary text-primary-foreground border-primary' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-									}`}
-								>
-									{p.label}
-								</button>
-							))}
-						</div>
-						<div className="flex flex-wrap gap-2">
-							<button
-								type="button"
-								onClick={() => setFilter('all')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Tất cả
-							</button>
-							<button
-								type="button"
-								onClick={() => setFilter('incorrect')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'incorrect' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Câu sai
-							</button>
-							<button
-								type="button"
-								onClick={() => setFilter('skipped')}
-								className={`px-3 py-2 rounded-xl text-sm font-bold border transition-colors ${
-									filter === 'skipped' ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								Bỏ qua
-							</button>
-						</div>
-					</div>
-
-					{activePart === 'overview' && isToeicLike && toeicParts.length > 0 && (
-						<div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-							<div className="rounded-2xl border border-slate-200 overflow-hidden">
-								<div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-extrabold text-slate-800">Phân tích theo Part</div>
-								<div className="p-4">
-									<div className="grid grid-cols-1 gap-3">
-										{toeicParts.map((p) => {
-											const st = perPartStats[p];
-											if (!st) return null;
-											const acc = st.total ? (st.correct / st.total) * 100 : 0;
-											return (
-												<div key={p} className="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 bg-white">
-													<div className="font-extrabold text-slate-800">Part {p}</div>
-													<div className="text-sm text-slate-600 font-bold whitespace-nowrap">
-														Đúng {st.correct} · Sai {st.incorrect} · Bỏ {st.skipped}
-													</div>
-													<div className="text-sm font-extrabold text-slate-800 whitespace-nowrap">{acc.toFixed(1)}%</div>
-												</div>
-											);
-										})}
-									</div>
-								</div>
-							</div>
-
-							<div className="rounded-2xl border border-slate-200 overflow-hidden">
-								<div className="px-4 py-3 bg-slate-50 border-b border-slate-200 font-extrabold text-slate-800">Tổng quan</div>
-								<div className="p-4 grid grid-cols-2 gap-3">
-									<div className="p-4 rounded-xl border border-slate-200 bg-white">
-										<div className="text-xs uppercase tracking-widest text-slate-500 font-bold">Số câu</div>
-										<div className="text-2xl font-black text-slate-900 mt-1">{stats.total}</div>
-									</div>
-									<div className="p-4 rounded-xl border border-slate-200 bg-white">
-										<div className="text-xs uppercase tracking-widest text-slate-500 font-bold">Chính xác</div>
-										<div className="text-2xl font-black text-slate-900 mt-1">{stats.total ? ((stats.correct / stats.total) * 100).toFixed(1) : '0.0'}%</div>
-									</div>
-									<div className="p-4 rounded-xl border border-slate-200 bg-white">
-										<div className="text-xs uppercase tracking-widest text-slate-500 font-bold">Listening</div>
-										<div className="text-2xl font-black text-slate-900 mt-1">{toeicScore?.listening.scaled ?? 0}/495</div>
-									</div>
-									<div className="p-4 rounded-xl border border-slate-200 bg-white">
-										<div className="text-xs uppercase tracking-widest text-slate-500 font-bold">Reading</div>
-										<div className="text-2xl font-black text-slate-900 mt-1">{toeicScore?.reading.scaled ?? 0}/495</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					)}
-				</div>
-				)} {/* end !isWritingTest part-tabs */}
-
 				{/* Stats */}
 				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
 					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
@@ -974,12 +803,6 @@ export function TestResult() {
 					<Button onClick={() => router.push('/')} className="bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 font-bold px-8 h-12 rounded-xl shadow-sm">
 						Về Trang Chủ
 					</Button>
-					<Button
-						onClick={() => router.push(`/results/${id}/detail`)}
-						className="bg-slate-900 hover:bg-slate-900/90 text-white font-bold px-8 h-12 rounded-xl shadow-md"
-					>
-						Xem đáp án chi tiết
-					</Button>
 					{examId && (
 						<Button
 							onClick={() => {
@@ -994,418 +817,359 @@ export function TestResult() {
 				</div>
 
 				{/* Detailed results */}
-				<div className="space-y-6">
-					<div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-6">
-						{isWritingTest ? <PenTool className="w-6 h-6 text-emerald-600" /> : <Target className="w-6 h-6 text-primary" />}
-						<h2 className="text-2xl font-extrabold text-slate-800">
-							{isWritingTest ? 'Nhận xét chi tiết từ AI' : 'Đáp án chi tiết'}
-						</h2>
-					</div>
-
-					<div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 items-start">
-						<div className="space-y-6">
-							{activeQuestions.map((item, index) => {
-								const q = item.q;
-								const res = reviewData.responses?.find((r) => r.questionId === q.id);
-								const userAnswers = res?.answers || [];
-								const userAnswerStr = userAnswers.join(', ');
-
-								let status: QuestionStatus = 'skipped';
-								if (userAnswers.length > 0) {
-									if (res?.isCorrect === true) status = 'correct';
-									else if (res?.isCorrect === false) status = 'incorrect';
-									else status = 'manual';
-								}
-
-								const theme = statusTheme(status);
-								const options = q.choices?.map((c) => c.key) || [];
-
-								// Check if this is a Writing question (case-insensitive)
-								const isWriting = q.type?.toLowerCase() === 'writing' || q.tags?.some(t => t.toLowerCase().includes('writing'));
-
-								// Parse & normalise AI-service feedback (handles envelope + all field-name variants)
-								const writingData: WritingFeedback | null =
-									isWriting ? parseWritingFeedback(res?.additionalData) : null;
-
-								return (
-									<div id={`q-${q.id}`} key={q.id} className={`bg-white rounded-2xl border-l-[6px] shadow-sm hover:shadow-md transition-shadow overflow-hidden ${theme.borderClass}`}>
-										<div className={`px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 ${theme.bgHeaderClass} border-b border-slate-100`}>
-											<div className="flex items-center gap-3">
-												<div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${status === 'correct' ? 'bg-green-500 text-white' : status === 'incorrect' ? 'bg-red-500 text-white' : status === 'manual' ? 'bg-slate-400 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>{index + 1}</div>
-												{isWriting && writingData ? (
-													<span className="inline-flex items-center gap-1.5 font-bold text-sm px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700">
-														<Trophy className="w-3.5 h-3.5" />
-														{writingData.overall_score} Band
-													</span>
-												) : (
-													<span className={`inline-flex items-center gap-1.5 font-bold uppercase text-xs px-3 py-1.5 rounded-full ${theme.badgeBg} ${theme.badgeText}`}>
-														<theme.Icon className="w-3.5 h-3.5" />
-														{statusLabel(status)}
-													</span>
-												)}
-												{item.part && <span className="text-xs font-extrabold px-2 py-1 rounded-lg bg-white/70 border border-slate-200 text-slate-700">Part {item.part}</span>}
-											</div>
-											<div className="flex items-center gap-4">
-												<span className="text-sm bg-white px-3 py-1 rounded-lg border border-slate-200 text-slate-600 font-bold shadow-sm whitespace-nowrap">{q.points} Điểm</span>
-												<AICard q={q} />
-											</div>
-										</div>
-
-										<div className="p-6 md:p-8 space-y-8">
-											<div className="prose prose-slate max-w-none">
-												<p className="text-slate-800 text-lg font-medium leading-relaxed">{q.content}</p>
-											</div>
-
-											{(() => {
-												const raw = [...new Set([...(item.ownerSectionFileUrls ?? []), ...(q.fileUrls ?? [])])];
-												const audioUrls = raw.filter(isAudioUrl).map(formatMediaUrl);
-												const imageUrls = raw.filter(isImageUrl).map(formatMediaUrl);
-												if (audioUrls.length === 0 && imageUrls.length === 0) return null;
-												return (
-													<div className="space-y-4">
-														{audioUrls.map((url) => (
-															<div key={url} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-																<audio controls className="h-8 w-full outline-none">
-																	<source src={url} />
-																</audio>
-															</div>
-														))}
-														{imageUrls.length > 0 && (
-															<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-																{imageUrls.map((url, i) => (
-																	<div key={`${url}-${i}`} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-																		{/* eslint-disable-next-line @next/next/no-img-element */}
-																		<img src={url} alt="" className="h-auto w-full object-contain" />
-																	</div>
-																))}
-															</div>
-														)}
-													</div>
-												);
-											})()}
-
-											{/* Writing Result UI */}
-											{isWriting && writingData ? (
-												<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-													{/* Left column - Scores & Feedback */}
-													<div className="space-y-6">
-														{/* Overall Score */}
-														<div className="bg-emerald-50/50 rounded-xl p-5 border border-emerald-200">
-															<div className="flex items-center justify-between mb-4">
-																<span className="font-bold text-slate-700">Điểm & nhận xét chung</span>
-																<span className="text-2xl font-black text-emerald-600">{writingData.overall_score} Band</span>
-															</div>
-
-															{/* Sub-scores */}
-															<div className="space-y-3">
-																<p className="text-sm font-bold text-slate-600 mb-2">Điểm chi tiết:</p>
-																{writingData.sub_scores && Object.entries(writingData.sub_scores).map(([key, score]) => (
-																	<div key={key} className="flex items-center justify-between bg-white rounded-lg px-4 py-2 border border-emerald-100">
-																		<span className="text-sm text-slate-600">{key}</span>
-																		<span className="font-bold text-emerald-600">{score}<span className="text-slate-400 font-normal">/9.0</span></span>
-																	</div>
-																))}
-															</div>
-														</div>
-
-														{/* Detailed Feedback */}
-														{writingData.detailed_feedback && (
-															<div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-																<p className="font-bold text-slate-700 mb-3">Nhận xét chi tiết</p>
-																<div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
-																	{writingData.detailed_feedback}
-																</div>
-															</div>
-														)}
-													</div>
-
-													{/* Right column - Essay & Corrections */}
-													<div className="space-y-6">
-														{/* User's Answer */}
-														<div className="bg-amber-50/50 rounded-xl p-5 border border-amber-200">
-															<div className="flex items-center gap-2 mb-3">
-																<AlertCircle className="w-4 h-4 text-amber-600" />
-																<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Bài viết của bạn</p>
-															</div>
-															<div className="bg-white rounded-lg p-4 border border-amber-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
-																{userAnswerStr || <span className="text-slate-400 italic">Chưa có bài viết</span>}
-															</div>
-														</div>
-
-														{/* Corrected Version */}
-														{writingData.corrected_version && (
-															<div className="bg-emerald-50/30 rounded-xl p-5 border border-emerald-200">
-																<div className="flex items-center gap-2 mb-3">
-																	<div className="w-2 h-2 rounded-full bg-emerald-500" />
-																	<p className="text-sm font-bold text-slate-700">Phiên bản đã chỉnh sửa</p>
-																</div>
-																<div className="bg-white rounded-lg p-4 border border-emerald-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
-																	{writingData.corrected_version}
-																</div>
-															</div>
-														)}
-
-														{/* Corrections List */}
-														{writingData.corrections && writingData.corrections.length > 0 && (
-															<div className="bg-white rounded-xl p-5 border border-slate-200">
-																<p className="font-bold text-slate-700 mb-4">Danh sách lỗi ({writingData.corrections.length})</p>
-																<div className="space-y-3">
-																	{writingData.corrections.map((correction, idx) => (
-																		<div key={idx} className="bg-red-50/50 rounded-lg p-3 border border-red-100 border-dashed">
-																		<div className="flex items-center gap-2 mb-2">
-																			<div className="w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">{idx + 1}</div>
-																			<span className="text-xs font-bold text-red-700 uppercase">{correction.type || 'Lỗi'}</span>
-																		</div>
-																		<div className="grid grid-cols-2 gap-2 text-sm">
-																			<div>
-																				<span className="text-slate-500 text-xs">Gốc:</span>
-																				<p className="text-red-600 line-through">{correction.original}</p>
-																				</div>
-																			<div>
-																				<span className="text-slate-500 text-xs">Sửa:</span>
-																				<p className="text-emerald-600 font-medium">{correction.corrected}</p>
-																				</div>
-																		</div>
-																		{correction.explanation && (
-																			<p className="text-xs text-slate-500 mt-2"><span className="font-medium">Giải thích:</span> {correction.explanation}</p>
-																		)}
-																	</div>
-																	))}
-																</div>
-															</div>
-														)}
-													</div>
-												</div>
-											) : (
-												<>
-											{/* Regular question options (old style) */}
-											{options && options.length > 0 && (
-												<div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-													<p className="mb-3 font-bold text-slate-700 text-sm uppercase tracking-wide">Các lựa chọn:</p>
-													<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-														{q.choices.map((op, i) => {
-															const opKey = String.fromCharCode(65 + i);
-															const isChecked = userAnswers.includes(op.key);
-															return (
-																<div
-																	key={op.key}
-																	className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${
-																		isChecked ? 'border-primary shadow-[0_0_0_1px_rgba(96,165,250,1)]' : 'border-slate-200'
-																	}`}
-																>
-																	<div
-																		className={`w-6 h-6 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${
-																			isChecked
-																				? 'bg-primary border-primary text-primary-foreground'
-																				: 'bg-slate-100 border-slate-300 text-slate-500'
-																		}`}
-																	>
-																		{opKey}
-																	</div>
-																	<span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
-																		{op.content || op.key}
-																	</span>
-																</div>
-															);
-														})}
-													</div>
-												</div>
-											)}
-											</>
-										)}
-
-										{/* Câu trả lời / Đáp án đúng — old style for all non-writing questions */}
-										{!isWriting && (
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-												<div
-													className={`p-5 rounded-xl border ${
-														status === 'correct'
-															? 'bg-green-50/50 border-green-200'
-															: status === 'incorrect'
-																? 'bg-red-50/50 border-red-200'
-																: 'bg-slate-50 border-slate-200'
-													}`}
-												>
-													<div className="flex items-center gap-2 mb-2">
-														<UserIcon
-															className={`w-4 h-4 ${
-																status === 'correct'
-																	? 'text-green-600'
-																	: status === 'incorrect'
-																		? 'text-red-600'
-																		: 'text-slate-500'
-															}`}
-														/>
-														<p className="text-xs uppercase font-bold text-slate-500 tracking-wider">Câu trả lời của bạn</p>
-													</div>
-													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-														{userAnswerStr ? (
-															<span
-																className={`text-lg font-bold px-3 py-1 bg-white rounded-lg border shadow-sm ${
-																	status === 'correct'
-																		? 'text-green-700 border-green-200'
-																		: status === 'incorrect'
-																			? 'text-red-600 border-red-200'
-																			: 'text-slate-700 border-slate-300'
-																}`}
-															>
-																{userAnswerStr}
-															</span>
-														) : (
-															<span className="text-slate-400 italic font-medium">Chưa trả lời</span>
-														)}
-													</div>
-												</div>
-
-												<div className="p-5 rounded-xl border bg-primary/10 border-primary/30">
-													<div className="flex items-center gap-2 mb-2">
-														<CheckCircle2 className="w-4 h-4 text-primary" />
-														<p className="text-xs uppercase font-bold text-primary tracking-wider">Đáp án đúng</p>
-													</div>
-													<div className="min-h-[2.5rem] flex flex-wrap items-center gap-2">
-														<QuestionCard q={q} status={status} />
-													</div>
-												</div>
-											</div>
-										)}
-
-											{/* additionalData fallback — only for non-writing questions (writing uses the card above) */}
-											{!isWriting && res?.additionalData && (
-												<div className="mt-6 p-5 rounded-xl border bg-amber-50/50 border-amber-200">
-													<div className="flex items-center gap-2 mb-3">
-														<AlertCircle className="w-5 h-5 text-amber-500" />
-														<p className="text-sm uppercase font-bold text-amber-700 tracking-wider">Nhận xét chi tiết</p>
-													</div>
-													<div className="prose prose-sm max-w-none text-amber-900/80 whitespace-pre-wrap">
-														{(() => {
-															try {
-																const parsed = JSON.parse(res.additionalData);
-																return (
-																	<div className="space-y-4">
-																		{parsed.overall_score !== undefined && (
-																			<div className="flex items-center gap-2">
-																				<span className="font-bold text-amber-800">Điểm tổng:</span>
-																				<span className="text-xl font-black text-amber-600">{parsed.overall_score}</span>
-																			</div>
-																		)}
-																		{parsed.detailed_feedback && (
-																			<div>
-																				<span className="font-bold text-amber-800 block mb-1">Nhận xét:</span>
-																				<div className="bg-white/50 p-3 rounded-lg border border-amber-200/50">{parsed.detailed_feedback}</div>
-																			</div>
-																		)}
-																		{parsed.corrected_version && (
-																			<div>
-																				<span className="font-bold text-amber-800 block mb-1">Phiên bản gợi ý:</span>
-																				<div className="bg-white/50 p-3 rounded-lg border border-amber-200/50">{parsed.corrected_version}</div>
-																			</div>
-																		)}
-																	</div>
-																);
-															} catch (e) {
-																return <div>{res.additionalData}</div>;
-															}
-														})()}
-													</div>
-												</div>
-											)}
-										</div>
-									</div>
-								);
-							})}
-						</div>
-
-						{/* Question map */}
-						<div className="xl:sticky xl:top-24">
-							<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-								<div className="flex items-center justify-between gap-2 mb-3">
-									<div className="font-extrabold text-slate-800 text-sm">Danh sách câu</div>
-									<div className="text-xs text-slate-500 font-bold">{activeQuestions.length} câu</div>
-								</div>
-								<div className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto pr-1">
-									{activeQuestionsByPart.map(({ part: partInfo, items }) => (
-										<div key={partInfo.id}>
-											<h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">{partInfo.name}</h3>
-											<div className="grid grid-cols-5 gap-2">
-												{items.map((item) => {
-													const st = questionStatusById.get(item.q.id) || 'skipped';
-													const isWritingQ =
-														item.q.type?.toLowerCase() === 'writing' ||
-														item.q.tags?.some((t) => t.toLowerCase().includes('writing'));
-													const bg = isWritingQ
-														? 'border-emerald-200 bg-emerald-100 text-emerald-800'
-														: st === 'correct'
-															? 'border-green-200 bg-green-100 text-green-800'
-															: st === 'incorrect'
-																? 'border-red-200 bg-red-100 text-red-800'
-																: 'border-slate-200 bg-slate-100 text-slate-700';
-													return (
-														<button
-															key={item.q.id}
-															type="button"
-															onClick={() => {
-																const el = document.getElementById(`q-${item.q.id}`);
-																el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-															}}
-															className={`flex h-9 items-center justify-center rounded-lg border text-xs font-extrabold transition hover:brightness-95 ${bg}`}
-															title={`${partInfo.name} · Câu ${item.globalIndex}`}
-														>
-															{item.globalIndex}
-														</button>
-													);
-												})}
-											</div>
-										</div>
-									))}
-								</div>
-							{isWritingTest ? (
-								<div className="mt-4 flex items-center gap-3 text-xs font-bold text-slate-600">
-									<span className="inline-flex items-center gap-2">
-										<span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" />
-										Bài viết
-									</span>
-								</div>
-							) : (
-								<div className="mt-4 flex items-center gap-3 text-xs font-bold text-slate-600">
-									<span className="inline-flex items-center gap-2">
-										<span className="w-3 h-3 rounded bg-green-100 border border-green-200" />
-										Đúng
-									</span>
-									<span className="inline-flex items-center gap-2">
-										<span className="w-3 h-3 rounded bg-red-100 border border-red-200" />
-										Sai
-									</span>
-									<span className="inline-flex items-center gap-2">
-										<span className="w-3 h-3 rounded bg-slate-100 border border-slate-200" />
-										Bỏ
-									</span>
-								</div>
-							)}
-							</div>
-						</div>
-					</div>
-				</div>
+				<DetailedAnalysis
+					flatQuestions={flatQuestions}
+					questionStatusById={questionStatusById}
+					toeicParts={toeicParts}
+					reviewData={reviewData!}
+					isWritingTest={isWritingTest}
+				/>
 			</div>
 		</div>
 	);
 }
 
-function UserIcon(props: React.SVGProps<SVGSVGElement>) {
+function DetailedAnalysis({
+	flatQuestions,
+	questionStatusById,
+	toeicParts,
+	reviewData,
+	isWritingTest,
+}: {
+	flatQuestions: FlatQuestion[];
+	questionStatusById: Map<string, QuestionStatus>;
+	toeicParts: number[];
+	reviewData: AttemptReviewDto;
+	isWritingTest: boolean;
+}) {
+	const [analysisPart, setAnalysisPart] = useState<'overview' | number>('overview');
+	const [expandedQ, setExpandedQ] = useState<string | null>(null);
+	const [detailCache, setDetailCache] = useState<Record<string, QuestionDetailDto>>({});
+	const [detailLoading, setDetailLoading] = useState<string | null>(null);
+
+	const getCorrectKey = useCallback((q: QuestionReviewDto) => {
+		const correct = q.choices?.find(c => c.isCorrect);
+		return correct?.key || '–';
+	}, []);
+
+	const getUserAnswer = useCallback((qId: string) => {
+		const res = reviewData.responses?.find(r => r.questionId === qId);
+		return res?.answers?.join(', ') || '';
+	}, [reviewData]);
+
+	const fetchDetail = useCallback(async (qId: string) => {
+		if (detailCache[qId]) {
+			setExpandedQ(prev => prev === qId ? null : qId);
+			return;
+		}
+		setDetailLoading(qId);
+		setExpandedQ(qId);
+		try {
+			const res = await ExamPracticeService.examPracticeGatewayControllerGetDetailedQuestionInfoV1(qId);
+			if (res.data) {
+				setDetailCache(prev => ({ ...prev, [qId]: res.data as QuestionDetailDto }));
+			}
+		} catch (err) {
+			console.error('Failed to load question detail:', err);
+		} finally {
+			setDetailLoading(null);
+		}
+	}, [detailCache]);
+
+	const tagAnalysis = useMemo(() => {
+		const filtered = analysisPart === 'overview'
+			? flatQuestions
+			: flatQuestions.filter(x => x.part === analysisPart);
+
+		const byTag = new Map<string, { correct: number; incorrect: number; skipped: number; questions: number[] }>();
+
+		for (const item of filtered) {
+			const st = questionStatusById.get(item.q.id) || 'skipped';
+			const tags = item.q.tags?.length ? item.q.tags : ['Khác'];
+
+			for (const tag of tags) {
+				if (!byTag.has(tag)) byTag.set(tag, { correct: 0, incorrect: 0, skipped: 0, questions: [] });
+				const entry = byTag.get(tag)!;
+				entry.questions.push(item.globalIndex);
+				if (st === 'correct') entry.correct++;
+				else if (st === 'incorrect') entry.incorrect++;
+				else entry.skipped++;
+			}
+		}
+
+		const rows = Array.from(byTag.entries()).map(([tag, data]) => ({
+			tag,
+			...data,
+			total: data.correct + data.incorrect + data.skipped,
+			accuracy: data.correct + data.incorrect > 0
+				? ((data.correct / (data.correct + data.incorrect)) * 100).toFixed(2)
+				: '–',
+		}));
+
+		const totals = rows.reduce(
+			(acc, r) => ({ correct: acc.correct + r.correct, incorrect: acc.incorrect + r.incorrect, skipped: acc.skipped + r.skipped }),
+			{ correct: 0, incorrect: 0, skipped: 0 }
+		);
+		const totalAcc = totals.correct + totals.incorrect > 0
+			? ((totals.correct / (totals.correct + totals.incorrect)) * 100).toFixed(2)
+			: '–';
+
+		return { rows, totals, totalAcc };
+	}, [flatQuestions, questionStatusById, analysisPart]);
+
+	const questionsByPart = useMemo(() => {
+		const groups = new Map<number, FlatQuestion[]>();
+		for (const item of flatQuestions) {
+			const p = item.part ?? 0;
+			if (!groups.has(p)) groups.set(p, []);
+			groups.get(p)!.push(item);
+		}
+		return Array.from(groups.entries()).sort(([a], [b]) => a - b);
+	}, [flatQuestions]);
+
+	if (isWritingTest) return null;
+
+	const analysisTabs = [
+		{ key: 'overview' as const, label: 'Tổng quát' },
+		...toeicParts.map(p => ({ key: p, label: `Part ${p}` })),
+	];
+
 	return (
-		<svg
-			{...props}
-			xmlns="http://www.w3.org/2000/svg"
-			width="24"
-			height="24"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-			<circle cx="12" cy="7" r="4" />
-		</svg>
+		<div className="space-y-8">
+			{/* Phân tích chi tiết */}
+			<div className="space-y-4">
+				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+					<Target className="w-6 h-6 text-primary" />
+					<h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">Phân tích chi tiết</h2>
+				</div>
+
+				{toeicParts.length > 0 && (
+					<div className="flex flex-wrap gap-2">
+						{analysisTabs.map(tab => (
+							<button
+								key={String(tab.key)}
+								onClick={() => setAnalysisPart(tab.key)}
+								className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+									analysisPart === tab.key
+										? 'bg-primary text-white shadow-md'
+										: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+								}`}
+							>
+								{tab.label}
+							</button>
+						))}
+					</div>
+				)}
+
+				<div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+								<th className="text-left px-4 py-3 font-bold">Phân loại câu hỏi</th>
+								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Đúng</th>
+								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Sai</th>
+								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Bỏ qua</th>
+								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Độ chính xác</th>
+								<th className="text-left px-4 py-3 font-bold">Danh sách câu</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+							{tagAnalysis.rows.map(row => (
+								<tr key={row.tag} className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+									<td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.tag}</td>
+									<td className="text-center px-3 py-3 font-bold text-green-600">{row.correct}</td>
+									<td className="text-center px-3 py-3 font-bold text-red-500">{row.incorrect}</td>
+									<td className="text-center px-3 py-3 text-slate-400">{row.skipped}</td>
+									<td className={`text-center px-3 py-3 font-bold ${
+										row.accuracy === '–' ? 'text-slate-400' :
+										parseFloat(row.accuracy) >= 80 ? 'text-green-600' :
+										parseFloat(row.accuracy) >= 50 ? 'text-amber-600' : 'text-red-500'
+									}`}>{row.accuracy === '–' ? '–' : `${row.accuracy}%`}</td>
+									<td className="px-4 py-3 text-slate-500 text-xs">{row.questions.join(' ')}</td>
+								</tr>
+							))}
+							<tr className="bg-slate-50 dark:bg-slate-800/80 font-bold">
+								<td className="px-4 py-3 text-slate-800 dark:text-slate-200">Tổng cộng</td>
+								<td className="text-center px-3 py-3 text-green-600">{tagAnalysis.totals.correct}</td>
+								<td className="text-center px-3 py-3 text-red-500">{tagAnalysis.totals.incorrect}</td>
+								<td className="text-center px-3 py-3 text-slate-400">{tagAnalysis.totals.skipped}</td>
+								<td className={`text-center px-3 py-3 ${
+									tagAnalysis.totalAcc === '–' ? 'text-slate-400' : 'text-primary'
+								}`}>{tagAnalysis.totalAcc === '–' ? '–' : `${tagAnalysis.totalAcc}%`}</td>
+								<td className="px-4 py-3"></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			{/* Đáp án */}
+			<div className="space-y-4">
+				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+					<CheckCircle2 className="w-6 h-6 text-primary" />
+					<h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">Đáp án</h2>
+				</div>
+
+				<div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-200">
+					<strong>Chú ý:</strong> Khi làm lại các câu sai, điểm trung bình của bạn sẽ <strong>KHÔNG BỊ ẢNH HƯỞNG</strong>.
+				</div>
+
+				<div className="space-y-6">
+					{questionsByPart.map(([partNum, items]) => (
+						<div key={partNum}>
+							<h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-3">
+								{partNum > 0 ? `Part ${partNum}` : 'Câu hỏi'}
+							</h3>
+							<div className="space-y-1">
+								{items.map(item => {
+									const st = questionStatusById.get(item.q.id) || 'skipped';
+									const userAns = getUserAnswer(item.q.id);
+									const correctAns = getCorrectKey(item.q);
+									const isExpanded = expandedQ === item.q.id;
+									const detail = detailCache[item.q.id];
+									const isLoading = detailLoading === item.q.id;
+
+									return (
+										<div key={item.q.id}>
+											<div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
+												isExpanded ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+											}`}>
+												<span className="font-bold text-slate-500 w-8 text-right tabular-nums">{item.globalIndex}</span>
+												<span className={`font-bold min-w-[20px] ${
+													st === 'correct' ? 'text-green-600' :
+													st === 'incorrect' ? 'text-red-500' :
+													'text-slate-400'
+												}`}>{userAns || '–'}</span>
+												<span className="text-slate-400">:</span>
+												<span className="font-bold text-slate-700 dark:text-slate-200 min-w-[20px]">{correctAns}</span>
+
+												{st === 'correct' && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
+												{st === 'incorrect' && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+												{st === 'skipped' && <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />}
+
+												<button
+													onClick={() => fetchDetail(item.q.id)}
+													className={`ml-auto text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+														isExpanded
+															? 'bg-primary text-white'
+															: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+													}`}
+												>
+													{isLoading ? (
+														<Loader2 className="w-3 h-3 animate-spin" />
+													) : (
+														<ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+													)}
+													Chi tiết
+												</button>
+											</div>
+
+											{isExpanded && (
+												<div className="ml-12 mr-4 mt-1 mb-3 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-4 shadow-sm">
+													{isLoading && !detail ? (
+														<div className="flex items-center gap-2 text-slate-500 py-4">
+															<Loader2 className="w-4 h-4 animate-spin" />
+															<span className="text-sm">Đang tải...</span>
+														</div>
+													) : detail ? (
+														<>
+															{detail.sectionContext?.map((ctx, i) => (
+																<div key={i} className="space-y-3">
+																	{ctx.content && (
+																		<p className="text-slate-700 dark:text-slate-300 leading-relaxed">{ctx.content}</p>
+																	)}
+																	{ctx.fileUrls?.map(url => {
+																		const formatted = formatMediaUrl(url);
+																		if (isAudioUrl(url)) {
+																			return (
+																				<div key={url} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3">
+																					<audio controls className="h-8 w-full">
+																						<source src={formatted} />
+																					</audio>
+																				</div>
+																			);
+																		}
+																		if (isImageUrl(url)) {
+																			return (
+																				<div key={url} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+																					{/* eslint-disable-next-line @next/next/no-img-element */}
+																					<img src={formatted} alt="" className="h-auto w-full max-w-md object-contain" />
+																				</div>
+																			);
+																		}
+																		return null;
+																	})}
+																</div>
+															))}
+
+															{detail.content && (
+																<div className="text-slate-800 dark:text-slate-200 font-medium">{detail.content}</div>
+															)}
+
+															{item.q.choices?.length > 0 && (
+																<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+																	{item.q.choices.map((c, i) => {
+																		const letter = String.fromCharCode(65 + i);
+																		const isCorrect = c.isCorrect;
+																		const isUserPick = getUserAnswer(item.q.id).split(', ').includes(c.key);
+																		return (
+																			<div key={c.key} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
+																				isCorrect
+																					? 'bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-700'
+																					: isUserPick
+																						? 'bg-red-50 border-red-300 dark:bg-red-900/30 dark:border-red-700'
+																						: 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+																			}`}>
+																				<span className={`font-bold ${
+																					isCorrect ? 'text-green-600' : isUserPick ? 'text-red-500' : 'text-slate-500'
+																				}`}>{letter}.</span>
+																				<span className={isCorrect ? 'font-bold text-green-700 dark:text-green-400' : isUserPick ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}>
+																					{c.content || c.key}
+																				</span>
+																			</div>
+																		);
+																	})}
+																</div>
+															)}
+
+															{detail.explanation && (
+																<div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+																	<p className="font-bold text-blue-800 dark:text-blue-300 text-sm mb-2">Giải thích chi tiết đáp án</p>
+																	<div className="text-sm text-blue-900 dark:text-blue-200 leading-relaxed whitespace-pre-wrap">{detail.explanation}</div>
+																</div>
+															)}
+
+															{detail.fileUrls?.length > 0 && (
+																<div className="space-y-2">
+																	{detail.fileUrls.filter(isAudioUrl).map(url => (
+																		<div key={url} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3">
+																			<audio controls className="h-8 w-full">
+																				<source src={formatMediaUrl(url)} />
+																			</audio>
+																		</div>
+																	))}
+																	{detail.fileUrls.filter(isImageUrl).map(url => (
+																		<div key={url} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+																			{/* eslint-disable-next-line @next/next/no-img-element */}
+																			<img src={formatMediaUrl(url)} alt="" className="h-auto w-full max-w-md object-contain" />
+																		</div>
+																	))}
+																</div>
+															)}
+														</>
+													) : (
+														<p className="text-sm text-red-500">Không thể tải chi tiết câu hỏi.</p>
+													)}
+												</div>
+											)}
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
 	);
 }

@@ -77,39 +77,38 @@ export function Dashboard() {
 		fetchDashboardData();
 	}, [isHydrated, currentUser, router]);
 
-	// Activity Heatmap Data
 	const heatmapWeeks = useMemo(() => {
-		const weeks: { dateStr: string; count: number; isFuture: boolean }[][] = [];
+		const dateMap = new Map<string, number>();
+		for (const [epochStr, count] of Object.entries(calendarHistory)) {
+			const date = new Date(Number(epochStr) * 1000);
+			const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+			dateMap.set(key, (dateMap.get(key) || 0) + count);
+		}
+
 		const today = new Date();
-		today.setHours(23, 59, 59, 999);
-		
-		const startDate = new Date(today);
-		startDate.setDate(today.getDate() - 364); 
-		
-		// Align to Sunday
-		while (startDate.getDay() !== 0) {
-			startDate.setDate(startDate.getDate() - 1);
+		today.setHours(0, 0, 0, 0);
+
+		const start = new Date(today);
+		start.setDate(start.getDate() - (25 * 7 + today.getDay()));
+
+		const grid: { date: Date; count: number }[][] = [];
+		let week: { date: Date; count: number }[] = [];
+
+		const current = new Date(start);
+		while (current <= today) {
+			const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+			const count = dateMap.get(key) || 0;
+			week.push({ date: new Date(current), count });
+
+			if (week.length === 7) {
+				grid.push(week);
+				week = [];
+			}
+			current.setDate(current.getDate() + 1);
 		}
+		if (week.length > 0) grid.push(week);
 
-		let currDate = new Date(startDate);
-		while (currDate <= today || currDate.getDay() !== 0) {
-			if (currDate > today && currDate.getDay() === 0) break;
-
-			const weekIndex = Math.floor((currDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-			if (!weeks[weekIndex]) weeks[weekIndex] = [];
-
-			const tzoffset = currDate.getTimezoneOffset() * 60000;
-			const localISOTime = new Date(currDate.getTime() - tzoffset).toISOString().slice(0, 10);
-			
-			weeks[weekIndex].push({
-				dateStr: localISOTime,
-				count: calendarHistory[localISOTime] || 0,
-				isFuture: currDate.getTime() > today.getTime()
-			});
-
-			currDate.setDate(currDate.getDate() + 1);
-		}
-		return weeks;
+		return grid;
 	}, [calendarHistory]);
 
 	if (!isHydrated || loading) {
@@ -126,18 +125,11 @@ export function Dashboard() {
 	// Temporarily remove in-progress attempts since backend attempt history doesn't bundle exam titles elegantly yet
 	const inProgressAttemptsCount = 0;
 
-	const formatDate = (date: Date | string) => {
-		const dateObj = typeof date === 'string' ? new Date(date) : date;
-		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
-	};
-
-	const getHeatmapColor = (count: number, isFuture: boolean) => {
-		if (isFuture) return 'bg-transparent border border-dashed border-muted';
-		if (count === 0) return 'bg-muted';
-		if (count === 1) return 'bg-primary/20';
-		if (count >= 2 && count <= 3) return 'bg-primary/40';
-		if (count >= 4 && count <= 5) return 'bg-primary/60';
-		return 'bg-primary';
+	const getCellColor = (count: number) => {
+		if (count === 0) return 'bg-slate-100 dark:bg-slate-800/60';
+		if (count === 1) return 'bg-green-200 dark:bg-green-800/50';
+		if (count === 2) return 'bg-green-400 dark:bg-green-600/70';
+		return 'bg-green-600 dark:bg-green-500';
 	};
 
 	return (
@@ -217,65 +209,45 @@ export function Dashboard() {
 
 			<div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 				{/* Activity Heatmap */}
-				<Card className="border-0 shadow-md bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all mb-8">
-					<CardContent className="pt-6 pb-6 overflow-x-auto">
-						<div className="min-w-[800px]">
-							<div className="flex justify-between items-end mb-4">
-								<h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-									<Calendar className="w-5 h-5 text-emerald-600" /> Hoạt động luyện tập
-								</h2>
-								<div className="text-sm text-gray-500">2026</div>
-							</div>
-							<div className="flex gap-[3px]">
-								{/* Day Labels (Mon, Wed, Fri) */}
-								<div className="flex flex-col gap-[3px] pr-2 text-xs text-gray-400 font-medium justify-between font-sans mt-[18px]">
-									<span className="h-[14px]"></span>
-									<span className="h-[14px] leading-[14px]">Mon</span>
-									<span className="h-[14px]"></span>
-									<span className="h-[14px] leading-[14px]">Wed</span>
-									<span className="h-[14px]"></span>
-									<span className="h-[14px] leading-[14px]">Fri</span>
-									<span className="h-[14px]"></span>
-								</div>
-
-								{/* Heatmap Grid */}
-								<div className="flex gap-[3px] flex-1">
-									{heatmapWeeks.map((week, wIdx) => {
-										// Strictly match -01 to prevent double month labels like NovNov
-										const monthLabel = week.find((d) => d.dateStr.endsWith('-01'));
-										return (
-											<div key={wIdx} className="flex flex-col gap-[3px] relative pt-[18px]">
-												{monthLabel && (
-													<div className="absolute top-0 left-0 text-[10px] text-gray-500 font-medium select-none whitespace-nowrap">
-														{new Date(monthLabel.dateStr).toLocaleString('en-US', { month: 'short' })}
-													</div>
-												)}
-												{week.map((day, dIdx) => (
-													<div
-														key={dIdx}
-														className={`w-[14px] h-[14px] rounded-[3px] ${getHeatmapColor(day.count, day.isFuture)} transition-colors duration-200 hover:ring-2 hover:ring-gray-300 hover:ring-offset-1`}
-														title={day.isFuture ? undefined : `${day.count} bài làm vào ${formatDate(day.dateStr)}`}
-													/>
-												))}
-											</div>
-										);
-									})}
-								</div>
-							</div>
-							<div className="flex items-center justify-between mt-4 text-xs text-gray-500">
-								<div>Cố gắng duy trì để phủ kín bảng này nhé!</div>
-								<div className="flex items-center gap-1.5">
-									<span>Ít</span>
-									<div className="flex gap-[3px]">
-										<div className="w-3 h-3 rounded-[2px] bg-muted" />
-										<div className="w-3 h-3 rounded-[2px] bg-primary/20" />
-										<div className="w-3 h-3 rounded-[2px] bg-primary/40" />
-										<div className="w-3 h-3 rounded-[2px] bg-primary/60" />
-										<div className="w-3 h-3 rounded-[2px] bg-primary" />
+				<Card className="border-0 shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all mb-8">
+					<CardContent className="pt-6 pb-6">
+						<h2 className="text-xl font-bold flex items-center gap-2 text-foreground mb-4">
+							<Calendar className="w-5 h-5 text-primary" />
+							Hoạt động luyện tập
+						</h2>
+						<div className="flex gap-[3px] overflow-x-auto pb-2">
+							<div className="flex flex-col gap-[3px] mr-1 shrink-0">
+								{['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, i) => (
+									<div key={i} className="h-[13px] text-[10px] text-muted-foreground flex items-center leading-none">
+										{i % 2 === 1 ? d : ''}
 									</div>
-									<span>Nhiều</span>
-								</div>
+								))}
 							</div>
+							{heatmapWeeks.map((week, wi) => (
+								<div key={wi} className="flex flex-col gap-[3px]">
+									{week.map((day, di) => (
+										<div key={di} className="relative group/cell">
+											<div
+												className={`w-[13px] h-[13px] rounded-[3px] ${getCellColor(day.count)} transition-colors`}
+											/>
+											<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
+												{day.date.toLocaleDateString('vi-VN')}: {day.count} bài đã làm
+												<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+											</div>
+										</div>
+									))}
+								</div>
+							))}
+						</div>
+						<div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground justify-end">
+							<span>Ít</span>
+							<div className="flex gap-[3px]">
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100 dark:bg-slate-800/60" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-200 dark:bg-green-800/50" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-400 dark:bg-green-600/70" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-600 dark:bg-green-500" />
+							</div>
+							<span>Nhiều</span>
 						</div>
 					</CardContent>
 				</Card>

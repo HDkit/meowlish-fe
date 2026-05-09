@@ -346,9 +346,9 @@ export function AuthForm() {
 					{/* Header */}
 					<div className='text-center space-y-4 pb-8'>
 						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
-							<Image src='/logos/logo.svg' alt='Lingriser' width={48} height={48} className='group-hover:scale-105 transition-transform' />
+							<Image src='/logos/logo-icon.svg' alt='Lingriser' width={48} height={48} className='group-hover:scale-105 transition-transform' />
 							<div>
-								<h1 className='text-3xl font-extrabold text-primary'>Lingriser</h1>
+								<Image src='/logos/logo.svg' alt='Lingriser' width={160} height={44} />
 								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
 							</div>
 						</Link>

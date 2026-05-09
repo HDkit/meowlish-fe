@@ -112,16 +112,21 @@ export function AppSidebar() {
           >
             <div className="flex h-9 w-9 items-center justify-center bg-white shadow-sm ring-1 ring-emerald-200/60 overflow-hidden dark:bg-slate-950 dark:ring-emerald-900/40">
               <Image
-                src="/logos/logo.svg"
+                src="/logos/logo-icon.svg"
                 alt="Lingriser"
                 width={36}
                 height={36}
                 priority
               />
             </div>
-            <span className="truncate text-lg font-display font-semibold text-emerald-600 group-data-[collapsible=icon]:hidden dark:text-emerald-400">
-              Lingriser
-            </span>
+            <Image
+              src="/logos/logo.svg"
+              alt="Lingriser"
+              width={110}
+              height={30}
+              className="group-data-[collapsible=icon]:hidden"
+              priority
+            />
           </button>
         </div>
       </SidebarHeader>

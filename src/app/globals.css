@@ -50,37 +50,42 @@
 }
 
 .dark {
-  --background: 155 24% 9%;
-  --foreground: 210 40% 96%;
-  --card: 156 20% 12%;
-  --card-foreground: 210 40% 96%;
-  --popover: 156 20% 12%;
-  --popover-foreground: 210 40% 96%;
-  --primary: 149 45% 52%;
+  --background: 220 14% 7%;
+  --foreground: 210 18% 93%;
+  --card: 220 10% 11%;
+  --card-foreground: 210 18% 93%;
+  --popover: 220 10% 13%;
+  --popover-foreground: 210 18% 93%;
+  --primary: 150 48% 50%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 36 84% 61%;
+  --secondary: 35 50% 55%;
   --secondary-foreground: 0 0% 100%;
-  --muted: 156 16% 16%;
-  --muted-foreground: 214 18% 72%;
-  --accent: 160 22% 18%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 70% 56%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 156 16% 20%;
-  --input: 156 16% 20%;
-  --ring: 149 45% 52%;
-  --input-background: hsl(156 18% 13%);
-  --switch-background: hsl(156 12% 24%);
+  --muted: 220 8% 15%;
+  --muted-foreground: 215 14% 58%;
+  --accent: 152 12% 16%;
+  --accent-foreground: 210 18% 93%;
+  --destructive: 0 62% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 8% 18%;
+  --input: 220 8% 15%;
+  --ring: 150 48% 50%;
+  --input-background: hsl(220 10% 12%);
+  --switch-background: hsl(220 6% 22%);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --sidebar: 156 22% 11%;
-  --sidebar-foreground: 210 40% 96%;
-  --sidebar-primary: 149 45% 52%;
+  --chart-1: 150 48% 50%;
+  --chart-2: 35 55% 55%;
+  --chart-3: 46 65% 60%;
+  --chart-4: 170 55% 40%;
+  --chart-5: 16 65% 58%;
+  --sidebar: 220 12% 9%;
+  --sidebar-foreground: 210 18% 93%;
+  --sidebar-primary: 150 48% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 156 18% 16%;
-  --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-border: 156 16% 19%;
-  --sidebar-ring: 149 45% 52%;
+  --sidebar-accent: 152 10% 15%;
+  --sidebar-accent-foreground: 210 18% 93%;
+  --sidebar-border: 220 8% 16%;
+  --sidebar-ring: 150 48% 50%;
 }
 
 
@@ -158,8 +163,8 @@ body {
 
   .dark body {
     background-image:
-      radial-gradient(circle at top, rgba(22, 163, 74, 0.08), transparent 26%),
-      linear-gradient(180deg, rgba(8, 12, 11, 0.98), rgba(12, 20, 18, 1));
+      radial-gradient(circle at top, rgba(59, 175, 115, 0.04), transparent 30%),
+      linear-gradient(180deg, hsl(220 14% 7%), hsl(220 14% 6%));
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -182,20 +187,20 @@ body[style*="overflow"] {
 
 @layer utilities {
   .dark .bg-white {
-    background-color: hsl(156 20% 12%) !important;
+    background-color: hsl(220 10% 11%) !important;
   }
 
   .dark .bg-slate-50,
   .dark .bg-slate-100,
   .dark .bg-gray-50,
   .dark .bg-gray-100 {
-    background-color: hsl(156 16% 16%) !important;
+    background-color: hsl(220 8% 15%) !important;
   }
 
   .dark .bg-slate-50\/50,
   .dark .bg-white\/80,
   .dark .bg-white\/90 {
-    background-color: hsl(156 18% 14% / 0.82) !important;
+    background-color: hsl(220 8% 13% / 0.82) !important;
   }
 
   .dark .text-slate-900,
@@ -207,19 +212,19 @@ body[style*="overflow"] {
 
   .dark .text-slate-700,
   .dark .text-gray-700 {
-    color: hsl(214 22% 84%) !important;
+    color: hsl(215 16% 78%) !important;
   }
 
   .dark .text-slate-600,
   .dark .text-gray-600 {
-    color: hsl(214 16% 72%) !important;
+    color: hsl(215 14% 65%) !important;
   }
 
   .dark .text-slate-500,
   .dark .text-gray-500,
   .dark .text-slate-400,
   .dark .text-gray-400 {
-    color: hsl(214 14% 62%) !important;
+    color: hsl(215 12% 55%) !important;
   }
 
   .dark .border-slate-50,
@@ -228,20 +233,20 @@ body[style*="overflow"] {
   .dark .border-gray-50,
   .dark .border-gray-100,
   .dark .border-gray-200 {
-    border-color: hsl(156 16% 20%) !important;
+    border-color: hsl(220 8% 18%) !important;
   }
 
   .dark .border-slate-300,
   .dark .border-gray-300,
   .dark .border-dashed {
-    border-color: hsl(156 14% 24%) !important;
+    border-color: hsl(220 6% 22%) !important;
   }
 
   .dark .shadow-sm,
   .dark .shadow-md,
   .dark .shadow-lg,
   .dark .shadow-xl {
-    --tw-shadow-color: rgba(0, 0, 0, 0.38) !important;
+    --tw-shadow-color: rgba(0, 0, 0, 0.45) !important;
   }
 
   .dark .bg-primary {
