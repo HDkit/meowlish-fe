@@ -20,6 +20,9 @@ import {
   Settings,
   LogOut,
   PanelLeftClose,
+  MessageCircle,
+  Bell,
+  Flag,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { clearUser } from './store/currUserSlice';
@@ -47,6 +50,8 @@ const learnerLinks = [
   { href: '/progress', label: 'Tiến độ', icon: TrendingUp },
   { href: '/history', label: 'Lịch sử', icon: ClipboardList },
   { href: '/blog', label: 'Blog', icon: Newspaper },
+  { href: '/chat', label: 'Phòng Chat', icon: MessageCircle },
+  { href: '/notifications', label: 'Thông báo', icon: Bell },
 ];
 
 const staffLinks = [
@@ -59,6 +64,7 @@ const staffLinks = [
 const headStaffExtra = [
   { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
   { href: '/user-management', label: 'Quản lý User', icon: Users },
+  { href: '/report-management', label: 'Quản lý Báo cáo', icon: Flag },
 ];
 
 export function AppSidebar() {

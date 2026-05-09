@@ -25,6 +25,10 @@ import rolesReducer from '@/components/store/roleSlice';
 import permissionsReducer from '@/components/store/permissionSlice';
 import sectionClosuresReducer from '@/components/store/sectionClosureSlice';
 import filesReducer from '@/components/store/fileSlice';
+// NEW: Feature reducers
+import notificationsReducer from '@/components/store/notificationSlice';
+import chatRoomsReducer from '@/components/store/chatRoomSlice';
+import chatMessagesReducer from '@/components/store/chatMessageSlice';
 
 // Seed users and roles that must always exist (merged with persisted data)
 const REQUIRED_USERS = [
@@ -134,6 +138,10 @@ const persistConfig = {
 		'permissions',
 		'sectionClosures',
 		'files',
+		// NEW: Feature states
+		'notifications',
+		'chatRooms',
+		'chatMessages',
 	],
 };
 
@@ -159,6 +167,10 @@ const rootReducer = combineReducers({
 	permissions: permissionsReducer,
 	sectionClosures: sectionClosuresReducer,
 	files: filesReducer,
+	// NEW: Feature reducers
+	notifications: notificationsReducer,
+	chatRooms: chatRoomsReducer,
+	chatMessages: chatMessagesReducer,
 });
 
 // Persisted reducer

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppSelector } from '@/lib/store/hooks';
 import { Blog, BlogCategory } from '../types/client';
+import { ReportDialog } from './ReportDialog';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -18,6 +19,7 @@ import {
 	Lightbulb,
 	Globe,
 	Star,
+	Flag,
 } from 'lucide-react';
 
 // Component hiển thị từng blog card
@@ -110,6 +112,8 @@ function BlogDetail({
 	authorName?: string;
 	onBack: () => void;
 }) {
+	const currUser = useAppSelector((state) => state.currUser.current);
+	const [reportOpen, setReportOpen] = useState(false);
 	const getCategoryInfo = (category: BlogCategory) => {
 		switch (category) {
 			case BlogCategory.WebUsage:
@@ -172,13 +176,24 @@ function BlogDetail({
 				<div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/80 rounded-full blur-[100px] opacity-30"></div>
 
 				<div className="max-w-4xl mx-auto w-full px-6 pb-12 relative z-10 pt-20">
-					<button
-						onClick={onBack}
-						className="flex items-center gap-2 text-primary-foreground/80 hover:text-white mb-8 transition-colors bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
-					>
-						<ChevronRight className="h-4 w-4 rotate-180" />
-						Quay lại danh sách
-					</button>
+					<div className="flex items-center justify-between mb-8">
+						<button
+							onClick={onBack}
+							className="flex items-center gap-2 text-primary-foreground/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
+						>
+							<ChevronRight className="h-4 w-4 rotate-180" />
+							Quay lại danh sách
+						</button>
+						{currUser && (
+							<button
+								onClick={() => setReportOpen(true)}
+								className="flex items-center gap-2 text-primary-foreground/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
+							>
+								<Flag className="h-4 w-4" />
+								Báo cáo
+							</button>
+						)}
+					</div>
 
 					<Badge className={`${categoryInfo.color} border-0 mb-6 uppercase tracking-wider text-xs px-3 py-1.5`}>
 						<CategoryIcon className="h-3.5 w-3.5 mr-2" />
@@ -223,6 +238,16 @@ function BlogDetail({
 					{formatContent(blog.content)}
 				</div>
 			</article>
+
+			{currUser && (
+				<ReportDialog
+					open={reportOpen}
+					onOpenChange={setReportOpen}
+					targetType="blog"
+					targetId={blog.id}
+					userId={currUser.id}
+				/>
+			)}
 		</div>
 	);
 }

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/culove/server -type f -name \"*.ts\" -o -name \"*.js\" -o -name \"*.json\" -o -name \"*.md\" | head -200)",
+      "Read(//home/culove/server/**)",
+      "Bash(npx next *)"
+    ]
+  }
+}

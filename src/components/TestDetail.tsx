@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
+import { ReportDialog } from './ReportDialog';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -36,6 +37,7 @@ import {
 	Loader2,
 	Calendar,
 	ChevronDown,
+	Flag,
 } from 'lucide-react';
 
 const EXAM_MY_HISTORY_LIMIT = 15;
@@ -92,6 +94,7 @@ export function ExamDetailPage() {
 	const [myAttemptsError, setMyAttemptsError] = useState<string | null>(null);
 	const [myAttemptsCursor, setMyAttemptsCursor] = useState<string | undefined>(undefined);
 	const [myAttemptsHasMore, setMyAttemptsHasMore] = useState(false);
+	const [reportOpen, setReportOpen] = useState(false);
 
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const users = useAppSelector((state) => state.users.list);
@@ -426,14 +429,26 @@ export function ExamDetailPage() {
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
 				<div className='max-w-6xl mx-auto px-6 relative z-10'>
-					<Button
-						variant="ghost"
-						onClick={() => router.push('/test-selection')}
-						className="flex items-center gap-2 mb-8 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Trở về danh sách đề thi
-					</Button>
+					<div className="flex items-center justify-between mb-8">
+						<Button
+							variant="ghost"
+							onClick={() => router.push('/test-selection')}
+							className="flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							Trở về danh sách đề thi
+						</Button>
+						{currentUser && (
+							<Button
+								variant="ghost"
+								onClick={() => setReportOpen(true)}
+								className="text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
+							>
+								<Flag className="h-4 w-4 mr-2" />
+								Báo cáo
+							</Button>
+						)}
+					</div>
 
 					<div className='space-y-6'>
 						<div className='flex items-start justify-between'>
@@ -1104,6 +1119,16 @@ export function ExamDetailPage() {
 					</div>
 				)}
 			</div>
+
+			{currentUser && (
+				<ReportDialog
+					open={reportOpen}
+					onOpenChange={setReportOpen}
+					targetType="exam"
+					targetId={examId}
+					userId={currentUser.id}
+				/>
+			)}
 		</div>
 	);
 }

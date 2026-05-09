@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from './ThemeToggle';
+import { NotificationDropdown } from './NotificationDropdown';
 import { SidebarTrigger } from './ui/sidebar';
 
 const pageTitles: Record<string, string> = {
@@ -17,9 +18,12 @@ const pageTitles: Record<string, string> = {
   '/exam-creation': 'Tạo đề thi',
   '/exam-management': 'Quản lý đề thi',
   '/blog-management': 'Quản lý Blog',
+  '/report-management': 'Quản lý Báo cáo',
   '/exam-approval': 'Duyệt đề thi',
   '/user-management': 'Quản lý User',
   '/user': 'Thông tin cá nhân',
+  '/chat': 'Phòng Chat',
+  '/notifications': 'Thông báo',
 };
 
 function getPageTitle(pathname: string): string {
@@ -40,7 +44,8 @@ export function AppTopBar() {
       <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-3 px-4 md:px-6 lg:px-8 xl:px-10">
         <SidebarTrigger className="md:hidden" />
         <h1 className="truncate text-xl font-semibold text-foreground">{title}</h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <NotificationDropdown />
           <ThemeToggle />
         </div>
       </div>

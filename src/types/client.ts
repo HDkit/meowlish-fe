@@ -151,10 +151,67 @@ export interface Reply extends MockDbType {
 	content: string;
 }
 
+export enum ReportCategory {
+	Bug = 'bug',
+	Content = 'content',
+	Behavior = 'behavior',
+}
+
+export enum ReportStatus {
+	Pending = 'pending',
+	Reviewing = 'reviewing',
+	Resolved = 'resolved',
+	Rejected = 'rejected',
+}
+
 export interface Report extends MockDbType {
-	userId: string; //User.id
-	examId: string;
-	content: string;
+	userId: string;
+	category: ReportCategory;
+	title: string;
+	description: string;
+	targetType?: 'blog' | 'exam' | 'user' | 'other';
+	targetId?: string;
+	status: ReportStatus;
+	adminResponse?: string;
+	reviewedBy?: string;
+	createdAt: number;
+	updatedAt?: number;
+}
+
+// Notification types
+export enum NotificationType {
+	BlogFollow = 'blog_follow',
+	ReportResponse = 'report_response',
+	System = 'system',
+}
+
+export interface Notification extends MockDbType {
+	userId: string;
+	type: NotificationType;
+	title: string;
+	message: string;
+	isRead: boolean;
+	linkType?: 'blog' | 'report';
+	linkId?: string;
+	createdAt: number;
+}
+
+// Chat types
+export interface ChatRoom extends MockDbType {
+	name: string;
+	createdBy: string;
+	scheduledLiveUrl?: string;
+	scheduledDate?: number;
+	memberCount: number;
+	lastMessageAt?: number;
+	createdAt: number;
+}
+
+export interface ChatMessage extends MockDbType {
+	roomId: string;
+	userId: string;
+	message: string;
+	createdAt: number;
 }
 export enum TagType {
 	Exam = 'exam',

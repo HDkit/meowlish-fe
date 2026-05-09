@@ -4,6 +4,8 @@ import storage from 'redux-persist/lib/storage'; // defaults to localStorage
 
 import attemptsReducer from '../attemptSlice';
 import blogsReducer from '../blogSlice';
+import chatMessagesReducer from '../chatMessageSlice';
+import chatRoomsReducer from '../chatRoomSlice';
 import commentsReducer from '../commentSlice';
 import currUserReducer from '../currUserSlice';
 import examsReducer from '../examSlice';
@@ -11,6 +13,7 @@ import flashCardsReducer from '../flashCardSlice';
 import flashcardListsReducer from '../flashcardListSlice';
 import goalsReducer from '../goalSlice';
 import notesReducer from '../noteSlice';
+import notificationsReducer from '../notificationSlice';
 import questionsReducer from '../questionSlice';
 import repliesReducer from '../replySlice';
 import reportsReducer from '../reportSlice';
@@ -38,6 +41,9 @@ const persistConfig = {
 		'comments',
 		'replies',
 		'blogs',
+		'notifications',
+		'chatRooms',
+		'chatMessages',
 	],
 };
 
@@ -58,6 +64,9 @@ const rootReducer = combineReducers({
 	comments: commentsReducer,
 	replies: repliesReducer,
 	blogs: blogsReducer,
+	notifications: notificationsReducer,
+	chatRooms: chatRoomsReducer,
+	chatMessages: chatMessagesReducer,
 });
 
 // Persisted reducer
