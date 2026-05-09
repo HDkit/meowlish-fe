@@ -357,7 +357,7 @@ export function ExamCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { isHeadStaff, isStaff } = useAuth();
+  const { isMod, isHeadStaff, isStaff } = useAuth();
 
   const queryExamId = searchParams.get('id');
 
@@ -923,7 +923,7 @@ export function ExamCreationPage() {
                     )}
 
                     {/* Tránh hydration mismatch bằng mounted check */}
-                    {mounted && (isHeadStaff || isStaff) && examId && (
+                    {mounted && (isHeadStaff || isStaff || isMod) && examId && (
                       <div className="border-t border-gray-100 pt-4 flex items-end gap-3">
                         <div className="space-y-1.5 flex-1">
                           <Label className="text-sm flex items-center gap-1.5">

@@ -17,9 +17,19 @@ const users: User[] = [
 		email: 'bob@example.com',
 		password: 'secret456',
 		fullName: 'Bob Smith',
-		roleId: 'role-learner', // Learner role
+		roleId: 'role-learner',
 		status: 'active',
 		createdAt: new Date('2025-02-15').getTime(),
+	},
+	{
+		id: 'u-mod',
+		email: 'mod@lingriser.com',
+		password: 'mod123',
+		fullName: 'Mod User',
+		roleId: 'role-mod',
+		status: 'active',
+		createdAt: new Date('2025-03-01').getTime(),
+		lastLoginAt: Date.now(),
 	},
 	// Add initial head staff user
 	{

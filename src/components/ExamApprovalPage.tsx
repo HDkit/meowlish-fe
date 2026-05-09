@@ -65,7 +65,7 @@ interface ExamItem {
 
 export default function ExamApprovalPage() {
   const router = useRouter();
-  const { currUser, isHeadStaff, canApproveExams } = useAuth();
+  const { currUser, isMod, isHeadStaff, canApproveExams } = useAuth();
   const { toast } = useToast();
 
   const [exams, setExams] = useState<ExamItem[]>([]);
@@ -110,7 +110,7 @@ export default function ExamApprovalPage() {
   }, [currUser, fetchExams]);
 
   // Access check
-  if (!currUser || !isHeadStaff || !canApproveExams) {
+  if (!currUser || (!isHeadStaff && !isMod) || !canApproveExams) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96 border-0 shadow-xl">

@@ -15,9 +15,6 @@ export function LandingNavbar() {
           onClick={() => router.push('/landing')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden ring-1 ring-border bg-white">
-            <Image src="/logos/logo-icon.svg" alt="Lingriser" width={32} height={32} priority />
-          </span>
           <Image src="/logos/logo.svg" alt="Lingriser" width={110} height={30} priority />
         </button>
 

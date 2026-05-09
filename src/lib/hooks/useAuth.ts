@@ -10,6 +10,7 @@ export function useAuth() {
 	const roleIdToName = (roleId: string | undefined): string | null => {
 		if (!roleId) return null;
 		if (roleId === 'role-learner') return 'learner';
+		if (roleId === 'role-mod') return 'mod';
 		if (roleId === 'role-staff') return 'staff';
 		if (roleId === 'role-head-staff') return 'head_staff';
 		// Fallback: try to find in roles slice
@@ -25,6 +26,7 @@ export function useAuth() {
 
 	const isAuthenticated = !!currUser;
 	const isLearner = roleName === 'learner';
+	const isMod = roleName === 'mod';
 	const isStaff = roleName === 'staff';
 	const isHeadStaff = roleName === 'head_staff';
 	const isAdmin = isStaff || isHeadStaff;
@@ -54,6 +56,7 @@ export function useAuth() {
 		userPermissions,
 		isAuthenticated,
 		isLearner,
+		isMod,
 		isStaff,
 		isHeadStaff,
 		isAdmin,

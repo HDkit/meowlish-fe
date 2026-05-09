@@ -4,7 +4,7 @@ export interface MockDbType {
 
 // Admin & RBAC Types
 export interface Role extends MockDbType {
-	name: 'learner' | 'staff' | 'head_staff';
+	name: 'learner' | 'mod' | 'staff' | 'head_staff';
 	description: string;
 }
 

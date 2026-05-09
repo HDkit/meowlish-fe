@@ -63,7 +63,7 @@ interface ExamItem {
 export function ExamManagementPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { currUser, isStaff } = useAuth();
+    const { currUser, isMod, isStaff } = useAuth();
 
     const [allExams, setAllExams] = useState<ExamItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ export function ExamManagementPage() {
     }, [currUser, fetchExams]);
 
     // Staff only sees their own exams
-    const staffExams = isStaff
+    const staffExams = isStaff || isMod
         ? allExams.filter(e => e.createdBy === currUser?.id)
         : allExams;
 

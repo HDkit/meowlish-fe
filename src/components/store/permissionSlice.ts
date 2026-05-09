@@ -5,6 +5,13 @@ import { createGenericSlice } from './main/genericSlice';
 const permissions: Permission[] = [
 	// Learner permissions
 	{ id: 'perm-1', roleId: 'role-learner', resource: 'exam', action: 'read' },
+
+	// Mod permissions (exam:write, exam:review, user:lock)
+	{ id: 'perm-mod-1', roleId: 'role-mod', resource: 'exam', action: 'create' },
+	{ id: 'perm-mod-2', roleId: 'role-mod', resource: 'exam', action: 'update' },
+	{ id: 'perm-mod-3', roleId: 'role-mod', resource: 'exam', action: 'read' },
+	{ id: 'perm-mod-4', roleId: 'role-mod', resource: 'exam', action: 'approve' },
+	{ id: 'perm-mod-5', roleId: 'role-mod', resource: 'user', action: 'update' },
 	
 	// Staff permissions
 	{ id: 'perm-2', roleId: 'role-staff', resource: 'exam', action: 'create' },

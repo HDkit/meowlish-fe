@@ -5,10 +5,10 @@ import AdminDashboard from '@/components/AdminDashboard';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function DashboardPage() {
-	const { isStaff, isHeadStaff } = useAuth();
-	
-	// Show AdminDashboard for staff and head_staff
-	if (isStaff || isHeadStaff) {
+	const { isMod, isStaff, isHeadStaff } = useAuth();
+
+	// Show AdminDashboard for mod, staff and head_staff
+	if (isMod || isStaff || isHeadStaff) {
 		return <AdminDashboard />;
 	}
 	

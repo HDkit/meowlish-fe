@@ -61,7 +61,7 @@ type RoleInfo = {
 };
 
 export default function UserManagementPage() {
-  const { currUser, isHeadStaff, canManageUsers } = useAuth();
+  const { currUser, isMod, isHeadStaff, canManageUsers } = useAuth();
   const { toast } = useToast();
 
   // Data from API
@@ -113,7 +113,7 @@ export default function UserManagementPage() {
   }, [toast]);
 
   // Access check
-  if (!currUser || !isHeadStaff || !canManageUsers) {
+  if (!currUser || (!isHeadStaff && !isMod)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Card className="w-96 shadow-lg border-red-100">
@@ -136,7 +136,6 @@ export default function UserManagementPage() {
   // Filter users
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.username?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.roles?.includes(roleFilter);
     return matchesSearch && matchesRole;
@@ -163,7 +162,7 @@ export default function UserManagementPage() {
 
       toast({
         title: 'Thành công',
-        description: `Đã gán vai trò cho ${selectedUser.fullName}`,
+        description: `Đã gán vai trò cho ${selectedUser.username}`,
       });
       setIsRoleDialogOpen(false);
       setSelectedUser(null);
@@ -302,8 +301,7 @@ export default function UserManagementPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Họ và tên</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden sm:table-cell">Username</th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Username</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Vai trò</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Quyền hạn</th>
                   <th className="text-right px-5 py-3 font-semibold text-gray-600 w-[120px]">Thao tác</th>
@@ -324,10 +322,9 @@ export default function UserManagementPage() {
                     <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-4">
                         <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">
-                          {user.fullName || user.username}
+                          {user.username}
                         </p>
                       </td>
-                      <td className="px-4 py-4 text-gray-500 hidden sm:table-cell">{user.username}</td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-1">
                           {(user.roles || []).map((roleId) => (
@@ -380,7 +377,7 @@ export default function UserManagementPage() {
               <DialogHeader>
                 <DialogTitle>Quản lý vai trò</DialogTitle>
                 <DialogDescription>
-                  Gán vai trò mới cho <strong>{selectedUser?.fullName || selectedUser?.username}</strong>
+                  Gán vai trò mới cho <strong>{selectedUser?.username}</strong>
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">

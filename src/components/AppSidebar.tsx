@@ -54,6 +54,14 @@ const learnerLinks = [
   { href: '/notifications', label: 'Thông báo', icon: Bell },
 ];
 
+const modLinks = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/exam-creation', label: 'Tạo đề thi', icon: FilePlus },
+  { href: '/exam-management', label: 'Quản lý đề thi', icon: ClipboardList },
+  { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
+  { href: '/user-management', label: 'Quản lý User', icon: Users },
+];
+
 const staffLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/exam-creation', label: 'Tạo đề thi', icon: FilePlus },
@@ -70,7 +78,7 @@ const headStaffExtra = [
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isStaff, isHeadStaff } = useAuth();
+  const { isMod, isStaff, isHeadStaff } = useAuth();
   const user = useAppSelector((state) => state.currUser.current);
   const dispatch = useAppDispatch();
   const { toggleSidebar } = useSidebar();
@@ -93,9 +101,21 @@ export function AppSidebar() {
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
   // Tránh hydration mismatch: dùng giá trị mặc định cho server, cập nhật sau khi mount
-  const navLinks = mounted ? (isStaff || isHeadStaff ? staffLinks : learnerLinks) : learnerLinks;
+  const navLinks = mounted
+    ? isHeadStaff || isStaff
+      ? staffLinks
+      : isMod
+        ? modLinks
+        : learnerLinks
+    : learnerLinks;
   const managementLinks = mounted && isHeadStaff ? headStaffExtra : [];
-  const sidebarLabel = mounted ? (isStaff || isHeadStaff ? 'QUẢN LÝ' : 'HỌC TẬP') : 'HỌC TẬP';
+  const sidebarLabel = mounted
+    ? isHeadStaff || isStaff
+      ? 'QUẢN LÝ'
+      : isMod
+        ? 'KIỂM DUYỆT'
+        : 'HỌC TẬP'
+    : 'HỌC TẬP';
   const userDisplayName = user?.fullName ?? 'Tài khoản';
 
   return (
@@ -116,15 +136,6 @@ export function AppSidebar() {
             onClick={() => router.push('/dashboard')}
             className="flex min-w-0 items-center gap-3 text-left group-data-[collapsible=icon]:justify-center"
           >
-            <div className="flex h-9 w-9 items-center justify-center bg-white shadow-sm ring-1 ring-emerald-200/60 overflow-hidden dark:bg-slate-950 dark:ring-emerald-900/40">
-              <Image
-                src="/logos/logo-icon.svg"
-                alt="Lingriser"
-                width={36}
-                height={36}
-                priority
-              />
-            </div>
             <Image
               src="/logos/logo.svg"
               alt="Lingriser"

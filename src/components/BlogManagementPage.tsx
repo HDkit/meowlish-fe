@@ -47,7 +47,7 @@ function getCategoryInfo(category: BlogCategory) {
 
 export default function BlogManagementPage() {
     const dispatch = useDispatch();
-    const { currUser, isStaff, isHeadStaff } = useAuth();
+    const { currUser, isMod, isStaff, isHeadStaff } = useAuth();
     const blogs = useSelector((state: RootState) => state.blogs.list);
     const users = useSelector((state: RootState) => state.users.list);
 
@@ -61,7 +61,7 @@ export default function BlogManagementPage() {
     const DEFAULT_FORM: BlogFormData = { title: '', summary: '', category: BlogCategory.WebUsage, content: '' };
     const [formData, setFormData] = useState<BlogFormData>(DEFAULT_FORM);
 
-    if (!currUser || (!isStaff && !isHeadStaff)) {
+    if (!currUser || (!isStaff && !isHeadStaff && !isMod)) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <Card className="w-96 border-0 shadow-xl">

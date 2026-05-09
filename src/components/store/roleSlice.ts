@@ -9,6 +9,11 @@ const roles: Role[] = [
 		description: 'Students who take exams',
 	},
 	{
+		id: 'role-mod',
+		name: 'mod',
+		description: 'Moderators who create/review exams and lock users',
+	},
+	{
 		id: 'role-staff',
 		name: 'staff',
 		description: 'Staff who create and manage exams',

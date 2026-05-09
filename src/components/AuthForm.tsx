@@ -36,10 +36,18 @@ const normalizeRoleIdFromToken = (decoded: any): string => {
 		normalizedRoles.includes('admin') ||
 		normalizedRoles.includes('head_staff') ||
 		normalizedPermissions.includes('exam:approve') ||
-		normalizedPermissions.includes('user:ban') ||
-		normalizedPermissions.includes('user:lock')
+		normalizedPermissions.includes('user:ban')
 	) {
 		return 'role-head-staff';
+	}
+
+	if (
+		normalizedRawRole === 'role-mod' ||
+		normalizedRawRole === 'mod' ||
+		normalizedRoles.includes('mod') ||
+		(normalizedPermissions.includes('exam:review') && normalizedPermissions.includes('user:lock'))
+	) {
+		return 'role-mod';
 	}
 
 	if (
@@ -114,14 +122,14 @@ export function AuthForm() {
 	const [error, setError] = useState('');
 
 	// ─── Dev Quick Login (mock role, real token) ───────────────────────
-	const devLogin = async (targetRole: 'role-staff' | 'role-head-staff') => {
-		const label = targetRole === 'role-head-staff' ? 'head-staff' : 'staff';
+	const devLogin = async (targetRole: 'role-mod' | 'role-staff' | 'role-head-staff') => {
+		const label = targetRole === 'role-head-staff' ? 'head-staff' : targetRole === 'role-mod' ? 'mod' : 'staff';
 		setDevLoading(label);
 		setError('');
 		const ts = Date.now();
 		const devEmail = `dev.${label}.${ts}@devtest.local`;
 		const devPassword = `DevPass${ts}!`;
-		const devName = targetRole === 'role-head-staff' ? `HeadStaff${ts}` : `Staff${ts}`;
+		const devName = targetRole === 'role-head-staff' ? `HeadStaff${ts}` : targetRole === 'role-mod' ? `Mod${ts}` : `Staff${ts}`;
 		try {
 			// Register a fresh account to get a real token
 			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: devEmail, password: devPassword, username: devName });
@@ -203,7 +211,7 @@ export function AuthForm() {
 
 			dispatch(setUser(user));
 			
-			const isAdminRole = user.roleId === 'role-staff' || user.roleId === 'role-head-staff' || user.roleId === 'ADMIN';
+			const isAdminRole = user.roleId === 'role-mod' || user.roleId === 'role-staff' || user.roleId === 'role-head-staff' || user.roleId === 'ADMIN';
 			if (isAdminRole) {
 				router.push('/dashboard');
 			} else {
@@ -346,7 +354,6 @@ export function AuthForm() {
 					{/* Header */}
 					<div className='text-center space-y-4 pb-8'>
 						<Link href='/landing' className='flex items-center justify-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group'>
-							<Image src='/logos/logo-icon.svg' alt='Lingriser' width={48} height={48} className='group-hover:scale-105 transition-transform' />
 							<div>
 								<Image src='/logos/logo.svg' alt='Lingriser' width={160} height={44} />
 								<p className='text-sm font-semibold text-muted-foreground mt-0.5 tracking-wide'>Hệ Thống Luyện Thi AI</p>
@@ -480,7 +487,7 @@ export function AuthForm() {
 									<p className='text-xs text-amber-600 font-semibold uppercase tracking-wider'>Dev Mode — Mock Role + Real Token</p>
 								</div>
 								<p className='text-xs text-gray-400 mb-2'>Tự động đăng ký tài khoản mới lấy token thật, override role để test UI.</p>
-								<div className='grid grid-cols-2 gap-2'>
+								<div className='grid grid-cols-3 gap-2'>
 									<Button
 										variant='outline'
 										size='sm'
@@ -489,7 +496,17 @@ export function AuthForm() {
 										className='border-primary/30 text-primary hover:bg-primary/10 text-xs h-9'
 										onClick={() => devLogin('role-staff')}
 									>
-										{devLoading === 'staff' ? '⏳ Đang tạo...' : '🧑‍💼 Đăng nhập Staff'}
+										{devLoading === 'staff' ? '...' : 'Staff'}
+									</Button>
+									<Button
+										variant='outline'
+										size='sm'
+										type='button'
+										disabled={!!devLoading}
+										className='border-amber-500/30 text-amber-600 hover:bg-amber-50 text-xs h-9'
+										onClick={() => devLogin('role-mod')}
+									>
+										{devLoading === 'mod' ? '...' : 'Mod'}
 									</Button>
 									<Button
 										variant='outline'
@@ -499,7 +516,7 @@ export function AuthForm() {
 										className='border-secondary/30 text-secondary hover:bg-secondary/10 text-xs h-9'
 										onClick={() => devLogin('role-head-staff')}
 									>
-										{devLoading === 'head-staff' ? '⏳ Đang tạo...' : '⭐ Đăng nhập Head Staff'}
+										{devLoading === 'head-staff' ? '...' : 'Admin'}
 									</Button>
 								</div>
 							</div>
