@@ -361,4 +361,137 @@ export class AuthService {
             },
         });
     }
+    /**
+     * Get access and refresh tokens from Google OAuth login token
+     * @param loginToken
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerGetGoogleTokensV1(
+        loginToken: string,
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/auth/google/tokens',
+            query: {
+                'loginToken': loginToken,
+            },
+        });
+    }
+    /**
+     * Lock an identity account
+     * @param id
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerLockIdentityV1(
+        id: string,
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/auth/{id}/lock',
+            path: {
+                'id': id,
+            },
+        });
+    }
+    /**
+     * Unlock an identity account
+     * @param id
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerUnlockIdentityV1(
+        id: string,
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/auth/{id}/lock',
+            path: {
+                'id': id,
+            },
+        });
+    }
+    /**
+     * Search identities by phone number
+     * @param phoneNumber
+     * @param cursor
+     * @param limit
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerFindIdentitiesByPhoneV1(
+        phoneNumber: string,
+        cursor?: string,
+        limit?: number,
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/auth/identity/search/phone',
+            query: {
+                'phoneNumber': phoneNumber,
+                'cursor': cursor,
+                'limit': limit,
+            },
+        });
+    }
+    /**
+     * Exchange Google auth code for Calendar tokens and connect
+     * @param requestBody
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerExchangeGoogleCalendarCodeV1(
+        requestBody: { code: string },
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/auth/google/calendar/exchange-code',
+            body: requestBody,
+            mediaType: 'application/json',
+        });
+    }
+    /**
+     * Connect Google Calendar account
+     * @param requestBody
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerConnectGoogleCalendarV1(
+        requestBody: {
+            accessToken: string;
+            refreshToken: string;
+            expiresAt: number;
+            scopes: string;
+        },
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/auth/google/calendar/connect',
+            body: requestBody,
+            mediaType: 'application/json',
+        });
+    }
+    /**
+     * Disconnect Google Calendar account
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerDisconnectGoogleCalendarV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/auth/google/calendar/connect',
+        });
+    }
+    /**
+     * Get Google Calendar token
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerGetGoogleCalendarTokenV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/auth/google/calendar/token',
+        });
+    }
 }

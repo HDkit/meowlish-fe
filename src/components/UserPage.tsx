@@ -94,6 +94,7 @@ export function UserPage() {
 		confirmPassword: '',
 	});
 	const [showPassword, setShowPassword] = useState(false);
+	const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
 
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
@@ -179,6 +180,14 @@ export function UserPage() {
 				} catch (e) {
 					console.error("Failed to load profile data:", e);
 				}
+
+				// Check Google Calendar connection
+				try {
+					const calToken = await AuthService.authGatewayControllerGetGoogleCalendarTokenV1();
+					setGoogleCalendarConnected(!!calToken.data);
+				} catch {
+					setGoogleCalendarConnected(false);
+				}
 			};
 			fetchProfileData();
 		}
@@ -194,6 +203,21 @@ export function UserPage() {
 			});
 		}
 	}, [currUser]);
+
+	// Handle Google Calendar disconnect
+	const handleDisconnectCalendar = async () => {
+		try {
+			await AuthService.authGatewayControllerDisconnectGoogleCalendarV1();
+			setGoogleCalendarConnected(false);
+			toast({ title: 'Đã ngắt kết nối Google Calendar' });
+		} catch (err: any) {
+			toast({
+				title: 'Lỗi',
+				description: err?.body?.error || 'Không thể ngắt kết nối',
+				variant: 'destructive',
+			});
+		}
+	};
 
 	// Handle profile update
 	const handleUpdateProfile = async () => {
@@ -346,6 +370,25 @@ export function UserPage() {
 						>
 							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
 						</Button>
+						{googleCalendarConnected ? (
+							<Button
+								className='bg-green-500/20 hover:bg-red-500/20 text-white border-0 backdrop-blur-md w-full md:w-auto justify-start group'
+								onClick={handleDisconnectCalendar}
+							>
+								<Calendar className='h-4 w-4 mr-2' />
+								<span className='group-hover:hidden'>Google Calendar</span>
+								<span className='hidden group-hover:inline'>Ngắt kết nối</span>
+							</Button>
+						) : (
+							<Button
+								className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
+								onClick={() => {
+									window.location.href = '/api/v1/auth/credentials/google';
+								}}
+							>
+								<Calendar className='h-4 w-4 mr-2' /> Kết nối Google Calendar
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>

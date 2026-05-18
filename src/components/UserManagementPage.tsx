@@ -42,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Edit, Search, UserCheck, AlertCircle } from 'lucide-react';
+import { Edit, Search, UserCheck, AlertCircle, Lock, Unlock, Phone } from 'lucide-react';
 
 type IdentityUser = {
   id: string;
@@ -52,6 +52,7 @@ type IdentityUser = {
   bio?: string;
   roles: string[];
   permissions: string[];
+  isLocked?: boolean;
 };
 
 type RoleInfo = {
@@ -75,6 +76,8 @@ export default function UserManagementPage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [phoneSearch, setPhoneSearch] = useState('');
+  const [lockConfirmUser, setLockConfirmUser] = useState<IdentityUser | null>(null);
 
   // Fetch users and roles on mount
   useEffect(() => {
@@ -212,6 +215,68 @@ export default function UserManagementPage() {
     }
   };
 
+  // Lock/unlock user account
+  const handleToggleLock = async (user: IdentityUser) => {
+    setIsLoading(true);
+    try {
+      if (user.isLocked) {
+        await AuthService.authGatewayControllerUnlockIdentityV1(user.id);
+      } else {
+        await AuthService.authGatewayControllerLockIdentityV1(user.id);
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, isLocked: !u.isLocked } : u
+        )
+      );
+
+      toast({
+        title: 'Thành công',
+        description: user.isLocked
+          ? `Đã mở khóa tài khoản ${user.username}`
+          : `Đã khóa tài khoản ${user.username}`,
+      });
+      setLockConfirmUser(null);
+    } catch (err: any) {
+      console.error('Failed to toggle lock:', err);
+      toast({
+        title: 'Lỗi',
+        description: err?.body?.error || 'Không thể thay đổi trạng thái khóa',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Search by phone number
+  const handlePhoneSearch = async () => {
+    if (!phoneSearch.trim()) return;
+    setIsLoading(true);
+    try {
+      const res = await AuthService.authGatewayControllerFindIdentitiesByPhoneV1(
+        phoneSearch.trim(), undefined, 100
+      );
+      if (res.data?.identities) {
+        setUsers(res.data.identities);
+      }
+      toast({
+        title: 'Tìm kiếm',
+        description: `Tìm thấy ${res.data?.identities?.length || 0} người dùng`,
+      });
+    } catch (err: any) {
+      console.error('Phone search failed:', err);
+      toast({
+        title: 'Lỗi',
+        description: err?.body?.error || 'Không thể tìm kiếm theo số điện thoại',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const openRoleDialog = (user: IdentityUser) => {
     setSelectedUser(user);
     setSelectedRoleId('');
@@ -278,6 +343,19 @@ export default function UserManagementPage() {
                 className="pl-9 bg-gray-50 border-gray-200"
               />
             </div>
+            <div className="relative flex items-center gap-1 min-w-[180px]">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Tìm theo SĐT..."
+                value={phoneSearch}
+                onChange={(e) => setPhoneSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handlePhoneSearch()}
+                className="pl-9 bg-gray-50 border-gray-200"
+              />
+              <Button size="sm" variant="outline" onClick={handlePhoneSearch} disabled={isLoading || !phoneSearch.trim()}>
+                <Search className="h-3 w-3" />
+              </Button>
+            </div>
             <div className="flex items-center gap-2">
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-40 bg-gray-50 border-gray-200">
@@ -304,7 +382,8 @@ export default function UserManagementPage() {
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Username</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Vai trò</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Quyền hạn</th>
-                  <th className="text-right px-5 py-3 font-semibold text-gray-600 w-[120px]">Thao tác</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
+                  <th className="text-right px-5 py-3 font-semibold text-gray-600 w-[180px]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -352,17 +431,42 @@ export default function UserManagementPage() {
                           {(user.permissions || []).length} quyền
                         </span>
                       </td>
+                      <td className="px-4 py-4">
+                        {user.isLocked ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium">
+                            <Lock className="h-3 w-3" /> Đã khóa
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-green-100 text-green-700 font-medium">
+                            <Unlock className="h-3 w-3" /> Hoạt động
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-4 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-white border-gray-200 text-gray-700 hover:bg-primary/10 hover:text-primary gap-1.5 px-3"
-                          onClick={() => openRoleDialog(user)}
-                          disabled={user.id === currUser?.id || isLoading}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Vai trò
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-white border-gray-200 text-gray-700 hover:bg-primary/10 hover:text-primary gap-1.5 px-3"
+                            onClick={() => openRoleDialog(user)}
+                            disabled={user.id === currUser?.id || isLoading}
+                          >
+                            <Edit className="h-4 w-4" />
+                            Vai trò
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={user.isLocked
+                              ? "bg-white border-green-200 text-green-700 hover:bg-green-50 gap-1.5 px-3"
+                              : "bg-white border-red-200 text-red-700 hover:bg-red-50 gap-1.5 px-3"}
+                            onClick={() => setLockConfirmUser(user)}
+                            disabled={user.id === currUser?.id || isLoading}
+                          >
+                            {user.isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                            {user.isLocked ? 'Mở khóa' : 'Khóa'}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -439,6 +543,31 @@ export default function UserManagementPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Lock/Unlock Confirmation */}
+          <AlertDialog open={!!lockConfirmUser} onOpenChange={() => setLockConfirmUser(null)}>
+            <AlertDialogContent className="bg-white">
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {lockConfirmUser?.isLocked ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {lockConfirmUser?.isLocked
+                    ? `Bạn có chắc muốn mở khóa tài khoản "${lockConfirmUser?.username}"? Người dùng sẽ có thể đăng nhập lại.`
+                    : `Bạn có chắc muốn khóa tài khoản "${lockConfirmUser?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                <AlertDialogAction
+                  className={lockConfirmUser?.isLocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                  onClick={() => lockConfirmUser && handleToggleLock(lockConfirmUser)}
+                >
+                  {lockConfirmUser?.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
