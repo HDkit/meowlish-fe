@@ -7,7 +7,9 @@
       "Read(//home/culove/**)"
     ],
     "additionalDirectories": [
-      "/home/culove/engapp-v2/Frontend/src/contexts"
+      "/home/culove/engapp-v2/Frontend/src/contexts",
+      "/home/culove/engapp-v2/Frontend/src/pages",
+      "/home/culove/engapp-v2/Frontend"
     ]
   }
 }
