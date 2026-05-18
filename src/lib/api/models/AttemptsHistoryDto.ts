@@ -5,6 +5,7 @@
 import type { MinimalAttemptInfoDto } from './MinimalAttemptInfoDto';
 export type AttemptsHistoryDto = {
     attempts: Array<MinimalAttemptInfoDto>;
-    cursor: string;
+    nextCursor: string;
+    prevCursor: string;
 };
 

@@ -5,6 +5,7 @@
 import type { IdentityDto } from './IdentityDto';
 export type IdentitiesDto = {
     identities: Array<IdentityDto>;
-    cursor: string;
+    nextCursor: string;
+    prevCursor: string;
 };
 

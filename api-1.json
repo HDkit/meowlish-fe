@@ -3718,13 +3718,17 @@
               "$ref": "#/components/schemas/IdentityDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },
         "required": [
           "identities",
-          "cursor"
+          "nextCursor",
+          "prevCursor"
         ]
       },
       "LimitedIdentityDto": {
@@ -3760,19 +3764,26 @@
               "$ref": "#/components/schemas/LimitedIdentityDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },
         "required": [
           "identities",
-          "cursor"
+          "nextCursor",
+          "prevCursor"
         ]
       },
       "IdentityIdsDto": {
         "type": "object",
         "properties": {
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           },
           "ids": {
@@ -3783,7 +3794,8 @@
           }
         },
         "required": [
-          "cursor",
+          "nextCursor",
+          "prevCursor",
           "ids"
         ]
       },
@@ -4277,13 +4289,17 @@
               "$ref": "#/components/schemas/ExamDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },
         "required": [
           "exams",
-          "cursor"
+          "nextCursor",
+          "prevCursor"
         ]
       },
       "TimeRangeDto": {
@@ -4663,13 +4679,17 @@
               "$ref": "#/components/schemas/MinimalExamInfoDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },
         "required": [
           "exams",
-          "cursor"
+          "nextCursor",
+          "prevCursor"
         ]
       },
       "find_exams_req_dto_FilterOptionsDto": {
@@ -5288,13 +5308,17 @@
               "$ref": "#/components/schemas/MinimalAttemptInfoDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },
         "required": [
           "attempts",
-          "cursor"
+          "nextCursor",
+          "prevCursor"
         ]
       },
       "get_users_attempt_history_req_dto_SortOptionsDto": {
@@ -5664,7 +5688,10 @@
               "$ref": "#/components/schemas/UserBadgeDto"
             }
           },
-          "cursor": {
+          "nextCursor": {
+            "type": "string"
+          },
+          "prevCursor": {
             "type": "string"
           }
         },

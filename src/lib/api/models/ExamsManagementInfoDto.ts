@@ -5,6 +5,7 @@
 import type { ExamDto } from './ExamDto';
 export type ExamsManagementInfoDto = {
     exams: Array<ExamDto>;
-    cursor: string;
+    nextCursor: string;
+    prevCursor: string;
 };
 

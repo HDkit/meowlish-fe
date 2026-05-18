@@ -5,6 +5,7 @@
 import type { UserBadgeDto } from './UserBadgeDto';
 export type FoundUsersBadgesDto = {
     badges: Array<UserBadgeDto>;
-    cursor?: string;
+    nextCursor?: string;
+    prevCursor?: string;
 };
 

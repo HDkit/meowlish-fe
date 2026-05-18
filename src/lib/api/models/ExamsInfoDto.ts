@@ -5,6 +5,7 @@
 import type { MinimalExamInfoDto } from './MinimalExamInfoDto';
 export type ExamsInfoDto = {
     exams: Array<MinimalExamInfoDto>;
-    cursor: string;
+    nextCursor: string;
+    prevCursor: string;
 };
 

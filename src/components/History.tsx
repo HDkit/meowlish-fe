@@ -83,7 +83,7 @@ export function History() {
 
 				const data = res.data as unknown as AttemptsHistoryDto;
 				const newAttempts = data.attempts ?? [];
-				const newCursor = data.cursor || undefined;
+				const newCursor = data.nextCursor || undefined;
 
 				setAttempts(prev => (reset ? newAttempts : [...prev, ...newAttempts]));
 				setCursor(newCursor);

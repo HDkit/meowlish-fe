@@ -3,7 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type IdentityIdsDto = {
-    cursor: string;
+    nextCursor: string;
+    prevCursor: string;
     ids: Array<string>;
 };
 

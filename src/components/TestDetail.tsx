@@ -140,7 +140,7 @@ export function ExamDetailPage() {
 				const data = res.data as unknown as AttemptsHistoryDto;
 				const newAttempts = data.attempts ?? [];
 				setMyAttemptsForExam((prev) => (reset ? newAttempts : [...prev, ...newAttempts]));
-				const next = data.cursor || undefined;
+				const next = data.nextCursor || undefined;
 				setMyAttemptsCursor(next);
 				setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
 
@@ -201,7 +201,7 @@ export function ExamDetailPage() {
 			const data = res.data as unknown as AttemptsHistoryDto;
 			const newAttempts = data.attempts ?? [];
 			setMyAttemptsForExam((prev) => [...prev, ...newAttempts]);
-			const next = data.cursor || undefined;
+			const next = data.nextCursor || undefined;
 			setMyAttemptsCursor(next);
 			setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
 		} catch (e) {
