@@ -113,4 +113,5 @@ export { ExamManagementService } from './services/ExamManagementService';
 export { ExamPracticeService } from './services/ExamPracticeService';
 export { FilesService } from './services/FilesService';
 export { GoalsService } from './services/GoalsService';
+export { NotificationService } from './services/NotificationService';
 export { TagsService } from './services/TagsService';

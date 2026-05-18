@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
-import { updateNotification } from '@/components/store/notificationSlice';
+import { useAppSelector } from '@/lib/store/hooks';
 import { Notification, NotificationType } from '@/types/client';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from './ui/button';
 import {
 	Popover, PopoverContent, PopoverTrigger,
@@ -21,9 +21,9 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
 
 export function NotificationDropdown() {
 	const router = useRouter();
-	const dispatch = useAppDispatch();
-	const currUser = useAppSelector((state) => state.currUser.current);
+	const currUser = useAppSelector((state) => (state as any).currUser?.entity ?? (state as any).currUser?.current);
 	const allNotifications = useAppSelector((state) => state.notifications.list);
+	const { markAsRead, markAllAsRead, unreadCount } = useNotifications();
 	const [open, setOpen] = useState(false);
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => setMounted(true), []);
@@ -35,11 +35,9 @@ export function NotificationDropdown() {
 		[allNotifications, currUser?.id]
 	);
 
-	const unreadCount = myNotifications.filter((n) => !n.isRead).length;
-
 	const handleClick = (notif: Notification) => {
 		if (!notif.isRead) {
-			dispatch(updateNotification({ ...notif, isRead: true }));
+			markAsRead(notif.id);
 		}
 		if (notif.linkType === 'blog') {
 			router.push('/blog');
@@ -50,9 +48,7 @@ export function NotificationDropdown() {
 	};
 
 	const handleMarkAllRead = () => {
-		myNotifications.filter((n) => !n.isRead).forEach((n) => {
-			dispatch(updateNotification({ ...n, isRead: true }));
-		});
+		markAllAsRead();
 	};
 
 	const formatRelativeTime = (ts: number) => {

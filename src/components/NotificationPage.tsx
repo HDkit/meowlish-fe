@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
-import { updateNotification } from '@/components/store/notificationSlice';
+import { useAppSelector } from '@/lib/store/hooks';
 import { Notification, NotificationType } from '@/types/client';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -21,9 +21,9 @@ const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.Element
 };
 
 export default function NotificationPage() {
-	const dispatch = useAppDispatch();
-	const currUser = useAppSelector((state) => state.currUser.current);
+	const currUser = useAppSelector((state) => (state as any).currUser?.entity ?? (state as any).currUser?.current);
 	const allNotifications = useAppSelector((state) => state.notifications.list);
+	const { markAsRead, markAllAsRead, unreadCount } = useNotifications();
 
 	const [filterType, setFilterType] = useState<NotificationType | 'all'>('all');
 	const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
@@ -36,16 +36,12 @@ export default function NotificationPage() {
 		return filtered.sort((a, b) => b.createdAt - a.createdAt);
 	}, [allNotifications, currUser?.id, filterType, filterRead]);
 
-	const unreadCount = allNotifications.filter((n) => n.userId === currUser?.id && !n.isRead).length;
-
 	const handleMarkRead = (notif: Notification) => {
-		dispatch(updateNotification({ ...notif, isRead: true }));
+		markAsRead(notif.id);
 	};
 
 	const handleMarkAllRead = () => {
-		allNotifications
-			.filter((n) => n.userId === currUser?.id && !n.isRead)
-			.forEach((n) => dispatch(updateNotification({ ...n, isRead: true })));
+		markAllAsRead();
 	};
 
 	const formatDate = (ts: number) => {
