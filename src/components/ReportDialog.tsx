@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { addReport } from '@/components/store/reportSlice';
-import { Report, ReportCategory, ReportStatus } from '@/types/client';
+import { ReportService } from '@/lib/api/services/ReportService';
+import { Report, ReportStatus } from '@/types/client';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -16,10 +17,10 @@ import {
 } from './ui/select';
 import { Flag, Bug, FileText, UserX } from 'lucide-react';
 
-const CATEGORY_OPTIONS = [
-	{ value: ReportCategory.Bug, label: 'Lỗi hệ thống (Bug)', icon: Bug },
-	{ value: ReportCategory.Content, label: 'Nội dung không phù hợp', icon: FileText },
-	{ value: ReportCategory.Behavior, label: 'Hành vi vi phạm', icon: UserX },
+const TYPE_OPTIONS = [
+	{ value: 'bug', label: 'Lỗi hệ thống (Bug)', icon: Bug },
+	{ value: 'content', label: 'Nội dung không phù hợp', icon: FileText },
+	{ value: 'behavior', label: 'Hành vi vi phạm', icon: UserX },
 ];
 
 interface ReportDialogProps {
@@ -32,30 +33,48 @@ interface ReportDialogProps {
 
 export function ReportDialog({ open, onOpenChange, targetType, targetId, userId }: ReportDialogProps) {
 	const dispatch = useAppDispatch();
-	const [category, setCategory] = useState<ReportCategory>(ReportCategory.Bug);
+	const [type, setType] = useState('bug');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
+	const [submitting, setSubmitting] = useState(false);
 
-	const handleSubmit = () => {
-		if (!title.trim() || !description.trim()) return;
-
-		const newReport: Report = {
-			id: `rep${Date.now()}`,
-			userId,
-			category,
-			title: title.trim(),
-			description: description.trim(),
-			targetType,
-			targetId,
-			status: ReportStatus.Pending,
-			createdAt: Date.now(),
-		};
-
-		dispatch(addReport(newReport));
-		setTitle('');
-		setDescription('');
-		setCategory(ReportCategory.Bug);
-		onOpenChange(false);
+	const handleSubmit = async () => {
+		if (!title.trim() || !description.trim() || submitting) return;
+		setSubmitting(true);
+		try {
+			const res = await ReportService.createReport({
+				reportedBy: userId,
+				type,
+				title: title.trim(),
+				description: description.trim(),
+				targetType,
+				targetId,
+			});
+			const newReport: Report = {
+				id: res.id,
+				reportedBy: res.reportedBy,
+				type: res.type,
+				title: res.title,
+				description: res.description,
+				targetType: res.targetType,
+				targetId: res.targetId,
+				status: (res.status as ReportStatus) || ReportStatus.Pending,
+				adminResponse: res.adminResponse,
+				resolvedBy: res.resolvedBy,
+				fileIds: res.fileIds ?? [],
+				createdAt: new Date(res.createdAt).getTime(),
+				updatedAt: res.updatedAt ? new Date(res.updatedAt).getTime() : undefined,
+			};
+			dispatch(addReport(newReport));
+			setTitle('');
+			setDescription('');
+			setType('bug');
+			onOpenChange(false);
+		} catch (err) {
+			console.error('[ReportDialog] create error:', err);
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	return (
@@ -73,13 +92,13 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 				</DialogHeader>
 				<div className="px-6 py-4 space-y-4">
 					<div className="space-y-2">
-						<Label className="font-bold">Danh mục <span className="text-red-500">*</span></Label>
-						<Select value={category} onValueChange={(v) => setCategory(v as ReportCategory)}>
+						<Label className="font-bold">Loại báo cáo <span className="text-red-500">*</span></Label>
+						<Select value={type} onValueChange={setType}>
 							<SelectTrigger className="rounded-xl">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								{CATEGORY_OPTIONS.map((opt) => (
+								{TYPE_OPTIONS.map((opt) => (
 									<SelectItem key={opt.value} value={opt.value}>
 										<div className="flex items-center gap-2">
 											<opt.icon className="h-4 w-4" />
@@ -100,7 +119,14 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label className="font-bold">Mô tả chi tiết <span className="text-red-500">*</span></Label>
+						<div className="flex items-center justify-between">
+							<Label className="font-bold">Mô tả chi tiết <span className="text-red-500">*</span></Label>
+							{!description && (
+								<button type="button" onClick={() => setDescription(`Mô tả vấn đề:\n\nCác bước tái tạo:\n1. ...\n2. ...\n\nKết quả mong muốn:\n\nKết quả thực tế:\n`)} className="text-xs text-primary hover:underline font-medium">
+									Dùng mẫu
+								</button>
+							)}
+						</div>
 						<Textarea
 							placeholder="Mô tả cụ thể vấn đề bạn gặp phải..."
 							value={description}
@@ -112,8 +138,8 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 				</div>
 				<DialogFooter className="px-6 py-4 bg-gray-50 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Hủy</Button>
-					<Button onClick={handleSubmit} disabled={!title.trim() || !description.trim()} className="rounded-xl bg-red-600 hover:bg-red-700">
-						<Flag className="h-4 w-4 mr-1" /> Gửi báo cáo
+					<Button onClick={handleSubmit} disabled={!title.trim() || !description.trim() || submitting} className="rounded-xl bg-red-600 hover:bg-red-700">
+						<Flag className="h-4 w-4 mr-1" /> {submitting ? 'Đang gửi...' : 'Gửi báo cáo'}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

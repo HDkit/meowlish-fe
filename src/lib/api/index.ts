@@ -109,9 +109,15 @@ export type { UserStatsDto } from './models/UserStatsDto';
 
 export { AchievementsService } from './services/AchievementsService';
 export { AuthService } from './services/AuthService';
+export { BlogService } from './services/BlogService';
+export { ChatRoomService } from './services/ChatRoomService';
+export { ChatMessageService } from './services/ChatMessageService';
 export { ExamManagementService } from './services/ExamManagementService';
 export { ExamPracticeService } from './services/ExamPracticeService';
 export { FilesService } from './services/FilesService';
+export { FlashcardService } from './services/FlashcardService';
+export { FlashcardListService } from './services/FlashcardListService';
 export { GoalsService } from './services/GoalsService';
 export { NotificationService } from './services/NotificationService';
+export { ReportService } from './services/ReportService';
 export { TagsService } from './services/TagsService';

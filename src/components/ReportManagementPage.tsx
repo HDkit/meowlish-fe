@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
-import { updateReport, removeReport } from '@/components/store/reportSlice';
+import { updateReport, removeReport, setReports } from '@/components/store/reportSlice';
+import { ReportService } from '@/lib/api/services/ReportService';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { Report, ReportCategory, ReportStatus } from '@/types/client';
+import { Report, ReportStatus } from '@/types/client';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -33,10 +34,10 @@ const STATUS_CONFIG: Record<ReportStatus, { label: string; color: string; icon: 
 	[ReportStatus.Rejected]: { label: 'Đã từ chối', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
 };
 
-const CATEGORY_CONFIG: Record<ReportCategory, { label: string; icon: React.ElementType }> = {
-	[ReportCategory.Bug]: { label: 'Lỗi hệ thống', icon: Bug },
-	[ReportCategory.Content]: { label: 'Nội dung', icon: FileText },
-	[ReportCategory.Behavior]: { label: 'Hành vi', icon: UserX },
+const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
+	bug: { label: 'Lỗi hệ thống', icon: Bug },
+	content: { label: 'Nội dung', icon: FileText },
+	behavior: { label: 'Hành vi', icon: UserX },
 };
 
 export default function ReportManagementPage() {
@@ -47,17 +48,44 @@ export default function ReportManagementPage() {
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [filterStatus, setFilterStatus] = useState<ReportStatus | 'all'>('all');
-	const [filterCategory, setFilterCategory] = useState<ReportCategory | 'all'>('all');
+	const [filterCategory, setFilterCategory] = useState<string>('all');
 	const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 	const [responseText, setResponseText] = useState('');
 	const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
 
 	const getUserName = (userId: string) => users.find((u) => u.id === userId)?.fullName || 'Không rõ';
 
+	const fetchReports = useCallback(async () => {
+		try {
+			const res = await ReportService.listReports();
+			if (res?.reports) {
+				dispatch(setReports(res.reports.map((r) => ({
+					id: r.id,
+					reportedBy: r.reportedBy,
+					type: r.type,
+					title: r.title,
+					description: r.description,
+					targetType: r.targetType,
+					targetId: r.targetId,
+					status: (r.status as ReportStatus) || ReportStatus.Pending,
+					adminResponse: r.adminResponse,
+					resolvedBy: r.resolvedBy,
+					fileIds: r.fileIds ?? [],
+					createdAt: new Date(r.createdAt).getTime(),
+					updatedAt: r.updatedAt ? new Date(r.updatedAt).getTime() : undefined,
+				}))));
+			}
+		} catch (err) {
+			console.error('[ReportManagementPage] fetch error:', err);
+		}
+	}, [dispatch]);
+
+	useEffect(() => { fetchReports(); }, [fetchReports]);
+
 	const filteredReports = useMemo(() => {
 		let filtered = [...reports];
 		if (filterStatus !== 'all') filtered = filtered.filter((r) => r.status === filterStatus);
-		if (filterCategory !== 'all') filtered = filtered.filter((r) => r.category === filterCategory);
+		if (filterCategory !== 'all') filtered = filtered.filter((r) => r.type === filterCategory);
 		if (searchQuery) {
 			const q = searchQuery.toLowerCase();
 			filtered = filtered.filter((r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
@@ -73,32 +101,53 @@ export default function ReportManagementPage() {
 		[ReportStatus.Rejected]: reports.filter((r) => r.status === ReportStatus.Rejected).length,
 	}), [reports]);
 
-	const handleStatusChange = (report: Report, newStatus: ReportStatus) => {
-		dispatch(updateReport({
-			...report,
-			status: newStatus,
-			reviewedBy: currUser?.id,
-			updatedAt: Date.now(),
-		}));
+	const handleStatusChange = async (report: Report, newStatus: ReportStatus) => {
+		try {
+			await ReportService.updateReport(report.id, {
+				status: newStatus,
+				resolvedBy: currUser?.id,
+			});
+			dispatch(updateReport({
+				...report,
+				status: newStatus,
+				resolvedBy: currUser?.id,
+				updatedAt: Date.now(),
+			}));
+		} catch (err) {
+			console.error('[ReportManagementPage] status change error:', err);
+		}
 	};
 
-	const handleRespond = () => {
+	const handleRespond = async () => {
 		if (!selectedReport || !responseText.trim()) return;
-		dispatch(updateReport({
-			...selectedReport,
-			status: ReportStatus.Resolved,
-			adminResponse: responseText.trim(),
-			reviewedBy: currUser?.id,
-			updatedAt: Date.now(),
-		}));
-		setSelectedReport(null);
-		setResponseText('');
+		try {
+			await ReportService.updateReport(selectedReport.id, {
+				status: ReportStatus.Resolved,
+				adminResponse: responseText.trim(),
+				resolvedBy: currUser?.id,
+			});
+			dispatch(updateReport({
+				...selectedReport,
+				status: ReportStatus.Resolved,
+				adminResponse: responseText.trim(),
+				resolvedBy: currUser?.id,
+				updatedAt: Date.now(),
+			}));
+			setSelectedReport(null);
+			setResponseText('');
+		} catch (err) {
+			console.error('[ReportManagementPage] respond error:', err);
+		}
 	};
 
-	const handleDelete = () => {
-		if (deleteReportId) {
+	const handleDelete = async () => {
+		if (!deleteReportId) return;
+		try {
+			await ReportService.deleteReport(deleteReportId);
 			dispatch(removeReport(deleteReportId));
 			setDeleteReportId(null);
+		} catch (err) {
+			console.error('[ReportManagementPage] delete error:', err);
 		}
 	};
 
@@ -179,7 +228,7 @@ export default function ReportManagementPage() {
 					<div className="space-y-4">
 						{filteredReports.map((report) => {
 							const statusConf = STATUS_CONFIG[report.status];
-							const catConf = CATEGORY_CONFIG[report.category];
+							const catConf = CATEGORY_CONFIG[report.type] ?? { label: report.type, icon: FileText };
 							const StatusIcon = statusConf.icon;
 							const CatIcon = catConf.icon;
 							return (
@@ -203,9 +252,9 @@ export default function ReportManagementPage() {
 												<h3 className="font-bold text-gray-900 text-lg mb-1">{report.title}</h3>
 												<p className="text-gray-600 text-sm line-clamp-2 mb-3">{report.description}</p>
 												<div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-													<span>Người gửi: <strong className="text-gray-700">{getUserName(report.userId)}</strong></span>
+													<span>Người gửi: <strong className="text-gray-700">{getUserName(report.reportedBy)}</strong></span>
 													<span>{formatDate(report.createdAt)}</span>
-													{report.reviewedBy && <span>Xử lý bởi: <strong className="text-gray-700">{getUserName(report.reviewedBy)}</strong></span>}
+													{report.resolvedBy && <span>Xử lý bởi: <strong className="text-gray-700">{getUserName(report.resolvedBy)}</strong></span>}
 												</div>
 												{report.adminResponse && (
 													<div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3">

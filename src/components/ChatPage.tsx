@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { addChatRoom, removeChatRoom } from '@/components/store/chatRoomSlice';
 import { addChatMessage } from '@/components/store/chatMessageSlice';
+import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { ChatRoom, ChatMessage } from '@/types/client';
 import { Card, CardContent } from './ui/card';
@@ -19,10 +20,13 @@ import {
 	AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from './ui/alert-dialog';
 import {
-	MessageCircle, Plus, Send, Users, Hash, ArrowLeft,
+	MessageCircle, Plus, Send, Hash, ArrowLeft,
 	Video, Calendar, Trash2, Search,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3003';
 
 function CreateRoomDialog({ open, onOpenChange, onSave }: {
 	open: boolean;
@@ -80,6 +84,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const allMessages = useAppSelector((state) => state.chatMessages.list);
 	const [input, setInput] = useState('');
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const socketRef = useRef<Socket | null>(null);
 
 	const messages = useMemo(
 		() => allMessages.filter((m) => m.roomId === room.id).sort((a, b) => a.createdAt - b.createdAt),
@@ -90,18 +95,38 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages.length]);
 
-	const getUserName = (userId: string) => users.find((u) => u.id === userId)?.fullName || 'Ẩn danh';
+	useEffect(() => {
+		const socket = io(SOCKET_URL, { transports: ['websocket'] });
+		socketRef.current = socket;
+
+		socket.emit('joinRoom', { roomId: room.id });
+
+		socket.on('newMessage', (data: { id: string; uid: string; message: string; createdAt: string }) => {
+			const msg: ChatMessage = {
+				id: data.id,
+				roomId: room.id,
+				uid: data.uid,
+				message: data.message,
+				createdAt: new Date(data.createdAt).getTime(),
+			};
+			dispatch(addChatMessage(msg));
+		});
+
+		return () => {
+			socket.emit('leaveRoom', { roomId: room.id });
+			socket.disconnect();
+		};
+	}, [room.id, dispatch]);
+
+	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
 
 	const handleSend = () => {
-		if (!input.trim() || !currUser) return;
-		const newMsg: ChatMessage = {
-			id: `msg${Date.now()}`,
+		if (!input.trim() || !currUser || !socketRef.current) return;
+		socketRef.current.emit('sendMessage', {
 			roomId: room.id,
-			userId: currUser.id,
+			uid: currUser.id,
 			message: input.trim(),
-			createdAt: Date.now(),
-		};
-		dispatch(addChatMessage(newMsg));
+		});
 		setInput('');
 	};
 
@@ -128,9 +153,6 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 				</Button>
 				<div className="flex-1 min-w-0">
 					<h2 className="font-bold text-lg truncate">{room.name}</h2>
-					<p className="text-xs text-gray-500 flex items-center gap-1">
-						<Users className="h-3 w-3" /> {room.memberCount} thành viên
-					</p>
 				</div>
 				{room.scheduledLiveUrl && (
 					<a href={room.scheduledLiveUrl} target="_blank" rel="noopener noreferrer">
@@ -152,7 +174,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 					</div>
 				)}
 				{messages.map((msg) => {
-					const isMe = msg.userId === currUser?.id;
+					const isMe = msg.uid === currUser?.id;
 					const dateLabel = formatDate(msg.createdAt);
 					let showDateSep = false;
 					if (dateLabel !== lastDateLabel) { showDateSep = true; lastDateLabel = dateLabel; }
@@ -168,7 +190,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 							<div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}>
 								<div className={`max-w-[75%] ${isMe ? 'order-2' : ''}`}>
 									{!isMe && (
-										<p className="text-xs font-semibold text-gray-500 mb-0.5 ml-3">{getUserName(msg.userId)}</p>
+										<p className="text-xs font-semibold text-gray-500 mb-0.5 ml-3">{getUserName(msg.uid)}</p>
 									)}
 									<div className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-primary text-white rounded-tr-md' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-md shadow-sm'}`}>
 										{msg.message}
@@ -219,7 +241,7 @@ export default function ChatPage() {
 		if (isHydrated && !currUser) router.push('/auth');
 	}, [isHydrated, currUser, router]);
 
-	const getUserName = (userId: string) => users.find((u) => u.id === userId)?.fullName || 'Ẩn danh';
+	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
 
 	const getLastMessage = (roomId: string) => {
 		const msgs = allMessages.filter((m) => m.roomId === roomId);
@@ -228,27 +250,49 @@ export default function ChatPage() {
 	};
 
 	const filteredRooms = useMemo(() => {
-		if (!searchQuery) return [...rooms].sort((a, b) => (b.lastMessageAt || b.createdAt) - (a.lastMessageAt || a.createdAt));
+		const sorted = [...rooms].sort((a, b) => {
+			const lastA = getLastMessage(a.id)?.createdAt ?? 0;
+			const lastB = getLastMessage(b.id)?.createdAt ?? 0;
+			return lastB - lastA;
+		});
+		if (!searchQuery) return sorted;
 		const q = searchQuery.toLowerCase();
-		return rooms.filter((r) => r.name.toLowerCase().includes(q)).sort((a, b) => (b.lastMessageAt || b.createdAt) - (a.lastMessageAt || a.createdAt));
-	}, [rooms, searchQuery]);
+		return sorted.filter((r) => r.name.toLowerCase().includes(q));
+	}, [rooms, searchQuery, allMessages]);
 
-	const handleCreateRoom = (name: string, liveUrl?: string, liveDate?: number) => {
+	const handleCreateRoom = async (name: string, liveUrl?: string, liveDate?: number) => {
 		if (!currUser) return;
-		const newRoom: ChatRoom = {
-			id: `room${Date.now()}`,
-			name,
-			createdBy: currUser.id,
-			scheduledLiveUrl: liveUrl,
-			scheduledDate: liveDate,
-			memberCount: 1,
-			createdAt: Date.now(),
-		};
-		dispatch(addChatRoom(newRoom));
+		try {
+			const res = await ChatRoomService.createRoom({ name });
+			const newRoom: ChatRoom = {
+				id: res.id,
+				name: res.name,
+				scheduledLiveUrl: res.scheduledLiveUrl,
+				scheduledDate: res.scheduledDate ? new Date(res.scheduledDate).getTime() : undefined,
+			};
+			if (liveUrl || liveDate) {
+				await ChatRoomService.updateSchedule(res.id, {
+					url: liveUrl,
+					time: liveDate ? new Date(liveDate).toISOString() : undefined,
+				});
+				newRoom.scheduledLiveUrl = liveUrl;
+				newRoom.scheduledDate = liveDate;
+			}
+			dispatch(addChatRoom(newRoom));
+		} catch (err) {
+			console.error('Failed to create room:', err);
+		}
 	};
 
-	const handleDeleteRoom = () => {
-		if (deleteRoomId) { dispatch(removeChatRoom(deleteRoomId)); setDeleteRoomId(null); }
+	const handleDeleteRoom = async () => {
+		if (!deleteRoomId) return;
+		try {
+			await ChatRoomService.deleteRoom(deleteRoomId);
+			dispatch(removeChatRoom(deleteRoomId));
+			setDeleteRoomId(null);
+		} catch (err) {
+			console.error('Failed to delete room:', err);
+		}
 	};
 
 	const formatRelativeTime = (ts: number) => {
@@ -308,7 +352,6 @@ export default function ChatPage() {
 					<div className="space-y-3">
 						{filteredRooms.map((room) => {
 							const lastMsg = getLastMessage(room.id);
-							const isOwner = room.createdBy === currUser.id;
 							return (
 								<Card key={room.id} className="hover:shadow-lg transition-all cursor-pointer border-0 shadow-sm group" onClick={() => setSelectedRoom(room)}>
 									<CardContent className="p-4 flex items-center gap-4">
@@ -325,22 +368,17 @@ export default function ChatPage() {
 												)}
 											</div>
 											<p className="text-sm text-gray-500 truncate">
-												{lastMsg ? `${getUserName(lastMsg.userId)}: ${lastMsg.message}` : 'Chưa có tin nhắn'}
+												{lastMsg ? `${getUserName(lastMsg.uid)}: ${lastMsg.message}` : 'Chưa có tin nhắn'}
 											</p>
 										</div>
 										<div className="text-right shrink-0 flex items-center gap-2">
 											<div>
 												<p className="text-xs text-gray-400">{lastMsg ? formatRelativeTime(lastMsg.createdAt) : ''}</p>
-												<p className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
-													<Users className="h-3 w-3" /> {room.memberCount}
-												</p>
 											</div>
-											{isOwner && (
-												<Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50"
-													onClick={(e) => { e.stopPropagation(); setDeleteRoomId(room.id); }}>
-													<Trash2 className="h-4 w-4" />
-												</Button>
-											)}
+											<Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50"
+												onClick={(e) => { e.stopPropagation(); setDeleteRoomId(room.id); }}>
+												<Trash2 className="h-4 w-4" />
+											</Button>
 										</div>
 									</CardContent>
 								</Card>

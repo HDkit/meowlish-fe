@@ -31,19 +31,21 @@ export class NotificationService {
     return __request(OpenAPI, {
       method: 'GET',
       url: '/api/v1/notifications',
-      query: {
-        recipientId,
-        type,
-        isRead,
-        page,
-        limit,
-      },
+      query: { recipientId, type, isRead, page, limit },
     });
   }
 
   public static getNotification(id: string): CancelablePromise<NotificationResponse> {
     return __request(OpenAPI, {
       method: 'GET',
+      url: '/api/v1/notifications/{id}',
+      path: { id },
+    });
+  }
+
+  public static deleteNotification(id: string): CancelablePromise<void> {
+    return __request(OpenAPI, {
+      method: 'DELETE',
       url: '/api/v1/notifications/{id}',
       path: { id },
     });

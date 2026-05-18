@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ExamManagementService,
+  FilesService,
   getAccessToken,
   getRefreshToken,
 } from '@/lib/api-client';
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { MarkdownEditor } from './MarkdownEditor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useToast } from './ui/use-toast';
 import { Plus, Trash2, Save, MoreVertical, GripVertical, Layers, ChevronDown, ChevronRight, FileText, List, CheckCircle2, AlertCircle, Upload, X, FileAudio, FileImage, FileQuestion, Brain, ShieldCheck, Send, Search, ChevronRight as ChevronRightIcon, Image as ImageIcon } from 'lucide-react';
@@ -113,17 +115,36 @@ function ensureProtocol(url: string): string {
 }
 
 async function uploadFileViaPresigned(file: File): Promise<{ id: string; url: string }> {
-  // 1. Xin presigned URL từ backend
-  const presignRes = await ExamManagementService.examManagementGatewayControllerGetPresignedUploadUrlV1({
-    requestBody: { fileName: file.name, contentType: file.type },
+  const presignRes = await FilesService.fileGatewayControllerGetPresignedUrlV1({
+    isPublicFile: true,
+    fileName: file.name,
+    fileSize: file.size,
+    contentType: file.type,
   });
-  const { uploadUrl, fileId, publicUrl } = presignRes.data as { uploadUrl: string; fileId: string; publicUrl: string };
+  const data = (presignRes as any).data ?? presignRes;
+  const { uploadUrl, id: fileId, formData } = data as {
+    uploadUrl: string;
+    id: string;
+    formData?: Record<string, string>;
+  };
 
-  // 2. Upload thẳng lên S3/GCS
-  await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+  if (formData && Object.keys(formData).length > 0) {
+    const body = new FormData();
+    for (const [key, val] of Object.entries(formData)) {
+      body.append(key, val);
+    }
+    body.append('file', file);
+    await fetch(ensureProtocol(uploadUrl), { method: 'POST', body });
+  } else {
+    await fetch(ensureProtocol(uploadUrl), {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+  }
 
-  // 3. Đảm bảo publicUrl có protocol
-  return { id: fileId, url: ensureProtocol(publicUrl) };
+  const publicUrl = ensureProtocol(uploadUrl.split('?')[0]);
+  return { id: fileId, url: publicUrl };
 }
 
 // ─── FileUploadZone ───────────────────────────────────────────────────────────
@@ -1010,10 +1031,10 @@ export function ExamCreationPage() {
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label className="text-sm">Hướng dẫn (directive)</Label>
-                        <Textarea
-                          rows={4}
+                        <MarkdownEditor
+                          rows={6}
                           value={selectedSection.directive}
-                          onChange={(e) => setSections((p) => ({ ...p, [selectedSection.id]: { ...p[selectedSection.id], directive: e.target.value } }))}
+                          onChange={(val) => setSections((p) => ({ ...p, [selectedSection.id]: { ...p[selectedSection.id], directive: val } }))}
                           placeholder="Nhập hướng dẫn hoặc nội dung bài đọc/bài nghe..."
                         />
                       </div>
@@ -1186,19 +1207,19 @@ export function ExamCreationPage() {
                       </div>
                       <div className="space-y-1.5 md:col-span-3">
                         <Label className="text-sm">Nội dung câu hỏi</Label>
-                        <Textarea
-                          rows={3}
+                        <MarkdownEditor
+                          rows={4}
                           value={selectedQuestion.content}
-                          onChange={(e) => setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], content: e.target.value } }))}
+                          onChange={(val) => setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], content: val } }))}
                           placeholder="Nhập nội dung câu hỏi..."
                         />
                       </div>
                       <div className="space-y-1.5 md:col-span-3">
                         <Label className="text-sm">Giải thích đáp án</Label>
-                        <Textarea
-                          rows={3}
+                        <MarkdownEditor
+                          rows={4}
                           value={selectedQuestion.explanation}
-                          onChange={(e) => setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], explanation: e.target.value } }))}
+                          onChange={(val) => setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], explanation: val } }))}
                           placeholder="Giải thích tại sao đáp án đúng..."
                         />
                       </div>

@@ -36,13 +36,14 @@ import {
 	Clock,
 	CheckCircle2,
 	Circle,
+	Camera,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ExamPracticeService, AchievementsService, AuthService, GoalsService } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService, GoalsService, FilesService } from '@/lib/api-client';
 import { setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
@@ -94,6 +95,8 @@ export function UserPage() {
 		confirmPassword: '',
 	});
 	const [showPassword, setShowPassword] = useState(false);
+	const [uploadingAvatar, setUploadingAvatar] = useState(false);
+	const avatarInputRef = React.useRef<HTMLInputElement>(null);
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
 	const { toast } = useToast();
@@ -260,6 +263,47 @@ export function UserPage() {
 		}
 	};
 
+	const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file || !currUser) return;
+		setUploadingAvatar(true);
+		try {
+			const presignRes = await FilesService.fileGatewayControllerGetPresignedUrlV1({
+				isPublicFile: true,
+				fileName: file.name,
+				fileSize: file.size,
+				contentType: file.type,
+			});
+			const data = (presignRes as any).data ?? presignRes;
+			const { uploadUrl, id: fileId, formData } = data as {
+				uploadUrl: string;
+				id: string;
+				formData?: Record<string, string>;
+			};
+
+			const ensuredUrl = uploadUrl.startsWith('http') ? uploadUrl : `https://${uploadUrl}`;
+			if (formData && Object.keys(formData).length > 0) {
+				const body = new FormData();
+				for (const [key, val] of Object.entries(formData)) body.append(key, val);
+				body.append('file', file);
+				await fetch(ensuredUrl, { method: 'POST', body });
+			} else {
+				await fetch(ensuredUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+			}
+
+			await AuthService.authGatewayControllerUpdateIdentityV1({ avatarId: fileId });
+			const avatarUrl = ensuredUrl.split('?')[0];
+			dispatch(setUser({ ...currUser, avatarUrl }));
+			toast({ title: 'Cập nhật ảnh đại diện thành công' });
+		} catch (err: any) {
+			console.error('Avatar upload failed:', err);
+			toast({ title: 'Tải ảnh thất bại', description: 'Không thể cập nhật ảnh đại diện.', variant: 'destructive' });
+		} finally {
+			setUploadingAvatar(false);
+			if (avatarInputRef.current) avatarInputRef.current.value = '';
+		}
+	};
+
 	const formatDate = (date: Date | number | string) => {
 		const dateObj = typeof date === 'string' ? new Date(date) : typeof date === 'number' ? new Date(date) : date;
 		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
@@ -299,17 +343,33 @@ export function UserPage() {
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
 				<div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
-					<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
-						<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
-						<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
-							{(currUser?.fullName || 'User')
-								.split(' ')
-								.map((n) => n[0])
-								.join('')
-								.slice(0, 2)
-								.toUpperCase()}
-						</AvatarFallback>
-					</Avatar>
+					<div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
+							<AvatarImage src={currUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
+							<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
+								{(currUser?.fullName || 'User')
+									.split(' ')
+									.map((n) => n[0])
+									.join('')
+									.slice(0, 2)
+									.toUpperCase()}
+							</AvatarFallback>
+						</Avatar>
+						<div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+							{uploadingAvatar ? (
+								<Loader2 className="h-6 w-6 text-white animate-spin" />
+							) : (
+								<Camera className="h-6 w-6 text-white" />
+							)}
+						</div>
+						<input
+							ref={avatarInputRef}
+							type="file"
+							accept="image/*"
+							className="hidden"
+							onChange={handleAvatarUpload}
+						/>
+					</div>
 					<div className='flex-1 text-center md:text-left'>
 						<h1 className='text-4xl font-extrabold mb-2 text-white drop-shadow-md'>{currUser?.fullName || 'Người dùng'}</h1>
 						<div className='flex flex-col md:flex-row items-center gap-4 text-primary-foreground/80 font-medium'>

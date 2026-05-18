@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { FlashCard, Tag, TagType } from '../types/client';
-import { addFlashCard, removeFlashCard, updateFlashCard } from './store/flashCardSlice';
+import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
+import { FlashCard, TagType } from '../types/client';
+import { FlashcardService } from '@/lib/api/services/FlashcardService';
+import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import type { FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -38,15 +40,32 @@ import {
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 
-// Component hiển thị từng flashcard
+function mapFlashCard(fc: any, listId: string): FlashCard {
+	return {
+		id: fc.id,
+		word: fc.word,
+		definition: fc.definition,
+		image: fc.image,
+		partOfSpeech: fc.partOfSpeech,
+		pronunciation: fc.pronunciation,
+		examples: fc.examples ?? [],
+		notes: fc.notes,
+		authorId: fc.authorId,
+		tags: fc.tags ?? [],
+		listId,
+		createdAt: new Date(fc.createdAt).getTime(),
+		updatedAt: fc.updatedAt ? new Date(fc.updatedAt).getTime() : undefined,
+	};
+}
+
 function FlashcardCard({
 	flashcard,
-	tag,
+	tagName,
 	onEdit,
 	onDelete,
 }: {
 	flashcard: FlashCard;
-	tag?: Tag;
+	tagName?: string;
 	onEdit: () => void;
 	onDelete: () => void;
 }) {
@@ -58,16 +77,14 @@ function FlashcardCard({
 			onClick={() => setIsFlipped(!isFlipped)}
 		>
 			<CardContent className="p-6 flex-1 flex flex-col relative z-10">
-				{/* Decorative elements */}
 				{!isFlipped && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>}
 				{isFlipped && <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>}
 
-				{/* Header với actions */}
 				<div className="flex items-start justify-between mb-4 relative z-20">
 					<div className="flex items-center gap-2">
-						{tag && (
+						{tagName && (
 							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-primary/10 text-primary border-primary/30'}`}>
-								{tag.name}
+								{tagName}
 							</Badge>
 						)}
 					</div>
@@ -76,10 +93,7 @@ function FlashcardCard({
 							variant={isFlipped ? 'ghost' : 'outline'}
 							size="icon"
 							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10'}`}
-							onClick={(e) => {
-								e.stopPropagation();
-								onEdit();
-							}}
+							onClick={(e) => { e.stopPropagation(); onEdit(); }}
 						>
 							<Edit className="h-4 w-4" />
 						</Button>
@@ -87,40 +101,46 @@ function FlashcardCard({
 							variant={isFlipped ? 'ghost' : 'outline'}
 							size="icon"
 							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-rose-200 hover:text-rose-100 hover:bg-rose-500/30' : 'bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50'}`}
-							onClick={(e) => {
-								e.stopPropagation();
-								onDelete();
-							}}
+							onClick={(e) => { e.stopPropagation(); onDelete(); }}
 						>
 							<Trash2 className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>
 
-				{/* Card content */}
 				<div className="flex-1 flex items-center justify-center relative z-10 overflow-hidden py-4">
 					<div className="text-center w-full max-h-full overflow-y-auto custom-scrollbar">
 						{isFlipped ? (
 							<div className="space-y-3 px-2">
-								<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60">Ghi chú & Giải nghĩa</p>
+								<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60">Định nghĩa</p>
 								<p className="text-lg font-medium text-white whitespace-pre-wrap leading-relaxed">
-									{flashcard.notes || 'Không có ghi chú'}
+									{flashcard.definition}
 								</p>
+								{flashcard.notes && (
+									<>
+										<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60 mt-4">Ghi chú</p>
+										<p className="text-sm text-white/80 whitespace-pre-wrap leading-relaxed">
+											{flashcard.notes}
+										</p>
+									</>
+								)}
 							</div>
 						) : (
 							<div className="px-2">
 								<p className="text-3xl font-extrabold text-slate-800 tracking-tight">
-									{flashcard.content}
+									{flashcard.word}
 								</p>
+								{flashcard.pronunciation && (
+									<p className="text-sm text-slate-400 mt-2 italic">{flashcard.pronunciation}</p>
+								)}
 							</div>
 						)}
 					</div>
 				</div>
 
-				{/* Footer */}
 				<div className={`mt-4 pt-4 text-center border-t relative z-10 ${isFlipped ? 'border-white/20' : 'border-slate-100'}`}>
 					<p className={`text-xs font-bold uppercase tracking-widest ${isFlipped ? 'text-primary-foreground/60' : 'text-slate-400'}`}>
-						{isFlipped ? 'Nhấn thẻ để lật lại' : 'Nhấn thẻ xem ghi chú'}
+						{isFlipped ? 'Nhấn thẻ để lật lại' : 'Nhấn thẻ xem định nghĩa'}
 					</p>
 				</div>
 			</CardContent>
@@ -128,7 +148,6 @@ function FlashcardCard({
 	);
 }
 
-// Dialog để thêm/sửa flashcard
 function FlashcardDialog({
 	open,
 	onOpenChange,
@@ -140,35 +159,53 @@ function FlashcardDialog({
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
 	listId: string;
-	onSave: (data: { content: string; notes: string; tagId: string }) => void;
+	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => void;
 }) {
-	const [content, setContent] = useState('');
+	const [word, setWord] = useState('');
+	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
-	const [tagId, setTagId] = useState('');
+	const [selectedTag, setSelectedTag] = useState('');
 	const tags = useAppSelector((state) => state.tags.list);
 	const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
 
 	useEffect(() => {
 		if (flashcard) {
-			setContent(flashcard.content);
+			setWord(flashcard.word);
+			setDefinition(flashcard.definition);
 			setNotes(flashcard.notes || '');
-			setTagId(flashcard.tagId);
+			setSelectedTag(flashcard.tags[0] || '');
 		} else {
-			setContent('');
+			setWord('');
+			setDefinition('');
 			setNotes('');
-			setTagId('');
+			setSelectedTag('');
 		}
 	}, [flashcard, open]);
 
+	const applyTemplate = (field: 'definition' | 'notes') => {
+		if (field === 'definition') {
+			setDefinition(`(n/v/adj) Nghĩa tiếng Việt
+Synonym: ...
+Antonym: ...`);
+		} else {
+			setNotes(`Ví dụ 1: ...
+Ví dụ 2: ...
+Cách nhớ: ...
+Lưu ý: ...`);
+		}
+	};
+
 	const handleSave = () => {
-		if (!content.trim() || !tagId) {
-			alert('Vui lòng điền đầy đủ thông tin');
+		if (!word.trim() || !definition.trim()) {
+			alert('Vui lòng điền đầy đủ từ và định nghĩa');
 			return;
 		}
-		onSave({ content: content.trim(), notes: notes.trim(), tagId });
-		setContent('');
+		const resultTags = selectedTag ? [selectedTag] : [];
+		onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: resultTags });
+		setWord('');
+		setDefinition('');
 		setNotes('');
-		setTagId('');
+		setSelectedTag('');
 		onOpenChange(false);
 	};
 
@@ -188,29 +225,54 @@ function FlashcardDialog({
 				</DialogHeader>
 				<div className="px-6 py-4 space-y-5">
 					<div className="space-y-2">
-						<Label htmlFor="content" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
+						<Label htmlFor="word" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
 						<Input
-							id="content"
+							id="word"
 							placeholder="VD: Aberration, Present Perfect..."
-							value={content}
-							onChange={(e) => setContent(e.target.value)}
+							value={word}
+							onChange={(e) => setWord(e.target.value)}
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="notes" className="text-slate-700 font-bold">Ghi chú (Mặt sau)</Label>
+					<div className="flex items-center justify-between">
+							<Label htmlFor="definition" className="text-slate-700 font-bold">Định nghĩa <span className="text-red-500">*</span></Label>
+							{!flashcard && !definition && (
+								<button type="button" onClick={() => applyTemplate('definition')} className="text-xs text-primary hover:underline font-medium">
+									Dùng mẫu
+								</button>
+							)}
+						</div>
 						<Textarea
-							id="notes"
-							placeholder="Định nghĩa, ví dụ minh hoạ, âm thanh..."
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-							rows={4}
+							id="definition"
+							placeholder="Nghĩa của từ hoặc cụm từ..."
+							value={definition}
+							onChange={(e) => setDefinition(e.target.value)}
+							rows={3}
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="tag" className="text-slate-700 font-bold">Chủ đề <span className="text-red-500">*</span></Label>
-						<Select value={tagId} onValueChange={setTagId}>
+					<div className="flex items-center justify-between">
+							<Label htmlFor="notes" className="text-slate-700 font-bold">Ghi chú</Label>
+							{!flashcard && !notes && (
+								<button type="button" onClick={() => applyTemplate('notes')} className="text-xs text-primary hover:underline font-medium">
+									Dùng mẫu
+								</button>
+							)}
+						</div>
+						<Textarea
+							id="notes"
+							placeholder="Ví dụ minh hoạ, ghi chú thêm..."
+							value={notes}
+							onChange={(e) => setNotes(e.target.value)}
+							rows={3}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="tag" className="text-slate-700 font-bold">Chủ đề</Label>
+						<Select value={selectedTag} onValueChange={setSelectedTag}>
 							<SelectTrigger id="tag" className="bg-slate-50 border-slate-200 rounded-xl h-11 focus:ring-primary focus:border-primary">
 								<SelectValue placeholder="Chọn một chủ đề" />
 							</SelectTrigger>
@@ -240,16 +302,16 @@ function FlashcardDialog({
 export function FlashcardListDetail() {
 	const router = useRouter();
 	const params = useParams();
-	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
-	const flashcards = useAppSelector((state) => state.flashCards.list);
 	const lists = useAppSelector((state) => state.flashcardLists.list);
 	const tags = useAppSelector((state) => state.tags.list);
 
 	const listId = params?.listId as string;
 
-	// Redirect if not logged in (wait for Redux rehydration first)
+	const [cards, setCards] = useState<FlashCard[]>([]);
+	const [loading, setLoading] = useState(true);
+
 	useEffect(() => {
 		if (!isHydrated) return;
 		if (!currentUser) {
@@ -257,67 +319,79 @@ export function FlashcardListDetail() {
 		}
 	}, [isHydrated, currentUser, router]);
 
+	useEffect(() => {
+		if (!listId) return;
+		setLoading(true);
+		FlashcardListService.getFlashCardList(listId)
+			.then((res: FlashCardListDetailResponse) => {
+				setCards((res.flashCards ?? []).map((fc) => mapFlashCard(fc, listId)));
+			})
+			.catch((err) => {
+				console.error('[FlashcardListDetail] fetch error:', err);
+			})
+			.finally(() => setLoading(false));
+	}, [listId]);
+
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
 	const [flashcardDialogOpen, setFlashcardDialogOpen] = useState(false);
 	const [editingFlashcard, setEditingFlashcard] = useState<FlashCard | undefined>();
 
-	// Get current list
 	const currentList = useMemo(() => {
 		return lists.find((l) => l.id === listId);
 	}, [lists, listId]);
 
-	// Lọc flashcards theo list
-	const flashcardsInList = useMemo(() => {
-		return flashcards.filter((f) => f.listId === listId);
-	}, [flashcards, listId]);
-
-	// Lọc theo search và tag
 	const filteredFlashcards = useMemo(() => {
-		let filtered = flashcardsInList;
+		let filtered = cards;
 		if (searchQuery) {
+			const q = searchQuery.toLowerCase();
 			filtered = filtered.filter(
 				(f) =>
-					f.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					f.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+					f.word.toLowerCase().includes(q) ||
+					f.definition.toLowerCase().includes(q) ||
+					f.notes?.toLowerCase().includes(q)
 			);
 		}
 		if (selectedTagId && selectedTagId !== '__all__') {
-			filtered = filtered.filter((f) => f.tagId === selectedTagId);
+			filtered = filtered.filter((f) => f.tags.includes(selectedTagId));
 		}
 		return filtered;
-	}, [flashcardsInList, searchQuery, selectedTagId]);
+	}, [cards, searchQuery, selectedTagId]);
 
 	const flashcardTags = tags.filter(
 		(t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question
 	);
 
-	const handleAddFlashcard = (data: {
-		content: string;
+	const handleAddFlashcard = async (data: {
+		word: string;
+		definition: string;
 		notes: string;
-		tagId: string;
+		tags: string[];
 	}) => {
 		if (!currentUser) return;
 
-		if (editingFlashcard) {
-			dispatch(
-				updateFlashCard({
-					...editingFlashcard,
-					content: data.content,
+		try {
+			if (editingFlashcard) {
+				const res = await FlashcardService.updateFlashCard(editingFlashcard.id, {
+					word: data.word,
+					definition: data.definition,
 					notes: data.notes,
-					tagId: data.tagId,
-				})
-			);
-		} else {
-			const newFlashcard: FlashCard = {
-				id: `f${Date.now()}`,
-				userId: currentUser.id,
-				listId: listId,
-				content: data.content,
-				notes: data.notes,
-				tagId: data.tagId,
-			};
-			dispatch(addFlashCard(newFlashcard));
+					tags: data.tags,
+				});
+				setCards((prev) => prev.map((c) => c.id === editingFlashcard.id ? mapFlashCard(res, listId) : c));
+			} else {
+				const res = await FlashcardService.createFlashCard({
+					word: data.word,
+					definition: data.definition,
+					notes: data.notes,
+					authorId: currentUser.id,
+					listId,
+					tags: data.tags,
+				});
+				setCards((prev) => [...prev, mapFlashCard(res, listId)]);
+			}
+		} catch (err) {
+			console.error('[FlashcardListDetail] save error:', err);
 		}
 		setEditingFlashcard(undefined);
 	};
@@ -327,18 +401,36 @@ export function FlashcardListDetail() {
 		setFlashcardDialogOpen(true);
 	};
 
-	const handleDeleteFlashcard = (flashcardId: string) => {
+	const handleDeleteFlashcard = async (flashcardId: string) => {
 		if (confirm('Bạn có chắc muốn xóa flashcard này?')) {
-			dispatch(removeFlashCard(flashcardId));
+			try {
+				await FlashcardService.deleteFlashCard(flashcardId);
+				setCards((prev) => prev.filter((c) => c.id !== flashcardId));
+			} catch (err) {
+				console.error('[FlashcardListDetail] delete error:', err);
+			}
 		}
 	};
 
-	const getTag = (tagId: string) => {
-		return tags.find((t) => t.id === tagId);
+	const getTagName = (flashcard: FlashCard) => {
+		const tag = tags.find((t) => flashcard.tags.includes(t.id));
+		return tag?.name;
 	};
 
 	if (!isHydrated || !currentUser) {
 		return null;
+	}
+
+	if (loading) {
+		return (
+			<div className="max-w-7xl mx-auto p-6">
+				<Card>
+					<CardContent className="py-12 text-center">
+						<p className="text-gray-500">Đang tải...</p>
+					</CardContent>
+				</Card>
+			</div>
+		);
 	}
 
 	if (!currentList) {
@@ -356,8 +448,7 @@ export function FlashcardListDetail() {
 		);
 	}
 
-	// Check if user owns this list
-	if (currentList.userId !== currentUser.id) {
+	if (currentList.authorId !== currentUser.id) {
 		return (
 			<div className="max-w-7xl mx-auto p-6">
 				<Card>
@@ -400,7 +491,7 @@ export function FlashcardListDetail() {
 								<div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
 									<div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
 										<BookOpen className="h-4 w-4 text-primary/80" />
-										{flashcardsInList.length} thẻ ghi nhớ
+										{cards.length} thẻ ghi nhớ
 									</div>
 									{currentList.description && (
 										<p className="text-slate-500 font-medium">
@@ -430,7 +521,7 @@ export function FlashcardListDetail() {
 					<div className="flex-1 w-full relative">
 						<Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
 						<Input
-							placeholder="Tìm kiếm nội dung thẻ học hoặc ghi chú..."
+							placeholder="Tìm kiếm từ, định nghĩa hoặc ghi chú..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-11 bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-12 text-base font-medium"
@@ -498,7 +589,7 @@ export function FlashcardListDetail() {
 							<FlashcardCard
 								key={flashcard.id}
 								flashcard={flashcard}
-								tag={getTag(flashcard.tagId)}
+								tagName={getTagName(flashcard)}
 								onEdit={() => handleEditFlashcard(flashcard)}
 								onDelete={() => handleDeleteFlashcard(flashcard.id)}
 							/>

@@ -20,6 +20,7 @@ export interface User extends MockDbType {
 	fullName: string;
 	roleId: string; // Role.id
 	status: 'active' | 'suspended' | 'banned';
+	avatarUrl?: string;
 	createdAt: number;
 	lastLoginAt?: number;
 }
@@ -165,15 +166,16 @@ export enum ReportStatus {
 }
 
 export interface Report extends MockDbType {
-	userId: string;
-	category: ReportCategory;
+	reportedBy: string;
+	type: string;
 	title: string;
 	description: string;
-	targetType?: 'blog' | 'exam' | 'user' | 'other';
+	targetType?: string;
 	targetId?: string;
 	status: ReportStatus;
 	adminResponse?: string;
-	reviewedBy?: string;
+	resolvedBy?: string;
+	fileIds: string[];
 	createdAt: number;
 	updatedAt?: number;
 }
@@ -199,17 +201,13 @@ export interface Notification extends MockDbType {
 // Chat types
 export interface ChatRoom extends MockDbType {
 	name: string;
-	createdBy: string;
 	scheduledLiveUrl?: string;
 	scheduledDate?: number;
-	memberCount: number;
-	lastMessageAt?: number;
-	createdAt: number;
 }
 
 export interface ChatMessage extends MockDbType {
 	roomId: string;
-	userId: string;
+	uid: string;
 	message: string;
 	createdAt: number;
 }
@@ -226,18 +224,28 @@ export interface Tag extends MockDbType {
 }
 
 export interface FlashcardList extends MockDbType {
-	userId: string;
+	authorId: string;
 	name: string;
 	description?: string;
+	isPublic: boolean;
+	tags: string[];
 	createdAt: number;
+	updatedAt?: number;
 }
 
 export interface FlashCard extends MockDbType {
-	userId: string;
-	listId: string; // FlashcardList.id
-	content: string;
+	word: string;
+	definition: string;
+	image?: string;
+	partOfSpeech?: string;
+	pronunciation?: string;
+	examples: string[];
 	notes?: string;
-	tagId: string;
+	authorId: string;
+	tags: string[];
+	listId: string;
+	createdAt: number;
+	updatedAt?: number;
 }
 
 export interface Note extends MockDbType {
@@ -254,11 +262,10 @@ export enum BlogCategory {
 }
 
 export interface Blog extends MockDbType {
-	createdBy: string;
-	summary: string;
+	authorId: string;
 	title: string;
 	content: string;
-	category: BlogCategory;
+	tags: string[];
 	createdAt: number;
-	views?: number;
+	updatedAt?: number;
 }

@@ -10,7 +10,6 @@ import {
   FileText,
   BookOpen,
   Mic,
-  PenTool,
   TrendingUp,
   Newspaper,
   FilePlus,
@@ -19,7 +18,6 @@ import {
   Users,
   Settings,
   LogOut,
-  PanelLeftClose,
   MessageCircle,
   Bell,
   Flag,
@@ -54,19 +52,15 @@ const learnerLinks = [
   { href: '/notifications', label: 'Thông báo', icon: Bell },
 ];
 
-const modLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/exam-creation', label: 'Tạo đề thi', icon: FilePlus },
-  { href: '/exam-management', label: 'Quản lý đề thi', icon: ClipboardList },
-  { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
-  { href: '/user-management', label: 'Quản lý User', icon: Users },
-];
-
-const staffLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const managementLinks = [
   { href: '/exam-creation', label: 'Tạo đề thi', icon: FilePlus },
   { href: '/exam-management', label: 'Quản lý đề thi', icon: ClipboardList },
   { href: '/blog-management', label: 'Quản lý Blog', icon: Newspaper },
+];
+
+const modExtraLinks = [
+  { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
+  { href: '/user-management', label: 'Quản lý User', icon: Users },
 ];
 
 const headStaffExtra = [
@@ -81,7 +75,7 @@ export function AppSidebar() {
   const { isMod, isStaff, isHeadStaff } = useAuth();
   const user = useAppSelector((state) => state.currUser.current);
   const dispatch = useAppDispatch();
-  const { toggleSidebar } = useSidebar();
+  useSidebar();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -101,21 +95,17 @@ export function AppSidebar() {
   const isActive = (path: string) => pathname === path || pathname?.startsWith(path + '/');
 
   // Tránh hydration mismatch: dùng giá trị mặc định cho server, cập nhật sau khi mount
-  const navLinks = mounted
-    ? isHeadStaff || isStaff
-      ? staffLinks
-      : isMod
-        ? modLinks
-        : learnerLinks
-    : learnerLinks;
-  const managementLinks = mounted && isHeadStaff ? headStaffExtra : [];
-  const sidebarLabel = mounted
-    ? isHeadStaff || isStaff
-      ? 'QUẢN LÝ'
-      : isMod
-        ? 'KIỂM DUYỆT'
-        : 'HỌC TẬP'
-    : 'HỌC TẬP';
+  const navLinks = learnerLinks;
+  const extraLinks = mounted
+    ? isHeadStaff
+      ? [...managementLinks, ...headStaffExtra]
+      : isStaff
+        ? managementLinks
+        : isMod
+          ? [...managementLinks, ...modExtraLinks]
+          : []
+    : [];
+  const sidebarLabel = 'HỌC TẬP';
   const userDisplayName = user?.fullName ?? 'Tài khoản';
 
   return (
@@ -173,16 +163,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {managementLinks.length > 0 && (
+        {extraLinks.length > 0 && (
           <>
             <SidebarSeparator className="my-2 bg-emerald-100 dark:bg-emerald-950/60" />
             <SidebarGroup>
               <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                HỆ THỐNG
+                QUẢN LÝ & HỆ THỐNG
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-1">
-                  {managementLinks.map((link) => (
+                  {extraLinks.map((link) => (
                     <SidebarMenuItem key={link.href}>
                       <SidebarMenuButton
                         onClick={() => router.push(link.href)}

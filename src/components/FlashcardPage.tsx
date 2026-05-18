@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashcardList } from '../types/client';
-import { removeFlashCard } from './store/flashCardSlice';
 import { addFlashcardList, removeFlashcardList, updateFlashcardList } from './store/flashcardListSlice';
+import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -119,7 +119,6 @@ export function FlashcardPage() {
 	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
-	const flashcards = useAppSelector((state) => state.flashCards.list);
 	const lists = useAppSelector((state) => state.flashcardLists.list);
 
 	// Redirect if not logged in (wait for Redux rehydration first)
@@ -133,32 +132,44 @@ export function FlashcardPage() {
 	const [listDialogOpen, setListDialogOpen] = useState(false);
 	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
 
-	// Lọc lists của user hiện tại
 	const myLists = useMemo(
-		() => lists.filter((l) => l.userId === currentUser?.id),
+		() => lists.filter((l) => l.authorId === currentUser?.id),
 		[lists, currentUser]
 	);
 
-	const handleAddList = (data: { name: string; description: string }) => {
+	const handleAddList = async (data: { name: string; description: string }) => {
 		if (!currentUser) return;
 
-		if (editingList) {
-			dispatch(
-				updateFlashcardList({
-					...editingList,
+		try {
+			if (editingList) {
+				const res = await FlashcardListService.updateFlashCardList(editingList.id, {
 					name: data.name,
 					description: data.description,
-				})
-			);
-		} else {
-			const newList: FlashcardList = {
-				id: `fl${Date.now()}`,
-				userId: currentUser.id,
-				name: data.name,
-				description: data.description,
-				createdAt: Date.now(),
-			};
-			dispatch(addFlashcardList(newList));
+				});
+				dispatch(updateFlashcardList({
+					...editingList,
+					name: res.name,
+					description: res.description || undefined,
+				}));
+			} else {
+				const res = await FlashcardListService.createFlashCardList({
+					name: data.name,
+					description: data.description,
+					authorId: currentUser.id,
+				});
+				const newList: FlashcardList = {
+					id: res.id,
+					authorId: res.authorId,
+					name: res.name,
+					description: res.description || undefined,
+					isPublic: res.isPublic,
+					tags: res.tags ?? [],
+					createdAt: new Date(res.createdAt).getTime(),
+				};
+				dispatch(addFlashcardList(newList));
+			}
+		} catch (err) {
+			console.error('[FlashcardPage] save list error:', err);
 		}
 		setEditingList(undefined);
 	};
@@ -168,19 +179,15 @@ export function FlashcardPage() {
 		setListDialogOpen(true);
 	};
 
-	const handleDeleteList = (listId: string) => {
+	const handleDeleteList = async (listId: string) => {
 		if (confirm('Bạn có chắc muốn xóa list này? Tất cả flashcard trong list sẽ bị xóa.')) {
-			// Xóa tất cả flashcard trong list
-			flashcards
-				.filter((f) => f.listId === listId)
-				.forEach((f) => dispatch(removeFlashCard(f.id)));
-			// Xóa list
-			dispatch(removeFlashcardList(listId));
+			try {
+				await FlashcardListService.deleteFlashCardList(listId);
+				dispatch(removeFlashcardList(listId));
+			} catch (err) {
+				console.error('[FlashcardPage] delete list error:', err);
+			}
 		}
-	};
-
-	const getFlashcardCount = (listId: string) => {
-		return flashcards.filter((f) => f.listId === listId).length;
 	};
 
 	if (!isHydrated || !currentUser) {
@@ -273,7 +280,7 @@ export function FlashcardPage() {
 													</h3>
 													<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold mb-3 border border-slate-200/60">
 														<BookOpen className="w-3.5 h-3.5 text-primary/80" />
-														{getFlashcardCount(list.id)} thẻ
+														Flashcards
 													</div>
 												</div>
 											</div>
