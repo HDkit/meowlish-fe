@@ -1,80 +1,83 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useDispatch } from 'react-redux';
-import { Plus } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { useRouter } from 'next/navigation';
+import { Plus, Loader2 } from 'lucide-react';
+import { GoalsService } from '@/lib/api';
+import { set_goal_req_dto_SetGoalDto } from '@/lib/api/models/set_goal_req_dto_SetGoalDto';
+import { useToast } from '@/components/ui/use-toast';
 
-import { addGoal } from './store/goalSlice';
-import { Goal, TestType } from '../types/client';
-import { useAppSelector } from './store/main/hook';
+const GoalType = set_goal_req_dto_SetGoalDto.type;
 
-export function AddGoalButton({ className }: { className?: string }) {
-	const currentUser = useAppSelector((state) => state.currUser.current);
-	const router = useRouter();
-	const dispatch = useDispatch();
+interface AddGoalButtonProps {
+	className?: string;
+	onGoalUpdated?: () => void;
+}
 
-	useEffect(() => {
-		if (!currentUser) {
-			router.push('/auth'); // redirect if not logged in
-		}
-	}, [currentUser, router]);
-
+export function AddGoalButton({ className, onGoalUpdated }: AddGoalButtonProps) {
+	const { toast } = useToast();
 	const [open, setOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
 	const [target, setTarget] = useState(0);
-	const [testType, setTestType] = useState<Goal['testType']>(TestType.IELTS);
-	const [dueDate, setDueDate] = useState<string>(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+	const [goalType, setGoalType] = useState<set_goal_req_dto_SetGoalDto.type>(GoalType.IELTS);
+	const [dueDate, setDueDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
-	const handleAdd = () => {
-		if (!currentUser) return;
-
-		dispatch(
-			addGoal({
-				id: uuidv4(),
-				userId: currentUser.id,
-				testType,
+	const handleAdd = async () => {
+		if (target <= 0) {
+			toast({ title: 'Điểm mục tiêu không hợp lệ', variant: 'destructive' });
+			return;
+		}
+		setLoading(true);
+		try {
+			await GoalsService.goalGatewayControllerSetGoalV1({
+				date: new Date(dueDate).toISOString(),
 				target,
-				dueDate: new Date(dueDate).getTime(), // convert to timestamp
-			})
-		);
-
-		// reset form and close modal
-		setOpen(false);
-		setTarget(0);
-		setTestType(TestType.IELTS);
-		setDueDate(new Date().toISOString().slice(0, 10));
+				type: goalType,
+			});
+			toast({ title: 'Đã đặt mục tiêu thành công' });
+			onGoalUpdated?.();
+			setOpen(false);
+			setTarget(0);
+			setGoalType(GoalType.IELTS);
+			setDueDate(new Date().toISOString().slice(0, 10));
+		} catch (err: any) {
+			console.error('Failed to set goal:', err);
+			toast({
+				title: 'Không thể đặt mục tiêu',
+				description: err?.body?.error || 'Đã xảy ra lỗi.',
+				variant: 'destructive',
+			});
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	return (
 		<>
-			{/* Add Goal Button */}
 			<button
 				onClick={() => setOpen(true)}
-				className={` flex flex-col items-center justify-center p-6 hover:bg-accent/50 transition ${className}`}
+				className={`flex flex-col items-center justify-center p-6 hover:bg-accent/50 transition ${className}`}
 			>
 				<Plus className='h-6 w-6 mb-2 text-gray-700' />
 			</button>
 
-			{/* Modal */}
 			{open && typeof document !== 'undefined' ? createPortal(
 				<div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]'>
 					<div className='bg-white rounded-xl shadow-2xl p-6 w-96 max-w-full mx-4 animate-in fade-in zoom-in-95 duration-200 border border-gray-100'>
 						<h2 className='text-xl font-bold mb-6 text-center text-gray-900'>Thêm Mục Tiêu Mới</h2>
 
-						{/* Goal Test Type */}
 						<div className='mb-4'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Loại Bài Kiểm Tra</label>
 							<select
-								value={testType}
-								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
+								value={goalType}
+								onChange={(e) => setGoalType(e.target.value as set_goal_req_dto_SetGoalDto.type)}
 								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all'
 							>
-								<option value={TestType.IELTS}>IELTS</option>
-								<option value={TestType.TOEIC}>TOEIC</option>
+								<option value={GoalType.IELTS}>IELTS</option>
+								<option value={GoalType.TOEIC}>TOEIC</option>
+								<option value={GoalType.VSTEP}>VSTEP</option>
+								<option value={GoalType.TOEFL}>TOEFL</option>
 							</select>
 						</div>
 
-						{/* Target Score */}
 						<div className='mb-4'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Điểm Mục Tiêu</label>
 							<input
@@ -86,7 +89,6 @@ export function AddGoalButton({ className }: { className?: string }) {
 							/>
 						</div>
 
-						{/* Due Date */}
 						<div className='mb-8'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Ngày dự thi</label>
 							<input
@@ -97,18 +99,20 @@ export function AddGoalButton({ className }: { className?: string }) {
 							/>
 						</div>
 
-						{/* Buttons */}
 						<div className='flex justify-end gap-3'>
 							<button
 								onClick={() => setOpen(false)}
+								disabled={loading}
 								className='px-5 py-2.5 font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'
 							>
 								Hủy
 							</button>
 							<button
 								onClick={handleAdd}
-								className='px-5 py-2.5 font-medium bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md shadow-primary/20 transition-all'
+								disabled={loading}
+								className='px-5 py-2.5 font-medium bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md shadow-primary/20 transition-all flex items-center gap-2'
 							>
+								{loading && <Loader2 className='h-4 w-4 animate-spin' />}
 								Thêm
 							</button>
 						</div>

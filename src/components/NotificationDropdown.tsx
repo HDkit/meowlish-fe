@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { updateNotification } from '@/components/store/notificationSlice';
 import { Notification, NotificationType } from '@/types/client';
@@ -25,6 +25,8 @@ export function NotificationDropdown() {
 	const currUser = useAppSelector((state) => state.currUser.current);
 	const allNotifications = useAppSelector((state) => state.notifications.list);
 	const [open, setOpen] = useState(false);
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
 
 	const myNotifications = useMemo(
 		() => allNotifications
@@ -61,7 +63,11 @@ export function NotificationDropdown() {
 		return `${Math.floor(diff / 86400000)} ngày trước`;
 	};
 
-	if (!currUser) return null;
+	if (!mounted || !currUser) return (
+		<Button variant="ghost" size="icon" className="relative rounded-full">
+			<Bell className="h-5 w-5" />
+		</Button>
+	);
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>

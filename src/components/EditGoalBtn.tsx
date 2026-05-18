@@ -1,58 +1,67 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useDispatch } from 'react-redux';
-import { Pencil } from 'lucide-react';
-import { updateGoal } from './store/goalSlice';
-import { Goal, TestType } from '../types/client';
-import { useAppSelector } from './store/main/hook';
-import { useRouter } from 'next/navigation';
+import { Pencil, Loader2 } from 'lucide-react';
+import { GoalsService } from '@/lib/api';
+import { update_goal_req_dto_UpdateGoalDto } from '@/lib/api/models/update_goal_req_dto_UpdateGoalDto';
+import { useToast } from '@/components/ui/use-toast';
 
-interface EditGoalButtonProps {
-	goal: Goal;
-	className?: string;
+const GoalType = update_goal_req_dto_UpdateGoalDto.type;
+
+interface GoalData {
+	date?: string;
+	target: number;
+	type: string;
 }
 
-export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
-	const currentUser = useAppSelector((state) => state.currUser.current);
-	const router = useRouter();
-	const dispatch = useDispatch();
+interface EditGoalButtonProps {
+	goal: GoalData;
+	onGoalUpdated?: () => void;
+}
 
-	useEffect(() => {
-		if (!currentUser) {
-			router.push('/auth'); // redirect if not logged in
-		}
-	}, [currentUser, router]);
-
+export function EditGoalButton({ goal, onGoalUpdated }: EditGoalButtonProps) {
+	const { toast } = useToast();
 	const [open, setOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
 	const [target, setTarget] = useState(goal.target);
-	const [testType, setTestType] = useState<Goal['testType']>(goal.testType);
+	const [goalType, setGoalType] = useState<update_goal_req_dto_UpdateGoalDto.type>(
+		(goal.type as update_goal_req_dto_UpdateGoalDto.type) || GoalType.IELTS
+	);
 	const [dueDate, setDueDate] = useState<string>('');
 
-	// Initialize dueDate when modal opens
 	useEffect(() => {
 		if (open) {
-			const date = new Date(goal.dueDate);
-			if (!isNaN(date.getTime())) {
-				setDueDate(date.toISOString().slice(0, 10));
-			} else {
-				setDueDate(new Date().toISOString().slice(0, 10));
-			}
 			setTarget(goal.target);
-			setTestType(goal.testType);
+			setGoalType((goal.type as update_goal_req_dto_UpdateGoalDto.type) || GoalType.IELTS);
+			const date = goal.date ? new Date(goal.date) : new Date();
+			setDueDate(!isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
 		}
 	}, [open, goal]);
 
-	const handleUpdate = () => {
-		dispatch(
-			updateGoal({
-				userId: currentUser!.id,
-				id: goal.id,
-				testType,
+	const handleUpdate = async () => {
+		if (target <= 0) {
+			toast({ title: 'Điểm mục tiêu không hợp lệ', variant: 'destructive' });
+			return;
+		}
+		setLoading(true);
+		try {
+			await GoalsService.goalGatewayControllerUpdateGoalV1({
+				date: new Date(dueDate).toISOString(),
 				target,
-				dueDate: new Date(dueDate).getTime(),
-			})
-		);
-		setOpen(false);
+				type: goalType,
+			});
+			toast({ title: 'Đã cập nhật mục tiêu thành công' });
+			onGoalUpdated?.();
+			setOpen(false);
+		} catch (err: any) {
+			console.error('Failed to update goal:', err);
+			toast({
+				title: 'Không thể cập nhật mục tiêu',
+				description: err?.body?.error || 'Đã xảy ra lỗi.',
+				variant: 'destructive',
+			});
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	return (
@@ -60,7 +69,7 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 			<button
 				onClick={() => setOpen(true)}
 				className='w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 hover:bg-accent/20 transition'
-				title='Edit Goal'
+				title='Chỉnh sửa mục tiêu'
 			>
 				<Pencil className='w-4 h-4 text-gray-700' />
 			</button>
@@ -70,20 +79,20 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 					<div className='bg-white rounded-xl shadow-2xl p-6 w-96 max-w-full mx-4 animate-in fade-in zoom-in-95 duration-200 border border-gray-100'>
 						<h2 className='text-xl font-bold mb-6 text-center text-gray-900'>Chỉnh sửa mục tiêu</h2>
 
-						{/* Goal Test Type */}
 						<div className='mb-4'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Loại Bài Kiểm Tra</label>
 							<select
-								value={testType}
-								onChange={(e) => setTestType(e.target.value as Goal['testType'])}
+								value={goalType}
+								onChange={(e) => setGoalType(e.target.value as update_goal_req_dto_UpdateGoalDto.type)}
 								className='w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all'
 							>
-								<option value={TestType.IELTS}>IELTS</option>
-								<option value={TestType.TOEIC}>TOEIC</option>
+								<option value={GoalType.IELTS}>IELTS</option>
+								<option value={GoalType.TOEIC}>TOEIC</option>
+								<option value={GoalType.VSTEP}>VSTEP</option>
+								<option value={GoalType.TOEFL}>TOEFL</option>
 							</select>
 						</div>
 
-						{/* Target Score */}
 						<div className='mb-4'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Điểm Mục Tiêu</label>
 							<input
@@ -95,7 +104,6 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 							/>
 						</div>
 
-						{/* Due Date */}
 						<div className='mb-8'>
 							<label className='block text-sm font-semibold mb-2 text-gray-700'>Ngày dự thi</label>
 							<input
@@ -106,18 +114,20 @@ export function EditGoalButton({ goal, className }: EditGoalButtonProps) {
 							/>
 						</div>
 
-						{/* Buttons */}
 						<div className='flex justify-end gap-3'>
 							<button
 								onClick={() => setOpen(false)}
+								disabled={loading}
 								className='px-5 py-2.5 font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'
 							>
 								Hủy
 							</button>
 							<button
 								onClick={handleUpdate}
-								className='px-5 py-2.5 font-medium bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md shadow-primary/20 transition-all'
+								disabled={loading}
+								className='px-5 py-2.5 font-medium bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md shadow-primary/20 transition-all flex items-center gap-2'
 							>
+								{loading && <Loader2 className='h-4 w-4 animate-spin' />}
 								Cập nhật
 							</button>
 						</div>

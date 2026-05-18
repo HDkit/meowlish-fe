@@ -817,14 +817,172 @@ export function TestResult() {
 				</div>
 
 				{/* Detailed results */}
-				<DetailedAnalysis
-					flatQuestions={flatQuestions}
-					questionStatusById={questionStatusById}
-					toeicParts={toeicParts}
-					reviewData={reviewData!}
-					isWritingTest={isWritingTest}
-				/>
+				{isWritingTest ? (
+					<WritingFeedbackSection
+						flatQuestions={flatQuestions}
+						reviewData={reviewData!}
+					/>
+				) : (
+					<DetailedAnalysis
+						flatQuestions={flatQuestions}
+						questionStatusById={questionStatusById}
+						toeicParts={toeicParts}
+						reviewData={reviewData!}
+						isWritingTest={isWritingTest}
+					/>
+				)}
 			</div>
+		</div>
+	);
+}
+
+function WritingFeedbackSection({
+	flatQuestions,
+	reviewData,
+}: {
+	flatQuestions: FlatQuestion[];
+	reviewData: AttemptReviewDto;
+}) {
+	const [expandedTask, setExpandedTask] = useState<number | null>(0);
+
+	return (
+		<div className="space-y-6">
+			<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+				<PenTool className="w-6 h-6 text-emerald-600" />
+				<h2 className="text-2xl font-extrabold text-slate-800">Nhận xét chi tiết từng bài viết</h2>
+			</div>
+
+			{flatQuestions.map((item, idx) => {
+				const res = reviewData.responses?.find((r) => r.questionId === item.q.id);
+				const userEssay = res?.answers?.[0] || '';
+				const fb = parseWritingFeedback(res?.additionalData);
+				const isExpanded = expandedTask === idx;
+
+				return (
+					<div key={item.q.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+						{/* Task header */}
+						<button
+							type="button"
+							onClick={() => setExpandedTask(isExpanded ? null : idx)}
+							className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-slate-50 transition-colors"
+						>
+							<div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg shrink-0">
+								{idx + 1}
+							</div>
+							<div className="flex-1 min-w-0">
+								<div className="font-bold text-slate-800 text-lg">
+									{item.sectionName || item.q.content || `Task ${idx + 1}`}
+								</div>
+								{fb && fb.overall_score > 0 && (
+									<div className="text-sm text-emerald-600 font-bold mt-0.5">
+										Band {fb.overall_score.toFixed(1)}
+									</div>
+								)}
+							</div>
+							<ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+						</button>
+
+						{isExpanded && (
+							<div className="px-6 pb-6 space-y-6 border-t border-slate-100 pt-5">
+								{/* Score overview */}
+								{fb && fb.overall_score > 0 && (
+									<div className="flex flex-wrap gap-3">
+										<div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
+											<div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Overall Band</div>
+											<div className="text-3xl font-black text-emerald-700 mt-1">{fb.overall_score.toFixed(1)}</div>
+										</div>
+										{fb.sub_scores && Object.entries(fb.sub_scores).map(([criterion, score]) => (
+											<div key={criterion} className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 min-w-[120px]">
+												<div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{criterion.replace(/_/g, ' ')}</div>
+												<div className="text-2xl font-black text-slate-800 mt-1">{Number(score).toFixed(1)}</div>
+											</div>
+										))}
+									</div>
+								)}
+
+								{/* Task prompt */}
+								{item.q.content && (
+									<div>
+										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Đề bài</h4>
+										<div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap">
+											{item.q.content}
+										</div>
+									</div>
+								)}
+
+								{/* User's essay */}
+								{userEssay && (
+									<div>
+										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bài viết của bạn</h4>
+										<div className="bg-blue-50/50 border border-blue-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+											{userEssay}
+										</div>
+									</div>
+								)}
+
+								{/* AI Feedback */}
+								{fb?.detailed_feedback && (
+									<div>
+										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Nhận xét từ AI</h4>
+										<div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+											{fb.detailed_feedback}
+										</div>
+									</div>
+								)}
+
+								{/* Corrections */}
+								{fb?.corrections && fb.corrections.length > 0 && (
+									<div>
+										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
+											Các lỗi cần sửa ({fb.corrections.length})
+										</h4>
+										<div className="space-y-2">
+											{fb.corrections.map((c, ci) => (
+												<div key={ci} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+													<div className="flex items-center gap-2">
+														<span className="text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-md uppercase">{c.type}</span>
+													</div>
+													<div className="flex flex-col sm:flex-row gap-2 text-sm">
+														<div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3">
+															<div className="text-xs font-bold text-red-500 mb-1">Bản gốc</div>
+															<div className="text-red-800 line-through">{c.original}</div>
+														</div>
+														<div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3">
+															<div className="text-xs font-bold text-green-500 mb-1">Sửa lại</div>
+															<div className="text-green-800 font-medium">{c.corrected}</div>
+														</div>
+													</div>
+													{c.explanation && (
+														<p className="text-xs text-slate-600 leading-relaxed pl-1">{c.explanation}</p>
+													)}
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Corrected version */}
+								{fb?.corrected_version && (
+									<div>
+										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bài viết đã sửa</h4>
+										<div className="bg-green-50/50 border border-green-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+											{fb.corrected_version}
+										</div>
+									</div>
+								)}
+
+								{/* No feedback yet */}
+								{!fb && (
+									<div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-5 text-slate-500">
+										<AlertCircle className="w-5 h-5 shrink-0" />
+										<span className="text-sm font-medium">Chưa có nhận xét từ AI cho bài viết này.</span>
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+				);
+			})}
 		</div>
 	);
 }

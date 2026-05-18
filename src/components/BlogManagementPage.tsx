@@ -134,19 +134,19 @@ export default function BlogManagementPage() {
         <div className="min-h-screen bg-background">
 
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-secondary text-white">
+            <div className="relative overflow-hidden bg-primary text-white">
                 <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative px-6 py-8">
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold flex items-center gap-2">
-                                <BookOpen className="h-6 w-6 text-secondary-foreground" />
+                                <BookOpen className="h-6 w-6 text-primary-foreground" />
                                 Quản lý bài viết
                             </h1>
-                            <p className="text-secondary-foreground mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
+                            <p className="text-primary-foreground/80 mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
                         </div>
-                        <Button onClick={openCreateDialog} className="bg-white text-secondary hover:bg-secondary/10 font-semibold shadow border-0">
+                        <Button onClick={openCreateDialog} className="bg-white text-primary hover:bg-white/90 font-semibold shadow border-0">
                             <Plus className="mr-2 h-4 w-4" />
                             Tạo bài viết
                         </Button>
@@ -154,12 +154,12 @@ export default function BlogManagementPage() {
                     <div className="grid grid-cols-3 gap-3 mt-6">
                         {[
                             { label: 'Tổng bài viết', value: blogs.length, color: 'bg-white/20' },
-                            { label: 'Lượt xem', value: totalViews.toLocaleString(), color: 'bg-secondary/30' },
+                            { label: 'Lượt xem', value: totalViews.toLocaleString(), color: 'bg-primary/30' },
                             { label: 'Đang hiển thị', value: filteredBlogs.length, color: 'bg-rose-400/30' },
                         ].map(({ label, value, color }) => (
                             <div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
                                 <div className="text-2xl font-bold">{value}</div>
-                                <div className="text-xs text-secondary-foreground mt-0.5">{label}</div>
+                                <div className="text-xs text-primary-foreground/80 mt-0.5">{label}</div>
                             </div>
                         ))}
                     </div>
@@ -203,7 +203,7 @@ export default function BlogManagementPage() {
                         <BookOpen className="h-12 w-12 text-gray-200 mx-auto mb-4" />
                         <p className="text-gray-500 font-medium">Chưa có bài viết nào</p>
                         <p className="text-gray-400 text-sm mt-1">Nhấn &quot;Tạo bài viết&quot; để bắt đầu</p>
-                        <Button onClick={openCreateDialog} className="mt-4 bg-secondary text-white border-0">
+                        <Button onClick={openCreateDialog} className="mt-4 bg-primary text-white border-0">
                             <Plus className="h-4 w-4 mr-2" />
                             Tạo bài viết đầu tiên
                         </Button>
@@ -226,7 +226,7 @@ export default function BlogManagementPage() {
                                     const catInfo = getCategoryInfo(blog.category);
                                     const CatIcon = catInfo.icon;
                                     return (
-                                        <tr key={blog.id} className="hover:bg-secondary/10 transition-colors group">
+                                        <tr key={blog.id} className="hover:bg-primary/10 transition-colors group">
                                             <td className="px-5 py-4">
                                                 <p className="font-semibold text-gray-800 truncate max-w-xs">{blog.title}</p>
                                                 <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{blog.summary}</p>
@@ -250,7 +250,7 @@ export default function BlogManagementPage() {
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button size="sm" variant="outline" onClick={() => openEditDialog(blog)}
-                                                        className="text-secondary border-secondary/30 hover:bg-secondary/10 h-8 px-3">
+                                                        className="text-primary border-primary/30 hover:bg-primary/10 h-8 px-3">
                                                         <Edit className="h-3.5 w-3.5 mr-1.5" />
                                                         Chỉnh sửa
                                                     </Button>

@@ -118,12 +118,27 @@ export function History() {
 	const bestScore = pcts.length > 0 ? Math.max(...pcts) : null;
 
 	return (
-		<div className='space-y-6'>
+		<div className='pb-20'>
 			{/* Header */}
-			<div className='space-y-2'>
-				<h1 className='text-3xl font-semibold'>Lịch sử làm bài</h1>
-				<p className='text-muted-foreground'>Xem lại các bài kiểm tra đã hoàn thành và theo dõi tiến bộ của bạn</p>
+			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
+				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
+				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+
+				<div className="relative z-10 max-w-3xl mx-auto space-y-4">
+					<div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold shadow-sm mb-2">
+						<Clock className="w-4 h-4" /> LỊCH SỬ LÀM BÀI
+					</div>
+					<h2 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5'>
+						Lịch Sử Làm Bài
+					</h2>
+					<p className='text-primary-foreground/80 text-lg md:text-xl font-medium'>
+						Xem lại các bài kiểm tra đã hoàn thành và theo dõi tiến bộ của bạn
+					</p>
+				</div>
 			</div>
+
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-6 -mt-12 relative z-10">
 
 			{/* Stats */}
 			<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
@@ -346,6 +361,7 @@ export function History() {
 					)}
 				</CardContent>
 			</Card>
+			</div>
 		</div>
 	);
 }

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Progress } from './ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -23,16 +22,10 @@ import {
 	Target,
 	TrendingUp,
 	BookOpen,
-	GraduationCap,
 	Edit,
-	Settings,
 	Award,
 	BarChart3,
 	Flame,
-	Headphones,
-	PenTool,
-	Mic,
-	Filter,
 	CheckSquare,
 	Lock,
 	User,
@@ -40,49 +33,46 @@ import {
 	Eye,
 	EyeOff,
 	Loader2,
+	Clock,
+	CheckCircle2,
+	Circle,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
-import { Attempt, Exam, Skill, TestType } from '../types/client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ExamPracticeService, AchievementsService, AuthService } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService, GoalsService } from '@/lib/api-client';
 import { setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
+import type { GoalResDto } from '@/lib/api/models/GoalResDto';
+import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
+import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
 
-interface UserType {
-	fullName: string;
-	email: string;
-	createdAt: Date;
-	progress: {
-		totalTests: number;
-		ieltsScore: number;
-		toeicScore: number;
-		studyStreak: number;
-		totalStudyTime: number;
-		skillScores: Record<Skill, number>;
-	};
+function formatElapsed(startedAt: string, endedAt?: string): string {
+	const start = new Date(startedAt).getTime();
+	const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+	const diffSeconds = Math.round((end - start) / 1000);
+	if (diffSeconds < 60) return `${diffSeconds}s`;
+	const h = Math.floor(diffSeconds / 3600);
+	const m = Math.floor((diffSeconds % 3600) / 60);
+	if (h > 0) return `${h}h ${m}m`;
+	return `${m} phút`;
 }
 
-interface Achievement {
-	id: string;
-	title: string;
-	description: string;
-	icon: React.ReactNode;
-	earned: boolean;
-	earnedDate?: Date;
-	progress?: number;
-	maxProgress?: number;
+function getScorePercent(attempt: MinimalAttemptInfoDto): number | null {
+	if (attempt.score == null || attempt.totalPoints == null || attempt.totalPoints === 0) return null;
+	return Math.round((attempt.score / attempt.totalPoints) * 100);
 }
 
 export function UserPage() {
 	const router = useRouter();
 	const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history'>('overview');
-	const [filterTestType, setFilterTestType] = useState<TestType | 'all'>('all');
-	const [filterSkill, setFilterSkill] = useState<Skill | 'all'>('all');
-	const [sortBy, setSortBy] = useState<'date' | 'score' | 'accuracy'>('date');
+
+	// API data state
+	const [goal, setGoal] = useState<GoalResDto | null>(null);
+	const [userStats, setUserStats] = useState<UserStatsDto | null>(null);
+	const [attemptHistory, setAttemptHistory] = useState<MinimalAttemptInfoDto[]>([]);
 
 	// State for badges and streak
 	const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
@@ -105,10 +95,23 @@ export function UserPage() {
 	});
 	const [showPassword, setShowPassword] = useState(false);
 
-	// Get data from Redux store
+	// Auth data from Redux
 	const dispatch = useAppDispatch();
 	const { toast } = useToast();
 	const currUser = useAppSelector((state) => state.currUser.current);
+
+	const fetchGoal = useCallback(async () => {
+		try {
+			const res = await GoalsService.goalGatewayControllerGetGoalV1();
+			if (res.data) {
+				setGoal(res.data as unknown as GoalResDto);
+			} else {
+				setGoal(null);
+			}
+		} catch {
+			setGoal(null);
+		}
+	}, []);
 
 	useEffect(() => {
 		if (currUser) {
@@ -121,7 +124,7 @@ export function UserPage() {
 
 					const end = new Date();
 					const start = new Date();
-					start.setDate(end.getDate() - 365); // Get data for the Heatmap (1 year)
+					start.setDate(end.getDate() - 365);
 
 					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
 						from: start.toISOString(),
@@ -132,15 +135,14 @@ export function UserPage() {
 						const historyObj = summaryRes.data.history;
 						setCalendarHistory(historyObj);
 
-						// Calculate streak
 						let currentStreak = 0;
 						let d = new Date();
 						d.setHours(0, 0, 0, 0);
 
-						while(true) {
+						while (true) {
 							const tzoffset = d.getTimezoneOffset() * 60000;
 							const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 10);
-							
+
 							if (historyObj[localISOTime] && historyObj[localISOTime] > 0) {
 								currentStreak++;
 								d.setDate(d.getDate() - 1);
@@ -156,13 +158,31 @@ export function UserPage() {
 						}
 						setStreak(currentStreak);
 					}
+
+					// Fetch user practice stats
+					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
+					if (statsRes.data) {
+						setUserStats(statsRes.data as unknown as UserStatsDto);
+					}
+
+					// Fetch goal
+					await fetchGoal();
+
+					// Fetch recent attempt history
+					const historyRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+						undefined, undefined, 20
+					);
+					if (historyRes.data) {
+						const data = historyRes.data as any;
+						setAttemptHistory(data.attempts ?? []);
+					}
 				} catch (e) {
-					console.error("Failed to load profile enhancements:", e);
+					console.error("Failed to load profile data:", e);
 				}
 			};
 			fetchProfileData();
 		}
-	}, [currUser]);
+	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Initialize profile form when user data is available
 	useEffect(() => {
@@ -185,23 +205,19 @@ export function UserPage() {
 				fullName: profileForm.fullName || undefined,
 				bio: profileForm.bio || undefined,
 			});
-
-			// Update Redux store
-			dispatch(setUser({
-				...currUser,
-				fullName: profileForm.fullName || currUser.fullName,
-			}));
-
-			toast({
-				title: 'Cập nhật thành công',
-				description: 'Thông tin cá nhân đã được cập nhật.',
-			});
+			dispatch(
+				setUser({
+					...currUser,
+					fullName: profileForm.fullName || currUser.fullName,
+				})
+			);
+			toast({ title: 'Cập nhật hồ sơ thành công' });
 			setIsProfileDialogOpen(false);
 		} catch (err: any) {
 			console.error('Failed to update profile:', err);
 			toast({
 				title: 'Cập nhật thất bại',
-				description: err?.body?.error || 'Không thể cập nhật thông tin.',
+				description: err?.body?.error || 'Không thể cập nhật hồ sơ.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -211,48 +227,26 @@ export function UserPage() {
 
 	// Handle password change
 	const handleChangePassword = async () => {
-		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-			toast({
-				title: 'Mật khẩu không khớp',
-				description: 'Mật khẩu mới và xác nhận mật khẩu phải giống nhau.',
-				variant: 'destructive',
-			});
+		if (!currUser) return;
+		if (!passwordForm.newPassword) {
+			toast({ title: 'Vui lòng nhập mật khẩu mới', variant: 'destructive' });
 			return;
 		}
-
 		if (passwordForm.newPassword.length < 6) {
-			toast({
-				title: 'Mật khẩu quá ngắn',
-				description: 'Mật khẩu mới phải có ít nhất 6 ký tự.',
-				variant: 'destructive',
-			});
+			toast({ title: 'Mật khẩu mới phải có ít nhất 6 ký tự', variant: 'destructive' });
 			return;
 		}
-
+		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+			toast({ title: 'Mật khẩu xác nhận không khớp', variant: 'destructive' });
+			return;
+		}
 		setIsLoading(true);
 		try {
-			// Note: API requires credential ID - we need to fetch credentials first
-			const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
-			const mailCredential = credsRes.data?.credentials?.find((c: any) => c.type === 'mail');
-
-			if (!mailCredential?.id) {
-				toast({
-					title: 'Không tìm thấy credential',
-					description: 'Không thể xác định credential email để đổi mật khẩu.',
-					variant: 'destructive',
-				});
-				return;
-			}
-
 			await AuthService.authGatewayControllerUpdateMailPasswordV1({
-				id: mailCredential.id,
+				id: currUser.id,
 				password: passwordForm.newPassword,
 			});
-
-			toast({
-				title: 'Đổi mật khẩu thành công',
-				description: 'Mật khẩu của bạn đã được cập nhật.',
-			});
+			toast({ title: 'Đổi mật khẩu thành công' });
 			setIsPasswordDialogOpen(false);
 			setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
 		} catch (err: any) {
@@ -267,201 +261,31 @@ export function UserPage() {
 		}
 	};
 
-	const attempts = useAppSelector((state) => state.attempts.list);
-	const exams = useAppSelector((state) => state.exams.list);
-	const questions = useAppSelector((state) => state.questions.list);
-	const sections = useAppSelector((state) => state.sections.list);
-
-	// Filter attempts by current user
-	const userAttempts = attempts.filter((attempt) => attempt.userId === currUser?.id);
-
-	// Helper function to get all child sections recursively
-	const getAllChildSections = (parentId: string): typeof sections => {
-		const directChildren = sections.filter((s) => s.parentId === parentId);
-		const all = [...directChildren];
-		for (const child of directChildren) {
-			all.push(...getAllChildSections(child.id));
-		}
-		return all;
-	};
-
-	// Enrich attempts with exam data
-	const attemptsWithExam = userAttempts
-		.map((attempt) => {
-			const exam = exams.find((e) => e.id === attempt.examId);
-			if (!exam) return null;
-
-			// Calculate time spent (in minutes)
-			const duration = exam.duration; // in minutes
-			const timeSpent = Math.max(0, duration - Math.floor(attempt.timeLeft / 60));
-
-			// Calculate total questions for this exam
-			const examSections = sections.filter((s) => s.parentId === exam.id);
-			const allSectionIds = [
-				...examSections.map((s) => s.id),
-				...examSections.flatMap((s) => getAllChildSections(s.id).map((cs) => cs.id)),
-			];
-			const totalQuestions = questions.filter((q) => allSectionIds.includes(q.sectionId)).length;
-
-			// Calculate accuracy from score (score is out of 100, convert to percentage)
-			const accuracy = attempt.score !== undefined ? Math.round(attempt.score) : 0;
-
-			// Calculate completed time
-			const completedAt = new Date(attempt.startTime + duration * 60 * 1000 - attempt.timeLeft * 1000);
-
-			return {
-				attempt,
-				exam,
-				timeSpent,
-				accuracy,
-				completedAt,
-				totalQuestions,
-			};
-		})
-		.filter(Boolean) as Array<{
-			attempt: Attempt;
-			exam: Exam;
-			timeSpent: number;
-			accuracy: number;
-			completedAt: Date;
-			totalQuestions: number;
-		}>;
-
-	const formatDate = (date: Date | number) => {
-		const dateObj = typeof date === 'number' ? new Date(date) : date;
+	const formatDate = (date: Date | number | string) => {
+		const dateObj = typeof date === 'string' ? new Date(date) : typeof date === 'number' ? new Date(date) : date;
 		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
 	};
 
-	const skillIcons: Record<Skill, React.ElementType> = {
-		reading: BookOpen,
-		listening: Headphones,
-		writing: PenTool,
-		speaking: Mic,
-	};
-
-	const getSkillIcon = (skill: Skill) => {
-		const Icon = skillIcons[skill];
-		return <Icon className='h-4 w-4' />;
-	};
-
-	const filteredHistory = attemptsWithExam.filter(
-		(item) =>
-			(filterTestType === 'all' || item.exam.testType === filterTestType) &&
-			(filterSkill === 'all' || item.exam.skill === filterSkill)
-	);
-
-	const sortedHistory = [...filteredHistory].sort((a, b) => {
-		if (sortBy === 'date') return b.completedAt.getTime() - a.completedAt.getTime();
-		if (sortBy === 'score') return (b.attempt.score || 0) - (a.attempt.score || 0);
-		if (sortBy === 'accuracy') return b.accuracy - a.accuracy;
-		return 0;
-	});
-
-	const goals = useAppSelector((state) => state.goals.list);
-	const userGoals = goals.filter((goal) => goal.userId === currUser?.id);
-
-	// Calculate statistics from attempts
-	const calculateSkillStats = () => {
-		const skillStats: Record<Skill, { averageScore: number; totalAttempts: number; scores: number[] }> = {
-			[Skill.Reading]: { averageScore: 0, totalAttempts: 0, scores: [] },
-			[Skill.Listening]: { averageScore: 0, totalAttempts: 0, scores: [] },
-			[Skill.Writing]: { averageScore: 0, totalAttempts: 0, scores: [] },
-			[Skill.Speaking]: { averageScore: 0, totalAttempts: 0, scores: [] },
-		};
-
-		attemptsWithExam.forEach((item) => {
-			if (item.attempt.score !== undefined) {
-				const skill = item.exam.skill;
-				skillStats[skill].scores.push(item.attempt.score);
-				skillStats[skill].totalAttempts++;
-			}
-		});
-
-		// Calculate averages
-		Object.keys(skillStats).forEach((skill) => {
-			const stats = skillStats[skill as Skill];
-			if (stats.scores.length > 0) {
-				stats.averageScore = Math.round((stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length) * 10) / 10;
-			}
-		});
-
-		return skillStats;
-	};
-
-	const calculateTestTypeStats = () => {
-		const testTypeStats: Record<TestType, { averageScore: number; totalAttempts: number; scores: number[] }> = {
-			[TestType.IELTS]: { averageScore: 0, totalAttempts: 0, scores: [] },
-			[TestType.TOEIC]: { averageScore: 0, totalAttempts: 0, scores: [] },
-		};
-
-		attemptsWithExam.forEach((item) => {
-			if (item.attempt.score !== undefined) {
-				const testType = item.exam.testType;
-				testTypeStats[testType].scores.push(item.attempt.score);
-				testTypeStats[testType].totalAttempts++;
-			}
-		});
-
-		// Calculate averages
-		Object.keys(testTypeStats).forEach((testType) => {
-			const stats = testTypeStats[testType as TestType];
-			if (stats.scores.length > 0) {
-				stats.averageScore = Math.round((stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length) * 10) / 10;
-			}
-		});
-
-		return testTypeStats;
-	};
-
-	const skillStats = calculateSkillStats();
-	const testTypeStats = calculateTestTypeStats();
-
-	// Get goal for comparison
-	const getGoalForTestType = (testType: TestType) => {
-		return userGoals.find((goal) => goal.testType === testType);
-	};
-
-	// Calculate progress percentage for goals
-	const getGoalProgress = (testType: TestType) => {
-		const goal = getGoalForTestType(testType);
-		if (!goal) return null;
-		const currentAvg = testTypeStats[testType].averageScore;
-		if (currentAvg === 0) return 0;
-		// For IELTS: goal is typically 0-9, score is 0-100, so convert
-		// For TOEIC: goal is typically 0-990, score is 0-100, so convert
-		if (testType === TestType.IELTS) {
-			// Convert score (0-100) to IELTS band (0-9)
-			const ieltsBand = (currentAvg / 100) * 9;
-			return Math.min(100, Math.round((ieltsBand / goal.target) * 100));
-		} else {
-			// Convert score (0-100) to TOEIC score (0-990)
-			const toeicScore = (currentAvg / 100) * 990;
-			return Math.min(100, Math.round((toeicScore / goal.target) * 100));
-		}
-	};
-
-	// Radar Chart Data
-	const radarData = [
-		{ subject: 'Listening', score: skillStats[Skill.Listening].averageScore || 0, fullMark: 100 },
-		{ subject: 'Reading', score: skillStats[Skill.Reading].averageScore || 0, fullMark: 100 },
-		{ subject: 'Writing', score: skillStats[Skill.Writing].averageScore || 0, fullMark: 100 },
-		{ subject: 'Speaking', score: skillStats[Skill.Speaking].averageScore || 0, fullMark: 100 },
-	];
+	// Radar Chart Data from API tag stats
+	const radarData = (userStats?.tagInfos ?? []).map(tag => ({
+		subject: tag.name,
+		score: Math.round(tag.correctPercentage),
+		fullMark: 100,
+	}));
 
 	// Login Streak Current Week Data
 	const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 	const currentWeekChecks = [...Array(7)].map((_, i) => {
 		const curr = new Date();
-		const first = curr.getDate() - curr.getDay(); // Sunday
+		const first = curr.getDate() - curr.getDay();
 		const dayDate = new Date();
 		dayDate.setDate(first + i);
 		const tzoffset = dayDate.getTimezoneOffset() * 60000;
 		const localISOTime = (new Date(dayDate.getTime() - tzoffset)).toISOString().slice(0, 10);
-		
-		// If the day is in the future, it should not be "missed", just unchecked visually differently
+
 		const isFuture = dayDate.getTime() > new Date().setHours(23, 59, 59, 999);
-		return { 
-			label: daysOfWeek[i], 
+		return {
+			label: daysOfWeek[i],
 			checked: !!(calendarHistory[localISOTime] && calendarHistory[localISOTime] > 0),
 			isFuture
 		};
@@ -470,12 +294,12 @@ export function UserPage() {
 	return (
 		<div className='min-h-screen bg-background pb-20'>
 			{/* ── Profile Hero Header ── */}
-			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-8">
-				<div className="absolute inset-0 bg-black/10" />
+			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-4 md:px-6 lg:px-8 xl:px-10">
+				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
 				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
-				<div className="relative px-6 py-12 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
+				<div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
 					<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
 						<AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
 						<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
@@ -504,17 +328,17 @@ export function UserPage() {
 						</div>
 					</div>
 					<div className='flex flex-wrap justify-center md:flex-col gap-3'>
-						<Button className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'>
-							<Edit className='h-4 w-4 mr-2' /> Cập nhật hồ sơ
-						</Button>
-						<Button className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'>
-							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
-						</Button>
 						<Button
-							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
+							className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'
 							onClick={() => setIsProfileDialogOpen(true)}
 						>
 							<User className='h-4 w-4 mr-2' /> Cập nhật hồ sơ
+						</Button>
+						<Button
+							className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'
+							onClick={() => router.push('/progress')}
+						>
+							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
 						<Button
 							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
@@ -526,7 +350,7 @@ export function UserPage() {
 				</div>
 			</div>
 
-			<div className='max-w-7xl mx-auto px-4 md:px-6 space-y-8'>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-8 -mt-12 relative z-10'>
 
 				{/* Goals Section */}
 				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
@@ -534,29 +358,30 @@ export function UserPage() {
 						<h2 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
 							<Target className="h-6 w-6 text-primary" /> Mục tiêu của bạn
 						</h2>
-						<AddGoalButton />
+						{!goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-						{userGoals.map((goal) => (
-							<Card key={goal.id} className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
+						{goal ? (
+							<Card className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
 								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
 										<div className='space-y-1'>
-											<p className='text-sm text-primary font-semibold flex items-center gap-1.5'>
-												<Calendar className='h-4 w-4' />
-												{formatDate(goal.dueDate)}
-											</p>
-											<p className='text-base font-bold text-gray-800'>Điểm {goal.testType?.toUpperCase()} mục tiêu</p>
+											{goal.date && (
+												<p className='text-sm text-primary font-semibold flex items-center gap-1.5'>
+													<Calendar className='h-4 w-4' />
+													{formatDate(goal.date)}
+												</p>
+											)}
+											<p className='text-base font-bold text-gray-800'>Điểm {goal.type?.toUpperCase()} mục tiêu</p>
 										</div>
-										<EditGoalButton goal={goal} />
+										<EditGoalButton goal={goal} onGoalUpdated={fetchGoal} />
 									</div>
 								</CardHeader>
 								<CardContent className="pt-4 pb-6">
 									<p className='text-5xl font-extrabold text-primary drop-shadow-sm'>{goal.target}</p>
 								</CardContent>
 							</Card>
-						))}
-						{userGoals.length === 0 && (
+						) : (
 							<div className="col-span-full py-8 text-center text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
 								<p>Bạn chưa thiết lập mục tiêu nào. Hãy đặt ra mục tiêu để có động lực học tập nhé!</p>
 							</div>
@@ -587,19 +412,23 @@ export function UserPage() {
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 								{/* Activity Overview Radar */}
 								<Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all">
-									<CardHeader className="bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between">
-										<CardTitle className="text-xl font-bold text-gray-800">Cân bằng kỹ năng</CardTitle>
+									<CardHeader className="bg-slate-50 border-b border-gray-100">
+										<CardTitle className="text-xl font-bold text-gray-800">Phân tích theo chủ đề</CardTitle>
 									</CardHeader>
 									<CardContent className="pt-6 h-[300px] flex items-center justify-center">
-										<ResponsiveContainer width="100%" height="100%">
-											<RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-												<PolarGrid strokeDasharray="3 3" />
-												<PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 13, fontWeight: 500 }} />
-												<PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-												<Radar name="Kỹ năng" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
-												<RechartsTooltip formatter={(value) => [`${value}%`, 'Tỷ lệ']} />
-											</RadarChart>
-										</ResponsiveContainer>
+										{radarData.length > 0 ? (
+											<ResponsiveContainer width="100%" height="100%">
+												<RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+													<PolarGrid strokeDasharray="3 3" />
+													<PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 13, fontWeight: 500 }} />
+													<PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+													<Radar name="Tỷ lệ đúng" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
+													<RechartsTooltip formatter={(value) => [`${value}%`, 'Tỷ lệ']} />
+												</RadarChart>
+											</ResponsiveContainer>
+										) : (
+											<p className="text-gray-400">Chưa có dữ liệu thống kê</p>
+										)}
 									</CardContent>
 								</Card>
 
@@ -613,7 +442,7 @@ export function UserPage() {
 											<Flame className="w-12 h-12 text-white fill-current absolute drop-shadow-md" />
 										</div>
 										<h2 className="text-4xl font-extrabold mb-8">{streak} Day Streak</h2>
-										
+
 										{/* Week Checkboxes */}
 										<div className="w-full max-w-sm flex justify-between items-center px-4">
 											{currentWeekChecks.map((day, idx) => (
@@ -637,132 +466,68 @@ export function UserPage() {
 								</Card>
 							</div>
 
-							{/* Test Type Statistics with Goals */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-								{Object.values(TestType).map((testType) => {
-									const stats = testTypeStats[testType];
-									const goal = getGoalForTestType(testType);
-									const progress = getGoalProgress(testType);
-									const hasAttempts = stats.totalAttempts > 0;
+							{/* Goal Progress Card */}
+							{goal && userStats && (
+								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all'>
+									<CardHeader className='bg-slate-50 border-b border-gray-100'>
+										<CardTitle className='flex items-center justify-between text-lg'>
+											<span className='font-bold text-gray-800'>{goal.type?.toUpperCase()} - Mục tiêu</span>
+											<Badge variant='secondary' className='ml-2 shadow-sm'>
+												Mục tiêu: {goal.target}
+											</Badge>
+										</CardTitle>
+									</CardHeader>
+									<CardContent className='space-y-5 pt-6'>
+										<div className='space-y-3'>
+											<div className='flex justify-between items-center'>
+												<span className='font-medium text-slate-500'>Điểm trung bình hiện tại</span>
+												<span className='text-3xl font-extrabold text-primary'>
+													{Math.round(userStats.averageScoreInPercentage)}%
+												</span>
+											</div>
+											<Progress value={userStats.averageScoreInPercentage} className='h-2.5 [&>div]:bg-primary' />
+										</div>
+										{goal.date && (
+											<div className='flex items-center justify-between text-sm pt-2 border-t'>
+												<span className='text-muted-foreground'>Ngày dự thi</span>
+												<span className='font-semibold'>{formatDate(goal.date)}</span>
+											</div>
+										)}
+										<div className='flex items-center justify-between text-sm pt-2 border-t'>
+											<span className='text-muted-foreground'>Số bài đã làm</span>
+											<span className='font-semibold'>{userStats.attemptCounts} bài</span>
+										</div>
+									</CardContent>
+								</Card>
+							)}
 
-									// Convert score to appropriate scale
-									const displayScore =
-										testType === TestType.IELTS
-											? hasAttempts
-												? Math.round((stats.averageScore / 100) * 9 * 10) / 10
-												: 0
-											: hasAttempts
-												? Math.round((stats.averageScore / 100) * 990)
-												: 0;
-
-									const maxScore = testType === TestType.IELTS ? 9 : 990;
-
-									return (
-										<Card key={testType} className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all'>
-											<CardHeader className='bg-slate-50 border-b border-gray-100'>
-												<CardTitle className='flex items-center justify-between text-lg'>
-													<span className='font-bold text-gray-800'>{testType.toUpperCase()} - Tổng quan</span>
-													{goal && (
-														<Badge variant={progress && progress >= 100 ? 'default' : 'secondary'} className='ml-2 shadow-sm'>
-															Mục tiêu: {goal.target}
-														</Badge>
-													)}
-												</CardTitle>
-											</CardHeader>
-											<CardContent className='space-y-5 pt-6'>
-												<div className='space-y-3'>
-													<div className='flex justify-between items-center'>
-														<span className='font-medium text-slate-500'>Điểm trung bình</span>
-														<span className='text-3xl font-extrabold text-primary'>
-															{hasAttempts ? displayScore : '--'} <span className="text-xl text-gray-400 font-medium">/ {maxScore}</span>
-														</span>
-													</div>
-													{hasAttempts && (
-														<Progress value={(displayScore / maxScore) * 100} className='h-2.5 [&>div]:bg-primary' />
-													)}
-												</div>
-
-												{goal && (
-													<div className='space-y-2 pt-2 border-t'>
-														<div className='flex justify-between items-center'>
-															<span className='text-sm text-muted-foreground'>Tiến độ mục tiêu</span>
-															<span className='text-lg font-semibold'>{progress !== null ? `${progress}%` : '0%'}</span>
+							{/* Tag/Skill Statistics */}
+							{userStats && userStats.tagInfos.length > 0 && (
+								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
+									<CardHeader className='bg-slate-50 border-b border-gray-100'>
+										<CardTitle className="text-xl font-bold text-gray-800">Tỷ lệ đúng theo chủ đề</CardTitle>
+										<CardDescription>Phân tích chi tiết theo từng nhóm kỹ năng và chủ đề</CardDescription>
+									</CardHeader>
+									<CardContent className="pt-6">
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6'>
+											{userStats.tagInfos.map((tag) => {
+												const pct = Math.round(tag.correctPercentage);
+												return (
+													<div key={tag.name} className='space-y-2'>
+														<div className='flex items-center justify-between'>
+															<span className='font-medium capitalize'>{tag.name}</span>
+															<div className='flex items-center space-x-4'>
+																<span className='text-lg font-semibold'>{pct}%</span>
+															</div>
 														</div>
-														<Progress
-															value={progress !== null ? progress : 0}
-															className='h-3 [&>div]:bg-black'
-														/>
-														{progress !== null && progress < 100 && (
-															<p className='text-xs text-muted-foreground'>
-																Còn {goal.target - displayScore} điểm để đạt mục tiêu
-															</p>
-														)}
-														{progress !== null && progress >= 100 && (
-															<p className='text-xs text-green-600 font-medium'>🎉 Đã đạt mục tiêu!</p>
-														)}
+														<Progress value={pct} className='h-2.5 [&>div]:bg-primary' />
 													</div>
-												)}
-
-												<div className='flex items-center justify-between text-sm pt-2 border-t'>
-													<span className='text-muted-foreground'>Số bài đã làm</span>
-													<span className='font-semibold'>{stats.totalAttempts} bài</span>
-												</div>
-											</CardContent>
-										</Card>
-									);
-								})}
-							</div>
-
-							{/* Skill Statistics */}
-							<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
-								<CardHeader className='bg-slate-50 border-b border-gray-100'>
-									<CardTitle className="text-xl font-bold text-gray-800">Điểm trung bình theo kỹ năng</CardTitle>
-									<CardDescription>Tiến độ học tập và biểu đồ điểm số ở từng nhóm kỹ năng</CardDescription>
-								</CardHeader>
-								<CardContent className="pt-6">
-									<div className='grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6'>
-										{Object.entries(skillStats).map(([skill, stats]) => {
-											const skillKey = skill as Skill;
-											const Icon = skillIcons[skillKey];
-											const hasAttempts = stats.totalAttempts > 0;
-											const averageScore = hasAttempts ? Math.round(stats.averageScore) : 0;
-
-											// Get average score in IELTS band scale (0-9) for display
-											const displayScore = hasAttempts ? Math.round((averageScore / 100) * 9 * 10) / 10 : 0;
-
-											return (
-												<div key={skill} className='space-y-2'>
-													<div className='flex items-center justify-between'>
-														<div className='flex items-center space-x-2'>
-															<Icon className='h-5 w-5 text-primary' />
-															<span className='font-medium capitalize'>{skill}</span>
-															{hasAttempts && (
-																<Badge variant='outline' className='text-xs'>
-																	{stats.totalAttempts} bài
-																</Badge>
-															)}
-														</div>
-														<div className='flex items-center space-x-4'>
-															{hasAttempts ? (
-																<>
-																	<span className='text-lg font-semibold'>{displayScore} / 9.0</span>
-																	<span className='text-sm text-muted-foreground'>({averageScore}%)</span>
-																</>
-															) : (
-																<span className='text-sm text-muted-foreground'>Chưa có dữ liệu</span>
-															)}
-														</div>
-													</div>
-													{hasAttempts && <Progress value={(displayScore / 9) * 100} className='h-2.5 [&>div]:bg-primary' />}
-													{!hasAttempts && (
-														<div className='h-2.5 bg-gray-100 rounded-full w-full' />
-													)}
-												</div>
-											);
-										})}
-									</div>
-								</CardContent>
-							</Card>
+												);
+											})}
+										</div>
+									</CardContent>
+								</Card>
+							)}
 
 							{/* Overall Statistics */}
 							<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
@@ -774,7 +539,7 @@ export function UserPage() {
 											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Tổng quát</span>
 										</div>
 										<div className='relative z-10'>
-											<p className='text-3xl font-extrabold mb-1'>{attemptsWithExam.length}</p>
+											<p className='text-3xl font-extrabold mb-1'>{userStats?.attemptCounts ?? '—'}</p>
 											<p className='text-sm text-primary-foreground/80 font-medium'>Số bài kiểm tra đã làm</p>
 										</div>
 									</CardContent>
@@ -789,15 +554,7 @@ export function UserPage() {
 										</div>
 										<div className='relative z-10'>
 											<p className='text-3xl font-extrabold mb-1'>
-												{attemptsWithExam.length > 0
-													? Math.round(
-														(attemptsWithExam
-															.filter((item) => item.attempt.score !== undefined)
-															.reduce((sum, item) => sum + (item.attempt.score || 0), 0) /
-															attemptsWithExam.filter((item) => item.attempt.score !== undefined).length) *
-														10
-													) / 10
-													: '--'}
+												{userStats ? `${Math.round(userStats.averageScoreInPercentage * 10) / 10}%` : '—'}
 											</p>
 											<p className='text-sm text-primary-foreground/80 font-medium'>Điểm trung bình toàn khoá</p>
 										</div>
@@ -812,7 +569,7 @@ export function UserPage() {
 											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Mục tiêu</span>
 										</div>
 										<div className='relative z-10'>
-											<p className='text-3xl font-extrabold mb-1'>{userGoals.length}</p>
+											<p className='text-3xl font-extrabold mb-1'>{goal ? 1 : 0}</p>
 											<p className='text-sm text-secondary-foreground font-medium'>Số mục tiêu học tập đang chạy</p>
 										</div>
 									</CardContent>
@@ -823,146 +580,111 @@ export function UserPage() {
 
 					{/* History */}
 					<TabsContent value='history' className='space-y-6 mt-6'>
-						{/* Filters */}
-						<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
-							<CardHeader className="bg-slate-50 border-b border-gray-100">
-								<CardTitle className='flex items-center gap-2 text-lg text-gray-800'>
-									<Filter className='h-5 w-5 text-primary' />
-									Bộ lọc & Tuỳ chỉnh hiển thị
-								</CardTitle>
-							</CardHeader>
-							<CardContent className="pt-6">
-								<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Loại thi</label>
-										<Select
-											value={filterTestType}
-											onValueChange={(value) => setFilterTestType(value as TestType | 'all')}
-										>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='all'>Tất cả</SelectItem>
-												<SelectItem value={TestType.IELTS}>IELTS</SelectItem>
-												<SelectItem value={TestType.TOEIC}>TOEIC</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Kỹ năng</label>
-										<Select value={filterSkill} onValueChange={(value) => setFilterSkill(value as Skill | 'all')}>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='all'>Tất cả</SelectItem>
-												<SelectItem value={Skill.Reading}>Reading</SelectItem>
-												<SelectItem value={Skill.Listening}>Listening</SelectItem>
-												<SelectItem value={Skill.Writing}>Writing</SelectItem>
-												<SelectItem value={Skill.Speaking}>Speaking</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Sắp xếp theo</label>
-										<Select value={sortBy} onValueChange={(value) => setSortBy(value as 'date' | 'score' | 'accuracy')}>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value='date'>Ngày làm bài</SelectItem>
-												<SelectItem value='score'>Điểm số</SelectItem>
-												<SelectItem value='accuracy'>Độ chính xác</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-
-						{/* History List */}
 						<div className='border-0 shadow-md bg-white/90 backdrop-blur-sm rounded-xl overflow-hidden'>
 							<div className='p-6 border-b bg-slate-50'>
 								<h3 className='font-bold text-gray-800 text-lg flex items-center gap-2'>
 									<Calendar className="w-5 h-5 text-primary" />
-									Lịch sử làm bài ({sortedHistory.length})
+									Lịch sử làm bài gần đây ({attemptHistory.length})
 								</h3>
 							</div>
 							<div className='divide-y border-t-0'>
-								{sortedHistory.map((item) => (
-									<div key={item.attempt.id} className='p-6 hover:bg-slate-50/80 transition-colors group'>
-										<div className='flex items-center justify-between gap-4'>
-											<div className='flex items-center gap-4 flex-1'>
-												<Badge
-													variant='outline'
-													className={`${item.exam.testType === TestType.IELTS
-														? 'border-primary text-primary bg-primary/10'
-														: 'border-orange-500 text-orange-700 bg-orange-50'
-														} font-semibold`}
-												>
-													{item.exam.testType.toUpperCase()}
-												</Badge>
-												<div className='flex items-center gap-2'>
-													{getSkillIcon(item.exam.skill)}
-													<span className='font-medium capitalize'>{item.exam.skill}</span>
-												</div>
-												<div className='flex-1'>
-													<p className='font-medium text-gray-900'>{item.exam.title}</p>
-													<p className='text-sm text-gray-500'>{item.exam.description}</p>
-												</div>
+								{attemptHistory.map((attempt) => {
+									const isPending = !attempt.endedAt;
+									const scorePct = getScorePercent(attempt);
+
+									return (
+										<div key={attempt.id} className='p-4 hover:bg-muted/50 transition-colors'>
+											<div className='mb-3'>
+												<h3 className='text-base font-semibold text-foreground leading-tight'>
+													{attempt.examName || 'Đề thi không có tên'}
+												</h3>
 											</div>
 
-											<div className='flex items-center gap-8'>
-												<div className='text-center'>
-													<p className='text-sm text-gray-500'>Điểm số</p>
-													<p
-														className={`text-lg font-bold ${item.attempt.score !== undefined && item.attempt.score >= 70
-															? 'text-green-600'
-															: item.attempt.score !== undefined && item.attempt.score >= 50
-																? 'text-yellow-600'
-																: 'text-red-600'
-															}`}
+											<div className='flex items-center justify-between flex-wrap gap-3'>
+												{/* Left: status + dates */}
+												<div className='flex items-center gap-3 flex-wrap'>
+													{isPending ? (
+														<span className='flex items-center gap-1.5 text-amber-600 text-sm font-medium'>
+															<Circle className='h-4 w-4' />
+															Đang làm
+														</span>
+													) : (
+														<span className='flex items-center gap-1.5 text-green-600 text-sm font-medium'>
+															<CheckCircle2 className='h-4 w-4' />
+															Hoàn thành
+														</span>
+													)}
+
+													<div className='text-sm text-muted-foreground flex items-center gap-1'>
+														<Calendar className='h-3.5 w-3.5' />
+														{formatDate(attempt.startedAt)}
+													</div>
+
+													{attempt.isStrict && (
+														<span className='text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200'>
+															Strict
+														</span>
+													)}
+												</div>
+
+												{/* Right: score, duration, actions */}
+												<div className='flex items-center gap-5 flex-wrap'>
+													{!isPending && scorePct != null && (
+														<div className='text-right'>
+															<p className='text-xs text-muted-foreground'>Điểm</p>
+															<span className={`font-semibold ${scorePct >= 80 ? 'text-green-600' : scorePct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+																{scorePct}%
+															</span>
+														</div>
+													)}
+
+													{!isPending && attempt.score != null && attempt.totalPoints != null && (
+														<div className='text-right'>
+															<p className='text-xs text-muted-foreground'>Thô</p>
+															<span className='font-medium text-sm'>
+																{attempt.score}/{attempt.totalPoints}
+															</span>
+														</div>
+													)}
+
+													<div className='text-right'>
+														<p className='text-xs text-muted-foreground'>Thời gian</p>
+														<span className='font-medium text-sm flex items-center gap-1'>
+															<Clock className='h-3.5 w-3.5 text-muted-foreground' />
+															{attempt.endedAt
+																? formatElapsed(attempt.startedAt, attempt.endedAt)
+																: `${Math.floor(attempt.durationLimit / 60)} phút`}
+														</span>
+													</div>
+
+													<Button
+														variant='outline'
+														size='sm'
+														onClick={() => router.push(`/results/${attempt.id}`)}
 													>
-														{item.attempt.score !== undefined ? Math.round(item.attempt.score) : '--'}
-													</p>
+														Xem chi tiết
+													</Button>
 												</div>
-
-												<div className='text-center'>
-													<p className='text-sm text-gray-500'>Độ chính xác</p>
-													<p className='text-lg font-bold'>{item.accuracy}%</p>
-												</div>
-
-												<div className='text-center'>
-													<p className='text-sm text-gray-500'>Thời gian</p>
-													<p className='text-lg font-bold'>{item.timeSpent} phút</p>
-												</div>
-
-												<div className='text-center'>
-													<p className='text-sm text-gray-500'>Ngày làm</p>
-													<p className='text-lg font-bold'>{formatDate(item.completedAt)}</p>
-												</div>
-
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => router.push(`/results/${item.attempt.id}`)}
-												>
-													Xem chi tiết
-												</Button>
 											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 
-								{sortedHistory.length === 0 && (
+								{attemptHistory.length === 0 && (
 									<div className='text-center py-12'>
-										<p className='text-gray-500'>Không tìm thấy bài kiểm tra nào phù hợp với bộ lọc.</p>
+										<Calendar className='h-12 w-12 mx-auto mb-3 opacity-30' />
+										<p className='text-gray-500'>Bạn chưa có bài kiểm tra nào.</p>
 									</div>
 								)}
 							</div>
+
+							{attemptHistory.length > 0 && (
+								<div className='p-4 border-t text-center'>
+									<Button variant='outline' onClick={() => router.push('/history')}>
+										Xem toàn bộ lịch sử
+									</Button>
+								</div>
+							)}
 						</div>
 					</TabsContent>
 
@@ -994,17 +716,14 @@ export function UserPage() {
 								) : (
 									<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
 										{earnedBadges.map((badge: any, index: number) => {
-											// Tự động generate CSS class theo tên danh hiệu để cho đẹp
-											const colorClass = index % 3 === 0 ? 'bg-amber-400' 
-															: index % 3 === 1 ? 'bg-secondary' 
+											const colorClass = index % 3 === 0 ? 'bg-amber-400'
+															: index % 3 === 1 ? 'bg-secondary'
 															: 'bg-emerald-500';
-											
+
 											return (
 												<div key={badge.id || index} className="flex flex-col items-center text-center group cursor-pointer">
 													<div className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}>
 														<Award className="w-12 h-12 text-white drop-shadow-sm" />
-														
-														{/* Sparkle effects on hover */}
 														<div className="absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</div>
 														<div className="absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75">✨</div>
 													</div>

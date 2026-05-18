@@ -28,7 +28,7 @@ export class ExamPracticeService {
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/api/v1/exams/practice/{id}',
+            url: '/api/v1/exams/practice/new/{id}',
             path: {
                 'id': id,
             },
@@ -182,7 +182,7 @@ export class ExamPracticeService {
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v1/exams/practice/{id}/details',
+            url: '/api/v1/exams/practice/info/{id}/details',
             path: {
                 'id': id,
             },
@@ -216,7 +216,7 @@ export class ExamPracticeService {
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v1/exams/practice/{id}/stats',
+            url: '/api/v1/exams/practice/info/{id}/stats',
             path: {
                 'id': id,
             },

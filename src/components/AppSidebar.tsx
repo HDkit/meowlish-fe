@@ -131,10 +131,10 @@ export function AppSidebar() {
       }
     >
       <SidebarHeader className="px-3 pt-3 pb-2">
-        <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)] dark:border-emerald-900/50 dark:from-slate-900 dark:to-emerald-950/30">
+        <div className="flex items-center justify-center rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)] dark:border-emerald-900/50 dark:from-slate-900 dark:to-emerald-950/30">
           <button
             onClick={() => router.push('/dashboard')}
-            className="flex min-w-0 items-center gap-3 text-left group-data-[collapsible=icon]:justify-center"
+            className="flex min-w-0 items-center justify-center gap-3 text-left group-data-[collapsible=icon]:justify-center"
           >
             <Image
               src="/logos/logo.svg"
