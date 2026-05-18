@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles, FlaskConical } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { FaGoogle } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -117,47 +117,8 @@ export function AuthForm() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [devLoading, setDevLoading] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 	const [error, setError] = useState('');
-
-	// ─── Dev Quick Login (mock role, real token) ───────────────────────
-	const devLogin = async (targetRole: 'role-mod' | 'role-staff' | 'role-head-staff') => {
-		const label = targetRole === 'role-head-staff' ? 'head-staff' : targetRole === 'role-mod' ? 'mod' : 'staff';
-		setDevLoading(label);
-		setError('');
-		const ts = Date.now();
-		const devEmail = `dev.${label}.${ts}@devtest.local`;
-		const devPassword = `DevPass${ts}!`;
-		const devName = targetRole === 'role-head-staff' ? `HeadStaff${ts}` : targetRole === 'role-mod' ? `Mod${ts}` : `Staff${ts}`;
-		try {
-			// Register a fresh account to get a real token
-			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: devEmail, password: devPassword, username: devName });
-			const token = res.data?.accessToken;
-			if (!token) throw new Error('Không nhận được token');
-			setApiTokensState(token, res.data?.refreshToken);
-			document.cookie = `user_authenticated=true; path=/; max-age=86400`;
-			const decoded: any = jwtDecode(token);
-			// Override roleId → desired staff role for UI routing
-			const user: User = {
-				id: decoded.sub || decoded.id || uuidv4(),
-				email: devEmail,
-				fullName: devName,
-				roleId: targetRole,
-				password: '***',
-				status: 'active',
-				createdAt: Date.now(),
-				lastLoginAt: Date.now(),
-			};
-			dispatch(setUser(user));
-			router.push('/dashboard');
-		} catch (err: any) {
-			setError(extractApiErrorMessage(err, 'Dev login thất bại. Backend có thể không khả dụng.'));
-		} finally {
-			setDevLoading(null);
-		}
-	};
-
 
 	// Common validation
 	const validate = () => {
@@ -472,55 +433,10 @@ export function AuthForm() {
 							</div>
 						</div>
 
-						{/* Google OAuth chỉ hoạt động ở production (cần cấu hình redirect URI trong Google Cloud Console) */}
-						{process.env.NODE_ENV === 'production' && (
-							<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={handleGoogleLogin} disabled={loading}>
-								<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
-								{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
-							</Button>
-						)}
-						{/* Dev Quick Login – real token + mocked role */}
-						{isLogin && process.env.NODE_ENV !== 'production' && (
-							<div className='mt-4 pt-4 border-t border-dashed border-gray-200'>
-								<div className='flex items-center gap-2 mb-3'>
-									<FlaskConical className='h-3.5 w-3.5 text-amber-500' />
-									<p className='text-xs text-amber-600 font-semibold uppercase tracking-wider'>Dev Mode — Mock Role + Real Token</p>
-								</div>
-								<p className='text-xs text-gray-400 mb-2'>Tự động đăng ký tài khoản mới lấy token thật, override role để test UI.</p>
-								<div className='grid grid-cols-3 gap-2'>
-									<Button
-										variant='outline'
-										size='sm'
-										type='button'
-										disabled={!!devLoading}
-										className='border-primary/30 text-primary hover:bg-primary/10 text-xs h-9'
-										onClick={() => devLogin('role-staff')}
-									>
-										{devLoading === 'staff' ? '...' : 'Staff'}
-									</Button>
-									<Button
-										variant='outline'
-										size='sm'
-										type='button'
-										disabled={!!devLoading}
-										className='border-amber-500/30 text-amber-600 hover:bg-amber-50 text-xs h-9'
-										onClick={() => devLogin('role-mod')}
-									>
-										{devLoading === 'mod' ? '...' : 'Mod'}
-									</Button>
-									<Button
-										variant='outline'
-										size='sm'
-										type='button'
-										disabled={!!devLoading}
-										className='border-secondary/30 text-secondary hover:bg-secondary/10 text-xs h-9'
-										onClick={() => devLogin('role-head-staff')}
-									>
-										{devLoading === 'head-staff' ? '...' : 'Admin'}
-									</Button>
-								</div>
-							</div>
-						)}
+						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={handleGoogleLogin} disabled={loading}>
+							<FaGoogle className='w-5 h-5 text-red-500 mr-2' />
+							{isLogin ? 'Tiếp tục với Google' : 'Đăng ký bằng Google'}
+						</Button>
 
 						<p className='text-center text-sm mt-2 text-gray-600'>
 							{isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
