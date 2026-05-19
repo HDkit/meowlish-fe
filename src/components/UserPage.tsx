@@ -37,6 +37,9 @@ import {
 	CheckCircle2,
 	Circle,
 	Camera,
+	Shield,
+	Trash2,
+	Plus,
 } from 'lucide-react';
 import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
@@ -96,6 +99,9 @@ export function UserPage() {
 	});
 	const [showPassword, setShowPassword] = useState(false);
 	const [uploadingAvatar, setUploadingAvatar] = useState(false);
+	const [credentials, setCredentials] = useState<any[]>([]);
+	const [isCredDialogOpen, setIsCredDialogOpen] = useState(false);
+	const [addMailForm, setAddMailForm] = useState({ email: '', password: '' });
 	const avatarInputRef = React.useRef<HTMLInputElement>(null);
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
@@ -119,6 +125,37 @@ export function UserPage() {
 		if (currUser) {
 			const fetchProfileData = async () => {
 				try {
+					// Hydrate real profile from API
+					try {
+						const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
+						const identity = (identityRes as any).data ?? identityRes;
+						if (identity && identity.id) {
+							dispatch(setUser({
+								...currUser,
+								id: identity.id ?? currUser.id,
+								email: identity.mail ?? identity.email ?? currUser.email,
+								fullName: identity.fullName ?? identity.username ?? currUser.fullName,
+								avatarUrl: identity.avatarUrl ?? currUser.avatarUrl,
+								createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
+								roleId: identity.roleId ?? currUser.roleId,
+							}));
+						}
+					} catch {
+						// ignore identity fetch failure
+					}
+
+					try {
+						const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
+						const creds = (credsRes as any).data ?? credsRes;
+						if (Array.isArray(creds)) {
+							setCredentials(creds);
+						} else if (creds?.credentials) {
+							setCredentials(creds.credentials);
+						}
+					} catch {
+						// ignore credentials fetch failure
+					}
+
 					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100);
 					if (badgesRes.data?.badges) {
 						setEarnedBadges(badgesRes.data.badges);
@@ -304,6 +341,58 @@ export function UserPage() {
 		}
 	};
 
+	const handleDeleteCredential = async (credId: string) => {
+		if (credentials.length <= 1) {
+			toast({ title: 'Không thể xóa', description: 'Bạn phải có ít nhất một phương thức đăng nhập.', variant: 'destructive' });
+			return;
+		}
+		if (!confirm('Bạn có chắc muốn xóa phương thức đăng nhập này?')) return;
+		setIsLoading(true);
+		try {
+			await AuthService.authGatewayControllerRemoveCredentialV1(credId);
+			setCredentials((prev) => prev.filter((c) => c.id !== credId));
+			toast({ title: 'Đã xóa phương thức đăng nhập' });
+		} catch (err: any) {
+			toast({ title: 'Xóa thất bại', description: err?.body?.error || 'Không thể xóa phương thức đăng nhập.', variant: 'destructive' });
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleAddMailCredential = async () => {
+		if (!addMailForm.email || !addMailForm.password) {
+			toast({ title: 'Vui lòng nhập đầy đủ email và mật khẩu', variant: 'destructive' });
+			return;
+		}
+		if (addMailForm.password.length < 6) {
+			toast({ title: 'Mật khẩu phải có ít nhất 6 ký tự', variant: 'destructive' });
+			return;
+		}
+		setIsLoading(true);
+		try {
+			await AuthService.authGatewayControllerAddMailCredentialV1({ mail: addMailForm.email, password: addMailForm.password });
+			const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
+			const creds = (credsRes as any).data ?? credsRes;
+			setCredentials(Array.isArray(creds) ? creds : creds?.credentials ?? []);
+			toast({ title: 'Đã thêm phương thức đăng nhập bằng email' });
+			setIsCredDialogOpen(false);
+			setAddMailForm({ email: '', password: '' });
+		} catch (err: any) {
+			toast({ title: 'Thêm thất bại', description: err?.body?.error || 'Không thể thêm phương thức đăng nhập.', variant: 'destructive' });
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleAddGoogleCredential = async () => {
+		try {
+			await AuthService.authGatewayControllerAddGoogleCredV1();
+			toast({ title: 'Đang chuyển hướng đến Google...' });
+		} catch (err: any) {
+			toast({ title: 'Thêm thất bại', description: err?.body?.error || 'Không thể liên kết Google.', variant: 'destructive' });
+		}
+	};
+
 	const formatDate = (date: Date | number | string) => {
 		const dateObj = typeof date === 'string' ? new Date(date) : typeof date === 'number' ? new Date(date) : date;
 		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
@@ -411,6 +500,57 @@ export function UserPage() {
 			</div>
 
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-8 -mt-12 relative z-10'>
+
+				{/* Credentials Section */}
+				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
+					<div className='flex items-center justify-between mb-4 border-b border-gray-100 pb-4'>
+						<h2 className='text-xl font-bold text-gray-900 flex items-center gap-2'>
+							<Shield className="h-5 w-5 text-primary" /> Phương thức đăng nhập
+						</h2>
+						<div className="flex gap-2">
+							<Button size="sm" variant="outline" onClick={() => setIsCredDialogOpen(true)}>
+								<Plus className="h-4 w-4 mr-1" /> Thêm Email
+							</Button>
+							<Button size="sm" variant="outline" onClick={handleAddGoogleCredential}>
+								<Plus className="h-4 w-4 mr-1" /> Liên kết Google
+							</Button>
+						</div>
+					</div>
+					{credentials.length === 0 ? (
+						<p className="text-gray-400 text-sm">Chưa tải được thông tin phương thức đăng nhập.</p>
+					) : (
+						<div className="space-y-3">
+							{credentials.map((cred) => (
+								<div key={cred.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+									<div className="flex items-center gap-3">
+										<div className={`p-2 rounded-lg ${cred.type === 'google' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+											{cred.type === 'google' ? (
+												<svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+											) : (
+												<Mail className="h-4 w-4" />
+											)}
+										</div>
+										<div>
+											<p className="font-medium text-gray-800 text-sm">
+												{cred.type === 'google' ? 'Google' : 'Email/Mật khẩu'}
+											</p>
+											<p className="text-xs text-gray-500">{cred.mail || cred.email || cred.identifier || ''}</p>
+										</div>
+									</div>
+									<Button
+										size="sm"
+										variant="ghost"
+										className="text-red-500 hover:text-red-700 hover:bg-red-50"
+										onClick={() => handleDeleteCredential(cred.id)}
+										disabled={isLoading || credentials.length <= 1}
+									>
+										<Trash2 className="h-4 w-4" />
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
 
 				{/* Goals Section */}
 				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
@@ -908,6 +1048,52 @@ export function UserPage() {
 						<Button onClick={handleChangePassword} disabled={isLoading}>
 							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
 							Đổi mật khẩu
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Add Mail Credential Dialog */}
+			<Dialog open={isCredDialogOpen} onOpenChange={setIsCredDialogOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle className='flex items-center gap-2'>
+							<Mail className='h-5 w-5' />
+							Thêm đăng nhập bằng Email
+						</DialogTitle>
+						<DialogDescription>
+							Thêm một phương thức đăng nhập bằng email và mật khẩu
+						</DialogDescription>
+					</DialogHeader>
+					<div className='grid gap-4 py-4'>
+						<div className='grid gap-2'>
+							<Label htmlFor='credEmail'>Email</Label>
+							<Input
+								id='credEmail'
+								type='email'
+								value={addMailForm.email}
+								onChange={(e) => setAddMailForm({ ...addMailForm, email: e.target.value })}
+								placeholder='Nhập email'
+							/>
+						</div>
+						<div className='grid gap-2'>
+							<Label htmlFor='credPassword'>Mật khẩu</Label>
+							<Input
+								id='credPassword'
+								type='password'
+								value={addMailForm.password}
+								onChange={(e) => setAddMailForm({ ...addMailForm, password: e.target.value })}
+								placeholder='Nhập mật khẩu (tối thiểu 6 ký tự)'
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant='outline' onClick={() => setIsCredDialogOpen(false)} disabled={isLoading}>
+							Hủy
+						</Button>
+						<Button onClick={handleAddMailCredential} disabled={isLoading}>
+							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							Thêm
 						</Button>
 					</DialogFooter>
 				</DialogContent>

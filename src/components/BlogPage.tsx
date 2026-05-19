@@ -45,17 +45,17 @@ function BlogCard({
 			<div className="h-1.5 shrink-0 bg-primary" />
 			<CardHeader className="pb-3 flex-1">
 				<div className="flex flex-col gap-3">
-					{blog.tags.length > 0 && (
+					{(blog.tags?.length ?? 0) > 0 && (
 						<div className="flex flex-wrap gap-1.5">
-							{blog.tags.slice(0, 3).map((tag) => (
+							{(blog.tags ?? []).slice(0, 3).map((tag) => (
 								<Badge key={tag} className="bg-primary/10 text-primary border-0 uppercase tracking-wider text-[10px] items-center py-1">
 									<Tag className="h-3 w-3 mr-1" />
 									{tag}
 								</Badge>
 							))}
-							{blog.tags.length > 3 && (
+							{(blog.tags?.length ?? 0) > 3 && (
 								<Badge className="bg-gray-100 text-gray-500 border-0 text-[10px] py-1">
-									+{blog.tags.length - 3}
+									+{(blog.tags?.length ?? 0) - 3}
 								</Badge>
 							)}
 						</div>
@@ -134,9 +134,9 @@ function BlogDetail({
 						)}
 					</div>
 
-					{blog.tags.length > 0 && (
+					{(blog.tags?.length ?? 0) > 0 && (
 						<div className="flex flex-wrap gap-2 mb-6">
-							{blog.tags.map((tag) => (
+							{(blog.tags ?? []).map((tag) => (
 								<Badge key={tag} className="bg-white/20 text-white border-0 uppercase tracking-wider text-xs px-3 py-1.5">
 									<Tag className="h-3.5 w-3.5 mr-2" />
 									{tag}

@@ -2,11 +2,12 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { addChatRoom, removeChatRoom } from '@/components/store/chatRoomSlice';
+import { addChatRoom, updateChatRoom, removeChatRoom } from '@/components/store/chatRoomSlice';
 import { addChatMessage } from '@/components/store/chatMessageSlice';
+import { addUser } from '@/components/store/userSlice';
 import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ChatRoom, ChatMessage } from '@/types/client';
+import { ChatRoom, ChatMessage, User } from '@/types/client';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -21,12 +22,12 @@ import {
 } from './ui/alert-dialog';
 import {
 	MessageCircle, Plus, Send, Hash, ArrowLeft,
-	Video, Calendar, Trash2, Search,
+	Video, Calendar, Trash2, Search, Settings,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3003';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:1511';
 
 function CreateRoomDialog({ open, onOpenChange, onSave }: {
 	open: boolean;
@@ -77,6 +78,125 @@ function CreateRoomDialog({ open, onOpenChange, onSave }: {
 	);
 }
 
+function EditRoomScheduleDialog({ room, open, onOpenChange, onSave }: {
+	room: ChatRoom | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onSave: (url?: string, time?: number, clearUrl?: boolean, clearTime?: boolean) => void;
+}) {
+	const [url, setUrl] = useState(room?.scheduledLiveUrl ?? '');
+	const [liveDate, setLiveDate] = useState(
+		room?.scheduledDate ? new Date(room.scheduledDate).toISOString().slice(0, 16) : ''
+	);
+	const [clearUrl, setClearUrl] = useState(false);
+	const [clearTime, setClearTime] = useState(false);
+
+	useEffect(() => {
+		setUrl(room?.scheduledLiveUrl ?? '');
+		setLiveDate(room?.scheduledDate ? new Date(room.scheduledDate).toISOString().slice(0, 16) : '');
+		setClearUrl(false);
+		setClearTime(false);
+	}, [room]);
+
+	const currentUrl = clearUrl ? '' : url;
+	const currentDate = clearTime ? '' : liveDate;
+
+	const handleSave = () => {
+		onSave(
+			currentUrl || undefined,
+			currentDate ? new Date(currentDate).getTime() : undefined,
+			clearUrl && !currentUrl,
+			clearTime && !currentDate,
+		);
+		onOpenChange(false);
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+				<div className="h-2 w-full bg-primary" />
+				<DialogHeader className="px-6 pt-6 pb-2">
+					<DialogTitle className="text-xl font-bold">Chỉnh sửa phòng: {room?.name}</DialogTitle>
+					<DialogDescription className="text-gray-500">Cập nhật lịch livestream</DialogDescription>
+				</DialogHeader>
+				<div className="px-6 py-4 space-y-4">
+					<div className="space-y-2">
+						<div className="flex items-center justify-between">
+							<Label className="font-bold">URL phát trực tiếp</Label>
+							{room?.scheduledLiveUrl && !clearUrl && (
+								<Button variant="ghost" size="sm" className="text-red-500 h-auto px-2 py-1 text-xs" onClick={() => setClearUrl(true)}>
+									Xóa URL
+								</Button>
+							)}
+							{clearUrl && (
+								<Button variant="ghost" size="sm" className="text-blue-500 h-auto px-2 py-1 text-xs" onClick={() => setClearUrl(false)}>
+									Khôi phục
+								</Button>
+							)}
+						</div>
+						<Input
+							placeholder={clearUrl ? '' : (room?.scheduledLiveUrl || 'Nhập URL...')}
+							value={currentUrl}
+							onChange={(e) => { setUrl(e.target.value); setClearUrl(false); }}
+							className="rounded-xl"
+						/>
+					</div>
+					<div className="space-y-2">
+						<div className="flex items-center justify-between">
+							<Label className="font-bold">Ngày giờ dự kiến</Label>
+							{room?.scheduledDate && !clearTime && (
+								<Button variant="ghost" size="sm" className="text-red-500 h-auto px-2 py-1 text-xs" onClick={() => setClearTime(true)}>
+									Xóa ngày
+								</Button>
+							)}
+							{clearTime && (
+								<Button variant="ghost" size="sm" className="text-blue-500 h-auto px-2 py-1 text-xs" onClick={() => setClearTime(false)}>
+									Khôi phục
+								</Button>
+							)}
+						</div>
+						<Input
+							type="datetime-local"
+							value={currentDate}
+							onChange={(e) => { setLiveDate(e.target.value); setClearTime(false); }}
+							className="rounded-xl"
+						/>
+					</div>
+				</div>
+				<DialogFooter className="px-6 py-4 bg-gray-50 border-t">
+					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Hủy</Button>
+					<Button onClick={handleSave} className="rounded-xl">Lưu</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+function getEmbedUrl(url: string): string | null {
+	try {
+		const parsed = new URL(url);
+		// YouTube
+		if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')) {
+			let videoId = parsed.searchParams.get('v');
+			if (!videoId) {
+				const pathParts = parsed.pathname.split('/').filter(Boolean);
+				if (pathParts[0] === 'live' || pathParts[0] === 'embed') videoId = pathParts[1];
+				else if (parsed.hostname.includes('youtu.be')) videoId = pathParts[0];
+				else videoId = pathParts[pathParts.length - 1];
+			}
+			if (videoId) return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+		}
+		// Twitch
+		if (parsed.hostname.includes('twitch.tv')) {
+			const channel = parsed.pathname.split('/').filter(Boolean)[0];
+			if (channel) return `https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}`;
+		}
+	} catch {
+		// invalid URL
+	}
+	return null;
+}
+
 function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) {
 	const dispatch = useAppDispatch();
 	const { currUser } = useAuth();
@@ -85,6 +205,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const [input, setInput] = useState('');
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const socketRef = useRef<Socket | null>(null);
+	const [editDialogOpen, setEditDialogOpen] = useState(false);
 
 	const messages = useMemo(
 		() => allMessages.filter((m) => m.roomId === room.id).sort((a, b) => a.createdAt - b.createdAt),
@@ -96,24 +217,50 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	}, [messages.length]);
 
 	useEffect(() => {
-		const socket = io(SOCKET_URL, { transports: ['websocket'] });
+		const token = typeof window !== 'undefined'
+			? window.localStorage.getItem('access_token') || document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')
+			: null;
+		const socket = io(SOCKET_URL, {
+			transports: ['websocket'],
+			extraHeaders: { Authorization: token ? `Bearer ${token}` : '' },
+		});
 		socketRef.current = socket;
 
-		socket.emit('joinRoom', { roomId: room.id });
+		socket.emit('join-room', room.id);
 
-		socket.on('newMessage', (data: { id: string; uid: string; message: string; createdAt: string }) => {
+		socket.on('message', (data: { id: string; fromId: string; message: string; createdAt: string }) => {
 			const msg: ChatMessage = {
 				id: data.id,
 				roomId: room.id,
-				uid: data.uid,
+				uid: data.fromId,
 				message: data.message,
 				createdAt: new Date(data.createdAt).getTime(),
 			};
 			dispatch(addChatMessage(msg));
+			if (data.fromId && !users.find((u) => u.id === data.fromId)) {
+				fetch(`/api/v1/auth/hydrate?id=${data.fromId}`)
+					.then((r) => r.json())
+					.then((res) => {
+						const d = res?.data ?? res;
+						if (d?.id) {
+							const user: User = {
+								id: d.id,
+								email: d.email ?? '',
+								password: '',
+								fullName: d.fullName ?? d.username ?? 'Ẩn danh',
+								roleId: d.roles?.[0] ?? '',
+								status: 'active',
+								createdAt: Date.now(),
+							};
+							dispatch(addUser(user));
+						}
+					})
+					.catch(() => {});
+			}
 		});
 
 		return () => {
-			socket.emit('leaveRoom', { roomId: room.id });
+			socket.emit('leave-room', room.id);
 			socket.disconnect();
 		};
 	}, [room.id, dispatch]);
@@ -121,10 +268,9 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
 
 	const handleSend = () => {
-		if (!input.trim() || !currUser || !socketRef.current) return;
-		socketRef.current.emit('sendMessage', {
+		if (!input.trim() || !socketRef.current) return;
+		socketRef.current.emit('chat', {
 			roomId: room.id,
-			uid: currUser.id,
 			message: input.trim(),
 		});
 		setInput('');
@@ -144,6 +290,8 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 
 	let lastDateLabel = '';
 
+	const embedUrl = room.scheduledLiveUrl ? getEmbedUrl(room.scheduledLiveUrl) : null;
+
 	return (
 		<div className="flex flex-col h-[calc(100vh-4rem)]">
 			{/* Header */}
@@ -154,14 +302,52 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 				<div className="flex-1 min-w-0">
 					<h2 className="font-bold text-lg truncate">{room.name}</h2>
 				</div>
+				<Button size="sm" variant="ghost" className="rounded-xl gap-1" onClick={() => setEditDialogOpen(true)}>
+					<Settings className="h-4 w-4" />
+				</Button>
 				{room.scheduledLiveUrl && (
 					<a href={room.scheduledLiveUrl} target="_blank" rel="noopener noreferrer">
 						<Button size="sm" variant="outline" className="rounded-xl gap-1">
-							<Video className="h-4 w-4" /> Live
+							<Video className="h-4 w-4" /> Mở tab mới
 						</Button>
 					</a>
 				)}
 			</div>
+			<EditRoomScheduleDialog
+				room={room}
+				open={editDialogOpen}
+				onOpenChange={setEditDialogOpen}
+				onSave={async (url, time, clearUrl, clearTime) => {
+					try {
+						await ChatRoomService.updateSchedule(room.id, {
+							url,
+							time: time ? new Date(time).toISOString() : undefined,
+							setUrlNull: clearUrl,
+							setTimeNull: clearTime,
+						});
+						dispatch(updateChatRoom({
+							...room,
+							scheduledLiveUrl: clearUrl ? undefined : (url || room.scheduledLiveUrl),
+							scheduledDate: clearTime ? undefined : (time || room.scheduledDate),
+						}));
+					} catch (err) {
+						console.error('Failed to update room schedule:', err);
+					}
+				}}
+			/>
+
+			{/* Live Stream Iframe */}
+			{embedUrl && (
+				<div className="shrink-0 bg-black">
+					<iframe
+						src={embedUrl}
+						className="w-full aspect-video max-h-[40vh]"
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+						allowFullScreen
+						title="Live Stream"
+					/>
+				</div>
+			)}
 
 			{/* Messages */}
 			<div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-gray-50">

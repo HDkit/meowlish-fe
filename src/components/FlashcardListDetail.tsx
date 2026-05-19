@@ -5,7 +5,6 @@ import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashCard, TagType } from '../types/client';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
-import type { FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -323,8 +322,9 @@ export function FlashcardListDetail() {
 		if (!listId) return;
 		setLoading(true);
 		FlashcardListService.getFlashCardList(listId)
-			.then((res: FlashCardListDetailResponse) => {
-				setCards((res.flashCards ?? []).map((fc) => mapFlashCard(fc, listId)));
+			.then((res: any) => {
+				const data = res?.data ?? res;
+				setCards((data.flashCards ?? []).map((fc: any) => mapFlashCard(fc, listId)));
 			})
 			.catch((err) => {
 				console.error('[FlashcardListDetail] fetch error:', err);
@@ -378,7 +378,8 @@ export function FlashcardListDetail() {
 					notes: data.notes,
 					tags: data.tags,
 				});
-				setCards((prev) => prev.map((c) => c.id === editingFlashcard.id ? mapFlashCard(res, listId) : c));
+				const fc = (res as any)?.data ?? res;
+				setCards((prev) => prev.map((c) => c.id === editingFlashcard.id ? mapFlashCard(fc, listId) : c));
 			} else {
 				const res = await FlashcardService.createFlashCard({
 					word: data.word,
@@ -388,7 +389,8 @@ export function FlashcardListDetail() {
 					listId,
 					tags: data.tags,
 				});
-				setCards((prev) => [...prev, mapFlashCard(res, listId)]);
+				const fc = (res as any)?.data ?? res;
+				setCards((prev) => [...prev, mapFlashCard(fc, listId)]);
 			}
 		} catch (err) {
 			console.error('[FlashcardListDetail] save error:', err);

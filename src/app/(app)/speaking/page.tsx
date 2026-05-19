@@ -1,15 +1,16 @@
-import type { Metadata } from 'next';
-import { SpeakingWritingPage } from '@/components/SpeakingWritingPage';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Speaking',
-  description: 'Luyện nói tiếng Anh 1-1 với AI. Nhận feedback phát âm, ngữ pháp, từ vựng tức thì theo chuẩn IELTS Speaking.',
-  openGraph: {
-    title: 'Luyện Speaking Với AI | Lingriser',
-    description: 'Luyện nói tiếng Anh 1-1 với AI. Nhận feedback phát âm, ngữ pháp, từ vựng tức thì theo chuẩn IELTS Speaking.',
-  },
-};
+import { useEffect } from 'react';
 
 export default function SpeakingPage() {
-	return <SpeakingWritingPage mode="speaking" />;
+	useEffect(() => {
+		const target = `https://lingriser.vercel.app/`;
+		window.location.replace(target);
+	}, []);
+
+	return (
+		<div className='flex items-center justify-center min-h-[60vh]'>
+			<p className='text-slate-500'>Đang chuyển hướng đến trang Speaking...</p>
+		</div>
+	);
 }

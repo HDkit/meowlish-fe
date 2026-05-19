@@ -127,7 +127,7 @@ function getPassageSections(q: FlatQuestion): SectionData[] {
 function formatMediaUrl(url: string): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `http://${url}`;
+  return `https://${url}`;
 }
 
 /**

@@ -33,8 +33,9 @@ export function FlashcardsProvider({ children }: { children: React.ReactNode }) 
     if (!currUser?.id) return;
     try {
       const res = await FlashcardListService.listFlashCardLists(currUser.id);
-      if (res?.lists) {
-        dispatch(setFlashcardLists(res.lists.map(mapList)));
+      const data = (res as any)?.data ?? res;
+      if (data?.lists) {
+        dispatch(setFlashcardLists(data.lists.map(mapList)));
       }
     } catch (err) {
       console.error('[FlashcardsProvider] fetch error:', err);

@@ -399,32 +399,34 @@ export function TestSelection() {
 
 			{/* Tag filter chips */}
 			{filterableTags.length > 0 && (
-				<div className="flex flex-wrap items-center justify-center gap-2">
-					<Filter className="h-4 w-4 text-slate-400 mr-1" />
-					{filterableTags.map((tag) => {
-						const isSelected = selectedTags.includes(tag.name);
-						return (
+				<div className="flex items-center gap-2 max-w-3xl mx-auto">
+					<Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
+					<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
+						{filterableTags.map((tag) => {
+							const isSelected = selectedTags.includes(tag.name);
+							return (
+								<button
+									key={tag.id}
+									onClick={() => toggleTag(tag.name)}
+									className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
+										isSelected
+											? 'bg-primary text-white border-primary shadow-sm'
+											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
+									}`}
+								>
+									{getTagDisplayName(tag.name)}
+								</button>
+							);
+						})}
+						{hasActiveFilters && (
 							<button
-								key={tag.id}
-								onClick={() => toggleTag(tag.name)}
-								className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
-									isSelected
-										? 'bg-primary text-white border-primary shadow-sm'
-										: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
-								}`}
+								onClick={clearFilters}
+								className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all whitespace-nowrap flex-shrink-0"
 							>
-								{getTagDisplayName(tag.name)}
+								Xóa bộ lọc
 							</button>
-						);
-					})}
-					{hasActiveFilters && (
-						<button
-							onClick={clearFilters}
-							className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all"
-						>
-							Xóa bộ lọc
-						</button>
-					)}
+						)}
+					</div>
 				</div>
 			)}
 		</div>

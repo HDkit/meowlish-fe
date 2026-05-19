@@ -28,10 +28,11 @@ export function BlogsProvider({ children }: { children: React.ReactNode }) {
   const fetchBlogs = useCallback(async () => {
     try {
       const res = await BlogService.listBlogs();
-      if (res && 'blogs' in res) {
-        dispatch(setBlogs(res.blogs.map(mapBlog)));
-      } else if (Array.isArray(res)) {
-        dispatch(setBlogs((res as BlogResponse[]).map(mapBlog)));
+      const data = (res as any)?.data ?? res;
+      if (data && 'blogs' in data) {
+        dispatch(setBlogs(data.blogs.map(mapBlog)));
+      } else if (Array.isArray(data)) {
+        dispatch(setBlogs((data as BlogResponse[]).map(mapBlog)));
       }
     } catch (err) {
       console.error('[BlogsProvider] fetch error:', err);

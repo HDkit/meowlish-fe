@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ExamManagementService,
   FilesService,
+  TagsService,
   getAccessToken,
   getRefreshToken,
 } from '@/lib/api-client';
@@ -275,7 +276,7 @@ function SectionTreeItem({
   const sectionList = Object.values(sections);
   const children = sectionList.filter((s) => s.parentId === sectionId).map((s) => s.id);
   const isSelected = selectedNode.type === 'section' && selectedNode.id === sectionId;
-  const qCount = section.questionIds.length;
+  const qCount = (section.questionIds ?? []).length;
 
   return (
     <div>
@@ -336,7 +337,7 @@ function SectionTreeItem({
       {/* Expanded: questions + children */}
       {expanded && (
         <div>
-          {section.questionIds.map((qId) => {
+          {(section.questionIds ?? []).map((qId) => {
             const q = questions[qId];
             if (!q) return null;
             const isQSelected = selectedNode.type === 'question' && selectedNode.id === qId;
@@ -393,10 +394,19 @@ export function ExamCreationPage() {
 
   useEffect(() => {
     setMounted(true);
+    TagsService.tagGatewayControllerGetTagListV1()
+      .then((res: any) => {
+        const list = res?.data?.list ?? [];
+        setAllTagNames(list.map((t: any) => t.name));
+      })
+      .catch(() => {});
   }, []);
 
   const [exam, setExam] = useState<ExamDetails | null>(null);
   const [examDraft, setExamDraft] = useState({ title: '', description: '', duration: '60', tagsInput: '' });
+  const [allTagNames, setAllTagNames] = useState<string[]>([]);
+  const [tagQuery, setTagQuery] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   const [sections, setSections] = useState<Record<string, SectionDetails>>({});
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
@@ -673,7 +683,7 @@ export function ExamCreationPage() {
     setActionLoading(`create-question-${sectionId}`);
     try {
       const res = await ExamManagementService.examManagementGatewayControllerCreateQuestionV1(
-        sectionId, { index: section?.questionIds.length ?? 0 }
+        sectionId, { index: section?.questionIds?.length ?? 0 }
       );
       const created = extractEntityData<{ id?: string }>(res);
       if (!created?.id) throw new Error('API không trả về id câu hỏi.');

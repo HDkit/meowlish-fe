@@ -120,12 +120,11 @@ function formatMediaUrl(url: string): string {
 	const t = url.trim();
 	if (t.startsWith('http://') || t.startsWith('https://')) return t;
 	if (t.startsWith('//')) return `https:${t}`;
-	// Absolute path on current site (avoid invalid "http:///path")
 	if (t.startsWith('/')) {
 		if (typeof window !== 'undefined') return `${window.location.origin}${t}`;
 		return t;
 	}
-	return `http://${t}`;
+	return `https://${t}`;
 }
 
 function isImageUrl(url: string): boolean {
@@ -408,13 +407,7 @@ export function TestResult() {
 	}, [flatQuestions, reviewData, isWritingTest]);
 
 	// Pending as long as ANY writing question still lacks AI feedback
-	const isPendingGrading = useMemo(() => {
-		if (!isWritingTest || !reviewData || flatQuestions.length === 0) return false;
-		return flatQuestions.some(({ q }) => {
-			const res = reviewData.responses?.find((r) => r.questionId === q.id);
-			return !res?.additionalData?.trim();
-		});
-	}, [isWritingTest, reviewData, flatQuestions]);
+	const isPendingGrading = false;
 
 	// How many essays have been graded so far (for progress display)
 	const gradedCount = useMemo(() => {
@@ -547,46 +540,7 @@ export function TestResult() {
 					</div>
 				</div>
 
-				{/* Waiting card */}
 				<div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-					<div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-10 max-w-md w-full text-center space-y-8">
-						{/* Animated icon */}
-						<div className="relative inline-flex items-center justify-center mx-auto">
-							<div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-								<Sparkles className="w-11 h-11 text-primary animate-pulse" />
-							</div>
-							<div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-						</div>
-
-					<div className="space-y-3">
-						<h2 className="text-2xl font-extrabold text-slate-800">AI đang chấm bài viết của bạn</h2>
-						<p className="text-slate-500 font-medium leading-relaxed">
-							Quá trình này có thể mất từ 1–2 phút.<br />Bạn có thể chờ tại đây hoặc quay lại sau.
-						</p>
-					</div>
-
-					{/* Progress: X / N bài đã chấm xong */}
-					{flatQuestions.length > 1 && (
-						<div className="w-full space-y-2">
-							<div className="flex justify-between text-sm font-bold text-slate-600">
-								<span>Tiến trình chấm bài</span>
-								<span>{gradedCount} / {flatQuestions.length} bài</span>
-							</div>
-							<div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-								<div
-									className="h-full bg-primary rounded-full transition-all duration-700"
-									style={{ width: `${flatQuestions.length > 0 ? (gradedCount / flatQuestions.length) * 100 : 0}%` }}
-								/>
-							</div>
-						</div>
-					)}
-
-					{/* Elapsed timer */}
-					<div className="flex items-center justify-center gap-2 text-slate-600">
-						<Clock className="w-4 h-4" />
-						<span className="font-mono text-xl font-bold tabular-nums">{formatTime(pollElapsed)}</span>
-					</div>
-
 					{/* Bouncing dots */}
 					<div className="flex justify-center gap-2.5">
 						{[0, 1, 2].map((i) => (
@@ -631,7 +585,6 @@ export function TestResult() {
 								Quay lại sau
 							</Button>
 						)}
-					</div>
 
 					<p className="mt-8 text-sm text-slate-500 text-center max-w-sm">
 						Kết quả sẽ được lưu tự động. Bạn có thể xem lại trong{' '}

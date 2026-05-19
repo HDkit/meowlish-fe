@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Section, TestType, Skill, Difficulty, Comment } from '../types/client';
+import { Section, TestType, Skill, Difficulty } from '../types/client';
 import { ReportDialog } from './ReportDialog';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
@@ -13,7 +13,7 @@ import {
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
-import { addComment } from './store/commentSlice';
+
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -171,11 +171,9 @@ export function ExamDetailPage() {
 	}, [examId]);
 
 	// --- State quản lý UI ---
-	const [activeTab, setActiveTab] = useState<'practice' | 'fulltest' | 'discuss'>('practice');
+	const [activeTab, setActiveTab] = useState<'practice' | 'fulltest'>('practice');
 	const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
 	const [timer, setTimer] = useState<string>('');
-	const [commentInput, setCommentInput] = useState<string>('');
-	const [examRating, setExamRating] = useState<Difficulty>(Difficulty.Intermediate);
 	const [startError, setStartError] = useState<string | null>(null);
 	const [isStarting, setIsStarting] = useState(false);
 	// Attempt dang dở của user cho exam này
@@ -311,27 +309,6 @@ export function ExamDetailPage() {
 		}
 		handleStart();
 	};
-
-	const handleCommentSubmit = () => {
-		if (!commentInput.trim() || !currentUser) return;
-
-		const newComment: Comment = {
-			id: 'comment_' + Date.now(),
-			userId: currentUser.id,
-			examId: examId,
-			content: commentInput.trim(),
-			examRating: examRating,
-		};
-
-		dispatch(addComment(newComment));
-		setCommentInput('');
-		setActiveTab('discuss');
-	};
-
-	// Filter comments for this exam
-	const examComments = useMemo(() => {
-		return comments.filter((c) => c.examId === examId);
-	}, [comments, examId]);
 
 	// Helper functions
 	const getDifficultyColor = (difficulty: Difficulty) => {
@@ -527,15 +504,7 @@ export function ExamDetailPage() {
 						>
 							Làm Full Test
 						</button>
-						<button
-							className={`px-6 py-2.5 rounded-xl text-[15px] font-bold transition-all ${activeTab === 'discuss'
-									? 'bg-white text-primary shadow-sm ring-1 ring-slate-200/50'
-									: 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-								}`}
-							onClick={() => setActiveTab('discuss')}
-						>
-							Thảo Luận ({examComments.length})
-						</button>
+
 					</div>
 				</div>
 
@@ -867,87 +836,8 @@ export function ExamDetailPage() {
 						</div>
 					)}
 
-					{/* Discuss Tab */}
-					{activeTab === 'discuss' && (
-						<div className="animate-in fade-in duration-500 slide-in-from-bottom-4 pb-12">
-							<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
-								<MessageSquare className="w-6 h-6 text-primary/80" />
-								Khu Vực Thảo Luận ({examComments.length} bình luận)
-							</h3>
-
-							<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
-								<Textarea
-									placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-									className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
-									value={commentInput}
-									onChange={(e) => setCommentInput(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' && !e.shiftKey) {
-											e.preventDefault();
-											handleCommentSubmit();
-										}
-									}}
-								/>
-								<div className='flex items-center justify-between gap-3 mt-4'>
-									<div className='flex flex-wrap items-center gap-3'>
-										<label className='text-sm font-bold text-slate-700'>Chấm độ khó:</label>
-										<select
-											value={examRating}
-											onChange={(e) => setExamRating(e.target.value as Difficulty)}
-											className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
-										>
-											<option value={Difficulty.Beginner}>Cơ bản</option>
-											<option value={Difficulty.Intermediate}>Trung bình</option>
-											<option value={Difficulty.Advanced}>Rất khó</option>
-										</select>
-									</div>
-									<Button
-										onClick={handleCommentSubmit}
-										className='bg-primary hover:bg-primary/90 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
-										disabled={!commentInput.trim() || !currentUser}
-									>
-										Gửi
-									</Button>
-								</div>
-							</div>
-
-							<div className='space-y-6'>
-								{examComments.length === 0 ? (
-									<div className='text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-300'>
-										<MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-										<p className="text-slate-500 font-medium text-sm">Chưa có bình luận nào. Hãy khai màn đi bạn ơi!</p>
-									</div>
-								) : (
-									examComments.map((comment) => {
-										const commentUser = users.find((u) => u.id === comment.userId);
-										return (
-											<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
-												<div className='flex items-start gap-4'>
-													<div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
-														{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
-													</div>
-													<div className='flex-1'>
-														<div className='flex flex-col sm:flex-row sm:items-center gap-2 mb-2'>
-															<span className='font-bold text-slate-800 text-[15px]'>
-																{commentUser?.fullName || 'Người dùng ẩn danh'}
-															</span>
-															<Badge className={`${getDifficultyColor(comment.examRating)} px-2 py-0.5 shadow-sm`} variant='outline'>
-																Đánh giá: {getDifficultyText(comment.examRating)}
-															</Badge>
-														</div>
-														<p className='text-slate-600 whitespace-pre-wrap text-[15px] leading-relaxed'>{comment.content}</p>
-													</div>
-												</div>
-											</div>
-										);
-									})
-								)}
-							</div>
-						</div>
-					)}
-
 					{/* Start Button */}
-					{activeTab !== 'discuss' && (
+					{true && (
 						<div className='flex flex-col sm:flex-row items-center gap-4 pt-10 pb-4 justify-center md:justify-start border-t border-slate-200/60 mt-8'>
 							<Button
 								onClick={handleStart}
@@ -1029,95 +919,7 @@ export function ExamDetailPage() {
 					)}
 				</div>
 
-				{/* 4. Comments Section (khi không ở tab discuss) */}
-				{activeTab !== 'discuss' && (
-					<div className='pt-12 mt-12 border-t border-slate-200/60'>
-						<h3 className='font-black text-2xl mb-8 text-slate-800 flex items-center gap-2'>
-							<MessageSquare className="w-6 h-6 text-primary/80" />
-							Bình luận & Thảo luận
-						</h3>
 
-						<div className='bg-white p-6 rounded-2xl shadow-sm border border-slate-200/60 mb-10'>
-							<Textarea
-								placeholder='Bạn cảm thấy đề thi này thế nào? Có mẹo nào hay không...'
-								className='flex-1 min-h-[100px] border-slate-200 focus:border-primary focus:ring-primary rounded-xl resize-none bg-slate-50'
-								value={commentInput}
-								onChange={(e) => setCommentInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter' && !e.shiftKey) {
-										e.preventDefault();
-										handleCommentSubmit();
-									}
-								}}
-							/>
-							<div className='flex items-center justify-between gap-3 mt-4'>
-								<div className='flex flex-wrap items-center gap-3'>
-									<label className='text-sm font-bold text-slate-700'>Chấm độ khó:</label>
-									<select
-										value={examRating}
-										onChange={(e) => setExamRating(e.target.value as Difficulty)}
-										className='bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:border-primary outline-none text-slate-700 shadow-sm'
-									>
-										<option value={Difficulty.Beginner}>Cơ bản</option>
-										<option value={Difficulty.Intermediate}>Trung bình</option>
-										<option value={Difficulty.Advanced}>Rất khó</option>
-									</select>
-								</div>
-								<Button
-									onClick={handleCommentSubmit}
-									className='bg-primary hover:bg-primary/90 text-white font-bold px-6 rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] transition-all transform hover:-translate-y-0.5'
-									disabled={!commentInput.trim() || !currentUser}
-								>
-									Gửi
-								</Button>
-							</div>
-						</div>
-
-						<div className='space-y-6'>
-							{examComments.length === 0 ? (
-								<div className='text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-300'>
-									<MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-									<p className="text-slate-500 font-medium text-sm">Chưa có bình luận nào. Hãy khai màn đi bạn ơi!</p>
-								</div>
-							) : (
-								examComments.slice(0, 3).map((comment) => {
-									const commentUser = users.find((u) => u.id === comment.userId);
-									return (
-										<div key={comment.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm'>
-											<div className='flex items-start gap-4'>
-												<div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center flex-shrink-0 text-lg border border-primary/30">
-													{(commentUser?.fullName || 'U').charAt(0).toUpperCase()}
-												</div>
-												<div className='flex-1'>
-													<div className='flex flex-col sm:flex-row sm:items-center gap-2 mb-2'>
-														<span className='font-bold text-slate-800 text-[15px]'>
-															{commentUser?.fullName || 'Người dùng ẩn danh'}
-														</span>
-														<Badge className={`${getDifficultyColor(comment.examRating)} px-2 py-0.5 shadow-sm`} variant='outline'>
-															Đánh giá: {getDifficultyText(comment.examRating)}
-														</Badge>
-													</div>
-													<p className='text-slate-600 whitespace-pre-wrap text-[15px] leading-relaxed'>{comment.content}</p>
-												</div>
-											</div>
-										</div>
-									);
-								})
-							)}
-							{examComments.length > 3 && (
-								<div className='text-center pt-6'>
-									<Button
-										variant='outline'
-										onClick={() => setActiveTab('discuss')}
-										className='text-primary border-primary/30 hover:bg-primary/10 font-bold px-8 rounded-xl h-12'
-									>
-										Xem tất cả {examComments.length} bình luận
-									</Button>
-								</div>
-							)}
-						</div>
-					</div>
-				)}
 			</div>
 
 			{currentUser && (

@@ -141,22 +141,25 @@ export function FlashcardPage() {
 		if (!currentUser) return;
 
 		try {
+			const unwrap = (r: any) => r?.data ?? r;
 			if (editingList) {
-				const res = await FlashcardListService.updateFlashCardList(editingList.id, {
+				const raw = await FlashcardListService.updateFlashCardList(editingList.id, {
 					name: data.name,
 					description: data.description,
 				});
+				const res = unwrap(raw);
 				dispatch(updateFlashcardList({
 					...editingList,
 					name: res.name,
 					description: res.description || undefined,
 				}));
 			} else {
-				const res = await FlashcardListService.createFlashCardList({
+				const raw = await FlashcardListService.createFlashCardList({
 					name: data.name,
 					description: data.description,
 					authorId: currentUser.id,
 				});
+				const res = unwrap(raw);
 				const newList: FlashcardList = {
 					id: res.id,
 					authorId: res.authorId,
