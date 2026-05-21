@@ -756,7 +756,7 @@ export function TestInterface() {
   // ── Navigation ─────────────────────────────────────────────────────────────
   const scrollToQuestion = useCallback((qId: string) => {
     setActiveQuestionId(qId);
-    document.getElementById(`q-${qId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById(`q-${qId}`)?.scrollIntoView({ behavior: 'auto', block: 'center' });
   }, []);
 
   // ── Helpers for tracker ────────────────────────────────────────────────────
@@ -787,10 +787,66 @@ export function TestInterface() {
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="font-medium text-slate-500">Đang tải dữ liệu bài thi...</p>
+      <div className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse">
+        {/* Left panel skeleton */}
+        <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {/* Header tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <div className="h-7 w-20 rounded-md bg-slate-200" />
+            <div className="h-7 w-24 rounded-md bg-slate-200" />
+            <div className="h-7 w-20 rounded-md bg-slate-200" />
+          </div>
+          {/* Directive / passage skeleton */}
+          <div className="space-y-3 p-6">
+            <div className="h-4 w-3/4 rounded bg-slate-200" />
+            <div className="h-4 w-full rounded bg-slate-200" />
+            <div className="h-4 w-5/6 rounded bg-slate-200" />
+            <div className="h-4 w-2/3 rounded bg-slate-200" />
+          </div>
+          {/* Question card skeleton */}
+          <div className="mx-6 mb-4 space-y-3 rounded-xl border border-slate-100 p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-7 rounded-full bg-slate-200" />
+              <div className="h-4 flex-1 rounded bg-slate-200" />
+            </div>
+            <div className="ml-10 space-y-2">
+              <div className="flex items-center gap-3 rounded-xl border border-slate-100 p-4">
+                <div className="h-5 w-5 rounded-full bg-slate-200" />
+                <div className="h-4 w-2/3 rounded bg-slate-200" />
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-100 p-4">
+                <div className="h-5 w-5 rounded-full bg-slate-200" />
+                <div className="h-4 w-1/2 rounded bg-slate-200" />
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-100 p-4">
+                <div className="h-5 w-5 rounded-full bg-slate-200" />
+                <div className="h-4 w-3/5 rounded bg-slate-200" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Right panel skeleton */}
+        <div className="flex w-72 flex-col gap-4">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col items-center gap-2 p-6 border-b border-slate-100">
+              <div className="h-3 w-28 rounded bg-slate-200" />
+              <div className="h-10 w-20 rounded bg-slate-200" />
+            </div>
+            <div className="p-5">
+              <div className="h-14 w-full rounded-xl bg-slate-200" />
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+              <div className="h-6 w-16 rounded-full bg-slate-200" />
+              <div className="h-6 w-20 rounded-full bg-slate-200" />
+            </div>
+          </div>
+          <div className="flex-1 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+            <div className="grid grid-cols-5 gap-2.5">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="h-10 w-10 rounded-lg bg-slate-200" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -818,7 +874,7 @@ export function TestInterface() {
                   if (firstQ) {
                     setActiveQuestionId(firstQ.id);
                     setTimeout(() => {
-                      document.getElementById(`q-${firstQ.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      document.getElementById(`q-${firstQ.id}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
                     }, 50);
                   }
                 }}
@@ -1160,7 +1216,7 @@ export function TestInterface() {
                             setActiveQuestionId(q.id);
                             setTimeout(() => {
                               const el = document.getElementById(`q-${q.id}`);
-                              el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              el?.scrollIntoView({ behavior: 'auto', block: 'start' });
                             }, 50);
                           }}
                           className={`relative flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold shadow-sm transition-all ${
