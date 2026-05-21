@@ -54,6 +54,14 @@ const TAB_TAG_MAP: Record<string, string> = {
 
 const META_TAGS = new Set(['ielts', 'toeic']);
 
+function formatDurationShort(seconds: number): string {
+	if (seconds < 60) return `${seconds}s`;
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	if (h > 0) return `${h}h ${m}m`;
+	return `${m} phút`;
+}
+
 export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
@@ -296,9 +304,8 @@ export function TestSelection() {
 							<div className="flex flex-col items-center justify-center">
 								<Clock className="h-4 w-4 mb-1.5 text-primary/80" />
 								<span className="text-[13px] font-bold text-slate-700">
-									{typeof durationSeconds === 'number' ? durationSeconds : '—'}
+									{typeof durationSeconds === 'number' ? formatDurationShort(durationSeconds) : '—'}
 								</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Giây</span>
 							</div>
 						</div>
 						<div className="text-center border-r border-slate-200 last:border-0 p-1">

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button } from './ui/button';
-import { Trash2, Underline, Strikethrough, Plus, X, ChevronDown } from 'lucide-react';
+import { Trash2, Underline, Strikethrough, Plus, X, ChevronDown, Languages } from 'lucide-react';
 import { addFlashCard } from './store/flashCardSlice';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { RootState } from './store/main/store';
@@ -23,6 +23,7 @@ type TextHighlighterProps = {
   onNewWord?: (word: string) => void;
   highlightEnabled?: boolean;
   className?: string;
+  onTranslate?: (text: string) => Promise<string | null>;
 };
 
 type FlashcardFormData = {
@@ -273,7 +274,7 @@ const FlashcardFormModal = ({
 };
 
 // --- MAIN COMPONENT ---
-export function TextHighlighter({ text, onNewWord, highlightEnabled, className }: TextHighlighterProps) {
+export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate, className }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedColor, setSelectedColor] = useState<string>('yellow');
   const [showToolbar, setShowToolbar] = useState(false);
@@ -287,6 +288,10 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
   // Flashcard State
   const [showFlashcardForm, setShowFlashcardForm] = useState(false);
   const [wordForForm, setWordForForm] = useState('');
+
+  // Translate State
+  const [translationText, setTranslationText] = useState<string | null>(null);
+  const [translatingSelection, setTranslatingSelection] = useState(false);
   
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -299,7 +304,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
 
   // --- HIGHLIGHT HANDLERS ---
   const handleMouseUp = () => {
-    // Don't show toolbar if highlight mode is disabled
+    setTranslationText(null);
     if (highlightEnabled === false) {
       return;
     }
@@ -318,7 +323,6 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     
-    // Center the toolbar above the selection
     setToolbarPosition({
       x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY - 10,
@@ -447,6 +451,26 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
 
   const handleSaveSuccess = (word: string) => {
     if (onNewWord) onNewWord(word);
+  };
+
+  // --- TRANSLATE HANDLER ---
+  const handleTranslateSelection = async () => {
+    if (!onTranslate) return;
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() || '';
+    if (!selectedText) return;
+    setTranslatingSelection(true);
+    try {
+      const result = await onTranslate(selectedText);
+      if (result) {
+        setTranslationText(result);
+      }
+    } catch (err) {
+      console.error('Translate error:', err);
+    } finally {
+      setTranslatingSelection(false);
+    }
+    setShowToolbar(false);
   };
 
   // Close toolbar on outside click
@@ -664,6 +688,54 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, className }
           >
             <Plus size={18} />
           </Button>
+
+          {onTranslate && (
+            <>
+              <div className="w-px h-5 bg-gray-200 mx-1" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={() => {
+                  if (isEditMode && editingHighlight) {
+                    setTranslationText(null);
+                    setWordForForm(editingHighlight.text);
+                    if (onTranslate) onTranslate(editingHighlight.text).then(r => { if (r) setTranslationText(r); });
+                    setShowToolbar(false);
+                    setIsEditMode(false);
+                    setEditingHighlight(null);
+                  } else {
+                    handleTranslateSelection();
+                  }
+                }}
+                title="Dịch"
+              >
+                {translatingSelection ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                ) : (
+                  <Languages size={16} />
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Translation result popup */}
+      {translationText && (
+        <div
+          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-3 text-sm animate-in fade-in duration-200 max-w-xs"
+          style={{
+            left: toolbarPosition.x,
+            top: toolbarPosition.y + 10,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <Languages size={12} className="text-blue-500" />
+            <span className="font-bold text-xs uppercase tracking-wider text-blue-500">Dịch</span>
+          </div>
+          <div className="text-slate-700 text-sm leading-relaxed">{translationText}</div>
         </div>
       )}
 

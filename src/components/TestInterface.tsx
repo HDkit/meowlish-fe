@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button } from './ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { Clock, Send, Volume2, ChevronRight, Lightbulb, Flag, MessageSquare, Save, X } from 'lucide-react';
+import { Clock, Send, Volume2, ChevronRight, Flag, MessageSquare, Save, X } from 'lucide-react';
 import { TextHighlighter } from './TextHighlighter';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -394,7 +395,7 @@ export function TestInterface() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [activePartId, setActivePartId] = useState<string | null>(null);
-  const [highlightEnabled, setHighlightEnabled] = useState(false);
+
 
   const parts = useMemo(() => {
     const uniqueParts = new Map<string, { id: string; name: string }>();
@@ -419,6 +420,7 @@ export function TestInterface() {
   const [flagsMap, setFlagsMap] = useState<Record<string, boolean>>({});
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [editingNoteFor, setEditingNoteFor] = useState<string | null>(null);
+
 
   // Layout
   const containerRef = useRef<HTMLDivElement>(null);
@@ -721,6 +723,25 @@ export function TestInterface() {
     }
   }, [attemptId]);
 
+  // ── Translate ──────────────────────────────────────────────────────────────
+  const handleTextTranslate = useCallback(async (text: string): Promise<string | null> => {
+    if (!text) return null;
+    try {
+      const res = await fetch('/api/gemini/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      return data.translation || null;
+    } catch (err) {
+      console.error('Translate error:', err);
+      return null;
+    }
+  }, []);
+
+
+
   // ── Resizer (kept for containerRef usage) ─────────────────────────────────
 
   // ── Navigation ─────────────────────────────────────────────────────────────
@@ -802,17 +823,7 @@ export function TestInterface() {
               </button>
             ))}
           </div>
-          {/* Highlight toggle */}
-          <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
-            <Lightbulb className="h-3.5 w-3.5 text-yellow-500" />
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Highlight</span>
-            <button
-              onClick={() => setHighlightEnabled((v) => !v)}
-              className={`relative h-4 w-8 cursor-pointer rounded-full transition-colors duration-200 ${highlightEnabled ? 'bg-primary' : 'bg-gray-300'}`}
-            >
-              <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all duration-200 ${highlightEnabled ? 'right-0.5' : 'left-0.5'}`} />
-            </button>
-          </div>
+
         </div>
 
         {/* Questions area */}
@@ -844,7 +855,7 @@ export function TestInterface() {
                   {hasDirective && group.section.type !== 'audio-script' && (
                     <TextHighlighter 
                       text={group.section.directive} 
-                      highlightEnabled={highlightEnabled} 
+                      onTranslate={handleTextTranslate}
                       className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm leading-relaxed text-slate-700"
                     />
                   )}
@@ -889,7 +900,7 @@ export function TestInterface() {
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
-                                    <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
+                                    <TextHighlighter text={q.content} onTranslate={handleTextTranslate} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
                                   <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
@@ -919,6 +930,7 @@ export function TestInterface() {
                                   </button>
                                 </div>
                               </div>
+
                             </div>
                           );
                         })}
@@ -963,7 +975,7 @@ export function TestInterface() {
                                     }`}>{q.globalIndex}</div>
                                     <div className="flex-1">
                                       {q.content && (
-                                        <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
+                                        <TextHighlighter text={q.content} onTranslate={handleTextTranslate} className="text-sm font-medium leading-relaxed text-slate-800" />
                                       )}
                                     </div>
                                     <div className="flex flex-col gap-1.5 pt-1">
@@ -1003,7 +1015,7 @@ export function TestInterface() {
                                 }`}>{q.globalIndex}</div>
                                 <div className="flex-1">
                                   {q.content && (
-                                    <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
+                                    <TextHighlighter text={q.content} onTranslate={handleTextTranslate} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
                                   <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
