@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button } from './ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { Clock, Send, Volume2, ChevronRight, Flag, MessageSquare, Save, X } from 'lucide-react';
+import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X } from 'lucide-react';
 import { TextHighlighter } from './TextHighlighter';
 
 
@@ -182,10 +182,12 @@ function MCQOption({
   choice,
   isSelected,
   onSelect,
+  onTranslate,
 }: {
   choice: ChoiceData;
   isSelected: boolean;
   onSelect: () => void;
+  onTranslate?: (text: string) => Promise<string | null>;
 }) {
   return (
     <label
@@ -207,7 +209,7 @@ function MCQOption({
         <span className={`font-black ${isSelected ? 'text-primary' : 'text-slate-400'}`}>
           {choice.key}.
         </span>
-        <span className="leading-relaxed text-slate-700">{choice.content}</span>
+        <TextHighlighter text={choice.content ?? ''} onTranslate={onTranslate} className="leading-relaxed text-slate-700" />
       </div>
     </label>
   );
@@ -218,10 +220,12 @@ function MCQMultiOption({
   choice,
   isChecked,
   onToggle,
+  onTranslate,
 }: {
   choice: ChoiceData;
   isChecked: boolean;
   onToggle: (checked: boolean) => void;
+  onTranslate?: (text: string) => Promise<string | null>;
 }) {
   return (
     <label
@@ -247,7 +251,7 @@ function MCQMultiOption({
         <span className={`font-black ${isChecked ? 'text-primary' : 'text-slate-400'}`}>
           {choice.key}.
         </span>
-        <span className="leading-relaxed text-slate-700">{choice.content}</span>
+        <TextHighlighter text={choice.content ?? ''} onTranslate={onTranslate} className="leading-relaxed text-slate-700" />
       </div>
     </label>
   );
@@ -259,11 +263,13 @@ function QuestionInput({
   answers,
   onSingleAnswer,
   onMultiAnswer,
+  onTranslate,
 }: {
   question: FlatQuestion;
   answers: string[];
   onSingleAnswer: (qId: string, value: string) => void;
   onMultiAnswer: (qId: string, key: string, checked: boolean) => void;
+  onTranslate?: (text: string) => Promise<string | null>;
 }) {
   const { id, type, choices } = question;
 
@@ -276,6 +282,7 @@ function QuestionInput({
             choice={c}
             isSelected={answers[0] === c.key}
             onSelect={() => onSingleAnswer(id, c.key)}
+            onTranslate={onTranslate}
           />
         ))}
       </div>
@@ -291,6 +298,7 @@ function QuestionInput({
             choice={c}
             isChecked={answers.includes(c.key)}
             onToggle={(checked) => onMultiAnswer(id, c.key, checked)}
+            onTranslate={onTranslate}
           />
         ))}
       </div>
@@ -420,6 +428,7 @@ export function TestInterface() {
   const [flagsMap, setFlagsMap] = useState<Record<string, boolean>>({});
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [editingNoteFor, setEditingNoteFor] = useState<string | null>(null);
+  const [showTracker, setShowTracker] = useState(true);
 
 
   // Layout
@@ -791,11 +800,11 @@ export function TestInterface() {
 
   return (
     <div
-      className="flex flex-row items-start gap-4 bg-slate-50 p-4 font-sans"
+      className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden"
       ref={containerRef}
     >
-      {/* ── QUESTIONS PANEL (left, natural height, page scrolls) ────────── */}
-      <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* ── QUESTIONS PANEL (left, independent scroll) ──────────────────── */}
+      <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-y-auto">
         {/* Header: Part tabs + Highlight toggle */}
         <div className="flex items-center border-b border-slate-100 bg-white px-4 py-2 gap-3 rounded-t-2xl">
           {/* Part tabs */}
@@ -848,6 +857,9 @@ export function TestInterface() {
                     <hr className="my-2 border-t-4 border-slate-300" />
                   )}
                   <div className="flex flex-col gap-3">
+                  {/* Sticky directive + media for this section */}
+                  {(groupAudioUrl || (hasDirective && group.section.type !== 'audio-script')) && (
+                  <div className="sticky top-0 z-10 bg-white rounded-xl space-y-3">
                   {/* Group audio */}
                   {groupAudioUrl && <AudioPlayer url={formatMediaUrl(groupAudioUrl)} />}
 
@@ -858,6 +870,8 @@ export function TestInterface() {
                       onTranslate={handleTextTranslate}
                       className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm leading-relaxed text-slate-700"
                     />
+                  )}
+                  </div>
                   )}
 
                   {hasSectionImages ? (
@@ -903,7 +917,7 @@ export function TestInterface() {
                                     <TextHighlighter text={q.content} onTranslate={handleTextTranslate} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
-                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} onTranslate={handleTextTranslate} />
                                   {editingNoteFor === q.id && (
                                     <NoteEditor
                                       questionId={q.id}
@@ -996,7 +1010,7 @@ export function TestInterface() {
                                     </div>
                                   </div>
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mt-1" />)}
-                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} onTranslate={handleTextTranslate} />
                                   {editingNoteFor === q.id && (
                                     <NoteEditor
                                       questionId={q.id}
@@ -1018,7 +1032,7 @@ export function TestInterface() {
                                     <TextHighlighter text={q.content} onTranslate={handleTextTranslate} className="mb-3 text-sm font-medium leading-relaxed text-slate-800" />
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
-                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} onTranslate={handleTextTranslate} />
                                   {editingNoteFor === q.id && (
                                     <NoteEditor
                                       questionId={q.id}
@@ -1079,16 +1093,17 @@ export function TestInterface() {
         </div>
       </div>
 
-      {/* ── TRACKER PANEL (right) ────────────────────────────────────────── */}
-       <div className="flex w-72 shrink-0 flex-col gap-4">
-        
+      {/* ── TRACKER PANEL (right, collapsible, independent scroll) ──────── */}
+      <div className="relative flex shrink-0 h-full overflow-y-auto">
+        <div className={`transition-all duration-300 ease-in-out ${showTracker ? 'w-72' : 'w-0 overflow-hidden'}`}>
+          <div className="flex w-72 flex-col gap-4">
+         
         {/* Header: Timer, Submit, Progress */}
-        <div className="sticky top-4 z-10 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shrink-0 sticky top-0 z-20">
           {/* Timer */}
           <div className="relative overflow-hidden border-b border-slate-100 bg-muted/30 p-6 text-center">
             <Clock className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-primary-foreground/80" />
             <div className="mb-1 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/80">
-              <Clock className="h-3.5 w-3.5" />
               Thời gian còn lại
             </div>
             <div
@@ -1122,7 +1137,7 @@ export function TestInterface() {
         </div>
 
         {/* Question grid by Part (Study4-like sticky + internal scroll) */}
-        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm p-5 flex-1 min-h-0">
           <div className="flex flex-col gap-6">
             {parts.map((part) => {
               const partQuestions = allQuestions.filter(q => q.ancestorSections[0]?.id === part.id);
@@ -1141,7 +1156,6 @@ export function TestInterface() {
                         <button
                           key={q.id}
                           onClick={() => {
-                            // Switch to the correct part first, then scroll after re-render
                             setActivePartId(part.id);
                             setActiveQuestionId(q.id);
                             setTimeout(() => {
@@ -1173,7 +1187,23 @@ export function TestInterface() {
             })}
           </div>
         </div>
+
       </div>
+    </div>
+
+    {/* Floating toggle button (always visible, fixed position) */}
+    <button
+      onClick={() => setShowTracker(!showTracker)}
+      className="fixed right-0 top-1/2 z-50 flex h-12 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-slate-200 bg-white shadow-md hover:bg-slate-50 transition-all"
+      title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
+    >
+      {showTracker ? (
+        <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+      ) : (
+        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+      )}
+    </button>
+  </div>
     </div>
   );
 }

@@ -549,6 +549,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
         ref={textRef}
         className="whitespace-pre-wrap text-justify selection:bg-primary/20 selection:text-primary"
         onMouseUp={handleMouseUp}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={(e) => {
           // Only close toolbar if no text is selected and not clicking on highlight or toolbar
           const selection = window.getSelection();
@@ -731,9 +732,17 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
             transform: 'translateX(-50%)',
           }}
         >
-          <div className="flex items-center gap-1.5 mb-1">
-            <Languages size={12} className="text-blue-500" />
-            <span className="font-bold text-xs uppercase tracking-wider text-blue-500">Dịch</span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <Languages size={12} className="text-blue-500" />
+              <span className="font-bold text-xs uppercase tracking-wider text-blue-500">Dịch</span>
+            </div>
+            <button
+              onClick={() => setTranslationText(null)}
+              className="flex h-5 w-5 items-center justify-center rounded hover:bg-slate-100 transition-colors"
+            >
+              <X size={12} className="text-slate-400" />
+            </button>
           </div>
           <div className="text-slate-700 text-sm leading-relaxed">{translationText}</div>
         </div>
