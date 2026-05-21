@@ -4,9 +4,11 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { ThemeToggle } from './ThemeToggle';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export function LandingNavbar() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50 dark:bg-card/90">
@@ -20,19 +22,30 @@ export function LandingNavbar() {
 
         <div className="flex items-center gap-3 ml-auto">
           <ThemeToggle />
-          <Button
-            variant="outline"
-            onClick={() => router.push('/auth')}
-            className="border-2 border-primary text-primary hover:bg-primary/5 font-semibold"
-          >
-            Đăng nhập
-          </Button>
-          <Button
-            onClick={() => router.push('/auth?mode=register')}
-            className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
-          >
-            Đăng ký
-          </Button>
+          {isAuthenticated ? (
+            <Button
+              onClick={() => router.push('/dashboard')}
+              className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
+            >
+              Dashboard
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/auth')}
+                className="border-2 border-primary text-primary hover:bg-primary/5 font-semibold"
+              >
+                Đăng nhập
+              </Button>
+              <Button
+                onClick={() => router.push('/auth?mode=register')}
+                className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
+              >
+                Đăng ký
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

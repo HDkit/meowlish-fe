@@ -41,7 +41,6 @@ type FormattedExam = {
 	title: string;
 	description?: string;
 	duration?: number;
-	difficulty: string;
 	testType: TestType;
 	skill: string;
 	tagIds: string[];
@@ -141,11 +140,6 @@ export function TestSelection() {
 						title: e.name,
 						description: e.description,
 						duration: e.duration,
-						difficulty: lowerTags.includes('beginner')
-							? 'beginner'
-							: lowerTags.includes('advanced')
-								? 'advanced'
-								: 'intermediate',
 						testType: deduceTestType(e),
 						skill: lowerTags.includes('listening')
 							? 'listening'
@@ -252,32 +246,6 @@ export function TestSelection() {
 		writing: PenTool,
 	};
 
-	const getDifficultyColor = (difficulty: string) => {
-		switch (difficulty) {
-			case 'beginner':
-				return 'bg-green-100 text-green-700 border-green-200/60';
-			case 'intermediate':
-				return 'bg-yellow-100 text-yellow-700 border-yellow-200/60';
-			case 'advanced':
-				return 'bg-red-100 text-red-700 border-red-200/60';
-			default:
-				return 'bg-slate-100 text-slate-700 border-slate-200/60';
-		}
-	};
-
-	const getDifficultyText = (difficulty: string) => {
-		switch (difficulty) {
-			case 'beginner':
-				return 'Cơ bản';
-			case 'intermediate':
-				return 'Trung bình';
-			case 'advanced':
-				return 'Nâng cao';
-			default:
-				return difficulty;
-		}
-	};
-
 	const getTagDisplayName = (tagName: string) => {
 		const lower = tagName.toLowerCase();
 		if (lower === 'listening') return 'Nghe';
@@ -304,10 +272,6 @@ export function TestSelection() {
 
 		return (
 			<Card className="group bg-white rounded-2xl border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col hover:-translate-y-1 relative">
-				<div
-					className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[50px] opacity-20 transition-opacity group-hover:opacity-40 pointer-events-none ${exam.difficulty === 'beginner' ? 'bg-green-400' : exam.difficulty === 'intermediate' ? 'bg-yellow-400' : 'bg-red-400'}`}
-				/>
-
 				<CardHeader className="pb-4 border-b border-gray-50/80 z-10">
 					<div className="flex items-start justify-between">
 						<div className="space-y-3">
@@ -323,11 +287,6 @@ export function TestSelection() {
 								{exam.description || 'Chưa có mô tả chi tiết cho bài thi này.'}
 							</CardDescription>
 						</div>
-						<span
-							className={`px-3 py-1.5 rounded-full text-[11px] uppercase tracking-wider font-bold shadow-sm whitespace-nowrap border ${getDifficultyColor(exam.difficulty)}`}
-						>
-							{getDifficultyText(exam.difficulty)}
-						</span>
 					</div>
 				</CardHeader>
 

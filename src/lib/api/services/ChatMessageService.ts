@@ -24,7 +24,7 @@ export class ChatMessageService {
   ): CancelablePromise<GetChatLogResponse> {
     return __request(OpenAPI, {
       method: 'GET',
-      url: '/api/v1/rooms/{roomId}/logs',
+      url: '/api/v1/chat/rooms/{roomId}/logs',
       path: { roomId },
       query: { uid, cursor, limit },
     });

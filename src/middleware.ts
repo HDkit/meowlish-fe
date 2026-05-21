@@ -47,8 +47,8 @@ export function middleware(request: NextRequest) {
 		return NextResponse.redirect(url);
 	}
 
-	// Redirect to dashboard if authenticated user tries to access auth page
-	if (pathname === '/auth' && isAuthenticated) {
+	// Redirect to dashboard if authenticated user tries to access auth or landing page
+	if ((pathname === '/auth' || pathname === '/landing') && isAuthenticated) {
 		const url = request.nextUrl.clone();
 		url.pathname = '/dashboard';
 		return NextResponse.redirect(url);

@@ -33,7 +33,7 @@ export class ChatRoomService {
   ): CancelablePromise<ListChatRoomsResponse> {
     return __request(OpenAPI, {
       method: 'GET',
-      url: '/api/v1/rooms',
+      url: '/api/v1/chat/rooms',
       query: { cursor, limit },
     });
   }
@@ -43,7 +43,7 @@ export class ChatRoomService {
   ): CancelablePromise<ChatRoomResponse> {
     return __request(OpenAPI, {
       method: 'POST',
-      url: '/api/v1/rooms',
+      url: '/api/v1/chat/rooms',
       body: payload,
       mediaType: 'application/json',
     });
@@ -52,7 +52,7 @@ export class ChatRoomService {
   public static deleteRoom(roomId: string): CancelablePromise<void> {
     return __request(OpenAPI, {
       method: 'DELETE',
-      url: '/api/v1/rooms/{roomId}',
+      url: '/api/v1/chat/rooms/{roomId}',
       path: { roomId },
     });
   }
@@ -63,7 +63,7 @@ export class ChatRoomService {
   ): CancelablePromise<void> {
     return __request(OpenAPI, {
       method: 'PATCH',
-      url: '/api/v1/rooms/{roomId}/schedule',
+      url: '/api/v1/chat/rooms/{roomId}/schedule',
       path: { roomId },
       body: payload,
       mediaType: 'application/json',
@@ -77,7 +77,7 @@ export class ChatRoomService {
   ): CancelablePromise<void> {
     return __request(OpenAPI, {
       method: 'POST',
-      url: '/api/v1/rooms/{roomId}/ban',
+      url: '/api/v1/chat/rooms/{roomId}/ban',
       path: { roomId },
       body: { uid, reason },
       mediaType: 'application/json',
@@ -90,7 +90,7 @@ export class ChatRoomService {
   ): CancelablePromise<void> {
     return __request(OpenAPI, {
       method: 'DELETE',
-      url: '/api/v1/rooms/{roomId}/ban/{uid}',
+      url: '/api/v1/chat/rooms/{roomId}/ban/{uid}',
       path: { roomId, uid },
     });
   }

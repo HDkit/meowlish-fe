@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Section, TestType, Skill, Difficulty } from '../types/client';
+import { Section, TestType, Skill } from '../types/client';
 import { ReportDialog } from './ReportDialog';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { useParams, useRouter } from 'next/navigation';
@@ -175,6 +175,7 @@ export function ExamDetailPage() {
 	const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
 	const [timer, setTimer] = useState<string>('');
 	const [startError, setStartError] = useState<string | null>(null);
+	const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
 	const [isStarting, setIsStarting] = useState(false);
 	// Attempt dang dở của user cho exam này
 	const [ongoingAttempt, setOngoingAttempt] = useState<{ id: string; startedAt: string } | null>(null);
@@ -225,7 +226,6 @@ export function ExamDetailPage() {
 
 	// Xử lý thông tin parse từ tag
 	const lowerTags = examData?.tags?.map((t: string) => t.toLowerCase()) || [];
-	const difficulty = lowerTags.includes('beginner') ? Difficulty.Beginner : lowerTags.includes('advanced') ? Difficulty.Advanced : Difficulty.Intermediate;
 	const skill = lowerTags.includes('listening') ? Skill.Listening : lowerTags.includes('speaking') ? Skill.Speaking : lowerTags.includes('writing') ? Skill.Writing : Skill.Reading;
 	const testType = lowerTags.includes('ielts') ? TestType.IELTS : TestType.TOEIC;
 
@@ -308,33 +308,6 @@ export function ExamDetailPage() {
 			}
 		}
 		handleStart();
-	};
-
-	// Helper functions
-	const getDifficultyColor = (difficulty: Difficulty) => {
-		switch (difficulty) {
-			case Difficulty.Beginner:
-				return 'bg-green-100 text-green-800 border-green-200';
-			case Difficulty.Intermediate:
-				return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-			case Difficulty.Advanced:
-				return 'bg-red-100 text-red-800 border-red-200';
-			default:
-				return 'bg-gray-100 text-gray-800 border-gray-200';
-		}
-	};
-
-	const getDifficultyText = (difficulty: Difficulty) => {
-		switch (difficulty) {
-			case Difficulty.Beginner:
-				return 'Cơ bản';
-			case Difficulty.Intermediate:
-				return 'Trung bình';
-			case Difficulty.Advanced:
-				return 'Nâng cao';
-			default:
-				return difficulty;
-		}
 	};
 
 	const getSkillIcon = (skill: Skill) => {
@@ -441,9 +414,6 @@ export function ExamDetailPage() {
 										<SkillIcon className='h-4 w-4 mr-1.5' />
 										{skill.charAt(0).toUpperCase() + skill.slice(1)}
 									</Badge>
-									<Badge className={`px-3 py-1 font-bold text-sm uppercase tracking-wide border bg-white/10 backdrop-blur-md shadow-sm ${difficulty === Difficulty.Beginner ? 'text-green-300 border-green-300/50' : difficulty === Difficulty.Intermediate ? 'text-yellow-300 border-yellow-300/50' : 'text-red-300 border-red-300/50'}`}>
-										{getDifficultyText(difficulty)}
-									</Badge>
 								</div>
 								<h1 className='text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight'>{examData.name}</h1>
 								<p className='text-primary-foreground/80 text-lg md:text-xl font-medium max-w-3xl leading-relaxed opacity-90'>{examData.description}</p>
@@ -453,7 +423,7 @@ export function ExamDetailPage() {
 						<div className='flex items-center gap-6 text-sm flex-wrap text-primary-foreground/80 pt-2'>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<Clock className='h-5 w-5 text-primary-foreground/80' />
-								<span className="font-semibold text-base">{examData.duration} giây</span>
+								<span className="font-semibold text-base">{formatDurationShort(examData.duration)}</span>
 							</div>
 							<div className='flex items-center gap-2 bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 shadow-inner'>
 								<FileText className='h-5 w-5 text-primary-foreground/80' />
@@ -605,15 +575,18 @@ export function ExamDetailPage() {
 
 															{sectionTags.length > 0 && (
 																<div className='flex flex-wrap gap-1.5 pt-2 border-t border-slate-100'>
-																	{sectionTags.slice(0, 3).map((tag: any) => (
+																	{(expandedTags.has(section.id) ? sectionTags : sectionTags.slice(0, 3)).map((tag: any) => (
 																		<span key={tag?.id} className='text-[11px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-sm'>
 																			#{tag?.name}
 																		</span>
 																	))}
 																	{sectionTags.length > 3 && (
-																		<span className='text-[11px] font-bold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md'>
-																			+{sectionTags.length - 3}
-																		</span>
+																		<button
+																			onClick={(e) => { e.stopPropagation(); setExpandedTags(prev => { const next = new Set(prev); expandedTags.has(section.id) ? next.delete(section.id) : next.add(section.id); return next; }); }}
+																			className='text-[11px] font-bold text-primary bg-primary/5 border border-primary/30 px-2 py-0.5 rounded-md hover:bg-primary/10 transition-colors cursor-pointer'
+																		>
+																			{expandedTags.has(section.id) ? 'Thu gọn' : `+${sectionTags.length - 3}`}
+																		</button>
 																	)}
 																</div>
 															)}
@@ -625,6 +598,36 @@ export function ExamDetailPage() {
 									})}
 								</div>
 							</div>
+
+							{/* Timer Selection */}
+							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>
+								<div className="h-1.5 w-full bg-primary"></div>
+								<CardHeader className="pb-4">
+									<CardTitle className='text-xl flex items-center gap-2 text-slate-800'>
+										<Clock className="w-5 h-5 text-emerald-500" />
+										Áp Lực Thời Gian
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className='space-y-3'>
+										<label className='text-sm font-medium text-gray-700 block'>Giới hạn thời gian (tùy chọn)</label>
+										<select
+											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary outline-none'
+											value={timer}
+											onChange={(e) => setTimer(e.target.value)}
+										>
+											<option value=''>Không giới hạn thời gian</option>
+											<option value='10'>10 phút</option>
+											<option value='15'>15 phút</option>
+											<option value='20'>20 phút</option>
+											<option value='30'>30 phút</option>
+											<option value='45'>45 phút</option>
+											<option value='60'>60 phút</option>
+										</select>
+										<p className='text-xs text-gray-500'>Để trống nếu bạn muốn làm bài không giới hạn thời gian</p>
+									</div>
+								</CardContent>
+							</Card>
 
 							{/* Lịch sử làm bài của bạn với đề này */}
 							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>
@@ -765,36 +768,6 @@ export function ExamDetailPage() {
 									)}
 								</CardContent>
 							</Card>
-
-							{/* Timer Selection */}
-							<Card className='border-0 shadow-sm ring-1 ring-slate-200/60 bg-white rounded-2xl overflow-hidden'>
-								<div className="h-1.5 w-full bg-primary"></div>
-								<CardHeader className="pb-4">
-									<CardTitle className='text-xl flex items-center gap-2 text-slate-800'>
-										<Clock className="w-5 h-5 text-emerald-500" />
-										Áp Lực Thời Gian
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className='space-y-3'>
-										<label className='text-sm font-medium text-gray-700 block'>Giới hạn thời gian (tùy chọn)</label>
-										<select
-											className='w-full max-w-xs border border-gray-300 rounded-md p-2.5 text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary outline-none'
-											value={timer}
-											onChange={(e) => setTimer(e.target.value)}
-										>
-											<option value=''>Không giới hạn thời gian</option>
-											<option value='10'>10 phút</option>
-											<option value='15'>15 phút</option>
-											<option value='20'>20 phút</option>
-											<option value='30'>30 phút</option>
-											<option value='45'>45 phút</option>
-											<option value='60'>60 phút</option>
-										</select>
-										<p className='text-xs text-gray-500'>Để trống nếu bạn muốn làm bài không giới hạn thời gian</p>
-									</div>
-								</CardContent>
-							</Card>
 						</div>
 					)}
 
@@ -826,7 +799,7 @@ export function ExamDetailPage() {
 												</div>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Thời gian chuẩn</span>
-													<span className='text-2xl font-black text-emerald-600'>{examData.duration}s</span>
+													<span className='text-2xl font-black text-emerald-600'>{formatDurationShort(examData.duration)}</span>
 												</div>
 											</div>
 										</div>

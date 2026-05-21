@@ -134,24 +134,6 @@ export function ExamApproval(){
     );
   };
 
-  const getDifficultyBadgeClass = (difficulty: string) => {
-    switch(difficulty.toLowerCase()) {
-      case 'easy': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDifficultyText = (difficulty: string) => {
-    switch(difficulty.toLowerCase()) {
-      case 'easy': return 'Dễ';
-      case 'medium': return 'Trung bình';
-      case 'hard': return 'Khó';
-      default: return difficulty;
-    }
-  };
-
   const getStatusBadgeClass = (status: string) => {
     switch(status) {
       case 'approved': return 'bg-green-500';
@@ -287,11 +269,6 @@ export function ExamApproval(){
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded">
                         {exam.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getDifficultyBadgeClass(exam.difficulty)}`}>
-                        {getDifficultyText(exam.difficulty)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

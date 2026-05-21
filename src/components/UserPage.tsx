@@ -46,7 +46,7 @@ import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ExamPracticeService, AchievementsService, AuthService, GoalsService, FilesService } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService, FilesService } from '@/lib/api-client';
 import { setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
@@ -110,9 +110,18 @@ export function UserPage() {
 
 	const fetchGoal = useCallback(async () => {
 		try {
-			const res = await GoalsService.goalGatewayControllerGetGoalV1();
-			if (res.data) {
-				setGoal(res.data as unknown as GoalResDto);
+			const res = await fetch('/api/v1/exams/goals/my');
+			if (res.status === 404) {
+				setGoal(null);
+				return;
+			}
+			if (!res.ok) {
+				setGoal(null);
+				return;
+			}
+			const body = await res.json();
+			if (body?.data) {
+				setGoal(body.data as unknown as GoalResDto);
 			} else {
 				setGoal(null);
 			}

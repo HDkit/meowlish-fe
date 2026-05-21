@@ -27,7 +27,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:1511';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
+const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/api/v1/chat/ws/socket.io';
 
 function CreateRoomDialog({ open, onOpenChange, onSave }: {
 	open: boolean;
@@ -220,9 +221,10 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		const token = typeof window !== 'undefined'
 			? window.localStorage.getItem('access_token') || document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')
 			: null;
-		const socket = io(SOCKET_URL, {
+		const socket = io(API_BASE, {
+			path: SOCKET_PATH,
 			transports: ['websocket'],
-			extraHeaders: { Authorization: token ? `Bearer ${token}` : '' },
+			query: { token: token || '' },
 		});
 		socketRef.current = socket;
 

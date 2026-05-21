@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button } from './ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { Clock, Send, Volume2, ChevronRight, Lightbulb } from 'lucide-react';
+import { Clock, Send, Volume2, ChevronRight, Lightbulb, Flag, MessageSquare, Save, X } from 'lucide-react';
 import { TextHighlighter } from './TextHighlighter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -323,6 +323,55 @@ function QuestionInput({
   return null;
 }
 
+// ─── Note Editor Sub-component ────────────────────────────────────────────────
+
+function NoteEditor({
+  questionId,
+  initialNote,
+  onSave,
+  onCancel,
+}: {
+  questionId: string;
+  initialNote: string;
+  onSave: (questionId: string, note: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(initialNote);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <textarea
+        ref={inputRef}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Ghi chú của bạn..."
+        className="min-h-[60px] w-full resize-none rounded-md border border-slate-200 bg-white p-2 text-xs leading-relaxed text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+      />
+      <div className="mt-2 flex justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="rounded-md px-3 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-200"
+        >
+          <X className="mr-1 inline h-3 w-3" />
+          Huỷ
+        </button>
+        <button
+          onClick={() => onSave(questionId, text)}
+          className="rounded-md bg-primary px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-primary/90"
+        >
+          <Save className="mr-1 inline h-3 w-3" />
+          Lưu
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function TestInterface() {
@@ -367,6 +416,9 @@ export function TestInterface() {
    * Fill/FillAny/Writing → ["user typed text"]
    */
   const [answersMap, setAnswersMap] = useState<Record<string, string[]>>({});
+  const [flagsMap, setFlagsMap] = useState<Record<string, boolean>>({});
+  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
+  const [editingNoteFor, setEditingNoteFor] = useState<string | null>(null);
 
   // Layout
   const containerRef = useRef<HTMLDivElement>(null);
@@ -419,10 +471,16 @@ export function TestInterface() {
 
         // Restore saved answers — answers is string[] per ResponseDataDto
         const map: Record<string, string[]> = {};
+        const flags: Record<string, boolean> = {};
+        const notes: Record<string, string> = {};
         (data.responses ?? []).forEach((r: any) => {
           map[r.questionId] = r.answers ?? [];
+          if (r.isFlagged) flags[r.questionId] = true;
+          if (r.note) notes[r.questionId] = r.note;
         });
         setAnswersMap(map);
+        setFlagsMap(flags);
+        setNotesMap(notes);
       } catch (err) {
         console.error('Failed to load attempt:', err);
       } finally {
@@ -640,6 +698,29 @@ export function TestInterface() {
     [debouncedApi],
   );
 
+  // ── Flag / Note API calls ─────────────────────────────────────────────────
+  const toggleFlag = useCallback(async (questionId: string) => {
+    if (!attemptId) return;
+    try {
+      const res = await ExamPracticeService.examPracticeGatewayControllerToggleFlagV1(attemptId, questionId);
+      const newState = (res.data as any)?.state ?? !flagsMap[questionId];
+      setFlagsMap((prev) => ({ ...prev, [questionId]: newState }));
+    } catch (err) {
+      console.error('Toggle flag failed:', err);
+    }
+  }, [attemptId, flagsMap]);
+
+  const saveNote = useCallback(async (questionId: string, note: string) => {
+    if (!attemptId) return;
+    try {
+      await ExamPracticeService.examPracticeGatewayControllerAddNoteV1(attemptId, questionId, { note });
+      setNotesMap((prev) => ({ ...prev, [questionId]: note }));
+      setEditingNoteFor(null);
+    } catch (err) {
+      console.error('Save note failed:', err);
+    }
+  }, [attemptId]);
+
   // ── Resizer (kept for containerRef usage) ─────────────────────────────────
 
   // ── Navigation ─────────────────────────────────────────────────────────────
@@ -812,6 +893,30 @@ export function TestInterface() {
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
                                   <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  {editingNoteFor === q.id && (
+                                    <NoteEditor
+                                      questionId={q.id}
+                                      initialNote={notesMap[q.id] ?? ''}
+                                      onSave={saveNote}
+                                      onCancel={() => setEditingNoteFor(null)}
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleFlag(q.id); }}
+                                    title={flagsMap[q.id] ? 'Bỏ gắn cờ' : 'Gắn cờ'}
+                                    className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${flagsMap[q.id] ? 'text-red-500' : 'text-slate-400'}`}
+                                  >
+                                    <Flag className={`h-3.5 w-3.5 ${flagsMap[q.id] ? 'fill-red-500' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setEditingNoteFor(editingNoteFor === q.id ? null : q.id); }}
+                                    title={notesMap[q.id] ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+                                    className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${notesMap[q.id] ? 'text-primary' : 'text-slate-400'}`}
+                                  >
+                                    <MessageSquare className={`h-3.5 w-3.5 ${notesMap[q.id] ? 'fill-primary/20' : ''}`} />
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -856,12 +961,38 @@ export function TestInterface() {
                                       isActive
                                       ? 'bg-primary text-white' : 'border border-slate-200 bg-white text-slate-600'
                                     }`}>{q.globalIndex}</div>
-                                    {q.content && (
-                                      <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
-                                    )}
+                                    <div className="flex-1">
+                                      {q.content && (
+                                        <TextHighlighter text={q.content} highlightEnabled={highlightEnabled} className="text-sm font-medium leading-relaxed text-slate-800" />
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col gap-1.5 pt-1">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleFlag(q.id); }}
+                                        title={flagsMap[q.id] ? 'Bỏ gắn cờ' : 'Gắn cờ'}
+                                        className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${flagsMap[q.id] ? 'text-red-500' : 'text-slate-400'}`}
+                                      >
+                                        <Flag className={`h-3.5 w-3.5 ${flagsMap[q.id] ? 'fill-red-500' : ''}`} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setEditingNoteFor(editingNoteFor === q.id ? null : q.id); }}
+                                        title={notesMap[q.id] ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+                                        className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${notesMap[q.id] ? 'text-primary' : 'text-slate-400'}`}
+                                      >
+                                        <MessageSquare className={`h-3.5 w-3.5 ${notesMap[q.id] ? 'fill-primary/20' : ''}`} />
+                                      </button>
+                                    </div>
                                   </div>
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mt-1" />)}
                                   <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  {editingNoteFor === q.id && (
+                                    <NoteEditor
+                                      questionId={q.id}
+                                      initialNote={notesMap[q.id] ?? ''}
+                                      onSave={saveNote}
+                                      onCancel={() => setEditingNoteFor(null)}
+                                    />
+                                  )}
                                 </div>
                               </div>
                             ) : (
@@ -876,6 +1007,30 @@ export function TestInterface() {
                                   )}
                                   {qAudioUrls.map((url) => <audio key={url} controls src={formatMediaUrl(url)} className="w-full mb-3" />)}
                                   <QuestionInput question={q} answers={qAnswers} onSingleAnswer={handleSingleAnswer} onMultiAnswer={handleMultiAnswer} />
+                                  {editingNoteFor === q.id && (
+                                    <NoteEditor
+                                      questionId={q.id}
+                                      initialNote={notesMap[q.id] ?? ''}
+                                      onSave={saveNote}
+                                      onCancel={() => setEditingNoteFor(null)}
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1.5 pt-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleFlag(q.id); }}
+                                    title={flagsMap[q.id] ? 'Bỏ gắn cờ' : 'Gắn cờ'}
+                                    className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${flagsMap[q.id] ? 'text-red-500' : 'text-slate-400'}`}
+                                  >
+                                    <Flag className={`h-3.5 w-3.5 ${flagsMap[q.id] ? 'fill-red-500' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setEditingNoteFor(editingNoteFor === q.id ? null : q.id); }}
+                                    title={notesMap[q.id] ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+                                    className={`rounded p-0.5 transition-colors hover:bg-slate-100 ${notesMap[q.id] ? 'text-primary' : 'text-slate-400'}`}
+                                  >
+                                    <MessageSquare className={`h-3.5 w-3.5 ${notesMap[q.id] ? 'fill-primary/20' : ''}`} />
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -991,6 +1146,9 @@ export function TestInterface() {
                           }`}
                         >
                           {q.globalIndex}
+                          {flagsMap[q.id] && (
+                            <Flag className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
+                          )}
                           {done && !active && (
                             <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-slate-50 bg-primary/80" />
                           )}
