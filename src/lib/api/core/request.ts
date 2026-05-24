@@ -303,11 +303,18 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             let headers = await getHeaders(config, options);
             
             // Debug logging
-            console.log(`[API] ${options.method} ${options.url}`, {
-                path: options.path,
-                query: options.query,
-                body: body ? (typeof body === 'string' ? tryParseJson(body) : body) : undefined,
-            });
+            console.log(`[API] ──────────────────────────────────────────────`);
+            console.log(`[API] ${options.method} ${options.url}`);
+            if (options.path && Object.keys(options.path).length) {
+                console.log(`[API] 📍 Path params:`, JSON.stringify(options.path, null, 2));
+            }
+            if (options.query && Object.keys(options.query).length) {
+                console.log(`[API] 🔍 Query params:`, JSON.stringify(options.query, null, 2));
+            }
+            const parsedBody = body ? (typeof body === 'string' ? tryParseJson(body) : body) : undefined;
+            if (parsedBody) {
+                console.log(`[API] 📦 Body:`, JSON.stringify(parsedBody, null, 2));
+            }
 
             if (!onCancel.isCancelled) {
                 let response = await sendRequest(config, options, url, body, formData, headers, onCancel);
@@ -327,9 +334,10 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
                 const responseHeader = getResponseHeader(response, options.responseHeader);
                 
                 // Debug logging
-                console.log(`[API] ${options.method} ${options.url} -> ${response.status}`, {
-                    response: responseBody,
-                });
+                console.log(`[API] ✅ ${options.method} ${options.url} → ${response.status}`);
+                if (responseBody !== undefined) {
+                    console.log(`[API] 📥 Response:`, JSON.stringify(responseBody, null, 2));
+                }
 
                 const result: ApiResult = {
                     url,
