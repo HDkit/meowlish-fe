@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Tabs, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import {
 	BookOpen,
@@ -465,22 +465,7 @@ export function TestSelection() {
 					}}
 					className="w-full"
 				>
-					<div className="flex justify-center mb-8">
-						<TabsList className="bg-slate-100/80 p-1.5 rounded-2xl shadow-inner border border-slate-200/60 inline-flex">
-							<TabsTrigger
-								value="ielts"
-								className="rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all"
-							>
-								IELTS Exam
-							</TabsTrigger>
-							<TabsTrigger
-								value="toeic"
-								className="rounded-xl px-10 py-3 text-[15px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-secondary data-[state=active]:shadow-sm transition-all"
-							>
-								TOEIC Exam
-							</TabsTrigger>
-						</TabsList>
-					</div>
+
 
 					<FilterBar />
 
