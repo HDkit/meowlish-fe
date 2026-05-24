@@ -1,14 +1,7 @@
 import { Reply } from '../../types/client';
 import { createGenericSlice } from './main/genericSlice';
 
-const replies: Reply[] = [
-	{
-		id: 'r1',
-		userId: 'u2',
-		commentId: 'c1',
-		content: 'I agree, very tricky!',
-	},
-];
+const replies: Reply[] = [];
 
 const repliesSlice = createGenericSlice<Reply>('replies', replies);
 

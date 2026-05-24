@@ -1,7 +1,7 @@
 import { Note } from '../../types/client';
 import { createGenericSlice } from './main/genericSlice';
 
-const notes: Note[] = [{ id: 'n1', targetId: 'q1', content: 'Focus on main idea keywords' }];
+const notes: Note[] = [];
 
 const notesSlice = createGenericSlice<Note>('notes', notes);
 

@@ -110,8 +110,10 @@ export async function POST(request: NextRequest) {
       'gemini-2.5-flash';
 
     if (!apiKey) {
-      // No API key — return a mock response rather than crashing
-      return NextResponse.json(getMockEvaluation(exam_type));
+      return NextResponse.json(
+        { error: 'GEMINI_API_KEY is not configured' },
+        { status: 500 },
+      );
     }
 
     const prompt = buildWritingPrompt(body);
@@ -134,8 +136,10 @@ export async function POST(request: NextRequest) {
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
       console.error('Gemini API error:', errText);
-      // Fallback to mock on Gemini error
-      return NextResponse.json(getMockEvaluation(exam_type));
+      return NextResponse.json(
+        { error: `Gemini API error: ${geminiRes.status}` },
+        { status: 502 },
+      );
     }
 
     const geminiData = await geminiRes.json();
@@ -149,7 +153,10 @@ export async function POST(request: NextRequest) {
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('No JSON found in Gemini response:', rawText);
-      return NextResponse.json(getMockEvaluation(exam_type));
+      return NextResponse.json(
+        { error: 'Invalid response from Gemini API' },
+        { status: 502 },
+      );
     }
 
     const result = JSON.parse(jsonMatch[0]);
@@ -163,69 +170,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Fallback mock when Gemini is unavailable
-function getMockEvaluation(examType: string) {
-  if (examType === 'IELTS') {
-    return {
-      overall_score: 6.5,
-      sub_scores: {
-        'Task Achievement': 6.5,
-        'Coherence and Cohesion': 7.0,
-        'Lexical Resource': 6.0,
-        'Grammatical Range and Accuracy': 6.5,
-      },
-      detailed_feedback: `**Overall Band 6.5** — A competent response that addresses the task with some lapses in accuracy and development.
-
-**Strengths:**
-- Addresses the task adequately
-- Generally clear organization
-- Appropriate range of vocabulary
-
-**Areas for Improvement:**
-- Develop ideas with more specific examples
-- Reduce grammatical errors in complex sentences
-- Vary sentence structures more`,
-      corrected_version: `Technology has undoubtedly changed the way we live in many ways. We can now communicate with people all over the world easily. Medical technology helps doctors treat patients better. However, some people spend too much time on their devices. In conclusion, I think technology is beneficial for us.
-
-(Note: This is mock data because GEMINI_API_KEY is not configured)`,
-      corrections: [
-        {
-          error_type: 'Grammar',
-          original_text: 'technology have improved',
-          corrected_text: 'technology has improved',
-          explanation: 'Subject-verb agreement error'
-        },
-        {
-          error_type: 'Word Choice',
-          original_text: 'very easy',
-          corrected_text: 'much easier',
-          explanation: 'More appropriate comparative form'
-        }
-      ],
-    };
-  }
-  return {
-    overall_score: 150,
-    sub_scores: { Content: 75, Organization: 75 },
-    detailed_feedback: `**Score: 150/200** — The response demonstrates satisfactory content and organization.
-
-**Strengths:**
-- Relevant content
-- Clear structure
-
-**Areas for Improvement:**
-- Develop ideas further
-- Improve transitions`,
-    corrected_version: `The rapid advancement of technology has brought significant changes to our daily lives. From communication to healthcare, the impact is visible everywhere...
-
-(Note: This is mock data because GEMINI_API_KEY is not configured)`,
-    corrections: [
-      {
-        error_type: 'Grammar',
-        original_text: 'people is',
-        corrected_text: 'people are',
-        explanation: 'Plural subject requires plural verb'
-      }
-    ],
-  };
-}

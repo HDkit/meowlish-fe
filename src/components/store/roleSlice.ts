@@ -1,29 +1,7 @@
 import { Role } from '../../types/client';
 import { createGenericSlice } from './main/genericSlice';
 
-// Seed initial roles
-const roles: Role[] = [
-	{
-		id: 'role-learner',
-		name: 'learner',
-		description: 'Students who take exams',
-	},
-	{
-		id: 'role-mod',
-		name: 'mod',
-		description: 'Moderators who create/review exams and lock users',
-	},
-	{
-		id: 'role-staff',
-		name: 'staff',
-		description: 'Staff who create and manage exams',
-	},
-	{
-		id: 'role-head-staff',
-		name: 'head_staff',
-		description: 'Head staff who approve exams and manage users',
-	},
-];
+const roles: Role[] = [];
 
 const rolesSlice = createGenericSlice<Role>('roles', roles);
 

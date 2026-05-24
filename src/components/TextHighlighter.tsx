@@ -100,9 +100,11 @@ const FlashcardFormModal = ({
       const newListId = `fl-${Date.now()}`;
       const newFlashcardList: FlashcardList = {
         id: newListId,
-        userId: currentUser.id,
+        authorId: currentUser.id,
         name: listTitle.trim(),
         description: listDescription.trim() || undefined,
+        isPublic: false,
+        tags: [],
         createdAt: Date.now(),
       };
       dispatch(addFlashcardList(newFlashcardList));
@@ -113,8 +115,10 @@ const FlashcardFormModal = ({
       const defaultListId = `fl-${Date.now()}`;
       dispatch(addFlashcardList({
          id: defaultListId,
-         userId: currentUser.id,
+         authorId: currentUser.id,
          name: "My Flashcards",
+         isPublic: false,
+         tags: [],
          createdAt: Date.now()
       }));
       listId = defaultListId;
@@ -123,11 +127,13 @@ const FlashcardFormModal = ({
     // 3. Tạo Flashcard
     const newFlashcard: FlashCard = {
       id: `f-${Date.now()}`,
-      userId: currentUser.id,
+      authorId: currentUser.id,
       listId: listId,
-      content: word.trim(),
-      notes: definition.trim(),
-      tagId: 'default',
+      word: word.trim(),
+      definition: definition.trim(),
+      examples: [],
+      tags: [],
+      createdAt: Date.now(),
     };
 
     dispatch(addFlashCard(newFlashcard));
@@ -299,7 +305,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
   const currentUser = useSelector((state: RootState) => state.currUser.current);
   const flashcardLists = useSelector((state: RootState) => {
     const lists = state.flashcardLists?.list || [];
-    return currentUser ? lists.filter(list => list.userId === currentUser.id) : [];
+    return currentUser ? lists.filter(list => list.authorId === currentUser.id) : [];
   });
 
   // --- HIGHLIGHT HANDLERS ---

@@ -94,13 +94,8 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
       
     } catch (error) {
       console.error('Failed to generate AI feedback:', error);
-      toast.warning('Sử dụng feedback mặc định do lỗi AI');
+      toast.error('Không thể tạo feedback AI');
       
-      // Fallback to mock feedback
-      const mockFeedback = generateMockFeedback();
-      setFeedback(mockFeedback);
-      
-      // Save without AI feedback
       const savedSessionId = sessionStorageService.saveSession(data);
       setSessionId(savedSessionId);
       
@@ -109,87 +104,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
     }
   };
 
-  // Generate mock feedback as fallback
-  const generateMockFeedback = (): Feedback[] => {
-    return [
-      {
-        category: 'Fluency & Coherence',
-        score: 7.0,
-        maxScore: 9.0,
-        strengths: [
-          'Có khả năng duy trì cuộc trò chuyện một cách tự nhiên',
-          'Sử dụng các từ nối (linking words) phù hợp',
-          'Ít do dự, lưỡng lự khi nói'
-        ],
-        improvements: [
-          'Có thể phát triển ý sâu hơn với nhiều ví dụ cụ thể',
-          'Nên tránh lặp lại từ vựng quá nhiều lần',
-          'Cần cải thiện khả năng tự sửa lỗi khi nói'
-        ],
-        examples: [
-          '✓ "Well, actually..." - Sử dụng tốt từ nối',
-          '✗ Có một số chỗ pause không cần thiết'
-        ]
-      },
-      {
-        category: 'Lexical Resource',
-        score: 6.5,
-        maxScore: 9.0,
-        strengths: [
-          'Sử dụng từ vựng đa dạng cho các chủ đề khác nhau',
-          'Có sử dụng idioms và collocations',
-          'Paraphrase tốt thay vì lặp lại từ trong câu hỏi'
-        ],
-        improvements: [
-          'Cần mở rộng vốn từ vựng học thuật (academic vocabulary)',
-          'Sử dụng less common vocabulary nhiều hơn',
-          'Chú ý word form (danh từ, động từ, tính từ)'
-        ],
-        examples: [
-          '✓ "fascinating", "significant impact"',
-          '✗ Lặp từ "good" nhiều lần, nên dùng "excellent", "remarkable"'
-        ]
-      },
-      {
-        category: 'Grammatical Range & Accuracy',
-        score: 6.0,
-        maxScore: 9.0,
-        strengths: [
-          'Sử dụng đúng các thì cơ bản',
-          'Có cố gắng dùng câu phức (complex sentences)',
-          'Ít lỗi ngữ pháp cơ bản'
-        ],
-        improvements: [
-          'Tăng cường sử dụng câu điều kiện (conditional sentences)',
-          'Chú ý subject-verb agreement',
-          'Sử dụng passive voice để đa dạng cấu trúc câu'
-        ],
-        examples: [
-          '✓ Sử dụng present perfect tense chính xác',
-          '✗ Có vài lỗi về article (a/an/the)'
-        ]
-      },
-      {
-        category: 'Pronunciation',
-        score: 7.5,
-        maxScore: 9.0,
-        strengths: [
-          'Phát âm rõ ràng, dễ hiểu',
-          'Intonation tự nhiên',
-          'Word stress chính xác ở hầu hết các từ'
-        ],
-        improvements: [
-          'Chú ý phát âm các âm khó như /θ/, /ð/',
-          'Cải thiện sentence stress để nghe tự nhiên hơn',
-          'Luyện connected speech (liên kết âm giữa các từ)'
-        ],
-        examples: [
-          '✓ Phát âm tốt các từ đa âm tiết',
-          '✗ Một số âm cuối chưa rõ ràng'
-        ]
-      }
-    ];
-  };
+
 
   const overallScore = feedback ? (feedback.reduce((sum, f) => sum + f.score, 0) / feedback.length).toFixed(1) : '0.0';
   

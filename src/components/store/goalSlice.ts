@@ -1,22 +1,7 @@
-import { Goal, TestType } from '../../types/client';
+import { Goal } from '../../types/client';
 import { createGenericSlice } from './main/genericSlice';
 
-const goals: Goal[] = [
-	{
-		id: 'g1',
-		userId: 'u1',
-		testType: TestType.IELTS,
-		target: 7,
-		dueDate: new Date('2025-12-31').getTime(),
-	},
-	{
-		id: 'g2',
-		userId: 'u2',
-		testType: TestType.TOEIC,
-		target: 900,
-		dueDate: new Date('2025-11-30').getTime(),
-	},
-];
+const goals: Goal[] = [];
 
 const goalsSlice = createGenericSlice<Goal>('goals', goals);
 

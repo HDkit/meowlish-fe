@@ -239,14 +239,8 @@ export class SpeechRecognitionService {
     this.onEndHandler = handler;
   }
 
-  // Get supported languages (mock data - actual implementation would query the API)
   getSupportedLanguages(): Array<{ code: string; name: string }> {
-    return [
-      { code: 'en-US', name: 'English (US)' },
-      { code: 'en-GB', name: 'English (UK)' },
-      { code: 'en-AU', name: 'English (Australia)' },
-      { code: 'vi-VN', name: 'Vietnamese' },
-    ];
+    return [];
   }
 }
 

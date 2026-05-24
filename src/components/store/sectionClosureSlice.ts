@@ -2,22 +2,7 @@ import { SectionClosure } from '../../types/client';
 import { createGenericSlice } from './main/genericSlice';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// Initial closure table entries (generated from existing sections)
-const initialClosures: SectionClosure[] = [
-	// s1 (root) closures
-	{ id: 'sc1', ancestorId: 's1', descendantId: 's1', depth: 0 },
-	{ id: 'sc2', ancestorId: 's1', descendantId: 's1-1', depth: 1 },
-	{ id: 'sc3', ancestorId: 's1', descendantId: 's1-2', depth: 1 },
-	
-	// s1-1 self
-	{ id: 'sc4', ancestorId: 's1-1', descendantId: 's1-1', depth: 0 },
-	
-	// s1-2 self
-	{ id: 'sc5', ancestorId: 's1-2', descendantId: 's1-2', depth: 0 },
-	
-	// s2 (root) closures
-	{ id: 'sc6', ancestorId: 's2', descendantId: 's2', depth: 0 },
-];
+const initialClosures: SectionClosure[] = [];
 
 const baseSlice = createGenericSlice<SectionClosure>('sectionClosures', initialClosures);
 
