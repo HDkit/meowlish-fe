@@ -9,6 +9,10 @@ import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
 import { refreshAccessToken } from '../auth-session';
+const tryParseJson = (str: string) => {
+    try { return JSON.parse(str); } catch { return str; }
+};
+
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
 };
@@ -299,13 +303,10 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             let headers = await getHeaders(config, options);
             
             // Debug logging
-            console.log('[API Request]', {
-                method: options.method,
-                url,
-                body: body,
-                bodyType: typeof body,
-                contentType: headers.get('Content-Type'),
-                authHeader: headers.get('Authorization'),
+            console.log(`[API] ${options.method} ${options.url}`, {
+                path: options.path,
+                query: options.query,
+                body: body ? (typeof body === 'string' ? tryParseJson(body) : body) : undefined,
             });
 
             if (!onCancel.isCancelled) {
@@ -326,11 +327,8 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
                 const responseHeader = getResponseHeader(response, options.responseHeader);
                 
                 // Debug logging
-                console.log('[API Response]', {
-                    url,
-                    status: response.status,
-                    ok: response.ok,
-                    body: responseBody,
+                console.log(`[API] ${options.method} ${options.url} -> ${response.status}`, {
+                    response: responseBody,
                 });
 
                 const result: ApiResult = {
