@@ -150,22 +150,22 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
+              <div className="bg-white rounded-lg p-4 text-center">
                 <Clock className="h-5 w-5 mx-auto mb-2 text-primary" />
                 <div className="text-2xl font-bold">{formatTime(data.totalDuration)}</div>
                 <div className="text-xs text-muted-foreground">Tổng thời gian</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
+              <div className="bg-white rounded-lg p-4 text-center">
                 <MessageSquare className="h-5 w-5 mx-auto mb-2 text-secondary" />
                 <div className="text-2xl font-bold">{data.userAnswers.length}</div>
                 <div className="text-xs text-muted-foreground">Số câu trả lời</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
+              <div className="bg-white rounded-lg p-4 text-center">
                 <Volume2 className="h-5 w-5 mx-auto mb-2 text-green-600" />
                 <div className="text-2xl font-bold">{avgAnswerLength.toFixed(0)}s</div>
                 <div className="text-xs text-muted-foreground">TB độ dài câu trả lời</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
+              <div className="bg-white rounded-lg p-4 text-center">
                 <Target className="h-5 w-5 mx-auto mb-2 text-orange-600" />
                 <div className="text-2xl font-bold">
                   {((data.userAnswers.length / (data.part === 2 ? 3 : 12)) * 100).toFixed(0)}%
@@ -294,7 +294,7 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
                       <AlertCircle className="h-4 w-4" />
                       Ví dụ từ bài nói
                     </h4>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-1">
+                    <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                       {item.examples.map((example, i) => (
                         <p key={i} className="text-sm font-mono">
                           {example}
@@ -361,9 +361,9 @@ export function SpeakingResults({ data, onBack }: SpeakingResultsProps) {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">Câu {idx + 1}</Badge>
-                            <span className="text-xs text-muted-foreground">Examiner</span>
+                            <span className="text-xs text-muted-foreground">Giám khảo</span>
                           </div>
-                          <p className="text-sm font-medium bg-gray-50 dark:bg-gray-900 p-3 rounded">
+                          <p className="text-sm font-medium bg-gray-50 p-3 rounded">
                             {answer.question}
                           </p>
                         </div>

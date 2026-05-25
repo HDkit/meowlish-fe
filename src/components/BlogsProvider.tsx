@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { BlogService } from '@/lib/api/services/BlogService';
 import type { BlogResponse } from '@/lib/api/services/BlogService';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setBlogs } from '@/components/store/blogSlice';
+import { useBackoffPolling } from '@/hooks/useBackoffPolling';
+import { useProviderErrorRegister } from './ProviderErrorContext';
 import type { Blog } from '@/types/client';
 
 const POLL_INTERVAL = 60_000;
@@ -23,29 +25,24 @@ function mapBlog(b: BlogResponse): Blog {
 
 export function BlogsProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { register, unregister } = useProviderErrorRegister();
 
   const fetchBlogs = useCallback(async () => {
-    try {
-      const res = await BlogService.listBlogs();
-      const data = (res as any)?.data ?? res;
-      if (data && 'blogs' in data) {
-        dispatch(setBlogs(data.blogs.map(mapBlog)));
-      } else if (Array.isArray(data)) {
-        dispatch(setBlogs((data as BlogResponse[]).map(mapBlog)));
-      }
-    } catch (err) {
-      console.error('[BlogsProvider] fetch error:', err);
+    const res = await BlogService.listBlogs();
+    const data = (res as any)?.data ?? res;
+    if (data && 'blogs' in data) {
+      dispatch(setBlogs(data.blogs.map(mapBlog)));
+    } else if (Array.isArray(data)) {
+      dispatch(setBlogs((data as BlogResponse[]).map(mapBlog)));
     }
   }, [dispatch]);
 
+  const { error, isRetrying, manualRetry } = useBackoffPolling(fetchBlogs, POLL_INTERVAL);
+
   useEffect(() => {
-    fetchBlogs();
-    intervalRef.current = setInterval(fetchBlogs, POLL_INTERVAL);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [fetchBlogs]);
+    register('blogs', { label: 'Bài viết', error, isRetrying, manualRetry });
+    return () => unregister('blogs');
+  }, [error, isRetrying, manualRetry, register, unregister]);
 
   return <>{children}</>;
 }

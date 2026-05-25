@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AuthService } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,14 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -42,7 +34,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Edit, Search, UserCheck, AlertCircle, Lock, Unlock, Phone } from 'lucide-react';
+import { Edit, Search, UserCheck, AlertCircle, Lock, Unlock, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ROLE_LABELS: Record<string, string> = {
+  learner: 'Học viên',
+  mod: 'Quản trị viên',
+  staff: 'Nhân viên',
+  head_staff: 'Trưởng phòng',
+};
+
+const PAGE_SIZE = 20;
 
 type IdentityUser = {
   id: string;
@@ -62,7 +63,7 @@ type RoleInfo = {
 };
 
 export default function UserManagementPage() {
-  const { currUser, isMod, isHeadStaff, canManageUsers } = useAuth();
+  const { currUser, isMod, isHeadStaff } = useAuth();
   const { toast } = useToast();
 
   // Data from API
@@ -78,6 +79,7 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [phoneSearch, setPhoneSearch] = useState('');
   const [lockConfirmUser, setLockConfirmUser] = useState<IdentityUser | null>(null);
+  const [page, setPage] = useState(0);
 
   // Fetch users and roles on mount
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function UserManagementPage() {
       try {
         // Fetch identities with roles and permissions
         const identitiesRes = await AuthService.authGatewayControllerFindIdentitiesV1(
-          undefined, undefined, undefined, undefined, 100
+          undefined, undefined, undefined, undefined, PAGE_SIZE
         );
         if (identitiesRes.data?.identities) {
           setUsers(identitiesRes.data.identities);
@@ -104,7 +106,7 @@ export default function UserManagementPage() {
         console.error('Failed to fetch users:', err);
         toast({
           title: 'Lỗi tải dữ liệu',
-          description: err?.body?.error || 'Không thể tải danh sách người dùng',
+          description: extractApiErrorMessage(err, 'Không thể tải danh sách người dùng'),
           variant: 'destructive',
         });
       } finally {
@@ -138,11 +140,17 @@ export default function UserManagementPage() {
 
   // Filter users
   const filteredUsers = users.filter((user) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+      user.username?.toLowerCase().includes(q) ||
+      user.fullName?.toLowerCase().includes(q);
     const matchesRole = roleFilter === 'all' || user.roles?.includes(roleFilter);
     return matchesSearch && matchesRole;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedUsers = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   // Assign role to user
   const handleAssignRole = async () => {
@@ -174,7 +182,7 @@ export default function UserManagementPage() {
       console.error('Failed to assign role:', err);
       toast({
         title: 'Lỗi',
-        description: err?.body?.error || 'Không thể gán vai trò',
+        description: extractApiErrorMessage(err, 'Không thể gán vai trò'),
         variant: 'destructive',
       });
     } finally {
@@ -207,7 +215,7 @@ export default function UserManagementPage() {
       console.error('Failed to remove role:', err);
       toast({
         title: 'Lỗi',
-        description: err?.body?.error || 'Không thể xóa vai trò',
+        description: extractApiErrorMessage(err, 'Không thể xóa vai trò'),
         variant: 'destructive',
       });
     } finally {
@@ -242,7 +250,7 @@ export default function UserManagementPage() {
       console.error('Failed to toggle lock:', err);
       toast({
         title: 'Lỗi',
-        description: err?.body?.error || 'Không thể thay đổi trạng thái khóa',
+        description: extractApiErrorMessage(err, 'Không thể thay đổi trạng thái khóa'),
         variant: 'destructive',
       });
     } finally {
@@ -269,7 +277,7 @@ export default function UserManagementPage() {
       console.error('Phone search failed:', err);
       toast({
         title: 'Lỗi',
-        description: err?.body?.error || 'Không thể tìm kiếm theo số điện thoại',
+        description: extractApiErrorMessage(err, 'Không thể tìm kiếm theo số điện thoại'),
         variant: 'destructive',
       });
     } finally {
@@ -285,7 +293,8 @@ export default function UserManagementPage() {
 
   const getRoleName = (roleId: string) => {
     const role = roles.find((r) => r.id === roleId);
-    return role?.name || roleId;
+    const name = role?.name || roleId;
+    return ROLE_LABELS[name] || name;
   };
 
   const getRoleBadgeColor = (roleId: string) => {
@@ -365,7 +374,7 @@ export default function UserManagementPage() {
                   <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả vai trò</SelectItem>
                   {roles.map((role) => (
                     <SelectItem key={role.id} value={role.id} className="text-gray-900 hover:bg-gray-100 cursor-pointer">
-                      {role.name}
+                      {ROLE_LABELS[role.name] || role.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -379,7 +388,7 @@ export default function UserManagementPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Username</th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đăng nhập</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Vai trò</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Quyền hạn</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
@@ -397,12 +406,15 @@ export default function UserManagementPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => (
+                  pagedUsers.map((user) => (
                     <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-4">
                         <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">
-                          {user.username}
+                          {user.fullName || user.username}
                         </p>
+                        {user.fullName && (
+                          <p className="text-xs text-gray-400 mt-0.5">{user.username}</p>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-1">
@@ -474,6 +486,34 @@ export default function UserManagementPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3">
+              <span className="text-sm text-gray-500">
+                Hiển thị {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredUsers.length)} / {filteredUsers.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm" variant="outline"
+                  disabled={safePage === 0}
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-gray-700 font-medium px-2">
+                  {safePage + 1} / {totalPages}
+                </span>
+                <Button
+                  size="sm" variant="outline"
+                  disabled={safePage >= totalPages - 1}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Assign Role Dialog */}
           <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>

@@ -46,7 +46,6 @@ const learnerLinks = [
   { href: '/flashcards', label: 'Flashcards', icon: BookOpen },
   { href: '/speaking', label: 'Luyện Nói', icon: Mic },
   { href: '/progress', label: 'Tiến độ', icon: TrendingUp },
-  { href: '/history', label: 'Lịch sử', icon: ClipboardList },
   { href: '/blog', label: 'Blog', icon: Newspaper },
   { href: '/chat', label: 'Phòng Chat', icon: MessageCircle },
   { href: '/notifications', label: 'Thông báo', icon: Bell },
@@ -121,7 +120,7 @@ export function AppSidebar() {
       }
     >
       <SidebarHeader className="px-3 pt-3 pb-2">
-        <div className="flex items-center justify-center rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)] dark:border-emerald-900/50 dark:from-slate-900 dark:to-emerald-950/30">
+        <div className="flex items-center justify-center rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
           <button
             onClick={() => router.push('/dashboard')}
             className="flex min-w-0 items-center justify-center gap-3 text-left group-data-[collapsible=icon]:justify-center"
@@ -140,7 +139,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 pb-2">
         <SidebarGroup className="pt-1">
-          <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+          <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
             {sidebarLabel}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -152,7 +151,7 @@ export function AppSidebar() {
                     isActive={isActive(link.href)}
                     tooltip={link.label}
                     size="lg"
-                    className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(16,185,129,0.14)] hover:bg-slate-50 dark:text-slate-200 dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-300 dark:hover:bg-slate-900/80"
+                    className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(16,185,129,0.14)] hover:bg-slate-50"
                   >
                     <link.icon className="h-5 w-5" />
                     <span>{link.label}</span>
@@ -165,9 +164,9 @@ export function AppSidebar() {
 
         {extraLinks.length > 0 && (
           <>
-            <SidebarSeparator className="my-2 bg-emerald-100 dark:bg-emerald-950/60" />
+            <SidebarSeparator className="my-2 bg-emerald-100" />
             <SidebarGroup>
-              <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 QUẢN LÝ & HỆ THỐNG
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -179,7 +178,7 @@ export function AppSidebar() {
                         isActive={isActive(link.href)}
                         tooltip={link.label}
                         size="lg"
-                        className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(16,185,129,0.14)] hover:bg-slate-50 dark:text-slate-200 dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-300 dark:hover:bg-slate-900/80"
+                        className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(16,185,129,0.14)] hover:bg-slate-50"
                       >
                         <link.icon className="h-5 w-5" />
                         <span>{link.label}</span>
@@ -194,14 +193,14 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-2 pb-2 pt-0">
-        <div className="rounded-3xl border border-slate-200 bg-white/92 p-2 shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-950/92">
+        <div className="rounded-3xl border border-slate-200 bg-white/92 p-2 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
           <SidebarMenu className="gap-1">
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => router.push('/user')}
                 tooltip="Tài khoản"
                 size="lg"
-                className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900/80"
+                className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 <Settings className="h-5 w-5" />
                 <span suppressHydrationWarning>{userDisplayName}</span>
@@ -212,7 +211,7 @@ export function AppSidebar() {
                 onClick={handleLogout}
                 tooltip="Đăng xuất"
                 size="lg"
-                className="rounded-2xl px-3 text-[15px] font-medium text-destructive hover:bg-red-50 hover:text-destructive dark:hover:bg-red-950/25"
+                className="rounded-2xl px-3 text-[15px] font-medium text-destructive hover:bg-red-50 hover:text-destructive"
               >
                 <LogOut className="h-5 w-5" />
                 <span>Đăng xuất</span>

@@ -69,21 +69,21 @@ export function AdminUploadTool() {
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
-        <CardTitle className="text-lg">Presigned Upload URL</CardTitle>
+        <CardTitle className="text-lg">URL tải lên có chữ ký</CardTitle>
         <p className="text-sm text-gray-500">Dùng API `/api/v1/files` để lấy upload URL và file id.</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>File name</Label>
+            <Label>Tên tệp</Label>
             <Input value={form.fileName} onChange={(event) => setForm((prev) => ({ ...prev, fileName: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <Label>Content type</Label>
+            <Label>Loại nội dung</Label>
             <Input value={form.contentType} onChange={(event) => setForm((prev) => ({ ...prev, contentType: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <Label>File size</Label>
+            <Label>Kích thước tệp</Label>
             <Input value={form.fileSize} onChange={(event) => setForm((prev) => ({ ...prev, fileSize: event.target.value }))} />
           </div>
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">

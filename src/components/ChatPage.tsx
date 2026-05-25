@@ -2,10 +2,11 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { addChatRoom, updateChatRoom, removeChatRoom } from '@/components/store/chatRoomSlice';
+import { addChatRoom, updateChatRoom, removeChatRoom, setChatRooms } from '@/components/store/chatRoomSlice';
 import { addChatMessage } from '@/components/store/chatMessageSlice';
 import { addUser } from '@/components/store/userSlice';
 import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
+import { ChatMessageService } from '@/lib/api/services/ChatMessageService';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { ChatRoom, ChatMessage, User } from '@/types/client';
 import { Card, CardContent } from './ui/card';
@@ -200,7 +201,8 @@ function getEmbedUrl(url: string): string | null {
 
 function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) {
 	const dispatch = useAppDispatch();
-	const { currUser } = useAuth();
+	const { currUser, isMod, isAdmin } = useAuth();
+	const canEditRoom = isMod || isAdmin;
 	const users = useAppSelector((state) => state.users.list);
 	const allMessages = useAppSelector((state) => state.chatMessages.list);
 	const [input, setInput] = useState('');
@@ -212,6 +214,44 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		() => allMessages.filter((m) => m.roomId === room.id).sort((a, b) => a.createdAt - b.createdAt),
 		[allMessages, room.id]
 	);
+
+	useEffect(() => {
+		ChatMessageService.getChatLog(room.id, undefined, undefined, 50)
+			.then((res: any) => {
+				const data = (res as any).data ?? res;
+				const chats: ChatMessage[] = (data.chats ?? []).map((c: any) => ({
+					id: c.id,
+					roomId: room.id,
+					uid: c.uid,
+					message: c.message,
+					createdAt: new Date(c.createdAt).getTime(),
+				}));
+				chats.forEach(msg => {
+					if (!allMessages.find(m => m.id === msg.id)) {
+						dispatch(addChatMessage(msg));
+					}
+				});
+				const senderIds = [...new Set(chats.map(c => c.uid))].filter(id => !users.find(u => u.id === id));
+				if (senderIds.length > 0) {
+					fetch(`/api/v1/auth/hydrate-many?${senderIds.map(id => `ids=${id}`).join('&')}`)
+						.then(r => r.json())
+						.then(res => {
+							const identities = res?.data?.identities ?? res?.data ?? [];
+							(Array.isArray(identities) ? identities : []).forEach((i: any) => {
+								if (i?.id && !users.find(u => u.id === i.id)) {
+									dispatch(addUser({
+										id: i.id, email: '', password: '',
+										fullName: i.fullName ?? i.username ?? 'Ẩn danh',
+										roleId: '', status: 'active', createdAt: Date.now(),
+									}));
+								}
+							});
+						})
+						.catch(() => {});
+				}
+			})
+			.catch(err => console.error('[ChatRoomView] fetch history error:', err));
+	}, [room.id]);
 
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -304,9 +344,11 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 				<div className="flex-1 min-w-0">
 					<h2 className="font-bold text-lg truncate">{room.name}</h2>
 				</div>
-				<Button size="sm" variant="ghost" className="rounded-xl gap-1" onClick={() => setEditDialogOpen(true)}>
-					<Settings className="h-4 w-4" />
-				</Button>
+				{canEditRoom && (
+					<Button size="sm" variant="ghost" className="rounded-xl gap-1" onClick={() => setEditDialogOpen(true)}>
+						<Settings className="h-4 w-4" />
+					</Button>
+				)}
 				{room.scheduledLiveUrl && (
 					<a href={room.scheduledLiveUrl} target="_blank" rel="noopener noreferrer">
 						<Button size="sm" variant="outline" className="rounded-xl gap-1">
@@ -346,7 +388,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 						className="w-full aspect-video max-h-[40vh]"
 						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 						allowFullScreen
-						title="Live Stream"
+						title="Phát trực tiếp"
 					/>
 				</div>
 			)}
@@ -428,6 +470,22 @@ export default function ChatPage() {
 	useEffect(() => {
 		if (isHydrated && !currUser) router.push('/auth');
 	}, [isHydrated, currUser, router]);
+
+	useEffect(() => {
+		if (!currUser) return;
+		ChatRoomService.listRooms(undefined, 50)
+			.then((res: any) => {
+				const data = (res as any).data ?? res;
+				const apiRooms: ChatRoom[] = (data.rooms ?? []).map((r: any) => ({
+					id: r.id,
+					name: r.name,
+					scheduledLiveUrl: r.scheduledLiveUrl,
+					scheduledDate: r.scheduledDate ? new Date(r.scheduledDate).getTime() : undefined,
+				}));
+				dispatch(setChatRooms(apiRooms));
+			})
+			.catch(err => console.error('[ChatPage] fetch rooms error:', err));
+	}, [currUser, dispatch]);
 
 	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
 

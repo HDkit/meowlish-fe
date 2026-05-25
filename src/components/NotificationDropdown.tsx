@@ -9,15 +9,17 @@ import {
 	Popover, PopoverContent, PopoverTrigger,
 } from './ui/popover';
 import {
-	Bell, BookOpen, Flag, Info, CheckCheck, ExternalLink,
+	Bell, Trophy, Flag, Info, CheckCheck, ExternalLink,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: string }> = {
-	[NotificationType.BlogFollow]: { icon: BookOpen, color: 'text-blue-600 bg-blue-100' },
-	[NotificationType.ReportResponse]: { icon: Flag, color: 'text-orange-600 bg-orange-100' },
+	[NotificationType.Report]: { icon: Flag, color: 'text-orange-600 bg-orange-100' },
+	[NotificationType.Achievement]: { icon: Trophy, color: 'text-amber-600 bg-amber-100' },
 	[NotificationType.System]: { icon: Info, color: 'text-gray-600 bg-gray-100' },
 };
+
+const DEFAULT_TYPE_CONFIG = { icon: Bell, color: 'text-gray-600 bg-gray-100' };
 
 export function NotificationDropdown() {
 	const router = useRouter();
@@ -94,7 +96,7 @@ export function NotificationDropdown() {
 						</div>
 					) : (
 						myNotifications.slice(0, 10).map((notif) => {
-							const conf = TYPE_CONFIG[notif.type];
+							const conf = TYPE_CONFIG[notif.type] ?? DEFAULT_TYPE_CONFIG;
 							const Icon = conf.icon;
 							return (
 								<button

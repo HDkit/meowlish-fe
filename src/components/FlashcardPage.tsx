@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashcardList } from '../types/client';
-import { addFlashcardList, removeFlashcardList, updateFlashcardList } from './store/flashcardListSlice';
+import { addFlashcardList, removeFlashcardList, updateFlashcardList, setFlashcardLists } from './store/flashcardListSlice';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -18,6 +18,7 @@ import {
 } from './ui/dialog';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
 import {
 	Plus,
 	Edit,
@@ -42,6 +43,7 @@ function ListDialog({
 }) {
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
+	const { toast } = useToast();
 
 	useEffect(() => {
 		if (list) {
@@ -55,7 +57,7 @@ function ListDialog({
 
 	const handleSave = () => {
 		if (!name.trim()) {
-			alert('Vui lòng nhập tên list');
+			toast({ title: 'Vui lòng nhập tên list', variant: 'destructive' });
 			return;
 		}
 		onSave({ name: name.trim(), description: description.trim() });
@@ -128,6 +130,26 @@ export function FlashcardPage() {
 			router.push('/auth');
 		}
 	}, [isHydrated, currentUser, router]);
+
+	// Fetch lists from API on mount
+	useEffect(() => {
+		if (!currentUser) return;
+		FlashcardListService.listFlashCardLists(currentUser.id)
+			.then((res: any) => {
+				const data = res?.data ?? res;
+				const apiLists: FlashcardList[] = (data.lists ?? []).map((l: any) => ({
+					id: l.id,
+					authorId: l.authorId,
+					name: l.name,
+					description: l.description || undefined,
+					isPublic: l.isPublic,
+					tags: l.tags ?? [],
+					createdAt: new Date(l.createdAt).getTime(),
+				}));
+				dispatch(setFlashcardLists(apiLists));
+			})
+			.catch(err => console.error('[FlashcardPage] fetch lists error:', err));
+	}, [currentUser, dispatch]);
 
 	const [listDialogOpen, setListDialogOpen] = useState(false);
 	const [editingList, setEditingList] = useState<FlashcardList | undefined>();

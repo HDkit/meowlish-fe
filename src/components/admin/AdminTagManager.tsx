@@ -191,7 +191,7 @@ export function AdminTagManager() {
     <Card className="border-0 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg">Tag Manager</CardTitle>
+          <CardTitle className="text-lg">Quản lý nhãn</CardTitle>
           <p className="text-sm text-gray-500 mt-1">Quản lý cây tag và danh sách tag toàn hệ thống.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void loadTags()} disabled={loading}>
@@ -255,7 +255,7 @@ export function AdminTagManager() {
           <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
             <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
               <Network className="h-4 w-4 text-primary" />
-              <h3 className="font-medium text-gray-900">Tag Tree</h3>
+              <h3 className="font-medium text-gray-900">Cây nhãn</h3>
             </div>
             {loading ? (
               <p className="text-sm text-gray-500">Đang tải...</p>
@@ -269,7 +269,7 @@ export function AdminTagManager() {
           <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
             <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
               <ListTree className="h-4 w-4 text-secondary" />
-              <h3 className="font-medium text-gray-900">Tag List (Phẳng)</h3>
+              <h3 className="font-medium text-gray-900">Danh sách nhãn (Phẳng)</h3>
             </div>
             {loading ? (
               <p className="text-sm text-gray-500">Đang tải...</p>

@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useAppSelector } from '@/lib/store/hooks';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Blog } from '../types/client';
-import { ReportDialog } from './ReportDialog';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -12,12 +10,13 @@ import {
 	Search,
 	Calendar,
 	User,
-	ChevronRight,
 	FileText,
 	Tag,
-	Flag,
+	Loader2,
 } from 'lucide-react';
-import { MarkdownPreview } from './MarkdownPreview';
+import { BlogService } from '@/lib/api/services/BlogService';
+import { AuthService } from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
 
 function BlogCard({
 	blog,
@@ -86,106 +85,46 @@ function BlogCard({
 	);
 }
 
-function BlogDetail({
-	blog,
-	authorName,
-	onBack,
-}: {
-	blog: Blog;
-	authorName?: string;
-	onBack: () => void;
-}) {
-	const currUser = useAppSelector((state) => state.currUser.current);
-	const [reportOpen, setReportOpen] = useState(false);
-	const formatDate = (timestamp: number) => {
-		const date = new Date(timestamp);
-		return date.toLocaleDateString('vi-VN', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-		});
-	};
-
-
-
-	return (
-		<div className="min-h-screen bg-gray-50">
-			<div className="bg-primary border-b border-white/10 text-white min-h-[300px] flex items-end relative overflow-hidden">
-				<div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay"></div>
-				<div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/80 rounded-full blur-[100px] opacity-30"></div>
-
-				<div className="max-w-4xl mx-auto w-full px-6 pb-12 relative z-10 pt-20">
-					<div className="flex items-center justify-between mb-8">
-						<button
-							onClick={onBack}
-							className="flex items-center gap-2 text-primary-foreground/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
-						>
-							<ChevronRight className="h-4 w-4 rotate-180" />
-							Quay lại danh sách
-						</button>
-						{currUser && (
-							<button
-								onClick={() => setReportOpen(true)}
-								className="flex items-center gap-2 text-primary-foreground/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm focus:outline-none"
-							>
-								<Flag className="h-4 w-4" />
-								Báo cáo
-							</button>
-						)}
-					</div>
-
-					{(blog.tags?.length ?? 0) > 0 && (
-						<div className="flex flex-wrap gap-2 mb-6">
-							{(blog.tags ?? []).map((tag) => (
-								<Badge key={tag} className="bg-white/20 text-white border-0 uppercase tracking-wider text-xs px-3 py-1.5">
-									<Tag className="h-3.5 w-3.5 mr-2" />
-									{tag}
-								</Badge>
-							))}
-						</div>
-					)}
-					<h1 className="text-4xl md:text-5xl font-extrabold text-white mb-6 leading-tight drop-shadow-sm">{blog.title}</h1>
-					<div className="flex flex-wrap items-center gap-6 text-sm text-primary-foreground/80 font-medium">
-						{authorName && (
-							<div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-								<div className="h-6 w-6 rounded-full bg-primary/50 flex items-center justify-center border border-primary/80">
-									<User className="h-3.5 w-3.5 text-white" />
-								</div>
-								<span>{authorName}</span>
-							</div>
-						)}
-						<div className="flex items-center gap-2">
-							<Calendar className="h-4 w-4 opacity-70" />
-							<span>{formatDate(blog.createdAt)}</span>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<article className="max-w-4xl mx-auto bg-white shadow-xl shadow-gray-200/50 rounded-2xl -mt-8 relative z-20 p-8 md:p-12 mb-20 border border-gray-100">
-				<MarkdownPreview content={blog.content} />
-			</article>
-
-			{currUser && (
-				<ReportDialog
-					open={reportOpen}
-					onOpenChange={setReportOpen}
-					targetType="blog"
-					targetId={blog.id}
-					userId={currUser.id}
-				/>
-			)}
-		</div>
-	);
-}
-
 export function BlogPage() {
-	const blogs = useAppSelector((state) => state.blogs.list);
-	const users = useAppSelector((state) => state.users.list);
+	const router = useRouter();
+	const [blogs, setBlogs] = useState<Blog[]>([]);
+	const [authorMap, setAuthorMap] = useState<Record<string, string>>({});
+	const [loading, setLoading] = useState(true);
 
 	const [selectedTag, setSelectedTag] = useState<string | '__all__'>('__all__');
 	const [searchQuery, setSearchQuery] = useState('');
-	const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+
+	useEffect(() => {
+		BlogService.listBlogs(undefined, undefined, 100)
+			.then((res: any) => {
+				const data = (res as any).data ?? res;
+				const apiBlogs: Blog[] = (data.blogs ?? []).map((b: any) => ({
+					id: b.id,
+					authorId: b.authorId,
+					title: b.title,
+					content: b.content,
+					tags: b.tags ?? [],
+					createdAt: new Date(b.createdAt).getTime(),
+				}));
+				setBlogs(apiBlogs);
+
+				const uniqueAuthorIds = [...new Set(apiBlogs.map(b => b.authorId))];
+				if (uniqueAuthorIds.length > 0) {
+					AuthService.authGatewayControllerHydrateIdentitiesV1(uniqueAuthorIds)
+						.then((hydRes: any) => {
+							const identities = (hydRes as any).data?.identities ?? (hydRes as any).data ?? [];
+							const map: Record<string, string> = {};
+							(Array.isArray(identities) ? identities : []).forEach((i: any) => {
+								map[i.id] = i.fullName || i.username || 'Unknown';
+							});
+							setAuthorMap(map);
+						})
+						.catch(() => {});
+				}
+			})
+			.catch(err => console.error('[BlogPage] fetch error:', err))
+			.finally(() => setLoading(false));
+	}, []);
 
 	const allTags = useMemo(() => {
 		const tagSet = new Set<string>();
@@ -212,16 +151,14 @@ export function BlogPage() {
 	}, [blogs, selectedTag, searchQuery]);
 
 	const getAuthorName = (authorId: string) => {
-		return users.find((u) => u.id === authorId)?.fullName || 'Unknown';
+		return authorMap[authorId] || 'Unknown';
 	};
 
-	if (selectedBlog) {
+	if (loading) {
 		return (
-			<BlogDetail
-				blog={selectedBlog}
-				authorName={getAuthorName(selectedBlog.authorId)}
-				onBack={() => setSelectedBlog(null)}
-			/>
+			<div className="min-h-screen bg-background flex items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			</div>
 		);
 	}
 
@@ -349,7 +286,7 @@ export function BlogPage() {
 										<BlogCard
 											blog={blog}
 											authorName={getAuthorName(blog.authorId)}
-											onClick={() => setSelectedBlog(blog)}
+											onClick={() => router.push(`/blog/${blog.id}`)}
 										/>
 									</div>
 								))}

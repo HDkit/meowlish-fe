@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
-import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export function LandingNavbar() {
@@ -11,7 +10,7 @@ export function LandingNavbar() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <header className="bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50 dark:bg-card/90">
+    <header className="bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center">
         <button
           onClick={() => router.push('/landing')}
@@ -21,7 +20,6 @@ export function LandingNavbar() {
         </button>
 
         <div className="flex items-center gap-3 ml-auto">
-          <ThemeToggle />
           {isAuthenticated ? (
             <Button
               onClick={() => router.push('/dashboard')}

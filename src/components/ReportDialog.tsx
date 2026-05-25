@@ -5,6 +5,8 @@ import { useAppDispatch } from '@/lib/store/hooks';
 import { addReport } from '@/components/store/reportSlice';
 import { ReportService } from '@/lib/api/services/ReportService';
 import { Report, ReportStatus } from '@/types/client';
+import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -33,6 +35,7 @@ interface ReportDialogProps {
 
 export function ReportDialog({ open, onOpenChange, targetType, targetId, userId }: ReportDialogProps) {
 	const dispatch = useAppDispatch();
+	const { toast } = useToast();
 	const [type, setType] = useState('bug');
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -72,6 +75,7 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 			onOpenChange(false);
 		} catch (err) {
 			console.error('[ReportDialog] create error:', err);
+			toast({ title: 'Gửi báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		} finally {
 			setSubmitting(false);
 		}

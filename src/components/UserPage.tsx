@@ -21,12 +21,9 @@ import {
 	Trophy,
 	Target,
 	TrendingUp,
-	BookOpen,
 	Edit,
 	Award,
 	BarChart3,
-	Flame,
-	CheckSquare,
 	Lock,
 	User,
 	Key,
@@ -45,10 +42,10 @@ import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService } from '@/lib/api-client';
 import { setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
@@ -78,10 +75,8 @@ export function UserPage() {
 	const [userStats, setUserStats] = useState<UserStatsDto | null>(null);
 	const [attemptHistory, setAttemptHistory] = useState<MinimalAttemptInfoDto[]>([]);
 
-	// State for badges and streak
+	// State for badges
 	const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
-	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
-	const [streak, setStreak] = useState(0);
 
 	// Profile update state
 	const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -144,6 +139,7 @@ export function UserPage() {
 								id: identity.id ?? currUser.id,
 								email: identity.mail ?? identity.email ?? currUser.email,
 								fullName: identity.fullName ?? identity.username ?? currUser.fullName,
+								username: identity.username ?? currUser.username,
 								avatarUrl: identity.avatarUrl ?? currUser.avatarUrl,
 								createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
 								roleId: identity.roleId ?? currUser.roleId,
@@ -170,44 +166,6 @@ export function UserPage() {
 						setEarnedBadges(badgesRes.data.badges);
 					}
 
-					const end = new Date();
-					const start = new Date();
-					start.setDate(end.getDate() - 365);
-
-					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-						from: start.toISOString(),
-						to: end.toISOString()
-					});
-
-					if (summaryRes.data?.history) {
-						const historyObj = summaryRes.data.history;
-						setCalendarHistory(historyObj);
-
-						let currentStreak = 0;
-						let d = new Date();
-						d.setHours(0, 0, 0, 0);
-
-						while (true) {
-							const tzoffset = d.getTimezoneOffset() * 60000;
-							const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 10);
-
-							if (historyObj[localISOTime] && historyObj[localISOTime] > 0) {
-								currentStreak++;
-								d.setDate(d.getDate() - 1);
-							} else {
-								const todayOffset = new Date().getTimezoneOffset() * 60000;
-								const todayStr = (new Date(Date.now() - todayOffset)).toISOString().slice(0, 10);
-								if (localISOTime === todayStr) {
-									d.setDate(d.getDate() - 1);
-									continue;
-								}
-								break;
-							}
-						}
-						setStreak(currentStreak);
-					}
-
-					// Fetch user practice stats
 					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
 					if (statsRes.data) {
 						setUserStats(statsRes.data as unknown as UserStatsDto);
@@ -265,7 +223,7 @@ export function UserPage() {
 			console.error('Failed to update profile:', err);
 			toast({
 				title: 'Cập nhật thất bại',
-				description: err?.body?.error || 'Không thể cập nhật hồ sơ.',
+				description: extractApiErrorMessage(err, 'Không thể cập nhật hồ sơ.'),
 				variant: 'destructive',
 			});
 		} finally {
@@ -301,7 +259,7 @@ export function UserPage() {
 			console.error('Failed to change password:', err);
 			toast({
 				title: 'Đổi mật khẩu thất bại',
-				description: err?.body?.error || 'Không thể đổi mật khẩu.',
+				description: extractApiErrorMessage(err, 'Không thể đổi mật khẩu.'),
 				variant: 'destructive',
 			});
 		} finally {
@@ -338,8 +296,11 @@ export function UserPage() {
 			}
 
 			await AuthService.authGatewayControllerUpdateIdentityV1({ avatarId: fileId });
-			const avatarUrl = ensuredUrl.split('?')[0];
-			dispatch(setUser({ ...currUser, avatarUrl }));
+			const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
+			const identity = (identityRes as any).data ?? identityRes;
+			if (identity?.avatarUrl) {
+				dispatch(setUser({ ...currUser, avatarUrl: identity.avatarUrl }));
+			}
 			toast({ title: 'Cập nhật ảnh đại diện thành công' });
 		} catch (err: any) {
 			console.error('Avatar upload failed:', err);
@@ -362,7 +323,7 @@ export function UserPage() {
 			setCredentials((prev) => prev.filter((c) => c.id !== credId));
 			toast({ title: 'Đã xóa phương thức đăng nhập' });
 		} catch (err: any) {
-			toast({ title: 'Xóa thất bại', description: err?.body?.error || 'Không thể xóa phương thức đăng nhập.', variant: 'destructive' });
+			toast({ title: 'Xóa thất bại', description: extractApiErrorMessage(err, 'Không thể xóa phương thức đăng nhập.'), variant: 'destructive' });
 		} finally {
 			setIsLoading(false);
 		}
@@ -387,7 +348,7 @@ export function UserPage() {
 			setIsCredDialogOpen(false);
 			setAddMailForm({ email: '', password: '' });
 		} catch (err: any) {
-			toast({ title: 'Thêm thất bại', description: err?.body?.error || 'Không thể thêm phương thức đăng nhập.', variant: 'destructive' });
+			toast({ title: 'Thêm thất bại', description: extractApiErrorMessage(err, 'Không thể thêm phương thức đăng nhập.'), variant: 'destructive' });
 		} finally {
 			setIsLoading(false);
 		}
@@ -398,7 +359,7 @@ export function UserPage() {
 			await AuthService.authGatewayControllerAddGoogleCredV1();
 			toast({ title: 'Đang chuyển hướng đến Google...' });
 		} catch (err: any) {
-			toast({ title: 'Thêm thất bại', description: err?.body?.error || 'Không thể liên kết Google.', variant: 'destructive' });
+			toast({ title: 'Thêm thất bại', description: extractApiErrorMessage(err, 'Không thể liên kết Google.'), variant: 'destructive' });
 		}
 	};
 
@@ -406,31 +367,6 @@ export function UserPage() {
 		const dateObj = typeof date === 'string' ? new Date(date) : typeof date === 'number' ? new Date(date) : date;
 		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
 	};
-
-	// Radar Chart Data from API tag stats
-	const radarData = (userStats?.tagInfos ?? []).map(tag => ({
-		subject: tag.name,
-		score: Math.round(tag.correctPercentage),
-		fullMark: 100,
-	}));
-
-	// Login Streak Current Week Data
-	const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-	const currentWeekChecks = [...Array(7)].map((_, i) => {
-		const curr = new Date();
-		const first = curr.getDate() - curr.getDay();
-		const dayDate = new Date();
-		dayDate.setDate(first + i);
-		const tzoffset = dayDate.getTimezoneOffset() * 60000;
-		const localISOTime = (new Date(dayDate.getTime() - tzoffset)).toISOString().slice(0, 10);
-
-		const isFuture = dayDate.getTime() > new Date().setHours(23, 59, 59, 999);
-		return {
-			label: daysOfWeek[i],
-			checked: !!(calendarHistory[localISOTime] && calendarHistory[localISOTime] > 0),
-			isFuture
-		};
-	});
 
 	return (
 		<div className='min-h-screen bg-background pb-20'>
@@ -617,64 +553,6 @@ export function UserPage() {
 					{/* Overview */}
 					<TabsContent value='overview'>
 						<div className='space-y-6'>
-							{/* Analytics Top Row (Radar & Streak) */}
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								{/* Activity Overview Radar */}
-								<Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all">
-									<CardHeader className="bg-slate-50 border-b border-gray-100">
-										<CardTitle className="text-xl font-bold text-gray-800">Phân tích theo chủ đề</CardTitle>
-									</CardHeader>
-									<CardContent className="pt-6 h-[300px] flex items-center justify-center">
-										{radarData.length > 0 ? (
-											<ResponsiveContainer width="100%" height="100%">
-												<RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-													<PolarGrid strokeDasharray="3 3" />
-													<PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 13, fontWeight: 500 }} />
-													<PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-													<Radar name="Tỷ lệ đúng" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
-													<RechartsTooltip formatter={(value) => [`${value}%`, 'Tỷ lệ']} />
-												</RadarChart>
-											</ResponsiveContainer>
-										) : (
-											<p className="text-gray-400">Chưa có dữ liệu thống kê</p>
-										)}
-									</CardContent>
-								</Card>
-
-								{/* Login Streak */}
-								<Card className="border-0 shadow-md bg-slate-900 text-white rounded-xl overflow-hidden hover:shadow-lg transition-all">
-									<CardHeader className="border-b border-white/10">
-										<CardTitle className="text-xl font-bold">Chuỗi học tập (Streak)</CardTitle>
-									</CardHeader>
-									<CardContent className="pt-10 pb-8 flex flex-col items-center justify-center">
-										<div className="relative flex justify-center items-center w-24 h-24 bg-rose-500 rounded-[35%_65%_60%_40%_/_45%_55%_45%_55%] animate-[pulse_3s_ease-in-out_infinite] mb-6 shadow-[0_0_20px_rgba(244,63,94,0.5)]">
-											<Flame className="w-12 h-12 text-white fill-current absolute drop-shadow-md" />
-										</div>
-										<h2 className="text-4xl font-extrabold mb-8">{streak} Day Streak</h2>
-
-										{/* Week Checkboxes */}
-										<div className="w-full max-w-sm flex justify-between items-center px-4">
-											{currentWeekChecks.map((day, idx) => (
-												<div key={idx} className="flex flex-col items-center gap-2">
-													<div className="text-xs font-bold text-white/70 uppercase">{day.label}</div>
-													{day.checked ? (
-														<div className="w-8 h-8 rounded-md bg-[#81b64c] flex items-center justify-center border border-[#6f9e42] shadow-[0_2px_0_#6f9e42]">
-															<CheckSquare className="w-5 h-5 text-white" />
-														</div>
-													) : day.isFuture ? (
-														<div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center border border-white/5" />
-													) : (
-														<div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center border border-white/10" />
-													)}
-												</div>
-											))}
-										</div>
-
-										<p className="text-sm text-white/50 mt-8 font-medium">Bạn đã học rất tốt! Trở lại vào ngày mai để tiếp tục chuỗi nhé.</p>
-									</CardContent>
-								</Card>
-							</div>
-
 							{/* Goal Progress Card */}
 							{goal && userStats && (
 								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-lg transition-all'>
@@ -710,79 +588,21 @@ export function UserPage() {
 								</Card>
 							)}
 
-							{/* Tag/Skill Statistics */}
-							{userStats && userStats.tagInfos.length > 0 && (
+							{!goal && (
 								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
-									<CardHeader className='bg-slate-50 border-b border-gray-100'>
-										<CardTitle className="text-xl font-bold text-gray-800">Tỷ lệ đúng theo chủ đề</CardTitle>
-										<CardDescription>Phân tích chi tiết theo từng nhóm kỹ năng và chủ đề</CardDescription>
-									</CardHeader>
-									<CardContent className="pt-6">
-										<div className='grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6'>
-											{userStats.tagInfos.map((tag) => {
-												const pct = Math.round(tag.correctPercentage);
-												return (
-													<div key={tag.name} className='space-y-2'>
-														<div className='flex items-center justify-between'>
-															<span className='font-medium capitalize'>{tag.name}</span>
-															<div className='flex items-center space-x-4'>
-																<span className='text-lg font-semibold'>{pct}%</span>
-															</div>
-														</div>
-														<Progress value={pct} className='h-2.5 [&>div]:bg-primary' />
-													</div>
-												);
-											})}
-										</div>
+									<CardContent className='py-12 text-center'>
+										<Target className='h-12 w-12 mx-auto mb-4 text-gray-300' />
+										<h3 className='text-lg font-bold text-gray-800 mb-2'>Chưa có mục tiêu</h3>
+										<p className='text-gray-500 mb-4'>Thiết lập mục tiêu học tập để theo dõi tiến độ</p>
+										<AddGoalButton onGoalChanged={fetchGoal} />
 									</CardContent>
 								</Card>
 							)}
 
-							{/* Overall Statistics */}
-							<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-primary text-white'>
-									<CardContent className='p-6 relative'>
-										<BookOpen className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
-										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<BookOpen className='h-8 w-8 text-primary-foreground/80' />
-											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Tổng quát</span>
-										</div>
-										<div className='relative z-10'>
-											<p className='text-3xl font-extrabold mb-1'>{userStats?.attemptCounts ?? '—'}</p>
-											<p className='text-sm text-primary-foreground/80 font-medium'>Số bài kiểm tra đã làm</p>
-										</div>
-									</CardContent>
-								</Card>
-
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-primary/80 text-white'>
-									<CardContent className='p-6 relative'>
-										<TrendingUp className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
-										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<TrendingUp className='h-8 w-8 text-primary-foreground/80' />
-											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Hiệu suất</span>
-										</div>
-										<div className='relative z-10'>
-											<p className='text-3xl font-extrabold mb-1'>
-												{userStats ? `${Math.round(userStats.averageScoreInPercentage * 10) / 10}%` : '—'}
-											</p>
-											<p className='text-sm text-primary-foreground/80 font-medium'>Điểm trung bình toàn khoá</p>
-										</div>
-									</CardContent>
-								</Card>
-
-								<Card className='border-0 shadow-md hover:shadow-lg transition-all rounded-xl overflow-hidden bg-secondary text-white'>
-									<CardContent className='p-6 relative'>
-										<Target className='absolute right-[-20px] bottom-[-20px] h-32 w-32 text-white/10' />
-										<div className='flex items-center justify-between mb-4 relative z-10'>
-											<Target className='h-8 w-8 text-secondary-foreground' />
-											<span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Mục tiêu</span>
-										</div>
-										<div className='relative z-10'>
-											<p className='text-3xl font-extrabold mb-1'>{goal ? 1 : 0}</p>
-											<p className='text-sm text-secondary-foreground font-medium'>Số mục tiêu học tập đang chạy</p>
-										</div>
-									</CardContent>
-								</Card>
+							<div className='text-center pt-2'>
+								<Button variant='outline' className='rounded-xl' onClick={() => router.push('/progress')}>
+									<BarChart3 className='h-4 w-4 mr-2' /> Xem phân tích chi tiết
+								</Button>
 							</div>
 						</div>
 					</TabsContent>
@@ -889,7 +709,7 @@ export function UserPage() {
 
 							{attemptHistory.length > 0 && (
 								<div className='p-4 border-t text-center'>
-									<Button variant='outline' onClick={() => router.push('/history')}>
+									<Button variant='outline' onClick={() => router.push('/progress')}>
 										Xem toàn bộ lịch sử
 									</Button>
 								</div>

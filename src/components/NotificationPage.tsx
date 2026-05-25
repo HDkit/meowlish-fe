@@ -8,17 +8,19 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import {
-	Bell, BookOpen, Flag, Info, CheckCheck, Filter,
+	Bell, Trophy, Flag, Info, CheckCheck, Filter,
 } from 'lucide-react';
 import {
 	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 
 const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ElementType; color: string }> = {
-	[NotificationType.BlogFollow]: { label: 'Bài viết mới', icon: BookOpen, color: 'text-blue-600 bg-blue-100' },
-	[NotificationType.ReportResponse]: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
+	[NotificationType.Report]: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
+	[NotificationType.Achievement]: { label: 'Thành tích', icon: Trophy, color: 'text-amber-600 bg-amber-100' },
 	[NotificationType.System]: { label: 'Hệ thống', icon: Info, color: 'text-gray-600 bg-gray-100' },
 };
+
+const DEFAULT_TYPE_CONFIG = { label: 'Thông báo', icon: Bell, color: 'text-gray-600 bg-gray-100' };
 
 export default function NotificationPage() {
 	const currUser = useAppSelector((state) => (state as any).currUser?.entity ?? (state as any).currUser?.current);
@@ -116,7 +118,7 @@ export default function NotificationPage() {
 				) : (
 					<div className="space-y-3">
 						{myNotifications.map((notif) => {
-							const conf = TYPE_CONFIG[notif.type];
+							const conf = TYPE_CONFIG[notif.type] ?? DEFAULT_TYPE_CONFIG;
 							const Icon = conf.icon;
 							return (
 								<Card key={notif.id} className={`border-0 shadow-sm hover:shadow-md transition-shadow ${!notif.isRead ? 'ring-1 ring-primary/20 bg-primary/[0.02]' : ''}`}>

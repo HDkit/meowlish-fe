@@ -44,7 +44,7 @@ export function LandingPage() {
       </section>
 
       {/* What You Get — Bento Grid */}
-      <section className="py-16 md:py-24 bg-[#fff6dc] dark:bg-card">
+      <section className="py-16 md:py-24 bg-[#fff6dc]">
         <div className="container mx-auto px-6 max-w-6xl">
           <h2 className="text-2xl md:text-4xl font-bold text-primary mb-12">
             Bạn sẽ nhận được gì?

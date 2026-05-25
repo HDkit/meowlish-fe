@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService, getAccessToken, getRefreshToken } from '@/lib/api-client';
+import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken } from '@/lib/api-client';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,7 +95,12 @@ export default function ExamApprovalPage() {
 
     setLoading(true);
     try {
-      const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 100 });
+      const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1(
+        undefined,
+        undefined,
+        100,
+        { key: SortOptionsDto.key.CREATED_AT, direction: SortOptionsDto.direction.DESC },
+      );
       setExams(res.data?.exams ?? []);
     } catch (err) {
       console.warn('ExamApproval: failed to load exams', err);
@@ -149,10 +154,10 @@ export default function ExamApprovalPage() {
 
     setSubmitting(true);
     try {
-      await ExamManagementService.examManagementGatewayControllerReviewExamV1({
-        id: examId,
-        requestBody: { status: 'APPROVED' },
-      });
+      await ExamManagementService.examManagementGatewayControllerReviewExamV1(
+        examId,
+        { status: 'APPROVED' },
+      );
       toast({ title: 'Đã phê duyệt', description: 'Đề thi đã được phê duyệt thành công.' });
       setIsPreviewOpen(false);
       setSelectedExam(null);
@@ -178,10 +183,10 @@ export default function ExamApprovalPage() {
 
     setSubmitting(true);
     try {
-      await ExamManagementService.examManagementGatewayControllerReviewExamV1({
-        id: selectedExam.id,
-        requestBody: { status: 'REJECTED', reason: rejectionReason } as any,
-      });
+      await ExamManagementService.examManagementGatewayControllerReviewExamV1(
+        selectedExam.id,
+        { status: 'REJECTED' },
+      );
       toast({ title: 'Đã từ chối', description: 'Đề thi đã được trả về cho tác giả chỉnh sửa.' });
       setIsRejectDialogOpen(false);
       setIsPreviewOpen(false);

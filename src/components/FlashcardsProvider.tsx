@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import type { FlashCardListResponse } from '@/lib/api/services/FlashcardListService';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 import { setFlashcardLists } from '@/components/store/flashcardListSlice';
+import { useBackoffPolling } from '@/hooks/useBackoffPolling';
+import { useProviderErrorRegister } from './ProviderErrorContext';
 import type { FlashcardList } from '@/types/client';
 
 const POLL_INTERVAL = 60_000;
@@ -27,29 +29,24 @@ export function FlashcardsProvider({ children }: { children: React.ReactNode }) 
   const currUser = useAppSelector(
     (s) => (s as any).currUser?.entity ?? (s as any).currUser?.current ?? null,
   );
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { register, unregister } = useProviderErrorRegister();
+  const userId = currUser?.id;
 
   const fetchLists = useCallback(async () => {
-    if (!currUser?.id) return;
-    try {
-      const res = await FlashcardListService.listFlashCardLists(currUser.id);
-      const data = (res as any)?.data ?? res;
-      if (data?.lists) {
-        dispatch(setFlashcardLists(data.lists.map(mapList)));
-      }
-    } catch (err) {
-      console.error('[FlashcardsProvider] fetch error:', err);
+    if (!userId) return;
+    const res = await FlashcardListService.listFlashCardLists(userId);
+    const data = (res as any)?.data ?? res;
+    if (data?.lists) {
+      dispatch(setFlashcardLists(data.lists.map(mapList)));
     }
-  }, [currUser?.id, dispatch]);
+  }, [userId, dispatch]);
+
+  const { error, isRetrying, manualRetry } = useBackoffPolling(fetchLists, POLL_INTERVAL, !!userId);
 
   useEffect(() => {
-    if (!currUser?.id) return;
-    fetchLists();
-    intervalRef.current = setInterval(fetchLists, POLL_INTERVAL);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [currUser?.id, fetchLists]);
+    register('flashcards', { label: 'Thẻ ghi nhớ', error, isRetrying, manualRetry });
+    return () => unregister('flashcards');
+  }, [error, isRetrying, manualRetry, register, unregister]);
 
   return <>{children}</>;
 }

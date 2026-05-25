@@ -6,6 +6,8 @@ import { updateReport, removeReport, setReports } from '@/components/store/repor
 import { ReportService } from '@/lib/api/services/ReportService';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Report, ReportStatus } from '@/types/client';
+import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -43,6 +45,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }
 export default function ReportManagementPage() {
 	const dispatch = useAppDispatch();
 	const { currUser, isHeadStaff } = useAuth();
+	const { toast } = useToast();
 	const reports = useAppSelector((state) => state.reports.list);
 	const users = useAppSelector((state) => state.users.list);
 
@@ -77,6 +80,7 @@ export default function ReportManagementPage() {
 			}
 		} catch (err) {
 			console.error('[ReportManagementPage] fetch error:', err);
+			toast({ title: 'Tải danh sách báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		}
 	}, [dispatch]);
 
@@ -115,6 +119,7 @@ export default function ReportManagementPage() {
 			}));
 		} catch (err) {
 			console.error('[ReportManagementPage] status change error:', err);
+			toast({ title: 'Cập nhật trạng thái thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		}
 	};
 
@@ -137,6 +142,7 @@ export default function ReportManagementPage() {
 			setResponseText('');
 		} catch (err) {
 			console.error('[ReportManagementPage] respond error:', err);
+			toast({ title: 'Phản hồi báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		}
 	};
 
@@ -148,6 +154,7 @@ export default function ReportManagementPage() {
 			setDeleteReportId(null);
 		} catch (err) {
 			console.error('[ReportManagementPage] delete error:', err);
+			toast({ title: 'Xóa báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		}
 	};
 
@@ -227,7 +234,7 @@ export default function ReportManagementPage() {
 				) : (
 					<div className="space-y-4">
 						{filteredReports.map((report) => {
-							const statusConf = STATUS_CONFIG[report.status];
+							const statusConf = STATUS_CONFIG[report.status] ?? { label: report.status || 'Không rõ', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: Clock };
 							const catConf = CATEGORY_CONFIG[report.type] ?? { label: report.type, icon: FileText };
 							const StatusIcon = statusConf.icon;
 							const CatIcon = catConf.icon;

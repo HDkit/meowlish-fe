@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
 import { ChatMessageService } from '@/lib/api/services/ChatMessageService';
 import type { ChatRoomResponse } from '@/lib/api/services/ChatRoomService';
@@ -8,6 +8,8 @@ import type { ChatResponse } from '@/lib/api/services/ChatMessageService';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setChatRooms } from '@/components/store/chatRoomSlice';
 import { setChatMessages } from '@/components/store/chatMessageSlice';
+import { useBackoffPolling } from '@/hooks/useBackoffPolling';
+import { useProviderErrorRegister } from './ProviderErrorContext';
 import type { ChatRoom, ChatMessage } from '@/types/client';
 
 const POLL_INTERVAL = 30_000;
@@ -33,39 +35,36 @@ function mapChat(c: ChatResponse, roomId: string): ChatMessage {
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { register, unregister } = useProviderErrorRegister();
 
   const fetchAll = useCallback(async () => {
-    try {
-      const roomsRes = await ChatRoomService.listRooms();
-      const rooms = roomsRes?.rooms ?? [];
-      dispatch(setChatRooms(rooms.map(mapRoom)));
+    const roomsRes = await ChatRoomService.listRooms();
+    const roomsData = (roomsRes as any)?.data ?? roomsRes;
+    const rooms = roomsData?.rooms ?? [];
+    dispatch(setChatRooms(rooms.map(mapRoom)));
 
-      const msgPromises = rooms.map((r) =>
-        ChatMessageService.getChatLog(r.id).catch(() => null),
-      );
-      const msgResults = await Promise.all(msgPromises);
-      const allMessages: ChatMessage[] = [];
-      msgResults.forEach((res, idx) => {
-        if (!res) return;
-        const roomId = rooms[idx].id;
-        if (res.chats) {
-          allMessages.push(...res.chats.map((c) => mapChat(c, roomId)));
-        }
-      });
-      dispatch(setChatMessages(allMessages));
-    } catch (err) {
-      console.error('[ChatProvider] fetch error:', err);
-    }
+    const msgPromises = rooms.map((r: ChatRoomResponse) =>
+      ChatMessageService.getChatLog(r.id).catch(() => null),
+    );
+    const msgResults = await Promise.all(msgPromises);
+    const allMessages: ChatMessage[] = [];
+    msgResults.forEach((res: any, idx: number) => {
+      if (!res) return;
+      const msgData = (res as any)?.data ?? res;
+      const roomId = rooms[idx].id;
+      if (msgData.chats) {
+        allMessages.push(...msgData.chats.map((c: ChatResponse) => mapChat(c, roomId)));
+      }
+    });
+    dispatch(setChatMessages(allMessages));
   }, [dispatch]);
 
+  const { error, isRetrying, manualRetry } = useBackoffPolling(fetchAll, POLL_INTERVAL);
+
   useEffect(() => {
-    fetchAll();
-    intervalRef.current = setInterval(fetchAll, POLL_INTERVAL);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [fetchAll]);
+    register('chat', { label: 'Phòng chat', error, isRetrying, manualRetry });
+    return () => unregister('chat');
+  }, [error, isRetrying, manualRetry, register, unregister]);
 
   return <>{children}</>;
 }

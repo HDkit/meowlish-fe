@@ -208,7 +208,7 @@ export function TestResultDetail() {
 									activePart === p ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
 								}`}
 							>
-								Part {p}
+								Phần {p}
 							</button>
 						))}
 					</div>
@@ -220,9 +220,9 @@ export function TestResultDetail() {
 				<div className="space-y-8">
 					{activeQuestions.length === 0 && (
 						<div className="rounded-2xl border border-slate-200 p-6 text-slate-700">
-							<div className="font-extrabold mb-1">Không có câu hỏi ở Part {activePart}</div>
+							<div className="font-extrabold mb-1">Không có câu hỏi ở Phần {activePart}</div>
 							<div className="text-sm text-slate-500">
-								Part có thể chưa được gắn tag/name đúng. Mình đang dùng fallback theo thứ tự câu hỏi.
+								Phần có thể chưa được gắn tag/name đúng. Mình đang dùng fallback theo thứ tự câu hỏi.
 							</div>
 						</div>
 					)}
@@ -240,7 +240,7 @@ export function TestResultDetail() {
 									<div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm">
 										{idx + 1}
 									</div>
-									<div className="text-sm font-extrabold text-slate-800">Part {activePart}</div>
+									<div className="text-sm font-extrabold text-slate-800">Phần {activePart}</div>
 									{status === 'correct' && <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg"><CheckCircle2 className="w-3.5 h-3.5" />Đúng</span>}
 									{status === 'incorrect' && <span className="inline-flex items-center gap-1 text-xs font-extrabold text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded-lg"><XCircle className="w-3.5 h-3.5" />Sai</span>}
 								</div>
@@ -300,7 +300,7 @@ export function TestResultDetail() {
 						<div className="space-y-3">
 							{parts.map((p) => (
 								<div key={p}>
-									<div className="text-xs font-extrabold text-slate-500 mb-2">Part {p}</div>
+									<div className="text-xs font-extrabold text-slate-500 mb-2">Phần {p}</div>
 									<div className="grid grid-cols-8 gap-2">
 										{(rightMap[p] || []).map((q, idx) => {
 											const bg =

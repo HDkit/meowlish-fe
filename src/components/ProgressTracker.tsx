@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
 import { Progress } from './ui/progress';
 import { ExamPracticeService } from '@/lib/api';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { UserCalendarDto } from '@/lib/api/models/UserCalendarDto';
 import type { AttemptsHistoryDto } from '@/lib/api/models/AttemptsHistoryDto';
 import type { TagInfoDto } from '@/lib/api/models/TagInfoDto';
+import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
 import {
   Target,
   Trophy,
@@ -19,6 +21,7 @@ import {
   Loader2,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Flame,
   Zap,
   Star,
@@ -28,6 +31,7 @@ import {
   Award,
   Brain,
   Sparkles,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -50,9 +54,9 @@ import {
 // ─── Helpers ───
 
 function getScoreColor(pct: number) {
-  if (pct >= 70) return 'text-green-600 dark:text-green-400';
-  if (pct >= 40) return 'text-amber-600 dark:text-amber-400';
-  return 'text-red-500 dark:text-red-400';
+  if (pct >= 70) return 'text-green-600';
+  if (pct >= 40) return 'text-amber-600';
+  return 'text-red-500';
 }
 
 function getIndicatorClass(pct: number) {
@@ -146,10 +150,10 @@ function ActivityHeatmap({ data }: { data: Record<string, number> }) {
   );
 
   const getCellColor = (count: number) => {
-    if (count === 0) return 'bg-slate-100 dark:bg-slate-800/60';
-    if (count === 1) return 'bg-green-200 dark:bg-green-800/50';
-    if (count === 2) return 'bg-green-400 dark:bg-green-600/70';
-    return 'bg-green-600 dark:bg-green-500';
+    if (count === 0) return 'bg-slate-100';
+    if (count === 1) return 'bg-green-200';
+    if (count === 2) return 'bg-green-400';
+    return 'bg-green-600';
   };
 
   const dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -184,10 +188,10 @@ function ActivityHeatmap({ data }: { data: Record<string, number> }) {
       <div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground justify-end">
         <span>Ít</span>
         <div className="flex gap-[3px]">
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100 dark:bg-slate-800/60" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-200 dark:bg-green-800/50" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-400 dark:bg-green-600/70" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-600 dark:bg-green-500" />
+          <div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100" />
+          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-200" />
+          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-400" />
+          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-600" />
         </div>
         <span>Nhiều</span>
       </div>
@@ -388,6 +392,38 @@ export function ProgressTracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // History sort/pagination
+  const [historySortKey, setHistorySortKey] = useState<get_users_attempt_history_req_dto_SortOptionsDto.key>(
+    get_users_attempt_history_req_dto_SortOptionsDto.key.ENDED_AT
+  );
+  const [historySortDir, setHistorySortDir] = useState<get_users_attempt_history_req_dto_SortOptionsDto.direction>(
+    get_users_attempt_history_req_dto_SortOptionsDto.direction.DESC
+  );
+  const [historyCursor, setHistoryCursor] = useState<string | undefined>(undefined);
+  const [historyNextCursor, setHistoryNextCursor] = useState<string | undefined>(undefined);
+  const [historyPrevCursor, setHistoryPrevCursor] = useState<string | undefined>(undefined);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchHistory = useCallback(async (cursor?: string, sortKey?: get_users_attempt_history_req_dto_SortOptionsDto.key, sortDir?: get_users_attempt_history_req_dto_SortOptionsDto.direction) => {
+    setHistoryLoading(true);
+    try {
+      const sortBy = { key: sortKey ?? historySortKey, direction: sortDir ?? historySortDir };
+      const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+        undefined, cursor, 10, sortBy as any,
+      );
+      if (res.data) {
+        const data = res.data as any;
+        setHistory(data as AttemptsHistoryDto);
+        setHistoryNextCursor(data.nextCursor || undefined);
+        setHistoryPrevCursor(data.prevCursor || undefined);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historySortKey, historySortDir]);
+
   useEffect(() => {
     const fetchData = async () => {
       const now = new Date();
@@ -400,21 +436,15 @@ export function ProgressTracker() {
           from: sixMonthsAgo.toISOString(),
           to: now.toISOString(),
         }),
-        ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-          undefined, undefined, 50
-        ),
       ]);
 
-      const [statsResult, calendarResult, historyResult] = results;
+      const [statsResult, calendarResult] = results;
 
       if (statsResult.status === 'fulfilled' && statsResult.value.data) {
         setStats(statsResult.value.data as UserStatsDto);
       }
       if (calendarResult.status === 'fulfilled' && calendarResult.value.data) {
         setCalendar(calendarResult.value.data as UserCalendarDto);
-      }
-      if (historyResult.status === 'fulfilled' && historyResult.value.data) {
-        setHistory(historyResult.value.data as AttemptsHistoryDto);
       }
 
       const allFailed = results.every(r => r.status === 'rejected');
@@ -426,7 +456,14 @@ export function ProgressTracker() {
       setLoading(false);
     };
     fetchData();
+    fetchHistory();
   }, []);
+
+  // Re-fetch history when sort changes
+  useEffect(() => {
+    setHistoryCursor(undefined);
+    fetchHistory(undefined, historySortKey, historySortDir);
+  }, [historySortKey, historySortDir]);
 
   const sortedTags = useMemo(() => {
     if (!stats?.tagInfos) return [];
@@ -604,7 +641,7 @@ export function ProgressTracker() {
         {/* Stats Overview - 4 Cards */}
         {computedStats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-lg border-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
+            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -618,7 +655,7 @@ export function ProgressTracker() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
+            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -634,14 +671,14 @@ export function ProgressTracker() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
+            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                  <div className="h-11 w-11 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <Flame className="h-5 w-5 text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium">Streak hiện tại</p>
+                    <p className="text-xs text-muted-foreground font-medium">Chuỗi hiện tại</p>
                     <div className="flex items-baseline gap-1.5">
                       <p className="text-2xl font-bold">{streakData.current}</p>
                       <span className="text-xs text-muted-foreground">ngày</span>
@@ -651,15 +688,15 @@ export function ProgressTracker() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
+            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                  <div className="h-11 w-11 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                     <Star className="h-5 w-5 text-amber-500" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground font-medium">Điểm cao nhất</p>
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    <p className="text-2xl font-bold text-green-600">
                       {bestScore != null ? `${bestScore}%` : '—'}
                     </p>
                   </div>
@@ -683,7 +720,7 @@ export function ProgressTracker() {
                 {insights.strongest && (
                   <InsightCard
                     icon={Zap}
-                    iconBg="bg-green-100 dark:bg-green-900/30 text-green-600"
+                    iconBg="bg-green-100 text-green-600"
                     title="Điểm mạnh nhất"
                     value={insights.strongest.name}
                     description={`Tỉ lệ đúng ${Math.round(insights.strongest.correctPercentage)}% — bạn nắm rất tốt chủ đề này!`}
@@ -692,7 +729,7 @@ export function ProgressTracker() {
                 {insights.weakest && insights.weakest.name !== insights.strongest?.name && (
                   <InsightCard
                     icon={Brain}
-                    iconBg="bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                    iconBg="bg-amber-100 text-amber-600"
                     title="Cần cải thiện"
                     value={insights.weakest.name}
                     description={`Tỉ lệ đúng ${Math.round(insights.weakest.correctPercentage)}% — hãy luyện thêm chủ đề này.`}
@@ -702,8 +739,8 @@ export function ProgressTracker() {
                   <InsightCard
                     icon={insights.trend === 'improving' ? ArrowUpRight : ArrowDownRight}
                     iconBg={insights.trend === 'improving'
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-500'}
+                      ? 'bg-green-100 text-green-600'
+                      : 'bg-red-100 text-red-500'}
                     title="Xu hướng"
                     value={insights.trend === 'improving' ? 'Đang tiến bộ!' : 'Cần nỗ lực thêm'}
                     description={`Điểm trung bình ${insights.trend === 'improving' ? 'tăng' : 'giảm'} ${Math.abs(insights.trendDiff)}% so với giai đoạn trước.`}
@@ -712,7 +749,7 @@ export function ProgressTracker() {
                 {insights.trend === 'stable' && scoreTrend.length >= 4 && (
                   <InsightCard
                     icon={Minus}
-                    iconBg="bg-blue-100 dark:bg-blue-900/30 text-blue-600"
+                    iconBg="bg-blue-100 text-blue-600"
                     title="Xu hướng"
                     value="Ổn định"
                     description="Điểm số của bạn khá đều đặn. Hãy thử thách bản thân với đề khó hơn!"
@@ -735,8 +772,8 @@ export function ProgressTracker() {
                   {insights.trend !== 'stable' && (
                     <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
                       insights.trend === 'improving'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
                     }`}>
                       {insights.trend === 'improving' ? '+' : ''}{insights.trendDiff}%
                     </span>
@@ -796,7 +833,7 @@ export function ProgressTracker() {
                   </div>
                   <Progress
                     value={tag.correctPercentage}
-                    className={`h-2.5 bg-slate-100 dark:bg-slate-800/60 ${getIndicatorClass(tag.correctPercentage)}`}
+                    className={`h-2.5 bg-slate-100 ${getIndicatorClass(tag.correctPercentage)}`}
                   />
                 </div>
               ))}
@@ -815,14 +852,14 @@ export function ProgressTracker() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 border border-orange-200/50 dark:border-orange-800/30">
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200/50">
                   <Flame className="h-8 w-8 text-orange-500 shrink-0" />
                   <div>
                     <p className="text-lg font-bold">{streakData.best}</p>
-                    <p className="text-xs text-muted-foreground">Streak kỷ lục</p>
+                    <p className="text-xs text-muted-foreground">Chuỗi kỷ lục</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border border-green-200/50 dark:border-green-800/30">
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200/50">
                   <CalendarDays className="h-8 w-8 text-green-500 shrink-0" />
                   <div>
                     <p className="text-lg font-bold">{activeDays}</p>
@@ -830,7 +867,7 @@ export function ProgressTracker() {
                   </div>
                 </div>
                 {bestScore != null && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border border-amber-200/50 dark:border-amber-800/30">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/50">
                     <Star className="h-8 w-8 text-amber-500 shrink-0" />
                     <div>
                       <p className="text-lg font-bold">{bestScore}%</p>
@@ -839,7 +876,7 @@ export function ProgressTracker() {
                   </div>
                 )}
                 {computedStats && computedStats.attemptCounts >= 10 && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border border-purple-200/50 dark:border-purple-800/30">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200/50">
                     <CheckCircle2 className="h-8 w-8 text-purple-500 shrink-0" />
                     <div>
                       <p className="text-lg font-bold">{computedStats.attemptCounts}</p>
@@ -871,14 +908,38 @@ export function ProgressTracker() {
         {history?.attempts && history.attempts.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Clock className="h-5 w-5 text-primary" />
-                Lịch sử gần đây
-              </CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Lịch sử làm bài
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={`${historySortKey}:${historySortDir}`}
+                    onChange={(e) => {
+                      const [k, d] = e.target.value.split(':');
+                      setHistorySortKey(k as any);
+                      setHistorySortDir(d as any);
+                    }}
+                    className="text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-primary focus:border-primary"
+                  >
+                    <option value="endedAt:DESC">Mới nhất</option>
+                    <option value="endedAt:ASC">Cũ nhất</option>
+                    <option value="score:DESC">Điểm cao nhất</option>
+                    <option value="score:ASC">Điểm thấp nhất</option>
+                  </select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {history.attempts.map((attempt) => {
+                {historyLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    Đang tải...
+                  </div>
+                ) : (
+                  history.attempts.map((attempt) => {
                   const scorePercent = attempt.score != null && attempt.totalPoints
                     ? Math.round((attempt.score / attempt.totalPoints) * 100)
                     : null;
@@ -899,15 +960,15 @@ export function ProgressTracker() {
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
                           scorePercent != null && scorePercent >= 70
-                            ? 'bg-green-100 dark:bg-green-900/30'
+                            ? 'bg-green-100'
                             : scorePercent != null
-                            ? 'bg-amber-100 dark:bg-amber-900/30'
-                            : 'bg-slate-100 dark:bg-slate-800'
+                            ? 'bg-amber-100'
+                            : 'bg-slate-100'
                         }`}>
                           {scorePercent != null ? (
                             scorePercent >= 70
-                              ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                              : <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                              ? <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              : <TrendingUp className="h-5 w-5 text-amber-600" />
                           ) : (
                             <Clock className="h-5 w-5 text-muted-foreground" />
                           )}
@@ -927,8 +988,33 @@ export function ProgressTracker() {
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
+              {/* Pagination */}
+              {(historyPrevCursor || historyNextCursor) && (
+                <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-muted">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setHistoryCursor(historyPrevCursor); fetchHistory(historyPrevCursor); }}
+                    disabled={!historyPrevCursor || historyLoading}
+                    className="rounded-xl gap-1.5"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Trước
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setHistoryCursor(historyNextCursor); fetchHistory(historyNextCursor); }}
+                    disabled={!historyNextCursor || historyLoading}
+                    className="rounded-xl gap-1.5"
+                  >
+                    Sau
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

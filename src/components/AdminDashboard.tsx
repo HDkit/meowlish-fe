@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, CheckCircle, Clock, AlertCircle, TrendingUp, Star, RefreshCw } from 'lucide-react';
+import { FileText, CheckCircle, Clock, AlertCircle, TrendingUp, Star, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { ExamManagementService } from '@/lib/api-client';
+import { ExamManagementService, SortOptionsDto } from '@/lib/api-client';
 
 interface ExamItem {
   id: string;
@@ -16,47 +16,52 @@ interface ExamItem {
   createdBy?: string;
 }
 
+interface ExamCounts {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+}
+
 export default function AdminDashboard() {
-  const { currUser, userRole, isStaff, isHeadStaff } = useAuth();
+  const { currUser, userRole, isMod, isStaff, isHeadStaff } = useAuth();
   const [exams, setExams] = useState<ExamItem[]>([]);
+  const [counts, setCounts] = useState<ExamCounts | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!currUser) return;
-    const fetchExams = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1({ limit: 50 });
-        setExams(res.data?.exams ?? []);
+        const [examsRes, countsRes] = await Promise.all([
+          ExamManagementService.examManagementGatewayControllerFindExamsV1(
+            undefined,
+            undefined,
+            20,
+            { key: SortOptionsDto.key.CREATED_AT, direction: SortOptionsDto.direction.DESC },
+          ),
+          ExamManagementService.examManagementGatewayControllerGetExamCountsV1(),
+        ]);
+        setExams(examsRes.data?.exams ?? []);
+        if (countsRes.data) {
+          setCounts(countsRes.data as ExamCounts);
+        }
       } catch (err) {
-        console.warn('AdminDashboard: failed to load exams', err);
+        console.warn('AdminDashboard: failed to load data', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchExams();
+    fetchData();
   }, [currUser]);
 
-  if (!currUser || (!isStaff && !isHeadStaff)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-96 border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-red-600">Không có quyền truy cập</CardTitle>
-            <CardDescription>Bạn không có quyền truy cập trang này.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+  if (!currUser || (!isMod && !isStaff && !isHeadStaff)) {
+    return null;
   }
 
   const myExams = isStaff ? exams.filter(exam => exam.createdBy === currUser.id) : exams;
-  const pendingApprovalExams = exams.filter(exam => exam.status === 'PENDING');
-  const publishedExams = exams.filter(exam => exam.status === 'APPROVED');
-  const needsRevisionExams = exams.filter(exam => exam.status === 'REJECTED');
-  const myDraftExams = myExams.filter(exam => exam.status === 'EMPTY' || exam.status === 'PENDING');
-  const myPublishedExams = myExams.filter(exam => exam.status === 'APPROVED');
-  const myNeedsRevisionExams = myExams.filter(exam => exam.status === 'REJECTED');
+  const pendingExamsInList = exams.filter(exam => exam.status === 'PENDING');
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -66,20 +71,15 @@ export default function AdminDashboard() {
         return { label: 'Cần sửa', color: 'bg-red-100 text-red-700 border-red-200', icon: <AlertCircle className="h-3 w-3" /> };
       case 'PENDING':
         return { label: 'Chờ duyệt', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: <Clock className="h-3 w-3" /> };
-      case 'EMPTY':
-        return { label: 'Bản nháp', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: <FileText className="h-3 w-3" /> };
       default:
         return { label: status || 'Không rõ', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: <FileText className="h-3 w-3" /> };
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* Hero Header */}
-      <div className={`relative overflow-hidden ${isHeadStaff
-        ? 'bg-primary'
-        : 'bg-primary'
-        } text-white`}>
+      <div className={`relative overflow-hidden bg-primary text-white`}>
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-16 w-32 h-32 bg-white/5 rounded-full translate-y-1/2" />
@@ -109,123 +109,61 @@ export default function AdminDashboard() {
       <div className="container mx-auto px-6 py-8 -mt-4">
         {/* Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          {isHeadStaff ? (
-            <>
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-secondary" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Chờ duyệt</CardTitle>
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Clock className="h-4 w-4 text-orange-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{pendingApprovalExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Đề thi đang chờ xét duyệt</p>
-                </CardContent>
-              </Card>
+          <Card className="border-0 shadow-md overflow-hidden">
+            <div className="h-1.5 bg-secondary" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
+              <CardTitle className="text-sm font-medium text-gray-600">Chờ duyệt</CardTitle>
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Clock className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-800">{counts?.pending ?? '—'}</div>
+              <p className="text-xs text-gray-500 mt-1">Đề thi đang chờ xét duyệt</p>
+            </CardContent>
+          </Card>
 
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-primary" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{publishedExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Đề thi đang hoạt động</p>
-                </CardContent>
-              </Card>
+          <Card className="border-0 shadow-md overflow-hidden">
+            <div className="h-1.5 bg-primary" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
+              <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-800">{counts?.approved ?? '—'}</div>
+              <p className="text-xs text-gray-500 mt-1">Đề thi đang hoạt động</p>
+            </CardContent>
+          </Card>
 
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-destructive" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{needsRevisionExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Đề thi bị trả về</p>
-                </CardContent>
-              </Card>
+          <Card className="border-0 shadow-md overflow-hidden">
+            <div className="h-1.5 bg-destructive" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
+              <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-800">{counts?.rejected ?? '—'}</div>
+              <p className="text-xs text-gray-500 mt-1">Đề thi bị trả về</p>
+            </CardContent>
+          </Card>
 
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-primary" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
-                  <div className="p-2 bg-primary/15 rounded-lg">
-                    <Users className="h-4 w-4 text-primary/80" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{exams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Toàn hệ thống</p>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <>
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-muted" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Bản nháp của tôi</CardTitle>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <FileText className="h-4 w-4 text-slate-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{myDraftExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Đang soạn thảo</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-primary" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{myPublishedExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Đã được duyệt</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-destructive" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{myNeedsRevisionExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Yêu cầu chỉnh sửa</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-primary" />
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-                  <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
-                  <div className="p-2 bg-primary/15 rounded-lg">
-                    <FileText className="h-4 w-4 text-primary/80" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gray-800">{myExams.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Do tôi tạo</p>
-                </CardContent>
-              </Card>
-            </>
-          )}
+          <Card className="border-0 shadow-md overflow-hidden">
+            <div className="h-1.5 bg-primary" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
+              <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
+              <div className="p-2 bg-primary/15 rounded-lg">
+                <FileText className="h-4 w-4 text-primary/80" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-800">{counts?.total ?? '—'}</div>
+              <p className="text-xs text-gray-500 mt-1">Toàn hệ thống</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Bottom Content */}
@@ -239,7 +177,7 @@ export default function AdminDashboard() {
                   {isStaff ? 'Đề thi của tôi' : 'Đề thi gần đây'}
                 </CardTitle>
               </div>
-              <CardDescription>Các đề thi dự thảo hoặc đã tạo gần đây nhất</CardDescription>
+              <CardDescription>Các đề thi đã tạo gần đây nhất</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-3">
@@ -295,7 +233,7 @@ export default function AdminDashboard() {
                   <div className="mt-4 text-center">
                     <Link href="/exam-management">
                       <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 text-sm">
-                        Xem tất cả {myExams.length} đề thi →
+                        Xem tất cả đề thi →
                       </Button>
                     </Link>
                   </div>
@@ -306,16 +244,16 @@ export default function AdminDashboard() {
         </div>
 
         {/* Pending Approvals (Head Staff only) */}
-        {isHeadStaff && pendingApprovalExams.length > 0 && (
+        {isHeadStaff && pendingExamsInList.length > 0 && (
           <Card className="border-0 shadow-md overflow-hidden">
             <div className="h-1 bg-secondary" />
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-gray-800">🕐 Đề thi chờ duyệt</CardTitle>
+              <CardTitle className="text-base font-semibold text-gray-800">Đề thi chờ duyệt</CardTitle>
               <CardDescription>Các đề thi đang chờ bạn xét duyệt</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {pendingApprovalExams.slice(0, 5).map((exam) => (
+                {pendingExamsInList.slice(0, 5).map((exam) => (
                   <div key={exam.id} className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800">{exam.title}</p>
@@ -331,11 +269,11 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-              {pendingApprovalExams.length > 5 && (
+              {pendingExamsInList.length > 5 && (
                 <div className="mt-4 text-center">
                   <Link href="/exam-approval">
                     <Button variant="link" className="text-orange-600 hover:text-orange-700">
-                      Xem tất cả {pendingApprovalExams.length} đề thi chờ duyệt →
+                      Xem tất cả đề thi chờ duyệt →
                     </Button>
                   </Link>
                 </div>

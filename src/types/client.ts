@@ -18,6 +18,7 @@ export interface User extends MockDbType {
 	email: string;
 	password: string;
 	fullName: string;
+	username?: string;
 	roleId: string; // Role.id
 	status: 'active' | 'suspended' | 'banned';
 	avatarUrl?: string;
@@ -182,8 +183,8 @@ export interface Report extends MockDbType {
 
 // Notification types
 export enum NotificationType {
-	BlogFollow = 'blog_follow',
-	ReportResponse = 'report_response',
+	Report = 'report',
+	Achievement = 'achievement',
 	System = 'system',
 }
 

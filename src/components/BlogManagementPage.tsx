@@ -1,26 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { addBlog, updateBlog, removeBlog } from '@/components/store/blogSlice';
-import { Blog } from '@/types/client';
-import { BlogService } from '@/lib/api/services/BlogService';
+import { AuthService } from '@/lib/api-client';
+import { BlogService, type BlogResponse } from '@/lib/api/services/BlogService';
+import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
     Plus, Edit, Trash2, Search, BookOpen,
-    Filter, Tag, X,
+    Filter, Tag, X, ArrowLeft, Save, Loader2,
 } from 'lucide-react';
 import { MarkdownEditor } from './MarkdownEditor';
 
@@ -30,21 +27,58 @@ type BlogFormData = {
     tags: string[];
 };
 
-export default function BlogManagementPage() {
-    const dispatch = useAppDispatch();
-    const { currUser, isMod, isStaff, isHeadStaff } = useAuth();
-    const blogs = useAppSelector((state) => state.blogs.list);
-    const users = useAppSelector((state) => state.users.list);
+type ViewMode = { type: 'list' } | { type: 'create' } | { type: 'edit'; blog: BlogResponse };
 
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+export default function BlogManagementPage() {
+    const { currUser, isMod, isStaff, isHeadStaff } = useAuth();
+    const { toast } = useToast();
+
+    const [blogs, setBlogs] = useState<BlogResponse[]>([]);
+    const [authorMap, setAuthorMap] = useState<Record<string, string>>({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    const [viewMode, setViewMode] = useState<ViewMode>({ type: 'list' });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+    const [selectedBlog, setSelectedBlog] = useState<BlogResponse | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [tagFilter, setTagFilter] = useState('');
 
     const DEFAULT_FORM: BlogFormData = { title: '', content: '', tags: [] };
     const [formData, setFormData] = useState<BlogFormData>(DEFAULT_FORM);
+
+    const fetchBlogs = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await BlogService.listBlogs(undefined, undefined, 100);
+            const data = (res as any).data ?? res;
+            const blogList: BlogResponse[] = data.blogs ?? [];
+            setBlogs(blogList);
+
+            const uniqueAuthorIds = [...new Set(blogList.map(b => b.authorId))];
+            if (uniqueAuthorIds.length > 0) {
+                AuthService.authGatewayControllerHydrateIdentitiesV1(uniqueAuthorIds)
+                    .then((hydRes: any) => {
+                        const identities = (hydRes as any).data?.identities ?? (hydRes as any).data ?? [];
+                        const map: Record<string, string> = {};
+                        (Array.isArray(identities) ? identities : []).forEach((i: any) => {
+                            map[i.id] = i.fullName || i.username || 'Unknown';
+                        });
+                        setAuthorMap(map);
+                    })
+                    .catch(() => {});
+            }
+        } catch (err) {
+            console.error('Failed to fetch blogs:', err);
+            toast({ title: 'Lỗi tải dữ liệu', description: 'Không thể tải danh sách bài viết.', variant: 'destructive' });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        if (currUser) fetchBlogs();
+    }, [currUser, fetchBlogs]);
 
     if (!currUser || (!isStaff && !isHeadStaff && !isMod)) {
         return (
@@ -70,13 +104,13 @@ export default function BlogManagementPage() {
         return matchesSearch && matchesTag;
     });
 
-    const getAuthorName = (authorId: string) =>
-        users.find((u) => u.id === authorId)?.fullName ?? 'Unknown';
+    const getAuthorName = (authorId: string) => authorMap[authorId] || 'Unknown';
 
     const resetForm = () => setFormData(DEFAULT_FORM);
 
     const handleCreate = async () => {
-        if (!formData.title || !formData.content) return;
+        if (!formData.title.trim() || !formData.content.trim()) return;
+        setSaving(true);
         try {
             const res = await BlogService.createBlog({
                 title: formData.title,
@@ -84,43 +118,36 @@ export default function BlogManagementPage() {
                 authorId: currUser.id,
                 tags: formData.tags.length > 0 ? formData.tags : undefined,
             });
-            const newBlog: Blog = {
-                id: res.id,
-                authorId: res.authorId,
-                title: res.title,
-                content: res.content,
-                tags: res.tags ?? [],
-                createdAt: new Date(res.createdAt).getTime(),
-                updatedAt: res.updatedAt ? new Date(res.updatedAt).getTime() : undefined,
-            };
-            dispatch(addBlog(newBlog));
-            setIsCreateDialogOpen(false);
+            toast({ title: 'Đã tạo bài viết' });
             resetForm();
+            setViewMode({ type: 'list' });
+            await fetchBlogs();
         } catch (err) {
             console.error('Failed to create blog:', err);
+            toast({ title: 'Tạo bài viết thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleEdit = async () => {
-        if (!selectedBlog) return;
+        if (viewMode.type !== 'edit') return;
+        setSaving(true);
         try {
-            const res = await BlogService.updateBlog(selectedBlog.id, {
+            await BlogService.updateBlog(viewMode.blog.id, {
                 title: formData.title,
                 content: formData.content,
                 tags: formData.tags.length > 0 ? formData.tags : undefined,
             });
-            dispatch(updateBlog({
-                ...selectedBlog,
-                title: res.title,
-                content: res.content,
-                tags: res.tags ?? [],
-                updatedAt: res.updatedAt ? new Date(res.updatedAt).getTime() : undefined,
-            }));
-            setIsEditDialogOpen(false);
-            setSelectedBlog(null);
+            toast({ title: 'Đã cập nhật bài viết' });
             resetForm();
+            setViewMode({ type: 'list' });
+            await fetchBlogs();
         } catch (err) {
             console.error('Failed to update blog:', err);
+            toast({ title: 'Cập nhật thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -128,26 +155,86 @@ export default function BlogManagementPage() {
         if (!selectedBlog) return;
         try {
             await BlogService.deleteBlog(selectedBlog.id);
-            dispatch(removeBlog(selectedBlog.id));
+            setBlogs(prev => prev.filter(b => b.id !== selectedBlog.id));
             setIsDeleteDialogOpen(false);
             setSelectedBlog(null);
+            toast({ title: 'Đã xóa bài viết' });
         } catch (err) {
             console.error('Failed to delete blog:', err);
+            toast({ title: 'Xóa thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
         }
     };
 
-    const openCreateDialog = () => { resetForm(); setIsCreateDialogOpen(true); };
-    const openEditDialog = (blog: Blog) => {
-        setSelectedBlog(blog);
+    const openCreateView = () => { resetForm(); setViewMode({ type: 'create' }); };
+    const openEditView = (blog: BlogResponse) => {
         setFormData({ title: blog.title, content: blog.content, tags: blog.tags ?? [] });
-        setIsEditDialogOpen(true);
+        setViewMode({ type: 'edit', blog });
     };
-    const openDeleteDialog = (blog: Blog) => { setSelectedBlog(blog); setIsDeleteDialogOpen(true); };
+    const openDeleteDialog = (blog: BlogResponse) => { setSelectedBlog(blog); setIsDeleteDialogOpen(true); };
     const isFormValid = formData.title.trim() && formData.content.trim();
 
+    // Full-page create/edit view
+    if (viewMode.type === 'create' || viewMode.type === 'edit') {
+        const isEdit = viewMode.type === 'edit';
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+                    <div className="mx-auto max-w-4xl px-6 h-14 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { resetForm(); setViewMode({ type: 'list' }); }}>
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                            <BookOpen className="h-5 w-5 text-primary" />
+                            <span className="font-semibold text-gray-900">
+                                {isEdit ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
+                            </span>
+                        </div>
+                        <Button
+                            onClick={isEdit ? handleEdit : handleCreate}
+                            disabled={!isFormValid || saving}
+                        >
+                            <Save className="h-4 w-4 mr-1.5" />
+                            {saving ? 'Đang lưu...' : isEdit ? 'Lưu thay đổi' : 'Tạo bài viết'}
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="mx-auto max-w-4xl px-6 py-6 space-y-6">
+                    <Card className="border border-gray-200 shadow-none">
+                        <CardContent className="p-6 space-y-5">
+                            <div>
+                                <Label htmlFor="blog-title" className="text-sm font-medium">Tiêu đề <span className="text-red-500">*</span></Label>
+                                <Input
+                                    id="blog-title"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData(p => ({ ...p, title: e.target.value }))}
+                                    placeholder="Nhập tiêu đề bài viết"
+                                    className="mt-1.5"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium">Nhãn</Label>
+                                <BlogTagInput tags={formData.tags} onChange={(tags) => setFormData(p => ({ ...p, tags }))} />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium">Nội dung <span className="text-red-500">*</span></Label>
+                                <MarkdownEditor
+                                    value={formData.content}
+                                    onChange={(content) => setFormData(p => ({ ...p, content }))}
+                                    placeholder="Viết nội dung đầy đủ của bài viết tại đây..."
+                                    rows={20}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
+
+    // List view
     return (
         <div className="min-h-screen bg-background">
-
             {/* Hero Header */}
             <div className="relative overflow-hidden bg-primary text-white">
                 <div className="absolute inset-0 bg-black/10" />
@@ -161,7 +248,7 @@ export default function BlogManagementPage() {
                             </h1>
                             <p className="text-primary-foreground/80 mt-1 text-sm">Tạo, chỉnh sửa và xoá các bài viết trên nền tảng</p>
                         </div>
-                        <Button onClick={openCreateDialog} className="bg-white text-primary hover:bg-white/90 font-semibold shadow border-0">
+                        <Button onClick={openCreateView} className="bg-white text-primary hover:bg-white/90 font-semibold shadow border-0">
                             <Plus className="mr-2 h-4 w-4" />
                             Tạo bài viết
                         </Button>
@@ -182,7 +269,6 @@ export default function BlogManagementPage() {
 
             {/* Content */}
             <div className="px-6 py-6 max-w-6xl mx-auto">
-
                 {/* Filter Bar */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5 flex gap-3 items-center flex-wrap">
                     <div className="relative flex-1 min-w-[200px]">
@@ -211,12 +297,17 @@ export default function BlogManagementPage() {
                 </div>
 
                 {/* Table */}
-                {filteredBlogs.length === 0 ? (
+                {loading ? (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+                        <Loader2 className="h-8 w-8 text-primary/80 mx-auto mb-4 animate-spin" />
+                        <p className="text-gray-500 font-medium">Đang tải danh sách bài viết...</p>
+                    </div>
+                ) : filteredBlogs.length === 0 ? (
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
                         <BookOpen className="h-12 w-12 text-gray-200 mx-auto mb-4" />
                         <p className="text-gray-500 font-medium">Chưa có bài viết nào</p>
                         <p className="text-gray-400 text-sm mt-1">Nhấn &quot;Tạo bài viết&quot; để bắt đầu</p>
-                        <Button onClick={openCreateDialog} className="mt-4 bg-primary text-white border-0">
+                        <Button onClick={openCreateView} className="mt-4 bg-primary text-white border-0">
                             <Plus className="h-4 w-4 mr-2" />
                             Tạo bài viết đầu tiên
                         </Button>
@@ -227,7 +318,7 @@ export default function BlogManagementPage() {
                             <thead>
                                 <tr className="border-b border-gray-100 bg-gray-50">
                                     <th className="text-left px-5 py-3 font-semibold text-gray-600">Tiêu đề</th>
-                                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Tags</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Nhãn</th>
                                     <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Tác giả</th>
                                     <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Ngày tạo</th>
                                     <th className="text-right px-5 py-3 font-semibold text-gray-600">Thao tác</th>
@@ -244,13 +335,13 @@ export default function BlogManagementPage() {
                                         </td>
                                         <td className="px-4 py-4 hidden md:table-cell">
                                             <div className="flex flex-wrap gap-1">
-                                                {(blog.tags ?? []).slice(0, 2).map((tag) => (
+                                                {(blog.tags ?? []).slice(0, 3).map((tag) => (
                                                     <Badge key={tag} variant="outline" className="text-xs">
                                                         <Tag className="h-3 w-3 mr-0.5" />{tag}
                                                     </Badge>
                                                 ))}
-                                                {(blog.tags ?? []).length > 2 && (
-                                                    <Badge variant="outline" className="text-xs text-gray-400">+{blog.tags.length - 2}</Badge>
+                                                {(blog.tags ?? []).length > 3 && (
+                                                    <Badge variant="outline" className="text-xs text-gray-400">+{blog.tags.length - 3}</Badge>
                                                 )}
                                             </div>
                                         </td>
@@ -260,7 +351,7 @@ export default function BlogManagementPage() {
                                         </td>
                                         <td className="px-5 py-4">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Button size="sm" variant="outline" onClick={() => openEditDialog(blog)}
+                                                <Button size="sm" variant="outline" onClick={() => openEditView(blog)}
                                                     className="text-primary border-primary/30 hover:bg-primary/10 h-8 px-3">
                                                     <Edit className="h-3.5 w-3.5 mr-1.5" />
                                                     Chỉnh sửa
@@ -277,40 +368,6 @@ export default function BlogManagementPage() {
                         </table>
                     </div>
                 )}
-
-                {/* Create Dialog */}
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-                        <DialogHeader>
-                            <DialogTitle>Tạo bài viết mới</DialogTitle>
-                            <DialogDescription>Thêm bài viết mới vào nền tảng</DialogDescription>
-                        </DialogHeader>
-                        <BlogForm formData={formData} onChange={setFormData} />
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Huỷ</Button>
-                            <Button onClick={handleCreate} disabled={!isFormValid}>
-                                <Plus className="h-4 w-4 mr-2" />Tạo bài viết
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Edit Dialog */}
-                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-                        <DialogHeader>
-                            <DialogTitle>Chỉnh sửa bài viết</DialogTitle>
-                            <DialogDescription>Cập nhật nội dung bài viết</DialogDescription>
-                        </DialogHeader>
-                        <BlogForm formData={formData} onChange={setFormData} />
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Huỷ</Button>
-                            <Button onClick={handleEdit} disabled={!isFormValid}>
-                                <Edit className="h-4 w-4 mr-2" />Lưu thay đổi
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
 
                 {/* Delete Dialog */}
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -334,64 +391,43 @@ export default function BlogManagementPage() {
     );
 }
 
-function BlogForm({ formData, onChange }: { formData: BlogFormData; onChange: (data: BlogFormData) => void }) {
+function BlogTagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
     const [tagInput, setTagInput] = useState('');
 
     const addTag = () => {
         const t = tagInput.trim();
-        if (t && !formData.tags.includes(t)) {
-            onChange({ ...formData, tags: [...formData.tags, t] });
+        if (t && !tags.includes(t)) {
+            onChange([...tags, t]);
         }
         setTagInput('');
     };
 
-    const removeTag = (tag: string) => {
-        onChange({ ...formData, tags: formData.tags.filter((t) => t !== tag) });
-    };
-
     return (
-        <div className="space-y-4">
-            <div>
-                <Label htmlFor="blog-title">Tiêu đề</Label>
-                <Input id="blog-title" value={formData.title} onChange={(e) => onChange({ ...formData, title: e.target.value })}
-                    placeholder="Nhập tiêu đề bài viết" className="bg-gray-100 border-gray-200" />
-            </div>
-            <div>
-                <Label>Tags</Label>
-                <div className="flex gap-2 items-center">
-                    <Input
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-                        placeholder="Nhập tag rồi nhấn Enter..."
-                        className="bg-gray-100 border-gray-200 flex-1"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={addTag}>
-                        <Plus className="h-3 w-3 mr-1" />Thêm
-                    </Button>
-                </div>
-                {formData.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                        {formData.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary" className="gap-1">
-                                {tag}
-                                <button type="button" onClick={() => removeTag(tag)} className="ml-0.5 hover:text-red-500">
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </Badge>
-                        ))}
-                    </div>
-                )}
-            </div>
-            <div>
-                <Label htmlFor="blog-content">Nội dung</Label>
-                <MarkdownEditor
-                    value={formData.content}
-                    onChange={(content) => onChange({ ...formData, content })}
-                    placeholder="Viết nội dung đầy đủ của bài viết tại đây..."
-                    rows={14}
+        <div className="mt-1.5 space-y-2">
+            <div className="flex gap-2 items-center">
+                <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+                    placeholder="Nhập tag rồi nhấn Enter..."
+                    className="flex-1"
                 />
+                <Button type="button" variant="outline" size="sm" onClick={addTag}>
+                    <Plus className="h-3 w-3 mr-1" />Thêm
+                </Button>
             </div>
+            {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1">
+                            {tag}
+                            <button type="button" onClick={() => onChange(tags.filter((t) => t !== tag))} className="ml-0.5 hover:text-red-500">
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

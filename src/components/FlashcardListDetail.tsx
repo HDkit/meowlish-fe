@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
-import { FlashCard, TagType } from '../types/client';
+import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
+import { FlashCard, FlashcardList, TagType } from '../types/client';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import { addFlashcardList } from './store/flashcardListSlice';
+import { useToast } from '@/components/ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -163,6 +166,7 @@ function FlashcardDialog({
 	const [word, setWord] = useState('');
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
+	const { toast } = useToast();
 	const [selectedTag, setSelectedTag] = useState('');
 	const tags = useAppSelector((state) => state.tags.list);
 	const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
@@ -196,7 +200,7 @@ Lưu ý: ...`);
 
 	const handleSave = () => {
 		if (!word.trim() || !definition.trim()) {
-			alert('Vui lòng điền đầy đủ từ và định nghĩa');
+			toast({ title: 'Vui lòng điền đầy đủ từ và định nghĩa', variant: 'destructive' });
 			return;
 		}
 		const resultTags = selectedTag ? [selectedTag] : [];
@@ -301,10 +305,12 @@ Lưu ý: ...`);
 export function FlashcardListDetail() {
 	const router = useRouter();
 	const params = useParams();
+	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
 	const lists = useAppSelector((state) => state.flashcardLists.list);
 	const tags = useAppSelector((state) => state.tags.list);
+	const { toast } = useToast();
 
 	const listId = params?.listId as string;
 
@@ -325,9 +331,22 @@ export function FlashcardListDetail() {
 			.then((res: any) => {
 				const data = res?.data ?? res;
 				setCards((data.flashCards ?? []).map((fc: any) => mapFlashCard(fc, listId)));
+				// Ensure the list metadata is in Redux for currentList lookup
+				if (!lists.find((l) => l.id === listId) && data.id) {
+					dispatch(addFlashcardList({
+						id: data.id,
+						authorId: data.authorId,
+						name: data.name,
+						description: data.description || undefined,
+						isPublic: data.isPublic,
+						tags: data.tags ?? [],
+						createdAt: new Date(data.createdAt).getTime(),
+					}));
+				}
 			})
 			.catch((err) => {
 				console.error('[FlashcardListDetail] fetch error:', err);
+				toast({ title: 'Tải danh sách thẻ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			})
 			.finally(() => setLoading(false));
 	}, [listId]);
@@ -394,6 +413,7 @@ export function FlashcardListDetail() {
 			}
 		} catch (err) {
 			console.error('[FlashcardListDetail] save error:', err);
+			toast({ title: 'Lưu thẻ ghi nhớ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 		}
 		setEditingFlashcard(undefined);
 	};
@@ -410,6 +430,7 @@ export function FlashcardListDetail() {
 				setCards((prev) => prev.filter((c) => c.id !== flashcardId));
 			} catch (err) {
 				console.error('[FlashcardListDetail] delete error:', err);
+				toast({ title: 'Xóa thẻ ghi nhớ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			}
 		}
 	};

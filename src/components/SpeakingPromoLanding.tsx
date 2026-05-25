@@ -144,7 +144,7 @@ function FeaturesSection() {
 	];
 
 	return (
-		<section className="py-16 md:py-24 bg-amber-50/60 dark:bg-muted/30 relative overflow-hidden">
+		<section className="py-16 md:py-24 bg-amber-50/60 relative overflow-hidden">
 			<div className="absolute -bottom-4 left-0 w-full flex items-end justify-between h-48 px-0 opacity-40">
 				{[...Array(60)].map((_, i) => (
 					<div
@@ -246,7 +246,7 @@ function HowItWorksSection() {
 									className={`flex items-center gap-8 ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'}`}
 								>
 									<div className={`flex-1 ${isEven ? 'lg:text-right' : 'lg:text-left'} transition-all duration-700 ${isVisible ? 'opacity-100 translate-x-0' : `opacity-0 ${isEven ? '-translate-x-16' : 'translate-x-16'}`}`}>
-										<div className="bg-amber-50/60 dark:bg-muted/40 p-6 rounded-2xl shadow-lg shadow-primary/10 inline-block max-w-md">
+										<div className="bg-amber-50/60 p-6 rounded-2xl shadow-lg shadow-primary/10 inline-block max-w-md">
 											<h3 className="text-xl font-bold text-foreground">{step.title}</h3>
 											<p className="text-muted-foreground mt-2">{step.desc}</p>
 										</div>

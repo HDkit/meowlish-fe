@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Tabs, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import {
@@ -14,8 +13,8 @@ import {
 	Clock,
 	Target,
 	ChevronRight,
+	ChevronLeft,
 	FileText,
-	Star,
 	Search,
 	X,
 	Filter,
@@ -77,6 +76,9 @@ export function TestSelection() {
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
 	const [examStatsById, setExamStatsById] = useState<Record<string, ExamStats>>({});
+	const [cursor, setCursor] = useState<string | undefined>(undefined);
+	const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+	const [prevCursor, setPrevCursor] = useState<string | undefined>(undefined);
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -114,7 +116,12 @@ export function TestSelection() {
 		return TestType.IELTS;
 	}, []);
 
-	// Fetch exams when filters change
+	// Reset cursor when filters change
+	useEffect(() => {
+		setCursor(undefined);
+	}, [selectedTab, debouncedName, selectedTags]);
+
+	// Fetch exams when filters or cursor change
 	useEffect(() => {
 		if (!currentUser) return;
 		let cancelled = false;
@@ -134,13 +141,17 @@ export function TestSelection() {
 				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
 					hasFilter ? filter : undefined,
 					undefined,
-					undefined,
-					100,
+					cursor,
+					6,
 				);
 
 				if (cancelled) return;
 
-				const examsList = (res as any).data?.exams || [];
+				const data = (res as any).data;
+				const examsList = data?.exams || [];
+				setNextCursor(data?.nextCursor || undefined);
+				setPrevCursor(data?.prevCursor || undefined);
+
 				const formattedExams: FormattedExam[] = examsList.map((e: any) => {
 					const lowerTags = e.tags?.map((t: string) => t.toLowerCase()) || [];
 					return {
@@ -172,7 +183,7 @@ export function TestSelection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [currentUser, selectedTab, debouncedName, selectedTags, deduceTestType]);
+	}, [currentUser, selectedTab, debouncedName, selectedTags, deduceTestType, cursor]);
 
 	// Fetch per-exam stats
 	useEffect(() => {
@@ -428,6 +439,32 @@ export function TestSelection() {
 		);
 	};
 
+	const PaginationControls = () => {
+		if (!prevCursor && !nextCursor) return null;
+		return (
+			<div className="flex items-center justify-center gap-4 mt-8">
+				<Button
+					variant="outline"
+					onClick={() => setCursor(prevCursor)}
+					disabled={!prevCursor || loadingExams}
+					className="rounded-xl gap-1.5"
+				>
+					<ChevronLeft className="h-4 w-4" />
+					Trang trước
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => setCursor(nextCursor)}
+					disabled={!nextCursor || loadingExams}
+					className="rounded-xl gap-1.5"
+				>
+					Trang sau
+					<ChevronRight className="h-4 w-4" />
+				</Button>
+			</div>
+		);
+	};
+
 	return (
 		<div className="w-full pb-20">
 			{/* Header */}
@@ -437,20 +474,11 @@ export function TestSelection() {
 				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
 				<div className="relative z-10 max-w-3xl mx-auto space-y-4">
-					<div className="flex justify-center">
-						<Badge
-							variant="outline"
-							className="mb-2 bg-white/20 backdrop-blur-md border-white/30 text-white px-5 py-1.5 text-sm font-bold tracking-wide rounded-full shadow-lg flex items-center gap-2"
-						>
-							<Star className="w-4 h-4 text-yellow-300 fill-yellow-300" /> Hệ Sinh Thái Đề Thi
-						</Badge>
-					</div>
 					<h2 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5">
-						Lựa Chọn Thử Thách Của Bạn
+						Chọn Đề Thi
 					</h2>
 					<p className="text-primary-foreground/80 text-lg md:text-xl font-medium">
-						Danh sách các bài thi được tuyển chọn, mô phỏng đúng cấu trúc và độ khó thực tế. Hãy bắt đầu
-						hành trình nâng cao trình độ ngay hôm nay.
+						Luyện tập với các đề thi IELTS và TOEIC theo đúng cấu trúc và độ khó thực tế.
 					</p>
 				</div>
 			</div>
@@ -494,6 +522,7 @@ export function TestSelection() {
 								<EmptyState type="ielts" />
 							)}
 						</div>
+						<PaginationControls />
 					</TabsContent>
 
 					<TabsContent
@@ -521,6 +550,7 @@ export function TestSelection() {
 								<EmptyState type="toeic" />
 							)}
 						</div>
+						<PaginationControls />
 					</TabsContent>
 				</Tabs>
 			</div>

@@ -351,4 +351,15 @@ export class ExamManagementService {
             },
         });
     }
+    /**
+     * Get exam counts by status
+     * @returns any
+     * @throws ApiError
+     */
+    public static examManagementGatewayControllerGetExamCountsV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/exams/management/exams/counts',
+        });
+    }
 }

@@ -693,8 +693,8 @@ export function TestResult() {
 								</div>
 								{isToeicLike && toeicScore && (
 									<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">
-										<span className="block">Listening {toeicScore.listening.scaled}/495</span>
-										<span className="block">Reading {toeicScore.reading.scaled}/495</span>
+										<span className="block">Nghe {toeicScore.listening.scaled}/495</span>
+										<span className="block">Đọc {toeicScore.reading.scaled}/495</span>
 									</div>
 								)}
 							</div>
@@ -841,7 +841,7 @@ function WritingFeedbackSection({
 								{fb && fb.overall_score > 0 && (
 									<div className="flex flex-wrap gap-3">
 										<div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
-											<div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Overall Band</div>
+											<div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Điểm tổng</div>
 											<div className="text-3xl font-black text-emerald-700 mt-1">{fb.overall_score.toFixed(1)}</div>
 										</div>
 										{fb.sub_scores && Object.entries(fb.sub_scores).map(([criterion, score]) => (
@@ -1051,7 +1051,7 @@ function DetailedAnalysis({
 			<div className="space-y-4">
 				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
 					<Target className="w-6 h-6 text-primary" />
-					<h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">Phân tích chi tiết</h2>
+					<h2 className="text-2xl font-extrabold text-slate-800">Phân tích chi tiết</h2>
 				</div>
 
 				{toeicParts.length > 0 && (
@@ -1063,7 +1063,7 @@ function DetailedAnalysis({
 								className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
 									analysisPart === tab.key
 										? 'bg-primary text-white shadow-md'
-										: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+										: 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 								}`}
 							>
 								{tab.label}
@@ -1072,10 +1072,10 @@ function DetailedAnalysis({
 					</div>
 				)}
 
-				<div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+				<div className="overflow-x-auto rounded-xl border border-slate-200">
 					<table className="w-full text-sm">
 						<thead>
-							<tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+							<tr className="bg-slate-50 text-slate-600">
 								<th className="text-left px-4 py-3 font-bold">Phân loại câu hỏi</th>
 								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Đúng</th>
 								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Sai</th>
@@ -1084,10 +1084,10 @@ function DetailedAnalysis({
 								<th className="text-left px-4 py-3 font-bold">Danh sách câu</th>
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+						<tbody className="divide-y divide-slate-100">
 							{tagAnalysis.rows.map(row => (
-								<tr key={row.tag} className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-									<td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.tag}</td>
+								<tr key={row.tag} className="bg-white hover:bg-slate-50 transition-colors">
+									<td className="px-4 py-3 font-medium text-slate-800">{row.tag}</td>
 									<td className="text-center px-3 py-3 font-bold text-green-600">{row.correct}</td>
 									<td className="text-center px-3 py-3 font-bold text-red-500">{row.incorrect}</td>
 									<td className="text-center px-3 py-3 text-slate-400">{row.skipped}</td>
@@ -1099,8 +1099,8 @@ function DetailedAnalysis({
 									<td className="px-4 py-3 text-slate-500 text-xs">{row.questions.join(' ')}</td>
 								</tr>
 							))}
-							<tr className="bg-slate-50 dark:bg-slate-800/80 font-bold">
-								<td className="px-4 py-3 text-slate-800 dark:text-slate-200">Tổng cộng</td>
+							<tr className="bg-slate-50 font-bold">
+								<td className="px-4 py-3 text-slate-800">Tổng cộng</td>
 								<td className="text-center px-3 py-3 text-green-600">{tagAnalysis.totals.correct}</td>
 								<td className="text-center px-3 py-3 text-red-500">{tagAnalysis.totals.incorrect}</td>
 								<td className="text-center px-3 py-3 text-slate-400">{tagAnalysis.totals.skipped}</td>
@@ -1118,17 +1118,17 @@ function DetailedAnalysis({
 			<div className="space-y-4">
 				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
 					<CheckCircle2 className="w-6 h-6 text-primary" />
-					<h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">Đáp án</h2>
+					<h2 className="text-2xl font-extrabold text-slate-800">Đáp án</h2>
 				</div>
 
-				<div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-200">
+				<div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-800">
 					<strong>Chú ý:</strong> Khi làm lại các câu sai, điểm trung bình của bạn sẽ <strong>KHÔNG BỊ ẢNH HƯỞNG</strong>.
 				</div>
 
 				<div className="space-y-6">
 					{questionsByPart.map(([partNum, items]) => (
 						<div key={partNum}>
-							<h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mb-3">
+							<h3 className="text-lg font-extrabold text-slate-800 mb-3">
 								{partNum > 0 ? `Part ${partNum}` : 'Câu hỏi'}
 							</h3>
 							<div className="space-y-1">
@@ -1143,7 +1143,7 @@ function DetailedAnalysis({
 									return (
 										<div key={item.q.id}>
 											<div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
-												isExpanded ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+												isExpanded ? 'bg-primary/5' : 'hover:bg-slate-50'
 											}`}>
 												<span className="font-bold text-slate-500 w-8 text-right tabular-nums">{item.globalIndex}</span>
 												<span className={`font-bold min-w-[20px] ${
@@ -1152,7 +1152,7 @@ function DetailedAnalysis({
 													'text-slate-400'
 												}`}>{userAns || '–'}</span>
 												<span className="text-slate-400">:</span>
-												<span className="font-bold text-slate-700 dark:text-slate-200 min-w-[20px]">{correctAns}</span>
+												<span className="font-bold text-slate-700 min-w-[20px]">{correctAns}</span>
 
 												{st === 'correct' && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
 												{st === 'incorrect' && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
@@ -1163,7 +1163,7 @@ function DetailedAnalysis({
 													className={`ml-auto text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
 														isExpanded
 															? 'bg-primary text-white'
-															: 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+															: 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 													}`}
 												>
 													{isLoading ? (
@@ -1176,7 +1176,7 @@ function DetailedAnalysis({
 											</div>
 
 											{isExpanded && (
-												<div className="ml-12 mr-4 mt-1 mb-3 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-4 shadow-sm">
+												<div className="ml-12 mr-4 mt-1 mb-3 p-5 bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm">
 													{isLoading && !detail ? (
 														<div className="flex items-center gap-2 text-slate-500 py-4">
 															<Loader2 className="w-4 h-4 animate-spin" />
@@ -1187,13 +1187,13 @@ function DetailedAnalysis({
 															{detail.sectionContext?.map((ctx, i) => (
 																<div key={i} className="space-y-3">
 																	{ctx.content && (
-																		<p className="text-slate-700 dark:text-slate-300 leading-relaxed">{ctx.content}</p>
+																		<p className="text-slate-700 leading-relaxed">{ctx.content}</p>
 																	)}
 																	{ctx.fileUrls?.map(url => {
 																		const formatted = formatMediaUrl(url);
 																		if (isAudioUrl(url)) {
 																			return (
-																				<div key={url} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3">
+																				<div key={url} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
 																					<audio controls className="h-8 w-full">
 																						<source src={formatted} />
 																					</audio>
@@ -1202,7 +1202,7 @@ function DetailedAnalysis({
 																		}
 																		if (isImageUrl(url)) {
 																			return (
-																				<div key={url} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+																				<div key={url} className="overflow-hidden rounded-lg border border-slate-200">
 																					{/* eslint-disable-next-line @next/next/no-img-element */}
 																					<img src={formatted} alt="" className="h-auto w-full max-w-md object-contain" />
 																				</div>
@@ -1214,7 +1214,7 @@ function DetailedAnalysis({
 															))}
 
 															{detail.content && (
-																<div className="text-slate-800 dark:text-slate-200 font-medium">{detail.content}</div>
+																<div className="text-slate-800 font-medium">{detail.content}</div>
 															)}
 
 															{item.q.choices?.length > 0 && (
@@ -1226,15 +1226,15 @@ function DetailedAnalysis({
 																		return (
 																			<div key={c.key} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
 																				isCorrect
-																					? 'bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-700'
+																					? 'bg-green-50 border-green-300'
 																					: isUserPick
-																						? 'bg-red-50 border-red-300 dark:bg-red-900/30 dark:border-red-700'
-																						: 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+																						? 'bg-red-50 border-red-300'
+																						: 'bg-white border-slate-200'
 																			}`}>
 																				<span className={`font-bold ${
 																					isCorrect ? 'text-green-600' : isUserPick ? 'text-red-500' : 'text-slate-500'
 																				}`}>{letter}.</span>
-																				<span className={isCorrect ? 'font-bold text-green-700 dark:text-green-400' : isUserPick ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}>
+																				<span className={isCorrect ? 'font-bold text-green-700' : isUserPick ? 'text-red-600' : 'text-slate-600'}>
 																					{c.content || c.key}
 																				</span>
 																			</div>
@@ -1244,23 +1244,23 @@ function DetailedAnalysis({
 															)}
 
 															{detail.explanation && (
-																<div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-																	<p className="font-bold text-blue-800 dark:text-blue-300 text-sm mb-2">Giải thích chi tiết đáp án</p>
-																	<div className="text-sm text-blue-900 dark:text-blue-200 leading-relaxed whitespace-pre-wrap">{detail.explanation}</div>
+																<div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+																	<p className="font-bold text-blue-800 text-sm mb-2">Giải thích chi tiết đáp án</p>
+																	<div className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{detail.explanation}</div>
 																</div>
 															)}
 
 															{detail.fileUrls?.length > 0 && (
 																<div className="space-y-2">
 																	{detail.fileUrls.filter(isAudioUrl).map(url => (
-																		<div key={url} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3">
+																		<div key={url} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
 																			<audio controls className="h-8 w-full">
 																				<source src={formatMediaUrl(url)} />
 																			</audio>
 																		</div>
 																	))}
 																	{detail.fileUrls.filter(isImageUrl).map(url => (
-																		<div key={url} className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+																		<div key={url} className="overflow-hidden rounded-lg border border-slate-200">
 																			{/* eslint-disable-next-line @next/next/no-img-element */}
 																			<img src={formatMediaUrl(url)} alt="" className="h-auto w-full max-w-md object-contain" />
 																		</div>

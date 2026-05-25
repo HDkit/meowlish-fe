@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { extractApiErrorMessage } from '@/lib/api-response';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -65,40 +66,6 @@ const normalizeRoleIdFromToken = (decoded: any): string => {
 	}
 
 	return 'role-learner';
-};
-
-const extractApiErrorMessage = (err: any, fallback: string) => {
-	const apiError = err?.body?.error;
-
-	if (typeof apiError === 'string' && apiError.trim()) {
-		return apiError;
-	}
-
-	if (Array.isArray(apiError) && apiError.length > 0) {
-		return apiError.map((item) => String(item)).join(', ');
-	}
-
-	if (typeof apiError?.message === 'string' && apiError.message.trim()) {
-		return apiError.message;
-	}
-
-	if (Array.isArray(apiError?.message) && apiError.message.length > 0) {
-		return apiError.message.map((item: unknown) => String(item)).join(', ');
-	}
-
-	if (typeof err?.body?.message === 'string' && err.body.message.trim()) {
-		return err.body.message;
-	}
-
-	if (Array.isArray(err?.body?.message) && err.body.message.length > 0) {
-		return err.body.message.map((item: unknown) => String(item)).join(', ');
-	}
-
-	if (typeof err?.message === 'string' && err.message.trim() && err.message !== 'Bad Request') {
-		return err.message;
-	}
-
-	return fallback;
 };
 
 export function AuthForm() {
@@ -338,7 +305,7 @@ export function AuthForm() {
 						<form onSubmit={handleSubmit} className='space-y-4'>
 							{!isLogin && (
 								<div className='space-y-2'>
-									<Label className='text-gray-700 font-semibold'>Username</Label>
+									<Label className='text-gray-700 font-semibold'>Tên đăng nhập</Label>
 									<div className='relative'>
 										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input

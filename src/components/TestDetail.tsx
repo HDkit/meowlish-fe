@@ -4,6 +4,13 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Section, TestType, Skill } from '../types/client';
 import { ReportDialog } from './ReportDialog';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from './ui/dialog';
 import { useParams, useRouter } from 'next/navigation';
 import {
 	ExamPracticeService,
@@ -80,7 +87,7 @@ export function ExamDetailPage() {
 	const { id } = useParams();
 	const router = useRouter();
 	const dispatch = useAppDispatch();
-	if (!id) return <div>Invalid Exam ID</div>;
+	if (!id) return <div>ID bài thi không hợp lệ</div>;
 
 	const examId = id as string;
 
@@ -443,7 +450,7 @@ export function ExamDetailPage() {
 							<div className='bg-white/10 border-l-4 border-primary/60 backdrop-blur-md rounded-r-xl p-4 flex gap-3 text-primary-foreground/80 text-sm mt-4 shadow-sm'>
 								<Info className='shrink-0 h-5 w-5 mt-0.5 text-primary/60' />
 								<p className="font-medium text-[15px]">
-									Chế độ <strong>Full Test</strong> sẽ mô phỏng kỳ thi thực tế. Hệ thống sẽ căn cứ vào đây để tính <strong>Scaled Score</strong> (điểm chuẩn) cho bạn (VD: Band 9.0 IELTS hoặc 990 TOEIC).
+									Chế độ <strong>Bài thi đầy đủ</strong> sẽ mô phỏng kỳ thi thực tế. Hệ thống sẽ căn cứ vào đây để tính <strong>Điểm quy đổi</strong> (điểm chuẩn) cho bạn (VD: Band 9.0 IELTS hoặc 990 TOEIC).
 								</p>
 							</div>
 						)}
@@ -842,54 +849,54 @@ export function ExamDetailPage() {
 					)}
 
 					{/* Dialog fallback: Attempt cũ chưa nộp (khi 499 nhưng history chưa fetch kịp) */}
-					{pendingAttemptDialog.open && (
-						<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4'>
-							<div className='bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-amber-200 relative overflow-hidden'>
-								<div className='absolute top-0 right-0 w-40 h-40 bg-amber-300 rounded-full blur-[50px] opacity-30 pointer-events-none' />
-								<div className='relative z-10'>
-									<div className='flex items-center gap-3 mb-4'>
+					<Dialog open={pendingAttemptDialog.open} onOpenChange={(open) => { if (!open) setPendingAttemptDialog({ open: false, attemptId: null }); }}>
+						<DialogContent className='bg-white rounded-3xl border-amber-200 shadow-2xl sm:max-w-md p-0 overflow-hidden'>
+							<div className='absolute top-0 right-0 w-40 h-40 bg-amber-300 rounded-full blur-[50px] opacity-30 pointer-events-none' />
+							<div className='relative z-10 p-8'>
+								<DialogHeader className='mb-4'>
+									<div className='flex items-center gap-3'>
 										<div className='p-2.5 bg-amber-100 rounded-2xl'>
 											<AlertCircle className='h-7 w-7 text-amber-600' />
 										</div>
 										<div>
-											<h3 className='text-xl font-black text-slate-900'>Bài thi chưa hoàn thành</h3>
-											<p className='text-sm text-slate-500 font-medium'>Bạn còn một bài thi đang dang dở</p>
+											<DialogTitle className='text-xl font-black text-slate-900'>Bài thi chưa hoàn thành</DialogTitle>
+											<DialogDescription className='text-sm text-slate-500 font-medium'>Bạn còn một bài thi đang dang dở</DialogDescription>
 										</div>
 									</div>
-									<p className='text-slate-600 mb-8 leading-relaxed text-[15px]'>
-										Bạn có một lần thi trước chưa được nộp. Bạn muốn <strong>tiếp tục</strong> bài đó, hay <strong>nộp bài cũ và bắt đầu lại</strong>?
-									</p>
-									<div className='flex flex-col sm:flex-row gap-3'>
-										{pendingAttemptDialog.attemptId && (
-											<Button
-												className='flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-2xl shadow-md'
-												onClick={() => {
-													setPendingAttemptDialog({ open: false, attemptId: null });
-													router.push(`/test/do/${pendingAttemptDialog.attemptId}`);
-												}}
-											>
-												<Play className='h-4 w-4 mr-2' /> Tiếp tục bài cũ
-											</Button>
-										)}
+								</DialogHeader>
+								<p className='text-slate-600 mb-8 leading-relaxed text-[15px]'>
+									Bạn có một lần thi trước chưa được nộp. Bạn muốn <strong>tiếp tục</strong> bài đó, hay <strong>nộp bài cũ và bắt đầu lại</strong>?
+								</p>
+								<div className='flex flex-col sm:flex-row gap-3'>
+									{pendingAttemptDialog.attemptId && (
 										<Button
-											variant='outline'
-											className='flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-12 rounded-2xl'
-											onClick={handleSubmitOldAndStartNew}
+											className='flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-2xl shadow-md'
+											onClick={() => {
+												setPendingAttemptDialog({ open: false, attemptId: null });
+												router.push(`/test/do/${pendingAttemptDialog.attemptId}`);
+											}}
 										>
-											Nộp bài cũ & Tạo bài mới
+											<Play className='h-4 w-4 mr-2' /> Tiếp tục bài cũ
 										</Button>
-										<Button
-											variant='ghost'
-											className='sm:w-auto text-slate-500 font-bold h-12 rounded-2xl'
-											onClick={() => setPendingAttemptDialog({ open: false, attemptId: null })}
-										>
-											Hủy
-										</Button>
-									</div>
+									)}
+									<Button
+										variant='outline'
+										className='flex-1 border-red-200 text-red-600 hover:bg-red-50 font-bold h-12 rounded-2xl'
+										onClick={handleSubmitOldAndStartNew}
+									>
+										Nộp bài cũ & Tạo bài mới
+									</Button>
+									<Button
+										variant='ghost'
+										className='sm:w-auto text-slate-500 font-bold h-12 rounded-2xl'
+										onClick={() => setPendingAttemptDialog({ open: false, attemptId: null })}
+									>
+										Hủy
+									</Button>
 								</div>
 							</div>
-						</div>
-					)}
+						</DialogContent>
+					</Dialog>
 				</div>
 
 

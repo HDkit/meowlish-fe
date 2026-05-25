@@ -2,11 +2,48 @@
 
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Target, BookOpen, Clock, CheckCircle, Trophy, ChevronRight, Sparkles, TrendingUp, PlayCircle, Calendar } from 'lucide-react';
+import { Target, BookOpen, TrendingUp, PlayCircle, Calendar, Flame, ChevronDown } from 'lucide-react';
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { ExamPracticeService } from '@/lib/api-client';
+
+type DateRangeOption = {
+	label: string;
+	days: number;
+};
+
+const DATE_RANGES: DateRangeOption[] = [
+	{ label: '1 tuần', days: 7 },
+	{ label: '1 tháng', days: 30 },
+	{ label: '3 tháng', days: 90 },
+	{ label: '6 tháng', days: 180 },
+	{ label: '1 năm', days: 365 },
+];
+
+function computeStreak(dateMap: Map<string, number>): number {
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	let streak = 0;
+	const check = new Date(today);
+	if (!dateMap.get(formatDateKey(check))) {
+		check.setDate(check.getDate() - 1);
+	}
+	while (true) {
+		const key = formatDateKey(check);
+		if ((dateMap.get(key) || 0) > 0) {
+			streak++;
+			check.setDate(check.getDate() - 1);
+		} else {
+			break;
+		}
+	}
+	return streak;
+}
+
+function formatDateKey(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export function Dashboard() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
@@ -14,10 +51,27 @@ export function Dashboard() {
 	const router = useRouter();
 
 	const [loading, setLoading] = useState(true);
-	const [stats, setStats] = useState<any>(null); // UserStatsDto
-	const [recommendedExams, setRecommendedExams] = useState<any[]>([]); // MinimalExamInfoDto[]
-	const [totalExamsDisplay, setTotalExamsDisplay] = useState("10+");
+	const [stats, setStats] = useState<any>(null);
 	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
+	const [rangeDays, setRangeDays] = useState(180);
+	const [rangeOpen, setRangeOpen] = useState(false);
+
+	const fetchCalendar = useCallback(async (days: number) => {
+		try {
+			const end = new Date();
+			const start = new Date();
+			start.setDate(end.getDate() - days);
+			const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
+				from: start.toISOString(),
+				to: end.toISOString()
+			});
+			if (summaryRes.data?.history) {
+				setCalendarHistory(summaryRes.data.history);
+			}
+		} catch {
+			console.warn("Failed to load calendar history");
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -27,76 +81,46 @@ export function Dashboard() {
 		}
 
 		const fetchDashboardData = async () => {
+			setLoading(true);
 			try {
-				setLoading(true);
-				
-				// Fetch user stats
-				try {
-					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
-					setStats(statsRes.data);
-				} catch (err) {
-					console.warn("Failed to load user stats (Might be unavailable yet)");
-				}
-
-				// Fetch history for heatmap
-				try {
-					const end = new Date();
-					const start = new Date();
-					start.setDate(end.getDate() - 365);
-					const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-						from: start.toISOString(),
-						to: end.toISOString()
-					});
-					if (summaryRes.data?.history) {
-						setCalendarHistory(summaryRes.data.history);
-					}
-				} catch (err) {
-					console.warn("Failed to load history (Might be unavailable yet)");
-				}
-
-				// Fetch exams (using random limit for 'recommendation')
-				try {
-					const examsRes = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(undefined, undefined, undefined, 6);
-					
-					// Randomize the recommended exams
-					const examList = examsRes.data?.exams || [];
-					const shuffled = [...examList].sort(() => 0.5 - Math.random());
-					setRecommendedExams(shuffled.slice(0, 3));
-					
-					// Approximate total limit since endpoint is cursor-based
-					setTotalExamsDisplay(examList.length >= 6 ? "50+" : `${examList.length}`);
-				} catch (err) {
-					console.warn("Failed to load exams (Might be unavailable yet)");
-				}
-
+				await Promise.all([
+					ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1()
+						.then(res => setStats(res.data))
+						.catch(() => {}),
+					fetchCalendar(rangeDays),
+				]);
 			} finally {
 				setLoading(false);
 			}
 		};
 
 		fetchDashboardData();
-	}, [isHydrated, currentUser, router]);
+	}, [isHydrated, currentUser, router, fetchCalendar, rangeDays]);
 
-	const heatmapWeeks = useMemo(() => {
-		const dateMap = new Map<string, number>();
+	const dateMap = useMemo(() => {
+		const map = new Map<string, number>();
 		for (const [epochStr, count] of Object.entries(calendarHistory)) {
 			const date = new Date(Number(epochStr) * 1000);
-			const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-			dateMap.set(key, (dateMap.get(key) || 0) + count);
+			const key = formatDateKey(date);
+			map.set(key, (map.get(key) || 0) + count);
 		}
+		return map;
+	}, [calendarHistory]);
 
+	const heatmapWeeks = useMemo(() => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 
+		const weeksToShow = Math.min(Math.ceil(rangeDays / 7), 52);
 		const start = new Date(today);
-		start.setDate(start.getDate() - (25 * 7 + today.getDay()));
+		start.setDate(start.getDate() - (weeksToShow * 7 + today.getDay()));
 
 		const grid: { date: Date; count: number }[][] = [];
 		let week: { date: Date; count: number }[] = [];
 
 		const current = new Date(start);
 		while (current <= today) {
-			const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+			const key = formatDateKey(current);
 			const count = dateMap.get(key) || 0;
 			week.push({ date: new Date(current), count });
 
@@ -109,7 +133,19 @@ export function Dashboard() {
 		if (week.length > 0) grid.push(week);
 
 		return grid;
-	}, [calendarHistory]);
+	}, [dateMap, rangeDays]);
+
+	const maxCount = useMemo(() => {
+		let max = 0;
+		for (const week of heatmapWeeks) {
+			for (const day of week) {
+				if (day.count > max) max = day.count;
+			}
+		}
+		return max;
+	}, [heatmapWeeks]);
+
+	const streak = useMemo(() => computeStreak(dateMap), [dateMap]);
 
 	if (!isHydrated || loading) {
 		return <div className="min-h-screen bg-background flex items-center justify-center">
@@ -121,28 +157,41 @@ export function Dashboard() {
 
 	const completedAttemptsCount = stats?.attemptCounts || 0;
 	const averageScore = stats?.averageScoreInPercentage ? Math.round(stats.averageScoreInPercentage) : 0;
-	
-	// Temporarily remove in-progress attempts since backend attempt history doesn't bundle exam titles elegantly yet
-	const inProgressAttemptsCount = 0;
+	const topicCount = stats?.tagInfos?.length || 0;
 
 	const getCellColor = (count: number) => {
-		if (count === 0) return 'bg-slate-100 dark:bg-slate-800/60';
-		if (count === 1) return 'bg-green-200 dark:bg-green-800/50';
-		if (count === 2) return 'bg-green-400 dark:bg-green-600/70';
-		return 'bg-green-600 dark:bg-green-500';
+		if (count === 0) return 'bg-slate-100';
+		if (maxCount === 0) return 'bg-slate-100';
+		const ratio = count / maxCount;
+		if (ratio <= 0.25) return 'bg-green-200';
+		if (ratio <= 0.5) return 'bg-green-300';
+		if (ratio <= 0.75) return 'bg-green-400';
+		return 'bg-green-600';
 	};
+
+	const displayName = currentUser.fullName && currentUser.fullName !== 'User'
+		? currentUser.fullName
+		: currentUser.username || currentUser.email?.split('@')[0] || 'Bạn';
+	const showUsername = currentUser.username
+		&& currentUser.fullName
+		&& currentUser.fullName !== 'User'
+		&& currentUser.fullName !== currentUser.username;
+
+	const selectedRange = DATE_RANGES.find(r => r.days === rangeDays) || DATE_RANGES[3];
 
 	return (
 		<div className='min-h-screen bg-background pb-10'>
-			{/* ── Hero Header ── */}
+			{/* Hero Header */}
 			<div className="relative overflow-hidden bg-primary text-primary-foreground">
-
 				<div className="relative px-6 py-10 max-w-6xl mx-auto">
 					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
 						<div>
-							<h1 className="text-3xl font-bold mb-2">
-								Chào mừng trở lại, {currentUser.fullName}! 👋
+							<h1 className="text-3xl font-bold mb-1">
+								Chào mừng trở lại, {displayName}!
 							</h1>
+							{showUsername && (
+								<p className="text-primary-foreground/50 text-sm mb-2">@{currentUser.username}</p>
+							)}
 							<p className="text-primary-foreground/80 text-lg">
 								Hôm nay là một ngày tuyệt vời để nâng cao kỹ năng Tiếng Anh của bạn.
 							</p>
@@ -150,7 +199,7 @@ export function Dashboard() {
 						<Button
 							size="lg"
 							onClick={() => router.push('/test-selection')}
-							className="bg-white text-primary hover:bg-primary/10 font-bold shadow-lg border-0 px-6 py-6"
+							className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg border-0 px-6 py-6"
 						>
 							<PlayCircle className="h-5 w-5 mr-2" />
 							Làm bài tập ngay
@@ -183,23 +232,23 @@ export function Dashboard() {
 						</div>
 						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
-								<div className="p-2 bg-amber-500/30 rounded-lg">
-									<Clock className="h-5 w-5 text-amber-100" />
+								<div className="p-2 bg-orange-500/30 rounded-lg">
+									<Flame className="h-5 w-5 text-orange-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{inProgressAttemptsCount}</div>
-									<div className="text-xs text-primary-foreground/60">Đang thực hiện</div>
+									<div className="text-2xl font-bold">{streak}</div>
+									<div className="text-xs text-primary-foreground/60">Ngày liên tiếp</div>
 								</div>
 							</div>
 						</div>
 						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-secondary/30 rounded-lg">
-									<Trophy className="h-5 w-5 text-secondary-foreground" />
+									<TrendingUp className="h-5 w-5 text-secondary-foreground" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{totalExamsDisplay}</div>
-									<div className="text-xs text-primary-foreground/60">Đề thi có sẵn</div>
+									<div className="text-2xl font-bold">{topicCount}</div>
+									<div className="text-xs text-primary-foreground/60">Chủ đề đã ôn</div>
 								</div>
 							</div>
 						</div>
@@ -209,12 +258,41 @@ export function Dashboard() {
 
 			<div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 				{/* Activity Heatmap */}
-				<Card className="border-0 shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all mb-8">
+				<Card className="border-0 shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all">
 					<CardContent className="pt-6 pb-6">
-						<h2 className="text-xl font-bold flex items-center gap-2 text-foreground mb-4">
-							<Calendar className="w-5 h-5 text-primary" />
-							Hoạt động luyện tập
-						</h2>
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+								<Calendar className="w-5 h-5 text-primary" />
+								Hoạt động luyện tập
+							</h2>
+							<div className="relative">
+								<Button
+									variant="outline"
+									size="sm"
+									className="text-sm gap-1"
+									onClick={() => setRangeOpen(!rangeOpen)}
+								>
+									{selectedRange.label}
+									<ChevronDown className="h-3.5 w-3.5" />
+								</Button>
+								{rangeOpen && (
+									<div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[120px]">
+										{DATE_RANGES.map(range => (
+											<button
+												key={range.days}
+												className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === rangeDays ? 'font-bold text-primary' : 'text-slate-700'}`}
+												onClick={() => {
+													setRangeDays(range.days);
+													setRangeOpen(false);
+												}}
+											>
+												{range.label}
+											</button>
+										))}
+									</div>
+								)}
+							</div>
+						</div>
 						<div className="flex gap-[3px] overflow-x-auto pb-2">
 							<div className="flex flex-col gap-[3px] mr-1 shrink-0">
 								{['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, i) => (
@@ -242,95 +320,51 @@ export function Dashboard() {
 						<div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground justify-end">
 							<span>Ít</span>
 							<div className="flex gap-[3px]">
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100 dark:bg-slate-800/60" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-200 dark:bg-green-800/50" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-400 dark:bg-green-600/70" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-600 dark:bg-green-500" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-200" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-300" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-400" />
+								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-600" />
 							</div>
 							<span>Nhiều</span>
 						</div>
 					</CardContent>
 				</Card>
 
-				{/* Section: Đề xuất cho bạn */}
-				<div className="space-y-4">
-					<div className="flex items-center justify-between border-b pb-2">
-						<div className="flex items-center gap-2 text-gray-900">
-							<Sparkles className="h-5 w-5 text-secondary/80" />
-							<h2 className="text-xl font-bold">Đề xuất cho bạn</h2>
-						</div>
-						<Button variant="ghost" className="text-primary hover:text-primary/80" onClick={() => router.push('/test-selection')}>
-							Xem tất cả <ChevronRight className="h-4 w-4 ml-1" />
-						</Button>
-					</div>
-					{recommendedExams.length === 0 ? (
-						<div className="text-center py-10 bg-white rounded-xl border border-gray-200 border-dashed">
-							<CheckCircle className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-							<h3 className="text-gray-900 font-medium">Bạn đã làm hết các đề hiện có!</h3>
-							<p className="text-sm text-gray-500 mt-1">Hệ thống đang cập nhật thêm đề thi mới.</p>
-						</div>
-					) : (
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							{recommendedExams.map(exam => (
-								<Card key={exam.id} className="flex flex-col hover:shadow-lg transition-all border-gray-100 group overflow-hidden">
-									<div className="h-1 shrink-0 bg-primary" />
-									<CardContent className="p-5 flex flex-col flex-1">
-										<div className="inline-block self-start px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 mb-3 uppercase tracking-wider">
-											{exam.tags && exam.tags.find((t: string) => t.toLowerCase() === 'ielts' || t.toLowerCase() === 'toeic') || 'EXAM'}
-										</div>
-										<h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-											{exam.name}
-										</h3>
-										<p className="text-sm text-gray-500 line-clamp-2 mb-4">
-											Bao gồm {exam.questionsCount} câu hỏi
-										</p>
-										<div className="mt-auto">
-											<Button className="w-full bg-slate-900 hover:bg-primary/90 text-white transition-colors" onClick={() => router.push(`/test/${exam.id}`)}>
-												Xem chi tiết
-											</Button>
-										</div>
-									</CardContent>
-								</Card>
-							))}
-						</div>
-					)}
-				</div>
-
-				{/* AI Features */}
-				<div className="space-y-4 pt-4">
-					<h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">Tính năng AI thông minh</h2>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-						{[
-							{
-								icon: Target,
-								title: 'Câu hỏi thích ứng',
-								desc: 'Câu hỏi tự động điều chỉnh theo trình độ của bạn để tối ưu hóa việc học',
-								color: 'bg-rose-100 text-rose-600'
-							},
-							{
-								icon: TrendingUp,
-								title: 'Phản hồi tức thì',
-								desc: 'Nhận giải thích chi tiết và gợi ý cải thiện ngay lập tức',
-								color: 'bg-primary/15 text-primary'
-							},
-							{
-								icon: BookOpen,
-								title: 'Lộ trình cá nhân hóa',
-								desc: 'AI tạo kế hoạch học tập riêng dựa trên điểm mạnh và điểm yếu của bạn',
-								color: 'bg-emerald-100 text-emerald-600'
-							},
-						].map(({ icon: Icon, title, desc, color }) => (
-							<div key={title} className='group hover:-translate-y-1 transition-transform bg-white rounded-xl p-6 border border-gray-100 shadow-sm'>
-								<div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${color}`}>
-									<Icon className='h-6 w-6' />
-								</div>
-								<h4 className='font-bold text-gray-900 mb-2'>{title}</h4>
-								<p className='text-sm text-gray-500 leading-relaxed'>{desc}</p>
+				{/* Quick Actions */}
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+					{[
+						{
+							icon: Target,
+							title: 'Luyện đề thi',
+							desc: 'Chọn đề thi phù hợp với trình độ và mục tiêu của bạn',
+							color: 'bg-rose-100 text-rose-600',
+							href: '/test-selection',
+						},
+						{
+							icon: TrendingUp,
+							title: 'Xem tiến độ',
+							desc: 'Theo dõi quá trình học tập và phân tích điểm mạnh, điểm yếu',
+							color: 'bg-primary/15 text-primary',
+							href: '/progress',
+						},
+						{
+							icon: BookOpen,
+							title: 'Flashcards',
+							desc: 'Ôn tập từ vựng với thẻ ghi nhớ thông minh',
+							color: 'bg-emerald-100 text-emerald-600',
+							href: '/flashcards',
+						},
+					].map(({ icon: Icon, title, desc, color, href }) => (
+						<button key={title} onClick={() => router.push(href)} className='group hover:-translate-y-1 transition-transform bg-white rounded-xl p-6 border border-gray-100 shadow-sm text-left'>
+							<div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${color}`}>
+								<Icon className='h-6 w-6' />
 							</div>
-						))}
-					</div>
+							<h4 className='font-bold text-gray-900 mb-2'>{title}</h4>
+							<p className='text-sm text-gray-500 leading-relaxed'>{desc}</p>
+						</button>
+					))}
 				</div>
-
 			</div>
 		</div>
 	);

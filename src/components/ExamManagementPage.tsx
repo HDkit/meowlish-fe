@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from './ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService, getAccessToken, getRefreshToken } from '@/lib/api-client';
+import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken } from '@/lib/api-client';
 
 // ─── Status config ───────────────────────────────────────────────
 
@@ -39,13 +39,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
     },
 };
 
-const SKILL_LABELS: Record<string, string> = {
-    reading: 'Reading',
-    listening: 'Listening',
-    writing: 'Writing',
-    speaking: 'Speaking',
-};
-
 interface ExamItem {
     id: string;
     title: string;
@@ -63,7 +56,7 @@ interface ExamItem {
 export function ExamManagementPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { currUser, isMod, isStaff } = useAuth();
+    const { currUser, isMod, isStaff, isHeadStaff } = useAuth();
 
     const [allExams, setAllExams] = useState<ExamItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -86,7 +79,12 @@ export function ExamManagementPage() {
 
         setLoading(true);
         try {
-            const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1(undefined, undefined, 100);
+            const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1(
+                undefined,
+                undefined,
+                100,
+                { key: SortOptionsDto.key.CREATED_AT, direction: SortOptionsDto.direction.DESC },
+            );
             setAllExams(res.data?.exams ?? []);
         } catch (err) {
             console.warn('ExamManagement: failed to load exams', err);
@@ -100,8 +98,8 @@ export function ExamManagementPage() {
         if (currUser) fetchExams();
     }, [currUser, fetchExams]);
 
-    // Staff only sees their own exams
-    const staffExams = isStaff || isMod
+    // head_staff sees all exams; staff/mod only their own
+    const staffExams = (isStaff || isMod) && !isHeadStaff
         ? allExams.filter(e => e.createdBy === currUser?.id)
         : allExams;
 
@@ -316,6 +314,17 @@ export function ExamManagementPage() {
                                                         >
                                                             <Eye className="h-3.5 w-3.5 mr-1.5" />
                                                             Xem
+                                                        </Button>
+                                                    )}
+                                                    {exam.status === 'APPROVED' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => router.push(`/test/${exam.id}`)}
+                                                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-8 px-3"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                                            Xem thử
                                                         </Button>
                                                     )}
                                                     <AlertDialog>

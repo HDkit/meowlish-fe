@@ -364,17 +364,17 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
           );
         } else {
           console.warn('STT returned empty text, using fallback');
-          finalTranscriptText = finalTranscript.trim() || transcript.trim() || "No speech detected";
+          finalTranscriptText = finalTranscript.trim() || transcript.trim() || "Không phát hiện giọng nói";
           toast.warning('� Không phát hiện được giọng nói rõ ràng');
         }
       } catch (sttError) {
         console.error('STT service failed:', sttError);
-        finalTranscriptText = finalTranscript.trim() || transcript.trim() || "Speech processing failed";
+        finalTranscriptText = finalTranscript.trim() || transcript.trim() || "Xử lý giọng nói thất bại";
         toast.error('❌ Lỗi xử lý giọng nói, sử dụng kết quả thô');
       }
       
       if (!finalTranscriptText) {
-        finalTranscriptText = "No speech detected";
+        finalTranscriptText = "Không phát hiện giọng nói";
       }
       
       // Add user message
@@ -617,7 +617,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                     className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                        : 'bg-gray-100 text-gray-900'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -627,7 +627,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                         <Mic className="h-4 w-4" />
                       )}
                       <span className="text-xs opacity-75">
-                        {message.role === 'ai' ? 'AI Examiner' : 'You'}
+                        {message.role === 'ai' ? 'Giám khảo AI' : 'Bạn'}
                         {message.duration && ` • ${message.duration}s`}
                       </span>
                     </div>
@@ -638,7 +638,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
               
               {isProcessing && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-3">
+                  <div className="bg-gray-100 rounded-2xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm">AI đang xử lý...</span>
@@ -653,16 +653,16 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
         </Card>
 
         {/* Recording Controls */}
-        <Card className="border-2 border-primary/30 dark:border-primary/30">
+        <Card className="border-2 border-primary/30">
           <CardContent className="p-6">
             <div className="space-y-4">
               {/* Live Transcript */}
               {isRecording && (
-                <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border border-primary/30 dark:border-primary/30">
+                <div className="bg-primary/10 p-4 rounded-lg border border-primary/30">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-semibold text-primary">Live Speech Recognition</span>
+                      <span className="text-sm font-semibold text-primary">Nhận dạng giọng nói trực tiếp</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
@@ -680,39 +680,39 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                   
                   <div className="space-y-3">
                     {/* Web Speech API Live Results */}
-                    <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border">
+                    <div className="bg-white p-3 rounded-lg border">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                          🎙️ Web Speech API (Live)
+                        <span className="text-xs font-medium text-gray-600">
+                          🎙️ Web Speech API (Trực tiếp)
                         </span>
                         {isRecording && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-red-500">Recording</span>
+                            <span className="text-xs text-red-500">Đang ghi âm</span>
                           </div>
                         )}
                       </div>
                       
                       {finalTranscript && (
-                        <p className="text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 p-2 rounded mb-2">
+                        <p className="text-sm text-green-700 bg-green-50 p-2 rounded mb-2">
                           <strong>✅ Confirmed:</strong> {finalTranscript}
                         </p>
                       )}
                       
                       <p className="text-sm text-muted-foreground min-h-[2rem]">
-                        <strong>⏳ Live:</strong> {transcript || 'Đang nghe... Hãy nói rõ ràng'}
+                        <strong>⏳ Trực tiếp:</strong> {transcript || 'Đang nghe... Hãy nói rõ ràng'}
                       </p>
                     </div>
 
                     {/* ElevenLabs Processing Info */}
                     {isWhisperEnabled && (
-                      <div className="bg-secondary/10 dark:bg-secondary/20 p-3 rounded-lg border border-secondary/30 dark:border-secondary/50">
+                      <div className="bg-secondary/10 p-3 rounded-lg border border-secondary/30">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-secondary dark:text-secondary/80">
+                          <span className="text-xs font-medium text-secondary">
                             🤖 ElevenLabs AI Enhancement
                           </span>
                         </div>
-                        <p className="text-xs text-secondary dark:text-secondary/80">
+                        <p className="text-xs text-secondary">
                           Sau khi dứt lời, AI sẽ cải thiện độ chính xác transcription
                         </p>
                       </div>
@@ -806,29 +806,29 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                 <div className="space-y-3">
                   {/* Instructions */}
                   {messages.length === 0 ? (
-                    <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border border-primary/30 dark:border-primary/30">
+                    <div className="bg-primary/10 p-4 rounded-lg border border-primary/30">
                       <div className="flex items-center gap-2 mb-2">
                         <MessageSquare className="h-4 w-4 text-primary" />
                         <span className="text-sm font-semibold text-primary">Chờ examiner đặt câu hỏi</span>
                       </div>
-                      <p className="text-sm text-primary dark:text-primary/80">
+                      <p className="text-sm text-primary">
                         AI examiner sẽ đặt câu hỏi cho bạn. Sau đó bạn có thể nhấn nút ghi âm để trả lời.
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                       <div className="flex items-center gap-2 mb-2">
                         <Mic className="h-4 w-4 text-green-600" />
                         <span className="text-sm font-semibold text-green-600">Sẵn sàng ghi âm câu trả lời</span>
                       </div>
-                      <p className="text-sm text-green-600 dark:text-green-400">
+                      <p className="text-sm text-green-600">
                         Nhấn <strong>"Bắt đầu trả lời"</strong> để ghi âm câu trả lời của bạn.
                       </p>
                     </div>
                   )}
 
                   {/* Tips */}
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg">
                     <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="font-medium mb-1">💡 Mẹo khi trả lời:</p>
@@ -848,14 +848,14 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
 
               {/* Processing Status */}
               {isProcessing && (
-                <div className="bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-5 w-5 animate-spin text-yellow-600" />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300 mb-1">
+                      <div className="text-sm font-medium text-yellow-700 mb-1">
                         {isWhisperEnabled ? '🤖 AI Processing Pipeline' : '🔄 Processing Audio'}
                       </div>
-                      <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                      <div className="text-xs text-yellow-600">
                         {isWhisperEnabled ? (
                           <>
                             <span className="inline-block mr-3">📝 ElevenLabs Transcription</span>
@@ -869,7 +869,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
                   </div>
                   
                   {/* Progress Animation */}
-                  <div className="mt-3 w-full bg-yellow-200 dark:bg-yellow-800 rounded-full h-1">
+                  <div className="mt-3 w-full bg-yellow-200 rounded-full h-1">
                     <div className="bg-yellow-500 h-1 rounded-full animate-pulse" style={{width: '60%'}}></div>
                   </div>
                 </div>
@@ -894,8 +894,8 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
           
           <div className="space-y-4">
             {/* Current Session Stats */}
-            <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border">
-              <h4 className="font-semibold text-sm mb-3 text-gray-700 dark:text-gray-300">📊 Thống kê phiên thi:</h4>
+            <div className="bg-primary/10 p-4 rounded-lg border">
+              <h4 className="font-semibold text-sm mb-3 text-gray-700">📊 Thống kê phiên thi:</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex flex-col">
                   <span className="text-muted-foreground">Thời gian:</span>
@@ -910,10 +910,10 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
 
             {/* Warning */}
             {messages.filter(m => m.role === 'user').length === 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+                  <span className="text-sm font-medium text-yellow-700">
                     Bạn chưa trả lời câu hỏi nào!
                   </span>
                 </div>
@@ -921,7 +921,7 @@ export function SpeakingSession({ part, onEnd, onCancel }: SpeakingSessionProps)
             )}
 
             {/* What happens next */}
-            <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+            <div className="bg-gray-50 p-3 rounded-lg">
               <p className="text-sm text-muted-foreground">
                 💡 Sau khi kết thúc, bạn sẽ xem được kết quả chi tiết với phân tích AI về bài nói của mình.
               </p>

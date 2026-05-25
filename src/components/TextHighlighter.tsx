@@ -7,6 +7,7 @@ import { addFlashCard } from './store/flashCardSlice';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { RootState } from './store/main/store';
 import type { FlashCard, FlashcardList } from '../types/client';
+import { useToast } from '@/components/ui/use-toast';
 
 // --- TYPES ---
 type Highlight = {
@@ -60,7 +61,8 @@ const FlashcardFormModal = ({
   onSaveSuccess: (word: string) => void;
 }) => {
   const dispatch = useDispatch();
-  
+  const { toast } = useToast();
+
   const [formData, setFormData] = useState<FlashcardFormData>({
     word: '',
     definition: '',
@@ -89,7 +91,7 @@ const FlashcardFormModal = ({
     const { word, definition, listTitle, listDescription, selectedListId, createNewList } = formData;
 
     if (!currentUser || !word.trim()) {
-      alert('Vui lòng nhập từ mới!');
+      toast({ title: 'Vui lòng nhập từ mới!', variant: 'destructive' });
       return;
     }
 
@@ -116,7 +118,7 @@ const FlashcardFormModal = ({
       dispatch(addFlashcardList({
          id: defaultListId,
          authorId: currentUser.id,
-         name: "My Flashcards",
+         name: "Thẻ ghi nhớ",
          isPublic: false,
          tags: [],
          createdAt: Date.now()

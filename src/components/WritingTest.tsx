@@ -363,7 +363,7 @@ export function WritingTest() {
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{/* Score & Feedback */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-primary/10 dark:bg-primary/20">
+							<CardHeader className="bg-primary/10">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-xl">Điểm & nhận xét chung</CardTitle>
 									{results.overall_score > 0 && (
@@ -404,7 +404,7 @@ export function WritingTest() {
 											<AlertCircle className="h-4 w-4 text-amber-500" />
 											Nhận xét từ hệ thống
 										</h4>
-										<div className="text-sm text-foreground whitespace-pre-wrap bg-amber-50 dark:bg-amber-950/30 p-5 rounded-lg border border-amber-200 dark:border-amber-800 leading-relaxed">
+										<div className="text-sm text-foreground whitespace-pre-wrap bg-amber-50 p-5 rounded-lg border border-amber-200 leading-relaxed">
 											{results.additionalData}
 										</div>
 									</div>
@@ -414,7 +414,7 @@ export function WritingTest() {
 
 						{/* Corrections */}
 						<Card className="border-2 shadow-lg">
-							<CardHeader className="bg-secondary/10 dark:bg-secondary/20">
+							<CardHeader className="bg-secondary/10">
 								<CardTitle className="text-xl">Bài viết chỉnh sửa & lỗi cụ thể</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-6 pt-6">
@@ -425,7 +425,7 @@ export function WritingTest() {
 											<span className="w-3 h-3 rounded-full bg-secondary"></span>
 											<span>Phiên bản đã chỉnh sửa</span>
 										</div>
-										<div className="text-sm whitespace-pre-wrap bg-green-50 dark:bg-green-950/30 p-5 rounded-lg border-2 border-green-200 dark:border-green-800 max-h-[250px] overflow-y-auto leading-relaxed">
+										<div className="text-sm whitespace-pre-wrap bg-green-50 p-5 rounded-lg border-2 border-green-200 max-h-[250px] overflow-y-auto leading-relaxed">
 											{results.corrected_version}
 										</div>
 									</div>
@@ -441,7 +441,7 @@ export function WritingTest() {
 											{results.corrections.map((correction, idx) => (
 												<div
 													key={idx}
-													className="p-4 border-2 border-dashed border-red-200 dark:border-red-800 rounded-lg space-y-3 bg-red-50/50 dark:bg-red-950/20"
+													className="p-4 border-2 border-dashed border-red-200 rounded-lg space-y-3 bg-red-50/50"
 												>
 													<div className="flex items-center gap-2">
 														<span className="w-3 h-3 rounded-full bg-red-500"></span>
@@ -451,14 +451,14 @@ export function WritingTest() {
 													</div>
 													<div className="space-y-2 text-sm">
 														<div className="flex items-start gap-2">
-															<strong className="text-red-700 dark:text-red-400 min-w-[50px]">Gốc:</strong>
-															<span className="text-red-600 dark:text-red-400 line-through">
+															<strong className="text-red-700 min-w-[50px]">Gốc:</strong>
+															<span className="text-red-600 line-through">
 																{correction.original_text || 'N/A'}
 															</span>
 														</div>
 														<div className="flex items-start gap-2">
-															<strong className="text-green-700 dark:text-green-400 min-w-[50px]">Sửa:</strong>
-															<span className="text-green-600 dark:text-green-400 font-medium">
+															<strong className="text-green-700 min-w-[50px]">Sửa:</strong>
+															<span className="text-green-600 font-medium">
 																{correction.corrected_text || 'N/A'}
 															</span>
 														</div>
@@ -473,7 +473,7 @@ export function WritingTest() {
 											))}
 										</div>
 									) : (
-										<div className="text-sm text-muted-foreground flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+										<div className="text-sm text-muted-foreground flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
 											<CheckCircle2 className="h-5 w-5 text-green-500" />
 											<span>Không có lỗi cụ thể nào được liệt kê.</span>
 										</div>
