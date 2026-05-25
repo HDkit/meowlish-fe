@@ -23,13 +23,18 @@ import {
 } from './ui/alert-dialog';
 import {
 	MessageCircle, Plus, Send, Hash, ArrowLeft,
-	Video, Calendar, Trash2, Search, Settings,
+	Video, Calendar, Trash2, Search, Settings, ShieldBan,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
 const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/api/v1/chat/ws/socket.io';
+const ALLOWED_LIVE_URL = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|twitch\.tv)\//i;
+
+function isValidLiveUrl(url: string): boolean {
+	return !url || ALLOWED_LIVE_URL.test(url);
+}
 
 function CreateRoomDialog({ open, onOpenChange, onSave }: {
 	open: boolean;
@@ -42,10 +47,13 @@ function CreateRoomDialog({ open, onOpenChange, onSave }: {
 
 	const handleSave = () => {
 		if (!name.trim()) return;
+		if (liveUrl.trim() && !isValidLiveUrl(liveUrl.trim())) return;
 		onSave(name.trim(), liveUrl.trim() || undefined, liveDate ? new Date(liveDate).getTime() : undefined);
 		setName(''); setLiveUrl(''); setLiveDate('');
 		onOpenChange(false);
 	};
+
+	const urlInvalid = !!liveUrl.trim() && !isValidLiveUrl(liveUrl.trim());
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,9 +70,10 @@ function CreateRoomDialog({ open, onOpenChange, onSave }: {
 					</div>
 					<div className="space-y-2">
 						<Label className="font-bold">URL phát trực tiếp (tùy chọn)</Label>
-						<Input placeholder="https://meet.google.com/..." value={liveUrl} onChange={(e) => setLiveUrl(e.target.value)} className="rounded-xl" />
+						<Input placeholder="https://youtube.com/live/... hoặc https://twitch.tv/..." value={liveUrl} onChange={(e) => setLiveUrl(e.target.value)} className={`rounded-xl ${urlInvalid ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
+						{urlInvalid && <p className="text-xs text-red-500">Chỉ hỗ trợ YouTube và Twitch</p>}
 					</div>
-					{liveUrl && (
+					{liveUrl && !urlInvalid && (
 						<div className="space-y-2">
 							<Label className="font-bold">Ngày giờ dự kiến</Label>
 							<Input type="datetime-local" value={liveDate} onChange={(e) => setLiveDate(e.target.value)} className="rounded-xl" />
@@ -73,7 +82,7 @@ function CreateRoomDialog({ open, onOpenChange, onSave }: {
 				</div>
 				<DialogFooter className="px-6 py-4 bg-gray-50 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Hủy</Button>
-					<Button onClick={handleSave} disabled={!name.trim()} className="rounded-xl">Tạo phòng</Button>
+					<Button onClick={handleSave} disabled={!name.trim() || urlInvalid} className="rounded-xl">Tạo phòng</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
@@ -102,8 +111,10 @@ function EditRoomScheduleDialog({ room, open, onOpenChange, onSave }: {
 
 	const currentUrl = clearUrl ? '' : url;
 	const currentDate = clearTime ? '' : liveDate;
+	const urlInvalid = !!currentUrl.trim() && !isValidLiveUrl(currentUrl.trim());
 
 	const handleSave = () => {
+		if (urlInvalid) return;
 		onSave(
 			currentUrl || undefined,
 			currentDate ? new Date(currentDate).getTime() : undefined,
@@ -137,11 +148,12 @@ function EditRoomScheduleDialog({ room, open, onOpenChange, onSave }: {
 							)}
 						</div>
 						<Input
-							placeholder={clearUrl ? '' : (room?.scheduledLiveUrl || 'Nhập URL...')}
+							placeholder={clearUrl ? '' : (room?.scheduledLiveUrl || 'https://youtube.com/live/... hoặc https://twitch.tv/...')}
 							value={currentUrl}
 							onChange={(e) => { setUrl(e.target.value); setClearUrl(false); }}
-							className="rounded-xl"
+							className={`rounded-xl ${urlInvalid ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
 						/>
+						{urlInvalid && <p className="text-xs text-red-500">Chỉ hỗ trợ YouTube và Twitch</p>}
 					</div>
 					<div className="space-y-2">
 						<div className="flex items-center justify-between">
@@ -167,7 +179,7 @@ function EditRoomScheduleDialog({ room, open, onOpenChange, onSave }: {
 				</div>
 				<DialogFooter className="px-6 py-4 bg-gray-50 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Hủy</Button>
-					<Button onClick={handleSave} className="rounded-xl">Lưu</Button>
+					<Button onClick={handleSave} disabled={urlInvalid} className="rounded-xl">Lưu</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
@@ -208,7 +220,10 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const [input, setInput] = useState('');
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const socketRef = useRef<Socket | null>(null);
+	const joinedRef = useRef(false);
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
+	const [banTarget, setBanTarget] = useState<{ uid: string; name: string } | null>(null);
+	const [banReason, setBanReason] = useState('');
 
 	const messages = useMemo(
 		() => allMessages.filter((m) => m.roomId === room.id).sort((a, b) => a.createdAt - b.createdAt),
@@ -258,6 +273,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	}, [messages.length]);
 
 	useEffect(() => {
+		joinedRef.current = false;
 		const token = typeof window !== 'undefined'
 			? window.localStorage.getItem('access_token') || document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')
 			: null;
@@ -265,10 +281,14 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 			path: SOCKET_PATH,
 			transports: ['websocket'],
 			query: { token: token || '' },
+			autoConnect: false,
 		});
 		socketRef.current = socket;
 
-		socket.emit('join-room', room.id);
+		socket.on('connect', () => {
+			socket.emit('join-room', room.id);
+			joinedRef.current = true;
+		});
 
 		socket.on('message', (data: { id: string; fromId: string; message: string; createdAt: string }) => {
 			const msg: ChatMessage = {
@@ -301,8 +321,13 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 			}
 		});
 
+		socket.connect();
+
 		return () => {
-			socket.emit('leave-room', room.id);
+			joinedRef.current = false;
+			if (socket.connected) {
+				socket.emit('leave-room', room.id);
+			}
 			socket.disconnect();
 		};
 	}, [room.id, dispatch]);
@@ -310,12 +335,28 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
 
 	const handleSend = () => {
-		if (!input.trim() || !socketRef.current) return;
-		socketRef.current.emit('chat', {
+		if (!input.trim() || !socketRef.current || !joinedRef.current) return;
+		const text = input.trim();
+		socketRef.current.emit('chat', { roomId: room.id, message: text });
+		dispatch(addChatMessage({
+			id: `local-${Date.now()}`,
 			roomId: room.id,
-			message: input.trim(),
-		});
+			uid: currUser?.id ?? '',
+			message: text,
+			createdAt: Date.now(),
+		}));
 		setInput('');
+	};
+
+	const handleBan = async () => {
+		if (!banTarget) return;
+		try {
+			await ChatRoomService.banUser(room.id, banTarget.uid, banReason || 'Vi phạm quy tắc phòng chat');
+		} catch (err) {
+			console.error('Failed to ban user:', err);
+		}
+		setBanTarget(null);
+		setBanReason('');
 	};
 
 	const formatTime = (ts: number) => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -349,13 +390,6 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 						<Settings className="h-4 w-4" />
 					</Button>
 				)}
-				{room.scheduledLiveUrl && (
-					<a href={room.scheduledLiveUrl} target="_blank" rel="noopener noreferrer">
-						<Button size="sm" variant="outline" className="rounded-xl gap-1">
-							<Video className="h-4 w-4" /> Mở tab mới
-						</Button>
-					</a>
-				)}
 			</div>
 			<EditRoomScheduleDialog
 				room={room}
@@ -379,6 +413,33 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 					}
 				}}
 			/>
+
+			{/* Ban Confirmation Dialog */}
+			<AlertDialog open={!!banTarget} onOpenChange={(open) => { if (!open) { setBanTarget(null); setBanReason(''); } }}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Cấm người dùng khỏi phòng?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Bạn sắp cấm <span className="font-semibold text-gray-800">{banTarget?.name}</span> khỏi phòng chat này. Người dùng sẽ bị ngắt kết nối và không thể tham gia lại.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<div className="px-6 pb-2">
+						<Label className="text-sm font-medium">Lý do (tùy chọn)</Label>
+						<Input
+							placeholder="VD: Spam, ngôn ngữ không phù hợp..."
+							value={banReason}
+							onChange={(e) => setBanReason(e.target.value)}
+							className="mt-1.5 rounded-xl"
+						/>
+					</div>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Hủy</AlertDialogCancel>
+						<AlertDialogAction onClick={handleBan} className="bg-red-600 hover:bg-red-700">
+							<ShieldBan className="h-4 w-4 mr-1" /> Cấm
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Live Stream Iframe */}
 			{embedUrl && (
@@ -417,10 +478,21 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 									<div className="flex-1 h-px bg-gray-200" />
 								</div>
 							)}
-							<div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}>
+							<div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1 group/msg`}>
 								<div className={`max-w-[75%] ${isMe ? 'order-2' : ''}`}>
 									{!isMe && (
-										<p className="text-xs font-semibold text-gray-500 mb-0.5 ml-3">{getUserName(msg.uid)}</p>
+										<div className="flex items-center gap-1 mb-0.5 ml-3">
+											<p className="text-xs font-semibold text-gray-500">{getUserName(msg.uid)}</p>
+											{canEditRoom && (
+												<button
+													onClick={() => setBanTarget({ uid: msg.uid, name: getUserName(msg.uid) })}
+													className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-50"
+													title="Cấm người dùng"
+												>
+													<ShieldBan className="h-3 w-3 text-red-400 hover:text-red-600" />
+												</button>
+											)}
+										</div>
 									)}
 									<div className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-primary text-white rounded-tr-md' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-md shadow-sm'}`}>
 										{msg.message}
