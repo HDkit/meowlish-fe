@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
@@ -8,6 +9,11 @@ import { useAuth } from '@/lib/hooks/useAuth';
 export function LandingNavbar() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50">
@@ -20,7 +26,9 @@ export function LandingNavbar() {
         </button>
 
         <div className="flex items-center gap-3 ml-auto">
-          {isAuthenticated ? (
+          {!hydrated ? (
+            <div className="w-24 h-9" />
+          ) : isAuthenticated ? (
             <Button
               onClick={() => router.push('/dashboard')}
               className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
