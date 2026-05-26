@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BlogService } from '@/lib/api/services/BlogService';
 import { AuthService } from '@/lib/api-client';
+import { NavPagination } from './ui/nav-pagination';
 import { useRouter } from 'next/navigation';
 
 function BlogCard({
@@ -93,9 +94,16 @@ export function BlogPage() {
 
 	const [selectedTag, setSelectedTag] = useState<string | '__all__'>('__all__');
 	const [searchQuery, setSearchQuery] = useState('');
+	const [page, setPage] = useState(1);
+	const [totalCount, setTotalCount] = useState(0);
+	const limit = 12;
 
 	useEffect(() => {
-		BlogService.listBlogs(undefined, undefined, 100)
+		setPage(1);
+	}, [selectedTag]);
+
+	useEffect(() => {
+		BlogService.listBlogs(undefined, page, limit)
 			.then((res: any) => {
 				const data = (res as any).data ?? res;
 				const apiBlogs: Blog[] = (data.blogs ?? []).map((b: any) => ({
@@ -107,6 +115,7 @@ export function BlogPage() {
 					createdAt: new Date(b.createdAt).getTime(),
 				}));
 				setBlogs(apiBlogs);
+				setTotalCount(data.totalCount ?? apiBlogs.length);
 
 				const uniqueAuthorIds = [...new Set(apiBlogs.map(b => b.authorId))];
 				if (uniqueAuthorIds.length > 0) {
@@ -124,7 +133,7 @@ export function BlogPage() {
 			})
 			.catch(err => console.error('[BlogPage] fetch error:', err))
 			.finally(() => setLoading(false));
-	}, []);
+	}, [page]);
 
 	const allTags = useMemo(() => {
 		const tagSet = new Set<string>();
@@ -219,7 +228,7 @@ export function BlogPage() {
 											}`}
 									>
 										<span className="font-semibold">Tất cả bài viết</span>
-										<Badge className={`${selectedTag === '__all__' ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>{blogs.length}</Badge>
+										<Badge className={`${selectedTag === '__all__' ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>{totalCount}</Badge>
 									</button>
 
 									<div className="h-px w-full bg-gray-100 my-2" />
@@ -292,6 +301,7 @@ export function BlogPage() {
 								))}
 							</div>
 						)}
+						<NavPagination page={page} totalPages={Math.ceil(totalCount / limit)} onPageChange={setPage} />
 					</main>
 				</div>
 			</div>

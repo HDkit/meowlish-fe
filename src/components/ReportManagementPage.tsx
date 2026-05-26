@@ -23,6 +23,7 @@ import {
 	AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
 	AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from './ui/alert-dialog';
+import { NavPagination } from './ui/nav-pagination';
 import {
 	Flag, Search, Eye, Clock, CheckCircle, XCircle,
 	AlertTriangle, Bug, FileText, UserX, MessageSquare,
@@ -52,15 +53,18 @@ export default function ReportManagementPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [filterStatus, setFilterStatus] = useState<ReportStatus | 'all'>('all');
 	const [filterCategory, setFilterCategory] = useState<string>('all');
+	const [page, setPage] = useState(1);
+	const [totalCount, setTotalCount] = useState(0);
+	const limit = 20;
 	const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 	const [responseText, setResponseText] = useState('');
 	const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
 
 	const getUserName = (userId: string) => users.find((u) => u.id === userId)?.fullName || 'Không rõ';
 
-	const fetchReports = useCallback(async () => {
+	const fetchReports = useCallback(async (pageNum: number) => {
 		try {
-			const res = await ReportService.listReports();
+			const res = await ReportService.listReports(undefined, undefined, undefined, undefined, undefined, pageNum, limit);
 			if (res?.reports) {
 				dispatch(setReports(res.reports.map((r) => ({
 					id: r.id,
@@ -77,6 +81,7 @@ export default function ReportManagementPage() {
 					createdAt: new Date(r.createdAt).getTime(),
 					updatedAt: r.updatedAt ? new Date(r.updatedAt).getTime() : undefined,
 				}))));
+				setTotalCount(res.totalCount);
 			}
 		} catch (err) {
 			console.error('[ReportManagementPage] fetch error:', err);
@@ -84,7 +89,7 @@ export default function ReportManagementPage() {
 		}
 	}, [dispatch]);
 
-	useEffect(() => { fetchReports(); }, [fetchReports]);
+	useEffect(() => { fetchReports(page); }, [fetchReports, page]);
 
 	const filteredReports = useMemo(() => {
 		let filtered = [...reports];
@@ -299,6 +304,7 @@ export default function ReportManagementPage() {
 						})}
 					</div>
 				)}
+				<NavPagination page={page} totalPages={Math.ceil(totalCount / limit)} onPageChange={setPage} />
 			</div>
 
 			{/* Respond Dialog */}

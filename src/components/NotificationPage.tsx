@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector } from '@/lib/store/hooks';
 import { Notification, NotificationType } from '@/types/client';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -13,6 +13,7 @@ import {
 import {
 	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
+import { NavPagination } from './ui/nav-pagination';
 
 const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ElementType; color: string }> = {
 	[NotificationType.Report]: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
@@ -29,6 +30,10 @@ export default function NotificationPage() {
 
 	const [filterType, setFilterType] = useState<NotificationType | 'all'>('all');
 	const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
+	const [page, setPage] = useState(1);
+	const limit = 20;
+
+	useEffect(() => { setPage(1); }, [filterType, filterRead]);
 
 	const myNotifications = useMemo(() => {
 		let filtered = allNotifications.filter((n) => n.userId === currUser?.id);
@@ -37,6 +42,13 @@ export default function NotificationPage() {
 		if (filterRead === 'read') filtered = filtered.filter((n) => n.isRead);
 		return filtered.sort((a, b) => b.createdAt - a.createdAt);
 	}, [allNotifications, currUser?.id, filterType, filterRead]);
+
+	const paginatedNotifications = useMemo(() => {
+		const start = (page - 1) * limit;
+		return myNotifications.slice(start, start + limit);
+	}, [myNotifications, page, limit]);
+
+	const totalPages = useMemo(() => Math.max(1, Math.ceil(myNotifications.length / limit)), [myNotifications.length, limit]);
 
 	const handleMarkRead = (notif: Notification) => {
 		markAsRead(notif.id);
@@ -109,7 +121,7 @@ export default function NotificationPage() {
 				</div>
 
 				{/* Notification List */}
-				{myNotifications.length === 0 ? (
+				{paginatedNotifications.length === 0 ? (
 					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
 						<Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
 						<h3 className="text-lg font-bold text-gray-800">Không có thông báo</h3>
@@ -117,7 +129,7 @@ export default function NotificationPage() {
 					</div>
 				) : (
 					<div className="space-y-3">
-						{myNotifications.map((notif) => {
+						{paginatedNotifications.map((notif) => {
 							const conf = TYPE_CONFIG[notif.type] ?? DEFAULT_TYPE_CONFIG;
 							const Icon = conf.icon;
 							return (
@@ -148,6 +160,7 @@ export default function NotificationPage() {
 						})}
 					</div>
 				)}
+				<NavPagination page={page} totalPages={totalPages} onPageChange={setPage} />
 			</div>
 		</div>
 	);

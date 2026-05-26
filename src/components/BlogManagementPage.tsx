@@ -19,6 +19,7 @@ import {
     Plus, Edit, Trash2, Search, BookOpen,
     Filter, Tag, X, ArrowLeft, Save, Loader2,
 } from 'lucide-react';
+import { NavPagination } from './ui/nav-pagination';
 import { MarkdownEditor } from './MarkdownEditor';
 
 type BlogFormData = {
@@ -37,6 +38,9 @@ export default function BlogManagementPage() {
     const [authorMap, setAuthorMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const limit = 20;
 
     const [viewMode, setViewMode] = useState<ViewMode>({ type: 'list' });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -47,13 +51,14 @@ export default function BlogManagementPage() {
     const DEFAULT_FORM: BlogFormData = { title: '', content: '', tags: [] };
     const [formData, setFormData] = useState<BlogFormData>(DEFAULT_FORM);
 
-    const fetchBlogs = useCallback(async () => {
+    const fetchBlogs = useCallback(async (pageNum: number) => {
         setLoading(true);
         try {
-            const res = await BlogService.listBlogs(undefined, undefined, 100);
+            const res = await BlogService.listBlogs(undefined, pageNum, limit);
             const data = (res as any).data ?? res;
             const blogList: BlogResponse[] = data.blogs ?? [];
             setBlogs(blogList);
+            setTotalCount(data.totalCount ?? blogList.length);
 
             const uniqueAuthorIds = [...new Set(blogList.map(b => b.authorId))];
             if (uniqueAuthorIds.length > 0) {
@@ -77,8 +82,8 @@ export default function BlogManagementPage() {
     }, [toast]);
 
     useEffect(() => {
-        if (currUser) fetchBlogs();
-    }, [currUser, fetchBlogs]);
+        if (currUser) fetchBlogs(page);
+    }, [currUser, page, fetchBlogs]);
 
     if (!currUser || (!isStaff && !isHeadStaff && !isMod)) {
         return (
@@ -121,7 +126,7 @@ export default function BlogManagementPage() {
             toast({ title: 'Đã tạo bài viết' });
             resetForm();
             setViewMode({ type: 'list' });
-            await fetchBlogs();
+            await fetchBlogs(page);
         } catch (err) {
             console.error('Failed to create blog:', err);
             toast({ title: 'Tạo bài viết thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
@@ -142,7 +147,7 @@ export default function BlogManagementPage() {
             toast({ title: 'Đã cập nhật bài viết' });
             resetForm();
             setViewMode({ type: 'list' });
-            await fetchBlogs();
+            await fetchBlogs(page);
         } catch (err) {
             console.error('Failed to update blog:', err);
             toast({ title: 'Cập nhật thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
@@ -368,6 +373,7 @@ export default function BlogManagementPage() {
                         </table>
                     </div>
                 )}
+                <NavPagination page={page} totalPages={Math.ceil(totalCount / limit)} onPageChange={setPage} />
 
                 {/* Delete Dialog */}
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

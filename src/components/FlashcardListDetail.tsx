@@ -5,6 +5,7 @@ import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/
 import { FlashCard, FlashcardList, TagType } from '../types/client';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import { NavPagination } from './ui/nav-pagination';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
@@ -328,32 +329,40 @@ export function FlashcardListDetail() {
 		}
 	}, [isHydrated, currentUser, router]);
 
+	const [cardPage, setCardPage] = useState(1);
+	const [cardTotalCount, setCardTotalCount] = useState(0);
+	const cardLimit = 24;
+
 	useEffect(() => {
 		if (!listId) return;
 		setLoading(true);
-		FlashcardListService.getFlashCardList(listId)
-			.then((res: any) => {
-				const data = res?.data ?? res;
-				setCards((data.flashCards ?? []).map((fc: any) => mapFlashCard(fc, listId)));
-				// Ensure the list metadata is in Redux for currentList lookup
-				if (!lists.find((l) => l.id === listId) && data.id) {
+		Promise.all([
+			FlashcardListService.getFlashCardList(listId),
+			FlashcardListService.listCardsInList(listId, cardPage, cardLimit),
+		])
+			.then(([listRes, cardsRes]) => {
+				const listData = (listRes as any)?.data ?? listRes;
+				if (!lists.find((l) => l.id === listId) && listData.id) {
 					dispatch(addFlashcardList({
-						id: data.id,
-						authorId: data.authorId,
-						name: data.name,
-						description: data.description || undefined,
-						isPublic: data.isPublic,
-						tags: data.tags ?? [],
-						createdAt: new Date(data.createdAt).getTime(),
+						id: listData.id,
+						authorId: listData.authorId,
+						name: listData.name,
+						description: listData.description || undefined,
+						isPublic: listData.isPublic,
+						tags: listData.tags ?? [],
+						createdAt: new Date(listData.createdAt).getTime(),
 					}));
 				}
+				const cardsData = (cardsRes as any)?.data ?? cardsRes;
+				setCards((cardsData.flashCards ?? []).map((fc: any) => mapFlashCard(fc, listId)));
+				setCardTotalCount(cardsData.totalCount ?? 0);
 			})
 			.catch((err) => {
 				console.error('[FlashcardListDetail] fetch error:', err);
 				toast({ title: 'Tải danh sách thẻ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			})
 			.finally(() => setLoading(false));
-	}, [listId, dispatch]);
+	}, [listId, cardPage]);
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
@@ -504,7 +513,7 @@ export function FlashcardListDetail() {
 								<div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
 									<div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
 										<BookOpen className="h-4 w-4 text-primary/80" />
-										{cards.length} thẻ ghi nhớ
+										{cardTotalCount} thẻ ghi nhớ
 									</div>
 									{currentList.description && (
 										<p className="text-slate-500 font-medium">
@@ -599,18 +608,23 @@ export function FlashcardListDetail() {
 						</Button>
 					</div>
 				) : (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-						{filteredFlashcards.map((flashcard) => (
-							<FlashcardCard
-								key={flashcard.id}
-								flashcard={flashcard}
-								tagName={getTagName(flashcard)}
-								editable={isOwnList}
-								onEdit={() => handleEditFlashcard(flashcard)}
-								onDelete={() => handleDeleteFlashcard(flashcard.id)}
-							/>
-						))}
-					</div>
+					<>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+							{filteredFlashcards.map((flashcard) => (
+								<FlashcardCard
+									key={flashcard.id}
+									flashcard={flashcard}
+									tagName={getTagName(flashcard)}
+									editable={isOwnList}
+									onEdit={() => handleEditFlashcard(flashcard)}
+									onDelete={() => handleDeleteFlashcard(flashcard.id)}
+								/>
+							))}
+						</div>
+						{filteredFlashcards.length > 0 && (
+							<NavPagination page={cardPage} totalPages={Math.ceil(cardTotalCount / cardLimit)} onPageChange={setCardPage} />
+						)}
+					</>
 				)}
 			</div>
 

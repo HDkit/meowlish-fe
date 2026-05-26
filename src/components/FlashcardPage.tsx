@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashcardList } from '../types/client';
 import { addFlashcardList, removeFlashcardList, updateFlashcardList, setFlashcardLists } from './store/flashcardListSlice';
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
+import { NavPagination } from './ui/nav-pagination';
 import { useRouter } from 'next/navigation';
 
 // Dialog để tạo/sửa list
@@ -190,11 +191,16 @@ export function FlashcardPage() {
 	const [activeTab, setActiveTab] = useState<'mine' | 'discover'>('mine');
 	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
 	const [discoverLoading, setDiscoverLoading] = useState(false);
+	const [minePage, setMinePage] = useState(1);
+	const [mineTotalCount, setMineTotalCount] = useState(0);
+	const [discoverPage, setDiscoverPage] = useState(1);
+	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
+	const limit = 12;
 
-	// Fetch my lists from API on mount
+	// Fetch my lists from API on mount/page change
 	useEffect(() => {
 		if (!currentUser) return;
-		FlashcardListService.listFlashCardLists(currentUser.id)
+		FlashcardListService.listFlashCardLists(currentUser.id, undefined, minePage, limit)
 			.then((res: any) => {
 				const data = res?.data ?? res;
 				const apiLists: FlashcardList[] = (data.lists ?? []).map((l: any) => ({
@@ -207,9 +213,10 @@ export function FlashcardPage() {
 					createdAt: new Date(l.createdAt).getTime(),
 				}));
 				dispatch(setFlashcardLists(apiLists));
+				setMineTotalCount(data.totalCount ?? apiLists.length);
 			})
 			.catch(err => console.error('[FlashcardPage] fetch lists error:', err));
-	}, [currentUser, dispatch]);
+	}, [currentUser, minePage, dispatch]);
 
 	const myLists = useMemo(
 		() => lists.filter((l) => l.authorId === currentUser?.id),
@@ -217,36 +224,35 @@ export function FlashcardPage() {
 	);
 
 	// Fetch public lists for discover tab
-	const loadDiscoverLists = useCallback(async () => {
-		if (!currentUser) return;
+	useEffect(() => {
+		if (activeTab !== 'discover' || !currentUser) return;
 		setDiscoverLoading(true);
-		try {
-			const res = await FlashcardListService.listFlashCardLists(undefined, true);
-			const data = (res as any)?.data ?? res;
-			const publicLists: FlashcardList[] = (data.lists ?? [])
-				.filter((l: any) => l.authorId !== currentUser.id)
-				.map((l: any) => ({
-					id: l.id,
-					authorId: l.authorId,
-					name: l.name,
-					description: l.description || undefined,
-					isPublic: l.isPublic,
-					tags: l.tags ?? [],
-					createdAt: new Date(l.createdAt).getTime(),
-				}));
-			setDiscoverLists(publicLists);
-		} catch (err) {
-			console.error('[FlashcardPage] fetch discover lists error:', err);
-		} finally {
-			setDiscoverLoading(false);
-		}
-	}, [currentUser]);
+		setDiscoverPage(1);
+	}, [activeTab, currentUser]);
 
 	useEffect(() => {
-		if (activeTab === 'discover') {
-			loadDiscoverLists();
-		}
-	}, [activeTab, loadDiscoverLists]);
+		if (activeTab !== 'discover' || !currentUser) return;
+		setDiscoverLoading(true);
+		FlashcardListService.listFlashCardLists(undefined, true, discoverPage, limit)
+			.then((res: any) => {
+				const data = (res as any)?.data ?? res;
+				const publicLists: FlashcardList[] = (data.lists ?? [])
+					.filter((l: any) => l.authorId !== currentUser.id)
+					.map((l: any) => ({
+						id: l.id,
+						authorId: l.authorId,
+						name: l.name,
+						description: l.description || undefined,
+						isPublic: l.isPublic,
+						tags: l.tags ?? [],
+						createdAt: new Date(l.createdAt).getTime(),
+					}));
+				setDiscoverLists(publicLists);
+				setDiscoverTotalCount(data.totalCount ?? 0);
+			})
+			.catch((err) => console.error('[FlashcardPage] fetch discover lists error:', err))
+			.finally(() => setDiscoverLoading(false));
+	}, [activeTab, currentUser, discoverPage]);
 
 	const handleAddList = async (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
 		if (!currentUser) return;
@@ -469,6 +475,7 @@ export function FlashcardPage() {
 										</Card>
 									))}
 								</div>
+								<NavPagination page={minePage} totalPages={Math.ceil(mineTotalCount / limit)} onPageChange={setMinePage} />
 							</div>
 						)}
 					</>
@@ -546,6 +553,7 @@ export function FlashcardPage() {
 										</Card>
 									))}
 								</div>
+								<NavPagination page={discoverPage} totalPages={Math.ceil(discoverTotalCount / limit)} onPageChange={setDiscoverPage} />
 							</div>
 						)}
 					</>
