@@ -42,7 +42,7 @@ import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
-import { ExamPracticeService, AchievementsService, AuthService, FilesService } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService } from '@/lib/api-client';
 import { setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
@@ -105,22 +105,19 @@ export function UserPage() {
 
 	const fetchGoal = useCallback(async () => {
 		try {
-			const res = await fetch('/api/v1/exams/goals/my');
-			if (res.status === 404) {
-				setGoal(null);
-				return;
-			}
-			if (!res.ok) {
-				setGoal(null);
-				return;
-			}
-			const body = await res.json();
-			if (body?.data) {
-				setGoal(body.data as unknown as GoalResDto);
+			const res = await GoalsService.goalGatewayControllerGetGoalV1();
+			const body = res as any;
+			const data = body?.data ?? body;
+			if (data && data.target != null) {
+				setGoal(data as GoalResDto);
 			} else {
 				setGoal(null);
 			}
-		} catch {
+		} catch (err: any) {
+			if (err?.status === 404) {
+				setGoal(null);
+				return;
+			}
 			setGoal(null);
 		}
 	}, []);
@@ -594,7 +591,7 @@ export function UserPage() {
 										<Target className='h-12 w-12 mx-auto mb-4 text-gray-300' />
 										<h3 className='text-lg font-bold text-gray-800 mb-2'>Chưa có mục tiêu</h3>
 										<p className='text-gray-500 mb-4'>Thiết lập mục tiêu học tập để theo dõi tiến độ</p>
-										<AddGoalButton onGoalChanged={fetchGoal} />
+										<AddGoalButton onGoalUpdated={fetchGoal} />
 									</CardContent>
 								</Card>
 							)}
