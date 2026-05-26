@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashcardList } from '../types/client';
 import { addFlashcardList, removeFlashcardList, updateFlashcardList, setFlashcardLists } from './store/flashcardListSlice';
@@ -185,7 +185,13 @@ export function FlashcardPage() {
 		}
 	}, [isHydrated, currentUser, router]);
 
-	// Fetch lists from API on mount
+	const [listDialogOpen, setListDialogOpen] = useState(false);
+	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
+	const [activeTab, setActiveTab] = useState<'mine' | 'discover'>('mine');
+	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
+	const [discoverLoading, setDiscoverLoading] = useState(false);
+
+	// Fetch my lists from API on mount
 	useEffect(() => {
 		if (!currentUser) return;
 		FlashcardListService.listFlashCardLists(currentUser.id)
@@ -205,13 +211,42 @@ export function FlashcardPage() {
 			.catch(err => console.error('[FlashcardPage] fetch lists error:', err));
 	}, [currentUser, dispatch]);
 
-	const [listDialogOpen, setListDialogOpen] = useState(false);
-	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
-
 	const myLists = useMemo(
 		() => lists.filter((l) => l.authorId === currentUser?.id),
 		[lists, currentUser]
 	);
+
+	// Fetch public lists for discover tab
+	const loadDiscoverLists = useCallback(async () => {
+		if (!currentUser) return;
+		setDiscoverLoading(true);
+		try {
+			const res = await FlashcardListService.listFlashCardLists(undefined, true);
+			const data = (res as any)?.data ?? res;
+			const publicLists: FlashcardList[] = (data.lists ?? [])
+				.filter((l: any) => l.authorId !== currentUser.id)
+				.map((l: any) => ({
+					id: l.id,
+					authorId: l.authorId,
+					name: l.name,
+					description: l.description || undefined,
+					isPublic: l.isPublic,
+					tags: l.tags ?? [],
+					createdAt: new Date(l.createdAt).getTime(),
+				}));
+			setDiscoverLists(publicLists);
+		} catch (err) {
+			console.error('[FlashcardPage] fetch discover lists error:', err);
+		} finally {
+			setDiscoverLoading(false);
+		}
+	}, [currentUser]);
+
+	useEffect(() => {
+		if (activeTab === 'discover') {
+			loadDiscoverLists();
+		}
+	}, [activeTab, loadDiscoverLists]);
 
 	const handleAddList = async (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
 		if (!currentUser) return;
@@ -314,113 +349,206 @@ export function FlashcardPage() {
 			</div>
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-				{/* Lists Section */}
-				{myLists.length === 0 ? (
-					<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
-						<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
-							<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
-						</div>
-						<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Flashcard Nào</h3>
-						<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
-							Hãy tạo danh sách flashcard đầu tiên để bắt đầu quá trình ghi nhớ từ vựng hiệu quả hơn.
-						</p>
-						<Button
-							onClick={() => {
-								setEditingList(undefined);
-								setListDialogOpen(true);
-							}}
-							className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl px-8 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
-						>
-							<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
-							Bắt Đầu Ngay
-						</Button>
-					</div>
-				) : (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
-							<h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-								Danh sách của bạn
-								<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{myLists.length}</span>
-							</h2>
-						</div>
+				{/* Tabs */}
+				<div className="flex items-center gap-1 bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 w-fit animate-in fade-in duration-500">
+					<button
+						onClick={() => setActiveTab('mine')}
+						className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'mine' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
+					>
+						Của tôi
+					</button>
+					<button
+						onClick={() => setActiveTab('discover')}
+						className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'discover' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
+					>
+						Khám phá
+					</button>
+				</div>
 
-						{/* List Cards Grid */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-							{myLists.map((list) => (
-								<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
-									{/* Decorative Blob */}
-									<div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+				{activeTab === 'mine' && (
+					<>
+						{myLists.length === 0 ? (
+							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
+								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
+								</div>
+								<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Flashcard Nào</h3>
+								<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
+									Hãy tạo danh sách flashcard đầu tiên để bắt đầu quá trình ghi nhớ từ vựng hiệu quả hơn.
+								</p>
+								<Button
+									onClick={() => {
+										setEditingList(undefined);
+										setListDialogOpen(true);
+									}}
+									className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl px-8 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
+								>
+									<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
+									Bắt Đầu Ngay
+								</Button>
+							</div>
+						) : (
+							<div className="space-y-6">
+								<div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
+									<h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+										Danh sách của bạn
+										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{myLists.length}</span>
+									</h2>
+								</div>
 
-									<CardContent className="p-6 flex-1 flex flex-col relative z-10">
-										{/* Header */}
-										<div className="flex items-start justify-between mb-5">
-											<div className="flex items-start gap-4 flex-1">
-												<div className="w-12 h-12 bg-primary/10 border border-primary/20 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-													<Folder className="h-6 w-6" strokeWidth={2} />
-												</div>
-												<div className="flex-1 min-w-0 pt-0.5">
-													<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-primary transition-colors">
-														{list.name}
-													</h3>
-													<div className="flex items-center gap-1.5 flex-wrap mb-3">
-													<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
-														<BookOpen className="w-3.5 h-3.5 text-primary/80" />
-														Flashcards
-													</div>
-													{list.isPublic && (
-														<div className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-200/60">
-															Công khai
+								{/* List Cards Grid */}
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+									{myLists.map((list) => (
+										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
+											<div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+
+											<CardContent className="p-6 flex-1 flex flex-col relative z-10">
+												<div className="flex items-start justify-between mb-5">
+													<div className="flex items-start gap-4 flex-1">
+														<div className="w-12 h-12 bg-primary/10 border border-primary/20 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+															<Folder className="h-6 w-6" strokeWidth={2} />
 														</div>
-													)}
+														<div className="flex-1 min-w-0 pt-0.5">
+															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-primary transition-colors">
+																{list.name}
+															</h3>
+															<div className="flex items-center gap-1.5 flex-wrap mb-3">
+																<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
+																	<BookOpen className="w-3.5 h-3.5 text-primary/80" />
+																	Flashcards
+																</div>
+																{list.isPublic && (
+																	<div className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-200/60">
+																		Công khai
+																	</div>
+																)}
+															</div>
+														</div>
+													</div>
+													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10 hover:border-primary/30 bg-white shadow-sm"
+															onClick={(e) => { e.stopPropagation(); handleEditList(list); }}
+														>
+															<Edit className="h-4 w-4" />
+														</Button>
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 bg-white shadow-sm"
+															onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
+													</div>
 												</div>
+
+												<p className="text-sm text-slate-500 mb-2 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
+													{list.description || 'Chưa có mô tả chi tiết cho bộ flashcard này.'}
+												</p>
+
+												{list.tags.length > 0 && (
+													<div className="flex flex-wrap gap-1.5 mb-4">
+														{list.tags.map((tag) => (
+															<span key={tag} className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium border border-slate-200/60">
+																{tag}
+															</span>
+														))}
+													</div>
+												)}
+
+												<Button
+													className="w-full mt-auto bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-12 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)] gap-2"
+													onClick={() => router.push(`/flashcards/${list.id}`)}
+												>
+													Mở Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
+												</Button>
+											</CardContent>
+										</Card>
+									))}
+								</div>
+							</div>
+						)}
+					</>
+				)}
+
+				{activeTab === 'discover' && (
+					<>
+						{discoverLoading ? (
+							<div className="text-center py-12">
+								<p className="text-slate-500 font-medium">Đang tải...</p>
+							</div>
+						) : discoverLists.length === 0 ? (
+							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
+								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
+								</div>
+								<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Sưu Tập Công Khai Nào</h3>
+								<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
+									Hiện tại chưa có bộ flashcard công khai nào từ người dùng khác.
+								</p>
+							</div>
+						) : (
+							<div className="space-y-6">
+								<div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
+									<h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+										Bộ sưu tập công khai
+										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{discoverLists.length}</span>
+									</h2>
+								</div>
+
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+									{discoverLists.map((list) => (
+										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
+											<div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+
+											<CardContent className="p-6 flex-1 flex flex-col relative z-10">
+												<div className="flex items-start justify-between mb-5">
+													<div className="flex items-start gap-4 flex-1">
+														<div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+															<Folder className="h-6 w-6" strokeWidth={2} />
+														</div>
+														<div className="flex-1 min-w-0 pt-0.5">
+															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-emerald-600 transition-colors">
+																{list.name}
+															</h3>
+															<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
+																<BookOpen className="w-3.5 h-3.5 text-primary/80" />
+																Flashcards
+															</div>
+														</div>
+													</div>
 												</div>
-											</div>
-											<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
+
+												<p className="text-sm text-slate-500 mb-2 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
+													{list.description || 'Chưa có mô tả.'}
+												</p>
+
+												{list.tags.length > 0 && (
+													<div className="flex flex-wrap gap-1.5 mb-4">
+														{list.tags.map((tag) => (
+															<span key={tag} className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium border border-slate-200/60">
+																{tag}
+															</span>
+														))}
+													</div>
+												)}
+
 												<Button
-													variant="outline"
-													size="icon"
-													className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10 hover:border-primary/30 bg-white shadow-sm"
-													onClick={(e) => { e.stopPropagation(); handleEditList(list); }}
+													className="w-full mt-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
+													onClick={() => router.push(`/flashcards/${list.id}`)}
 												>
-													<Edit className="h-4 w-4" />
+													Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
 												</Button>
-												<Button
-													variant="outline"
-													size="icon"
-													className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 bg-white shadow-sm"
-													onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
-												>
-													<Trash2 className="h-4 w-4" />
-												</Button>
-											</div>
-										</div>
-
-										<p className="text-sm text-slate-500 mb-2 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
-											{list.description || 'Chưa có mô tả chi tiết cho bộ flashcard này. Bấm vào nút sửa hình cây bút bên trên để viết thêm...'}
-										</p>
-
-										{list.tags.length > 0 && (
-											<div className="flex flex-wrap gap-1.5 mb-4">
-												{list.tags.map((tag) => (
-													<span key={tag} className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium border border-slate-200/60">
-														{tag}
-													</span>
-												))}
-											</div>
-										)}
-
-										{/* View Button */}
-										<Button
-											className="w-full mt-auto bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-12 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)] gap-2"
-											onClick={() => router.push(`/flashcards/${list.id}`)}
-										>
-											Mở Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
-										</Button>
-									</CardContent>
-								</Card>
-							))}
-						</div>
-					</div>
+											</CardContent>
+										</Card>
+									))}
+								</div>
+							</div>
+						)}
+					</>
 				)}
 			</div>
 

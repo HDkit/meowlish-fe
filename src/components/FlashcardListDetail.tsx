@@ -63,11 +63,13 @@ function mapFlashCard(fc: any, listId: string): FlashCard {
 function FlashcardCard({
 	flashcard,
 	tagName,
+	editable,
 	onEdit,
 	onDelete,
 }: {
 	flashcard: FlashCard;
 	tagName?: string;
+	editable?: boolean;
 	onEdit: () => void;
 	onDelete: () => void;
 }) {
@@ -90,24 +92,26 @@ function FlashcardCard({
 							</Badge>
 						)}
 					</div>
-					<div className={`flex items-center gap-1.5 transition-opacity relative z-50 ${isFlipped ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-						<Button
-							variant={isFlipped ? 'ghost' : 'outline'}
-							size="icon"
-							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10'}`}
-							onClick={(e) => { e.stopPropagation(); onEdit(); }}
-						>
-							<Edit className="h-4 w-4" />
-						</Button>
-						<Button
-							variant={isFlipped ? 'ghost' : 'outline'}
-							size="icon"
-							className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-rose-200 hover:text-rose-100 hover:bg-rose-500/30' : 'bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50'}`}
-							onClick={(e) => { e.stopPropagation(); onDelete(); }}
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					</div>
+					{editable && (
+						<div className={`flex items-center gap-1.5 transition-opacity relative z-50 ${isFlipped ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+							<Button
+								variant={isFlipped ? 'ghost' : 'outline'}
+								size="icon"
+								className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:bg-primary/10'}`}
+								onClick={(e) => { e.stopPropagation(); onEdit(); }}
+							>
+								<Edit className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={isFlipped ? 'ghost' : 'outline'}
+								size="icon"
+								className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-rose-200 hover:text-rose-100 hover:bg-rose-500/30' : 'bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50'}`}
+								onClick={(e) => { e.stopPropagation(); onDelete(); }}
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						</div>
+					)}
 				</div>
 
 				<div className="flex-1 flex items-center justify-center relative z-10 overflow-hidden py-4">
@@ -349,7 +353,7 @@ export function FlashcardListDetail() {
 				toast({ title: 'Tải danh sách thẻ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			})
 			.finally(() => setLoading(false));
-	}, [listId]);
+	}, [listId, dispatch]);
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
@@ -359,6 +363,8 @@ export function FlashcardListDetail() {
 	const currentList = useMemo(() => {
 		return lists.find((l) => l.id === listId);
 	}, [lists, listId]);
+
+	const isOwnList = currentList?.authorId === currentUser?.id;
 
 	const filteredFlashcards = useMemo(() => {
 		let filtered = cards;
@@ -470,21 +476,6 @@ export function FlashcardListDetail() {
 		);
 	}
 
-	if (currentList.authorId !== currentUser.id) {
-		return (
-			<div className="max-w-7xl mx-auto p-6">
-				<Card>
-					<CardContent className="py-12 text-center">
-						<p className="text-gray-500 mb-4">Bạn không có quyền xem list này</p>
-						<Button onClick={() => router.push('/flashcards')}>
-							Quay lại
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-
 	return (
 		<div className="min-h-screen bg-slate-50/50 pb-20">
 			{/* Premium Header Region */}
@@ -523,16 +514,18 @@ export function FlashcardListDetail() {
 								</div>
 							</div>
 						</div>
-						<Button
-							onClick={() => {
-								setEditingFlashcard(undefined);
-								setFlashcardDialogOpen(true);
-							}}
-							className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 font-bold text-base flex-shrink-0"
-						>
-							<Plus className="h-5 w-5 mr-2" strokeWidth={3} />
-							Thêm Flashcard
-						</Button>
+						{isOwnList && (
+							<Button
+								onClick={() => {
+									setEditingFlashcard(undefined);
+									setFlashcardDialogOpen(true);
+								}}
+								className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 font-bold text-base flex-shrink-0"
+							>
+								<Plus className="h-5 w-5 mr-2" strokeWidth={3} />
+								Thêm Flashcard
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>
@@ -612,6 +605,7 @@ export function FlashcardListDetail() {
 								key={flashcard.id}
 								flashcard={flashcard}
 								tagName={getTagName(flashcard)}
+								editable={isOwnList}
 								onEdit={() => handleEditFlashcard(flashcard)}
 								onDelete={() => handleDeleteFlashcard(flashcard.id)}
 							/>
