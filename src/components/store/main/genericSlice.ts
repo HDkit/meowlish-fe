@@ -13,7 +13,9 @@ export function createGenericSlice<T extends MockDbType>(name: string, initialLi
 		initialState,
 		reducers: {
 			addItem: (state, action: PayloadAction<T>) => {
-				state.list.push(action.payload as Draft<T>); // Immer handles immutability
+				if (!state.list.find((item) => item.id === action.payload.id)) {
+					state.list.push(action.payload as Draft<T>);
+				}
 			},
 			updateItem: (state, action: PayloadAction<T>) => {
 				const index = state.list.findIndex((item) => item.id === action.payload.id);

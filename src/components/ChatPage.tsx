@@ -225,10 +225,12 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const [banTarget, setBanTarget] = useState<{ uid: string; name: string } | null>(null);
 	const [banReason, setBanReason] = useState('');
 
-	const messages = useMemo(
-		() => allMessages.filter((m) => m.roomId === room.id).sort((a, b) => a.createdAt - b.createdAt),
-		[allMessages, room.id]
-	);
+	const messages = useMemo(() => {
+		const seen = new Set<string>();
+		return allMessages
+			.filter((m) => m.roomId === room.id && !seen.has(m.id) && seen.add(m.id))
+			.sort((a, b) => a.createdAt - b.createdAt);
+	}, [allMessages, room.id]);
 
 	useEffect(() => {
 		ChatMessageService.getChatLog(room.id, undefined, undefined, 50)
