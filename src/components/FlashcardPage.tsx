@@ -26,7 +26,10 @@ import {
 	BookOpen,
 	Folder,
 	ChevronRight,
+	X,
 } from 'lucide-react';
+import { Badge } from './ui/badge';
+import { Switch } from './ui/switch';
 import { useRouter } from 'next/navigation';
 
 // Dialog để tạo/sửa list
@@ -39,30 +42,47 @@ function ListDialog({
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	list?: FlashcardList;
-	onSave: (data: { name: string; description: string }) => void;
+	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => void;
 }) {
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
+	const [isPublic, setIsPublic] = useState(false);
+	const [tags, setTags] = useState<string[]>([]);
+	const [tagInput, setTagInput] = useState('');
 	const { toast } = useToast();
 
 	useEffect(() => {
 		if (list) {
 			setName(list.name);
 			setDescription(list.description || '');
+			setIsPublic(list.isPublic);
+			setTags(list.tags ?? []);
 		} else {
 			setName('');
 			setDescription('');
+			setIsPublic(false);
+			setTags([]);
 		}
 	}, [list, open]);
+
+	const addTag = () => {
+		const t = tagInput.trim();
+		if (t && !tags.includes(t)) {
+			setTags([...tags, t]);
+		}
+		setTagInput('');
+	};
 
 	const handleSave = () => {
 		if (!name.trim()) {
 			toast({ title: 'Vui lòng nhập tên list', variant: 'destructive' });
 			return;
 		}
-		onSave({ name: name.trim(), description: description.trim() });
+		onSave({ name: name.trim(), description: description.trim(), isPublic, tags });
 		setName('');
 		setDescription('');
+		setIsPublic(false);
+		setTags([]);
 		onOpenChange(false);
 	};
 
@@ -101,6 +121,40 @@ function ListDialog({
 							rows={3}
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none transition-all"
 						/>
+					</div>
+				</div>
+				<div className="px-6 py-4 space-y-5">
+					<div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+						<Label htmlFor="public-switch" className="text-slate-700 font-bold cursor-pointer">Công khai</Label>
+						<Switch id="public-switch" checked={isPublic} onCheckedChange={setIsPublic} className="data-[state=unchecked]:bg-slate-300" />
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="list-tags" className="text-slate-700 font-bold">Tags</Label>
+						<div className="flex gap-2 items-center">
+							<Input
+								id="list-tags"
+								value={tagInput}
+								onChange={(e) => setTagInput(e.target.value)}
+								onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+								placeholder="Nhập tag rồi nhấn Enter..."
+								className="flex-1 bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+							/>
+							<Button type="button" variant="outline" size="sm" onClick={addTag} className="rounded-xl h-11 border-slate-200">
+								<Plus className="h-3 w-3 mr-1" />Thêm
+							</Button>
+						</div>
+						{tags.length > 0 && (
+							<div className="flex flex-wrap gap-1.5 pt-1">
+								{tags.map((tag) => (
+									<Badge key={tag} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
+										{tag}
+										<button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="ml-0.5 hover:text-red-500">
+											<X className="h-3 w-3" />
+										</button>
+									</Badge>
+								))}
+							</div>
+						)}
 					</div>
 				</div>
 				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
@@ -159,7 +213,7 @@ export function FlashcardPage() {
 		[lists, currentUser]
 	);
 
-	const handleAddList = async (data: { name: string; description: string }) => {
+	const handleAddList = async (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
 		if (!currentUser) return;
 
 		try {
@@ -168,18 +222,23 @@ export function FlashcardPage() {
 				const raw = await FlashcardListService.updateFlashCardList(editingList.id, {
 					name: data.name,
 					description: data.description,
+					isPublic: data.isPublic,
+					tags: data.tags,
 				});
 				const res = unwrap(raw);
 				dispatch(updateFlashcardList({
 					...editingList,
 					name: res.name,
 					description: res.description || undefined,
+					isPublic: res.isPublic,
+					tags: res.tags ?? [],
 				}));
 			} else {
 				const raw = await FlashcardListService.createFlashCardList({
 					name: data.name,
 					description: data.description,
-					authorId: currentUser.id,
+					isPublic: data.isPublic,
+					tags: data.tags,
 				});
 				const res = unwrap(raw);
 				const newList: FlashcardList = {
@@ -303,10 +362,17 @@ export function FlashcardPage() {
 													<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-primary transition-colors">
 														{list.name}
 													</h3>
-													<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold mb-3 border border-slate-200/60">
+													<div className="flex items-center gap-1.5 flex-wrap mb-3">
+													<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
 														<BookOpen className="w-3.5 h-3.5 text-primary/80" />
 														Flashcards
 													</div>
+													{list.isPublic && (
+														<div className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-200/60">
+															Công khai
+														</div>
+													)}
+												</div>
 												</div>
 											</div>
 											<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
@@ -329,9 +395,19 @@ export function FlashcardPage() {
 											</div>
 										</div>
 
-										<p className="text-sm text-slate-500 mb-6 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
+										<p className="text-sm text-slate-500 mb-2 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
 											{list.description || 'Chưa có mô tả chi tiết cho bộ flashcard này. Bấm vào nút sửa hình cây bút bên trên để viết thêm...'}
 										</p>
+
+										{list.tags.length > 0 && (
+											<div className="flex flex-wrap gap-1.5 mb-4">
+												{list.tags.map((tag) => (
+													<span key={tag} className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium border border-slate-200/60">
+														{tag}
+													</span>
+												))}
+											</div>
+										)}
 
 										{/* View Button */}
 										<Button

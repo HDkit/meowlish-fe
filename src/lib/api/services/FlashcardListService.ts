@@ -27,7 +27,6 @@ export interface ListFlashCardListsResponse {
 export interface CreateFlashCardListPayload {
   name: string;
   description?: string;
-  authorId: string;
   isPublic?: boolean;
   tags?: string[];
 }

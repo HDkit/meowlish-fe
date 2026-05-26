@@ -30,7 +30,6 @@ export interface CreateFlashCardPayload {
   pronunciation?: string;
   examples?: string[];
   notes?: string;
-  authorId: string;
   tags?: string[];
   listId: string;
 }

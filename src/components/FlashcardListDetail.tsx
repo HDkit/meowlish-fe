@@ -404,7 +404,6 @@ export function FlashcardListDetail() {
 					word: data.word,
 					definition: data.definition,
 					notes: data.notes,
-					authorId: currentUser.id,
 					listId,
 					tags: data.tags,
 				});
