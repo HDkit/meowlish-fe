@@ -65,7 +65,7 @@ interface ExamItem {
 
 export default function ExamApprovalPage() {
   const router = useRouter();
-  const { currUser, isMod, isHeadStaff, canApproveExams } = useAuth();
+  const { currUser, isHeadStaff, canApproveExams } = useAuth();
   const { toast } = useToast();
 
   const [exams, setExams] = useState<ExamItem[]>([]);
@@ -115,7 +115,7 @@ export default function ExamApprovalPage() {
   }, [currUser, fetchExams]);
 
   // Access check
-  if (!currUser || (!isHeadStaff && !isMod) || !canApproveExams) {
+  if (!currUser || !isHeadStaff || !canApproveExams) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96 border-0 shadow-xl">
@@ -243,8 +243,7 @@ export default function ExamApprovalPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div className="px-6 py-6 max-w-6xl mx-auto">
           {/* Filter Bar */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5 flex gap-3 items-center flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
@@ -333,39 +332,39 @@ export default function ExamApprovalPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 gap-1.5 px-3"
                             onClick={() => {
                               setSelectedExam(exam);
                               setIsPreviewOpen(true);
                             }}
+                            className="text-gray-600 border-gray-200 hover:bg-gray-50 h-8 px-3"
                           >
-                            <Eye className="h-4 w-4" />
-                            <span className="hidden xl:inline">Xem</span>
+                            <Eye className="h-3.5 w-3.5 mr-1.5" />
+                            Xem
                           </Button>
 
                           {exam.status === 'PENDING' && (
                             <>
                               <Button
                                 size="sm"
-                                className="bg-green-500 hover:bg-green-600 text-white gap-1.5 px-3 border-0"
                                 onClick={() => handleApprove(exam.id)}
                                 disabled={submitting}
+                                className="bg-green-500 hover:bg-green-600 text-white h-8 px-3 border-0"
                               >
-                                <CheckCircle className="h-4 w-4" />
-                                <span className="hidden xl:inline">Duyệt</span>
+                                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                                Duyệt
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200 hover:border-red-300 gap-1.5 px-3"
                                 onClick={() => {
                                   setSelectedExam(exam);
                                   setIsRejectDialogOpen(true);
                                 }}
                                 disabled={submitting}
+                                className="text-red-500 border-red-200 hover:bg-red-50 h-8 px-3"
                               >
-                                <XCircle className="h-4 w-4" />
-                                <span className="hidden xl:inline">Từ chối</span>
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                Từ chối
                               </Button>
                             </>
                           )}
@@ -377,7 +376,6 @@ export default function ExamApprovalPage() {
               </table>
             </div>
           )}
-        </div>
       </div>
 
       {/* Preview Dialog */}
@@ -428,45 +426,45 @@ export default function ExamApprovalPage() {
 
               <div className="bg-slate-50 p-4 rounded-xl border border-gray-100">
                 <Button
-                  variant="outline"
                   onClick={() => router.push(`/exam-creation?id=${selectedExam.id}`)}
-                  className="w-full gap-2"
+                  className="w-full bg-primary text-white hover:bg-primary/90 border-0"
                 >
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4 mr-2" />
                   Xem chi tiết đề thi trong trình soạn thảo
                 </Button>
               </div>
             </div>
           )}
           <DialogFooter className="mt-6 border-t pt-4">
-            {selectedExam?.status === 'InDraft' && (
+            {selectedExam?.status === 'PENDING' && (
               <>
                 <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
                   Hủy
                 </Button>
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   onClick={() => {
                     setIsPreviewOpen(false);
                     setIsRejectDialogOpen(true);
                   }}
                   disabled={submitting}
+                  className="text-red-500 border-red-200 hover:bg-red-50"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Từ chối
                 </Button>
                 <Button
-                  className="bg-green-500 hover:bg-green-600 text-white border-0"
-                  onClick={() => handleApprove(selectedExam.id)}
+                  onClick={() => handleApprove(selectedExam!.id)}
                   disabled={submitting}
+                  className="bg-green-500 hover:bg-green-600 text-white border-0"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Phê duyệt
                 </Button>
               </>
             )}
-            {selectedExam?.status !== 'InDraft' && (
-              <Button onClick={() => setIsPreviewOpen(false)}>Đóng</Button>
+            {selectedExam?.status !== 'PENDING' && (
+              <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Đóng</Button>
             )}
           </DialogFooter>
         </DialogContent>
@@ -504,9 +502,9 @@ export default function ExamApprovalPage() {
               Hủy
             </Button>
             <Button
-              variant="destructive"
               onClick={handleReject}
               disabled={!rejectionReason.trim() || submitting}
+              className="bg-red-500 hover:bg-red-600 text-white border-0"
             >
               {submitting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
               Gửi từ chối
