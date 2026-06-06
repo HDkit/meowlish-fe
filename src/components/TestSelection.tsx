@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Tabs, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
+import { useToast } from './ui/use-toast';
 import {
 	BookOpen,
 	Headphones,
@@ -65,6 +66,7 @@ export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
 	const router = useRouter();
+	const { toast } = useToast();
 
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic'>('ielts');
 	const [searchName, setSearchName] = useState('');
@@ -143,6 +145,13 @@ export function TestSelection() {
 
 				const data = (res as any).data;
 				const examsList = data?.exams || [];
+
+				if (examsList.length === 0 && cursor) {
+					toast({ title: 'Không còn kết quả' });
+					if (!cancelled) setLoadingExams(false);
+					return;
+				}
+
 				setNextCursor(data?.nextCursor || undefined);
 				setPrevCursor(data?.prevCursor || undefined);
 
