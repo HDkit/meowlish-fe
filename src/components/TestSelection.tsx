@@ -19,6 +19,7 @@ import {
 	Search,
 	X,
 	Filter,
+	Check,
 } from 'lucide-react';
 
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
@@ -45,11 +46,6 @@ type FormattedExam = {
 	skill: string;
 	tagIds: string[];
 	status: ExamStatus;
-};
-
-const TAB_TAG_MAP: Record<string, string> = {
-	ielts: 'ielts',
-	toeic: 'toeic',
 };
 
 const META_TAGS = new Set(['ielts', 'toeic']);
@@ -125,9 +121,7 @@ export function TestSelection() {
 		const fetchExams = async () => {
 			setLoadingExams(true);
 			try {
-				const tabTag = TAB_TAG_MAP[selectedTab];
-				const filterTags = [...selectedTags];
-				if (tabTag) filterTags.push(tabTag);
+				const filterTags = selectedTags;
 
 				const filter: find_exams_req_dto_FilterOptionsDto = {};
 				if (submittedSearchName.trim()) filter.name = submittedSearchName.trim();
@@ -482,12 +476,13 @@ export function TestSelection() {
 								<button
 									key={tag.id}
 									onClick={() => toggleTag(tag.name)}
-									className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
+									className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
 										isSelected
-											? 'bg-primary text-white border-primary shadow-sm'
+											? 'bg-primary text-white border-primary shadow-sm ring-1 ring-primary/30'
 											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
 									}`}
 								>
+									{isSelected && <Check className="h-3.5 w-3.5" />}
 									{getTagDisplayName(tag.name)}
 								</button>
 							);
