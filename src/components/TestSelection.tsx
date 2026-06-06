@@ -12,14 +12,13 @@ import {
 	Mic,
 	PenTool,
 	Clock,
-	Target,
 	ChevronRight,
 	ChevronLeft,
-	FileText,
 	Search,
 	X,
 	Filter,
 	Check,
+	Users,
 } from 'lucide-react';
 
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
@@ -28,13 +27,6 @@ import { ExamPracticeService, TagsService } from '@/lib/api-client';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
 
-type ExamStats = {
-	duration?: number;
-	sectionsCount?: number;
-	questionsCount?: number;
-	attemptsCount?: number;
-};
-
 type TagNode = { id: string; name: string; parentId?: string };
 
 type FormattedExam = {
@@ -42,9 +34,10 @@ type FormattedExam = {
 	title: string;
 	description?: string;
 	duration?: number;
+	attemptsCount?: number;
 	testType: TestType;
 	skill: string;
-	tagIds: string[];
+	tags: string[];
 	status: ExamStatus;
 };
 
@@ -73,7 +66,7 @@ export function TestSelection() {
 
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
-	const [examStatsById, setExamStatsById] = useState<Record<string, ExamStats>>({});
+
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
 	const [prevCursor, setPrevCursor] = useState<string | undefined>(undefined);
@@ -150,12 +143,14 @@ export function TestSelection() {
 				setPrevCursor(data?.prevCursor || undefined);
 
 				const formattedExams: FormattedExam[] = examsList.map((e: any) => {
-					const lowerTags = e.tags?.map((t: string) => t.toLowerCase()) || [];
+					const rawTags: string[] = e.tags || [];
+					const lowerTags = rawTags.map((t: string) => t.toLowerCase());
 					return {
 						id: e.id,
 						title: e.name,
 						description: e.description,
 						duration: e.duration,
+						attemptsCount: e.attemptsCount,
 						testType: deduceTestType(e),
 						skill: lowerTags.includes('listening')
 							? 'listening'
@@ -164,7 +159,7 @@ export function TestSelection() {
 								: lowerTags.includes('writing')
 									? 'writing'
 									: 'reading',
-						tagIds: e.tags || [],
+						tags: rawTags,
 						status: ExamStatus.Published,
 					};
 				});
@@ -181,61 +176,6 @@ export function TestSelection() {
 			cancelled = true;
 		};
 	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor]);
-
-	// Fetch per-exam stats
-	useEffect(() => {
-		if (!currentUser || !exams.length) return;
-		let cancelled = false;
-
-		const fetchExamStats = async (examId: string) => {
-			try {
-				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1(examId);
-				const payload: any = (response as any)?.data;
-				const sections = Array.isArray(payload?.sections) ? payload.sections : [];
-				const questionsCount = sections.reduce(
-					(acc: number, cur: any) => acc + (Number(cur?.questionsCount) || 0),
-					0,
-				);
-				if (cancelled) return;
-				setExamStatsById((prev) => ({
-					...prev,
-					[examId]: {
-						duration: payload?.duration,
-						sectionsCount: sections.length,
-						questionsCount,
-						attemptsCount: payload?.attemptsCount,
-					},
-				}));
-			} catch {
-				// ignore per-exam failures
-			}
-		};
-
-		const missingIds = exams
-			.map((e) => e?.id)
-			.filter((id) => typeof id === 'string' && id.length > 0)
-			.filter((id) => !examStatsById[id]);
-
-		if (!missingIds.length) return;
-
-		const runWithConcurrency = async (ids: string[], concurrency: number) => {
-			let index = 0;
-			const workers = new Array(Math.min(concurrency, ids.length)).fill(0).map(async () => {
-				while (!cancelled) {
-					const current = ids[index++];
-					if (!current) return;
-					await fetchExamStats(current);
-				}
-			});
-			await Promise.allSettled(workers);
-		};
-
-		runWithConcurrency(missingIds, 6);
-
-		return () => {
-			cancelled = true;
-		};
-	}, [currentUser, exams, examStatsById]);
 
 	// Filterable tags: exclude meta tags (ielts/toeic) since those are handled by tabs
 	const filterableTags = useMemo(() => {
@@ -277,15 +217,9 @@ export function TestSelection() {
 
 	const ExamCard = ({ exam }: { exam: FormattedExam }) => {
 		const Icon = skillIcons[exam.skill] || BookOpen;
-		const stats = examStatsById[String(exam.id)] ?? {};
-		const durationSeconds =
-			typeof stats.duration === 'number'
-				? stats.duration
-				: typeof exam.duration === 'number'
-					? exam.duration
-					: undefined;
-		const sectionsCount = stats.sectionsCount;
-		const questionsCount = stats.questionsCount;
+		const displayTags = exam.tags.filter(
+			(t) => !META_TAGS.has(t.toLowerCase()) && !['listening', 'reading', 'speaking', 'writing'].includes(t.toLowerCase()),
+		);
 
 		return (
 			<Card className="group bg-white rounded-2xl border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col hover:-translate-y-1 relative">
@@ -307,35 +241,33 @@ export function TestSelection() {
 					</div>
 				</CardHeader>
 
-				<CardContent className="space-y-6 pt-5 flex-1 flex flex-col justify-end z-10">
-					<div className="grid grid-cols-3 gap-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-						<div className="text-center border-r border-slate-200 last:border-0 p-1">
-							<div className="flex flex-col items-center justify-center">
-								<Clock className="h-4 w-4 mb-1.5 text-primary/80" />
-								<span className="text-[13px] font-bold text-slate-700">
-									{typeof durationSeconds === 'number' ? formatDurationShort(durationSeconds) : '—'}
-								</span>
+				<CardContent className="space-y-4 pt-5 flex-1 flex flex-col justify-end z-10">
+					<div className="flex items-center gap-4">
+						{typeof exam.duration === 'number' && (
+							<div className="flex items-center gap-1.5 text-slate-600">
+								<Clock className="h-4 w-4 text-primary/80" />
+								<span className="text-[13px] font-bold">{formatDurationShort(exam.duration)}</span>
 							</div>
-						</div>
-						<div className="text-center border-r border-slate-200 last:border-0 p-1">
-							<div className="flex flex-col items-center justify-center">
-								<FileText className="h-4 w-4 mb-1.5 text-emerald-600" />
-								<span className="text-[13px] font-bold text-slate-700">
-									{typeof sectionsCount === 'number' ? sectionsCount : '—'}
-								</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Phần Thi</span>
+						)}
+						{typeof exam.attemptsCount === 'number' && (
+							<div className="flex items-center gap-1.5 text-slate-600">
+								<Users className="h-4 w-4 text-slate-400" />
+								<span className="text-[13px] font-bold">{exam.attemptsCount}</span>
 							</div>
-						</div>
-						<div className="text-center p-1">
-							<div className="flex flex-col items-center justify-center">
-								<Target className="h-4 w-4 mb-1.5 text-rose-500" />
-								<span className="text-[13px] font-bold text-slate-700">
-									{typeof questionsCount === 'number' ? questionsCount : '—'}
-								</span>
-								<span className="text-[10px] text-slate-500 font-semibold uppercase">Câu Hỏi</span>
-							</div>
-						</div>
+						)}
 					</div>
+					{displayTags.length > 0 && (
+						<div className="flex flex-wrap gap-1.5">
+							{displayTags.map((tag) => (
+								<span
+									key={tag}
+									className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600"
+								>
+									{getTagDisplayName(tag)}
+								</span>
+							))}
+						</div>
+					)}
 
 					<Button
 						className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-11 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)]"
@@ -431,7 +363,6 @@ export function TestSelection() {
 					value={selectedTab}
 					onValueChange={(value: any) => {
 						setSelectedTab(value);
-						setExamStatsById({});
 					}}
 					className="w-full"
 				>
