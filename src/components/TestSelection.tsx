@@ -68,7 +68,7 @@ export function TestSelection() {
 
 	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic'>('ielts');
 	const [searchName, setSearchName] = useState('');
-	const [debouncedName, setDebouncedName] = useState('');
+	const [submittedSearchName, setSubmittedSearchName] = useState('');
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
 	const [allTags, setAllTags] = useState<TagNode[]>([]);
@@ -86,12 +86,6 @@ export function TestSelection() {
 			router.push('/auth');
 		}
 	}, [isHydrated, currentUser, router]);
-
-	// Debounce search name
-	useEffect(() => {
-		const timer = setTimeout(() => setDebouncedName(searchName), 350);
-		return () => clearTimeout(timer);
-	}, [searchName]);
 
 	// Fetch tags on mount
 	useEffect(() => {
@@ -119,7 +113,7 @@ export function TestSelection() {
 	// Reset cursor when filters change
 	useEffect(() => {
 		setCursor(undefined);
-	}, [selectedTab, debouncedName, selectedTags]);
+	}, [selectedTab, submittedSearchName, selectedTags]);
 
 	// Fetch exams when filters or cursor change
 	useEffect(() => {
@@ -134,7 +128,7 @@ export function TestSelection() {
 				if (tabTag) filterTags.push(tabTag);
 
 				const filter: find_exams_req_dto_FilterOptionsDto = {};
-				if (debouncedName.trim()) filter.name = debouncedName.trim();
+				if (submittedSearchName.trim()) filter.name = submittedSearchName.trim();
 				if (filterTags.length > 0) filter.tags = filterTags;
 
 				const hasFilter = Object.keys(filter).length > 0;
@@ -183,7 +177,7 @@ export function TestSelection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [currentUser, selectedTab, debouncedName, selectedTags, deduceTestType, cursor]);
+	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor]);
 
 	// Fetch per-exam stats
 	useEffect(() => {
@@ -253,6 +247,7 @@ export function TestSelection() {
 
 	const clearFilters = useCallback(() => {
 		setSearchName('');
+		setSubmittedSearchName('');
 		setSelectedTags([]);
 	}, []);
 
@@ -353,62 +348,6 @@ export function TestSelection() {
 		);
 	};
 
-	const FilterBar = () => (
-		<div className="space-y-4 mb-8">
-			{/* Search input */}
-			<div className="relative max-w-md mx-auto">
-				<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
-				<Input
-					placeholder="Tìm kiếm đề thi theo tên..."
-					value={searchName}
-					onChange={(e) => setSearchName(e.target.value)}
-					className="pl-10 pr-10 h-12 rounded-xl border-slate-200 bg-white shadow-sm text-[15px] placeholder:text-slate-400 focus-visible:ring-primary/30"
-				/>
-				{searchName && (
-					<button
-						onClick={() => setSearchName('')}
-						className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-					>
-						<X className="h-4 w-4" />
-					</button>
-				)}
-			</div>
-
-			{/* Tag filter chips */}
-			{filterableTags.length > 0 && (
-				<div className="flex items-center gap-2 max-w-3xl mx-auto">
-					<Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
-					<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
-						{filterableTags.map((tag) => {
-							const isSelected = selectedTags.includes(tag.name);
-							return (
-								<button
-									key={tag.id}
-									onClick={() => toggleTag(tag.name)}
-									className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
-										isSelected
-											? 'bg-primary text-white border-primary shadow-sm'
-											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
-									}`}
-								>
-									{getTagDisplayName(tag.name)}
-								</button>
-							);
-						})}
-						{hasActiveFilters && (
-							<button
-								onClick={clearFilters}
-								className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all whitespace-nowrap flex-shrink-0"
-							>
-								Xóa bộ lọc
-							</button>
-						)}
-					</div>
-				</div>
-			)}
-		</div>
-	);
-
 	const EmptyState = ({ type }: { type: 'ielts' | 'toeic' }) => {
 		const EmptyIcon = type === 'ielts' ? BookOpen : Headphones;
 		const label = type === 'ielts' ? 'IELTS' : 'TOEIC';
@@ -495,7 +434,67 @@ export function TestSelection() {
 				>
 
 
-					<FilterBar />
+					<div className="space-y-4 mb-8">
+			{/* Search input */}
+			<div className="relative max-w-md mx-auto">
+				<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+				<Input
+					placeholder="Tìm kiếm đề thi theo tên..."
+					value={searchName}
+					onChange={(e) => setSearchName(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') {
+							setSubmittedSearchName(searchName);
+						}
+					}}
+					className="pl-10 pr-10 h-12 rounded-xl border-slate-200 bg-white shadow-sm text-[15px] placeholder:text-slate-400 focus-visible:ring-primary/30"
+				/>
+				{searchName && (
+					<button
+						onClick={() => {
+							setSearchName('');
+							setSubmittedSearchName('');
+						}}
+						className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+					>
+						<X className="h-4 w-4" />
+					</button>
+				)}
+			</div>
+
+			{/* Tag filter chips */}
+			{filterableTags.length > 0 && (
+				<div className="flex items-center gap-2 max-w-3xl mx-auto">
+					<Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
+					<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
+						{filterableTags.map((tag) => {
+							const isSelected = selectedTags.includes(tag.name);
+							return (
+								<button
+									key={tag.id}
+									onClick={() => toggleTag(tag.name)}
+									className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
+										isSelected
+											? 'bg-primary text-white border-primary shadow-sm'
+											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
+									}`}
+								>
+									{getTagDisplayName(tag.name)}
+								</button>
+							);
+						})}
+						{hasActiveFilters && (
+							<button
+								onClick={clearFilters}
+								className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all whitespace-nowrap flex-shrink-0"
+							>
+								Xóa bộ lọc
+							</button>
+						)}
+					</div>
+				</div>
+			)}
+		</div>
 
 					<TabsContent
 						value="ielts"
