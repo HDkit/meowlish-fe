@@ -85,7 +85,6 @@ export function UserPage() {
 	const [profileForm, setProfileForm] = useState({
 		username: '',
 		fullName: '',
-		bio: '',
 	});
 	const [passwordForm, setPasswordForm] = useState({
 		currentPassword: '',
@@ -187,17 +186,6 @@ export function UserPage() {
 		}
 	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Initialize profile form when user data is available
-	useEffect(() => {
-		if (currUser) {
-			setProfileForm({
-				username: currUser.email?.split('@')[0] || '',
-				fullName: currUser.fullName || '',
-				bio: '',
-			});
-		}
-	}, [currUser]);
-
 	// Handle profile update
 	const handleUpdateProfile = async () => {
 		if (!currUser) return;
@@ -206,7 +194,6 @@ export function UserPage() {
 			await AuthService.authGatewayControllerUpdateIdentityV1({
 				username: profileForm.username || undefined,
 				fullName: profileForm.fullName || undefined,
-				bio: profileForm.bio || undefined,
 			});
 			dispatch(
 				setUser({
@@ -420,7 +407,13 @@ export function UserPage() {
 					<div className='flex flex-wrap justify-center md:flex-col gap-3'>
 						<Button
 							className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'
-							onClick={() => setIsProfileDialogOpen(true)}
+							onClick={() => {
+								setProfileForm({
+									username: currUser?.email?.split('@')[0] || '',
+									fullName: currUser?.fullName || '',
+								});
+								setIsProfileDialogOpen(true);
+							}}
 						>
 							<User className='h-4 w-4 mr-2' /> Cập nhật hồ sơ
 						</Button>
@@ -798,15 +791,6 @@ export function UserPage() {
 								value={profileForm.fullName}
 								onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
 								placeholder='Nhập họ và tên'
-							/>
-						</div>
-						<div className='grid gap-2'>
-							<Label htmlFor='bio'>Giới thiệu</Label>
-							<Input
-								id='bio'
-								value={profileForm.bio}
-								onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-								placeholder='Mô tả về bản thân'
 							/>
 						</div>
 					</div>
