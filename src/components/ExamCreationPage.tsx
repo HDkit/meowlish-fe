@@ -20,10 +20,10 @@ import { Textarea } from './ui/textarea';
 import { MarkdownEditor } from './MarkdownEditor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useToast } from './ui/use-toast';
-import { Plus, Trash2, Save, MoreVertical, GripVertical, Layers, ChevronDown, ChevronRight, FileText, List, CheckCircle2, AlertCircle, Upload, X, FileAudio, FileImage, FileQuestion, Brain, ShieldCheck, Send, Search, ChevronRight as ChevronRightIcon, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Save, GripVertical, Layers, ChevronDown, ChevronRight, Upload, X, FileAudio, FileQuestion, ShieldCheck, Send, ChevronRight as ChevronRightIcon, Image as ImageIcon } from 'lucide-react';
 import {
   RefreshCw, Check, AlertTriangle,
-  BookOpen, Clock, Tag, Eye,
+  BookOpen, Clock, Tag,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ type ExamDetails = {
 
 type SectionDetails = {
   id: string; examId: string; parentId?: string; name?: string;
-  directive: string; contentType: string; questionIds: string[];
+  directive: string; contentType: string; childrenIds: string[];
   tags: string[]; files: Array<{ id: string; url: string }>;
 };
 
@@ -55,16 +55,43 @@ type QuestionMoveState = { sectionId: string; index: string };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+// Backend QuestionType enum (source of truth — keep values in sync with the API).
+const QuestionType = {
+  FillExactInTheBlank: 'Fill',        // table/diagram/flowchart completion (exact match)
+  FillAnyInTheBlank: 'FillAny',       // short answers (accepts any of several answers)
+  MultipleChoiceSingle: 'MCQ',        // MCQ, TFNG, YNNG, matching heading/info…
+  MultipleChoiceMultiple: 'MCQ_MULTI',// list selection (several correct choices)
+  Writing: 'Writing',                 // subjective, manual grading
+} as const;
+
 const QUESTION_TYPES = [
-  // Backend uses `MCQ` (per docs). Keep legacy values for older drafts.
-  { value: 'MCQ', label: 'MCQ (1 đáp án đúng)' },
-  { value: 'MULTI_MCQ', label: 'MCQ (nhiều đáp án đúng)' },
-  { value: 'multiple-choice', label: 'Một đáp án đúng (legacy)' },
-  { value: 'multiple-correct-answers', label: 'Nhiều đáp án đúng (legacy)' },
-  { value: 'fill-blank', label: 'Điền vào chỗ trống' },
-  { value: 'essay', label: 'Tự luận' },
-  { value: 'speaking', label: 'Nói' },
+  { value: QuestionType.MultipleChoiceSingle, label: 'Trắc nghiệm — 1 đáp án đúng' },
+  { value: QuestionType.MultipleChoiceMultiple, label: 'Trắc nghiệm — nhiều đáp án đúng' },
+  { value: QuestionType.FillExactInTheBlank, label: 'Điền vào chỗ trống — khớp chính xác' },
+  { value: QuestionType.FillAnyInTheBlank, label: 'Trả lời ngắn — chấp nhận nhiều đáp án' },
+  { value: QuestionType.Writing, label: 'Tự luận / Viết (chấm thủ công)' },
 ];
+
+// Question-type categories. Each predicate also recognises legacy values so
+// older drafts keep rendering the right editor.
+
+// Answers are presented as labelled choices (A, B, C…).
+const typeShowsChoices = (type: string) =>
+  [QuestionType.MultipleChoiceSingle, QuestionType.MultipleChoiceMultiple,
+   'MULTI_MCQ', 'multiple-choice', 'multiple-correct-answers'].includes(type);
+
+// More than one choice/answer may be marked correct.
+const typeAllowsMultipleCorrect = (type: string) =>
+  [QuestionType.MultipleChoiceMultiple, QuestionType.FillAnyInTheBlank,
+   'MULTI_MCQ', 'multiple-correct-answers'].includes(type);
+
+// Free-text "acceptable answers" editor (no labelled choices).
+const typeIsFill = (type: string) =>
+  [QuestionType.FillExactInTheBlank, QuestionType.FillAnyInTheBlank, 'fill-blank'].includes(type);
+
+// Subjective — no fixed answer.
+const typeIsSubjective = (type: string) =>
+  [QuestionType.Writing, 'essay', 'speaking'].includes(type);
 
 const REVIEW_STATUSES = [
   { value: 'EMPTY', label: 'Bản nháp' },
@@ -116,6 +143,7 @@ function ensureProtocol(url: string): string {
 }
 
 async function uploadFileViaPresigned(file: File): Promise<{ id: string; url: string }> {
+  // 1. POST /api/v1/files → presigned upload URL (+ form fields) + the file's id.
   const presignRes = await FilesService.fileGatewayControllerGetPresignedUrlV1({
     isPublicFile: true,
     fileName: file.name,
@@ -129,23 +157,43 @@ async function uploadFileViaPresigned(file: File): Promise<{ id: string; url: st
     formData?: Record<string, string>;
   };
 
+  const endpoint = ensureProtocol(uploadUrl);
+
+  // 2. Send the actual file to the presigned URL. The real, servable file URL is
+  //    only known after this upload — it is NOT the presigned uploadUrl itself.
+  let fileUrl: string;
   if (formData && Object.keys(formData).length > 0) {
+    // S3-style POST form upload: the object lives at `<endpoint>/<key>`.
     const body = new FormData();
     for (const [key, val] of Object.entries(formData)) {
       body.append(key, val);
     }
     body.append('file', file);
-    await fetch(ensureProtocol(uploadUrl), { method: 'POST', body });
+    const res = await fetch(endpoint, { method: 'POST', body });
+    if (!res.ok) throw new Error(`Tải tệp lên thất bại (HTTP ${res.status})`);
+
+    // Prefer the authoritative Location returned by storage; fall back to
+    // endpoint + key (formData.key is the object's final path).
+    const location = res.headers.get('Location') ?? res.headers.get('location');
+    if (location) {
+      fileUrl = ensureProtocol(location);
+    } else if (formData.key) {
+      fileUrl = `${endpoint.replace(/\/+$/, '')}/${formData.key.replace(/^\/+/, '')}`;
+    } else {
+      fileUrl = endpoint.split('?')[0];
+    }
   } else {
-    await fetch(ensureProtocol(uploadUrl), {
+    // PUT presigned upload: the object lives at the URL minus its query string.
+    const res = await fetch(endpoint, {
       method: 'PUT',
       body: file,
       headers: { 'Content-Type': file.type },
     });
+    if (!res.ok) throw new Error(`Tải tệp lên thất bại (HTTP ${res.status})`);
+    fileUrl = endpoint.split('?')[0];
   }
 
-  const publicUrl = ensureProtocol(uploadUrl.split('?')[0]);
-  return { id: fileId, url: publicUrl };
+  return { id: fileId, url: fileUrl };
 }
 
 // ─── FileUploadZone ───────────────────────────────────────────────────────────
@@ -218,7 +266,7 @@ function FileUploadZone({
                         src={fixedUrl}
                         controls
                         className="w-full max-w-[100px] h-8"
-                        onError={(e) => {
+                        onError={() => {
                           console.error('Failed to load audio:', f.url);
                         }}
                       />
@@ -262,21 +310,24 @@ function FileUploadZone({
 function SectionTreeItem({
   sectionId, depth, sections, questions, selectedNode, onSelect,
   onCreateChild, onCreateQuestion, actionLoading,
+  expandedSections, onToggleExpand,
 }: {
   sectionId: string; depth: number;
   sections: Record<string, SectionDetails>; questions: Record<string, QuestionDetails>;
   selectedNode: SelectedNode; onSelect: (node: SelectedNode) => void;
   onCreateChild: (parentId: string) => void; onCreateQuestion: (sectionId: string) => void;
   actionLoading: string | null;
+  expandedSections: Record<string, boolean>; onToggleExpand: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const section = sections[sectionId];
   if (!section) return null;
 
-  const sectionList = Object.values(sections);
-  const children = sectionList.filter((s) => s.parentId === sectionId).map((s) => s.id);
+  const expanded = expandedSections[sectionId] ?? true;
   const isSelected = selectedNode.type === 'section' && selectedNode.id === sectionId;
-  const qCount = (section.questionIds ?? []).length;
+  const isSectionContent = section.contentType === 'SECTION';
+  const childSectionIds = isSectionContent ? (section.childrenIds ?? []) : [];
+  const childQuestionIds = !isSectionContent ? (section.childrenIds ?? []) : [];
+  const qCount = childQuestionIds.length;
 
   return (
     <div>
@@ -289,8 +340,8 @@ function SectionTreeItem({
       >
         <button
           type="button"
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-0.5 py-0.5"
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(sectionId); }}
         >
           {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
@@ -313,31 +364,35 @@ function SectionTreeItem({
 
         {/* Quick actions */}
         <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
-          <button
-            type="button"
-            title="Thêm câu hỏi"
-            className="rounded p-0.5 hover:bg-secondary/20 text-secondary"
-            onClick={(e) => { e.stopPropagation(); onCreateQuestion(sectionId); }}
-            disabled={actionLoading === `create-question-${sectionId}`}
-          >
-            <FileQuestion className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Thêm section con"
-            className="rounded p-0.5 hover:bg-primary/20 text-primary"
-            onClick={(e) => { e.stopPropagation(); onCreateChild(sectionId); }}
-            disabled={actionLoading === `create-child-${sectionId}`}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+          {!isSectionContent && (
+            <button
+              type="button"
+              title="Thêm câu hỏi"
+              className="rounded p-0.5 hover:bg-secondary/20 text-secondary"
+              onClick={(e) => { e.stopPropagation(); onCreateQuestion(sectionId); }}
+              disabled={actionLoading === `create-question-${sectionId}`}
+            >
+              <FileQuestion className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isSectionContent && (
+            <button
+              type="button"
+              title="Thêm section con"
+              className="rounded p-0.5 hover:bg-primary/20 text-primary"
+              onClick={(e) => { e.stopPropagation(); onCreateChild(sectionId); }}
+              disabled={actionLoading === `create-child-${sectionId}`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Expanded: questions + children */}
       {expanded && (
         <div>
-          {(section.questionIds ?? []).map((qId) => {
+          {childQuestionIds.map((qId) => {
             const q = questions[qId];
             if (!q) return null;
             const isQSelected = selectedNode.type === 'question' && selectedNode.id === qId;
@@ -359,12 +414,13 @@ function SectionTreeItem({
             );
           })}
 
-          {children.map((childId) => (
+          {childSectionIds.map((childId) => (
             <SectionTreeItem
               key={childId} sectionId={childId} depth={depth + 1}
               sections={sections} questions={questions} selectedNode={selectedNode}
               onSelect={onSelect} onCreateChild={onCreateChild} onCreateQuestion={onCreateQuestion}
               actionLoading={actionLoading}
+              expandedSections={expandedSections} onToggleExpand={onToggleExpand}
             />
           ))}
         </div>
@@ -391,6 +447,7 @@ export function ExamCreationPage() {
   const [uploadingSection, setUploadingSection] = useState(false);
   const [uploadingQuestion, setUploadingQuestion] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const extraSectionIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setMounted(true);
@@ -407,12 +464,17 @@ export function ExamCreationPage() {
   const [allTagNames, setAllTagNames] = useState<string[]>([]);
   const [tagQuery, setTagQuery] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [sectionTagQuery, setSectionTagQuery] = useState('');
+  const [sectionShowTagSuggestions, setSectionShowTagSuggestions] = useState(false);
+  const [questionTagQuery, setQuestionTagQuery] = useState('');
+  const [questionShowTagSuggestions, setQuestionShowTagSuggestions] = useState(false);
 
   const [sections, setSections] = useState<Record<string, SectionDetails>>({});
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [sectionSnapshots, setSectionSnapshots] = useState<Record<string, SectionDetails>>({});
   const [questions, setQuestions] = useState<Record<string, QuestionDetails>>({});
   const [questionSnapshots, setQuestionSnapshots] = useState<Record<string, QuestionDetails>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [sectionMoveState, setSectionMoveState] = useState<Record<string, SectionMoveState>>({});
   const [questionMoveState, setQuestionMoveState] = useState<Record<string, QuestionMoveState>>({});
   const [reviewStatus, setReviewStatus] = useState('InDraft');
@@ -455,23 +517,35 @@ export function ExamCreationPage() {
       const examPayload = extractEntityData<ExamDetails>(examRes);
       if (!examPayload) throw new Error('Không nhận được dữ liệu đề thi.');
 
-      // Fetch sections tuần tự với delay 1000ms để tránh rate limit
-      const sectionIds = examPayload.sectionIds ?? [];
+      // Fetch sections (root + accumulated ref) tuần tự, theo childrenIds nếu contentType === SECTION
+      const rootIds = examPayload.sectionIds ?? [];
+      const pending = [...new Set([...rootIds, ...extraSectionIdsRef.current])];
+      const seen = new Set(pending);
       const loadedSections: SectionDetails[] = [];
-      for (let i = 0; i < sectionIds.length; i++) {
-        const sid = sectionIds[i];
-        console.log(`[${i + 1}/${sectionIds.length}] Loading section ${sid}...`);
+      while (pending.length > 0) {
+        const sid = pending.shift()!;
+        console.log(`Loading section ${sid}...`);
         const section = await fetchWithRetry(async () => {
           const res = await ExamManagementService.examManagementGatewayControllerGetSectionDetailsV1(sid);
           return extractEntityData<SectionDetails>(res);
         }, 3);
-        if (section) loadedSections.push(section);
-        // Delay 1000ms (1s) giữa các request
-        if (i < sectionIds.length - 1) await delay(1000);
+        if (section) {
+          loadedSections.push(section);
+          extraSectionIdsRef.current.add(section.id);
+          // Enqueue child sections
+          if (section.contentType === 'SECTION') {
+            for (const childId of section.childrenIds ?? []) {
+              if (!seen.has(childId)) { seen.add(childId); pending.push(childId); }
+            }
+          }
+        }
+        if (pending.length > 0) await delay(1000);
       }
 
-      // Fetch questions tuần tự với delay 1000ms
-      const questionIds = loadedSections.flatMap((s) => s.questionIds ?? []);
+      // Fetch questions from sections với contentType === QUESTION
+      const questionIds = loadedSections
+        .filter((s) => s.contentType === 'QUESTION')
+        .flatMap((s) => s.childrenIds ?? []);
       const loadedQuestions: QuestionDetails[] = [];
       for (let i = 0; i < questionIds.length; i++) {
         const qid = questionIds[i];
@@ -481,7 +555,6 @@ export function ExamCreationPage() {
           return extractEntityData<QuestionDetails>(res);
         }, 3);
         if (question) loadedQuestions.push({ ...question, choices: buildChoiceDrafts(question) });
-        // Delay 1000ms (1s) giữa các request
         if (i < questionIds.length - 1) await delay(1000);
       }
 
@@ -497,7 +570,7 @@ export function ExamCreationPage() {
       });
       setSections(nextSections);
       setSectionSnapshots(nextSections);
-      setSectionOrder(sectionIds);
+      setSectionOrder(loadedSections.map((s) => s.id));
       setQuestions(nextQuestions);
       setQuestionSnapshots(nextQuestions);
       // Map API status sang review status
@@ -525,6 +598,7 @@ export function ExamCreationPage() {
       setSections({}); setSectionSnapshots({}); setSectionOrder([]);
       setQuestions({}); setQuestionSnapshots({});
       setSelectedNode({ type: 'overview' });
+      extraSectionIdsRef.current = new Set();
       return;
     }
     setExamId(queryExamId);
@@ -606,6 +680,7 @@ export function ExamCreationPage() {
       const created = extractEntityData<{ id?: string }>(res);
       if (!created?.id) throw new Error('API không trả về id section.');
       toast({ title: 'Đã tạo section mới' });
+      extraSectionIdsRef.current.add(created.id);
       await loadEditorData(examId);
       setSelectedNode({ type: 'section', id: created.id });
     } catch (error) {
@@ -626,6 +701,7 @@ export function ExamCreationPage() {
       const created = extractEntityData<{ id?: string }>(res);
       if (!created?.id) throw new Error('API không trả về id section con.');
       toast({ title: 'Đã tạo section con' });
+      extraSectionIdsRef.current.add(created.id);
       await loadEditorData(examId);
       setSelectedNode({ type: 'section', id: created.id });
     } catch (error) {
@@ -683,7 +759,7 @@ export function ExamCreationPage() {
     setActionLoading(`create-question-${sectionId}`);
     try {
       const res = await ExamManagementService.examManagementGatewayControllerCreateQuestionV1(
-        sectionId, { index: section?.questionIds?.length ?? 0 }
+        sectionId, { index: section?.childrenIds?.length ?? 0 }
       );
       const created = extractEntityData<{ id?: string }>(res);
       if (!created?.id) throw new Error('API không trả về id câu hỏi.');
@@ -839,13 +915,14 @@ export function ExamCreationPage() {
                     {examId ? 'Chưa có section nào' : 'Tạo đề trước để thêm section'}
                   </p>
                 ) : (
-                  rootSectionIds.map((id) => (
+                    rootSectionIds.map((id) => (
                     <SectionTreeItem
                       key={id} sectionId={id} depth={0}
                       sections={sections} questions={questions}
                       selectedNode={selectedNode} onSelect={setSelectedNode}
                       onCreateChild={createChildSection} onCreateQuestion={createQuestion}
                       actionLoading={actionLoading}
+                      expandedSections={expandedSections} onToggleExpand={(sectionId) => setExpandedSections(prev => ({...prev, [sectionId]: !(prev[sectionId] ?? true)}))}
                     />
                   ))
                 )}
@@ -1070,11 +1147,14 @@ export function ExamCreationPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-sm">Loại nội dung</Label>
-                        <Input
+                        <select
+                          className="flex h-9 w-full rounded-md border border-input bg-white px-3 py-1 text-sm"
                           value={selectedSection.contentType}
                           onChange={(e) => setSections((p) => ({ ...p, [selectedSection.id]: { ...p[selectedSection.id], contentType: e.target.value } }))}
-                          placeholder="reading-passage, audio-script..."
-                        />
+                        >
+                          <option value="SECTION">SECTION</option>
+                          <option value="QUESTION">QUESTION</option>
+                        </select>
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
                         <Label className="text-sm">Hướng dẫn (directive)</Label>
@@ -1099,12 +1179,64 @@ export function ExamCreationPage() {
                       />
                     </div>
 
+                    {/* Section tags */}
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
+                      <div className="relative">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          className="pl-9"
+                          value={selectedSection.tags?.join(', ') ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSections((p) => ({ ...p, [selectedSection.id]: { ...p[selectedSection.id], tags: val.split(',').map((t) => t.trim()).filter(Boolean) } }));
+                            const lastPart = val.split(',').pop()?.trim() ?? '';
+                            setSectionTagQuery(lastPart);
+                            setSectionShowTagSuggestions(lastPart.length > 0);
+                          }}
+                          onFocus={() => {
+                            const val = selectedSection.tags?.join(', ') ?? '';
+                            const lastPart = val.split(',').pop()?.trim() ?? '';
+                            if (lastPart.length > 0) { setSectionTagQuery(lastPart); setSectionShowTagSuggestions(true); }
+                          }}
+                          onBlur={() => setTimeout(() => setSectionShowTagSuggestions(false), 200)}
+                          placeholder="toeic, listening, part-1..."
+                        />
+                        {sectionShowTagSuggestions && (
+                          <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-40 overflow-y-auto">
+                            {allTagNames
+                              .filter((t) => t.toLowerCase().includes(sectionTagQuery.toLowerCase()) && !(selectedSection.tags ?? []).includes(t))
+                              .slice(0, 8)
+                              .map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className="flex w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const current = selectedSection.tags?.join(', ') ?? '';
+                                    const parts = current.split(',');
+                                    parts[parts.length - 1] = tag;
+                                    const newVal = parts.join(', ') + ', ';
+                                    setSections((p) => ({ ...p, [selectedSection.id]: { ...p[selectedSection.id], tags: newVal.split(',').map((t) => t.trim()).filter(Boolean) } }));
+                                    setSectionShowTagSuggestions(false);
+                                    setSectionTagQuery('');
+                                  }}
+                                >
+                                  {tag}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Questions list */}
-                    {selectedSection.questionIds && selectedSection.questionIds.length > 0 && (
+                    {selectedSection.childrenIds && selectedSection.childrenIds.length > 0 && selectedSection.contentType === 'QUESTION' && (
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Danh sách câu hỏi ({selectedSection.questionIds.length})</Label>
+                        <Label className="text-sm">Danh sách câu hỏi ({selectedSection.childrenIds.length})</Label>
                         <div className="rounded-lg border border-gray-200 divide-y">
-                          {selectedSection.questionIds.map((qId, idx) => {
+                          {selectedSection.childrenIds.map((qId, idx) => {
                             const q = questions[qId];
                             if (!q) return null;
                             return (
@@ -1237,7 +1369,20 @@ export function ExamCreationPage() {
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-white px-3 py-1 text-sm"
                           value={selectedQuestion.type}
-                          onChange={(e) => setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], type: e.target.value } }))}
+                          onChange={(e) => setQuestions((p) => {
+                            const newType = e.target.value;
+                            const current = p[selectedQuestion.id];
+                            let choices = current.choices;
+                            // Single-answer choice types: keep at most one correct choice.
+                            if (typeShowsChoices(newType) && !typeAllowsMultipleCorrect(newType)) {
+                              let kept = false;
+                              choices = choices.map((c) => {
+                                if (c.isCorrect && !kept) { kept = true; return c; }
+                                return { ...c, isCorrect: false };
+                              });
+                            }
+                            return { ...p, [selectedQuestion.id]: { ...current, type: newType, choices } };
+                          })}
                         >
                           {QUESTION_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
@@ -1284,14 +1429,66 @@ export function ExamCreationPage() {
                       />
                     </div>
 
+                    {/* Question tags */}
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
+                      <div className="relative">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          className="pl-9"
+                          value={selectedQuestion.tags?.join(', ') ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], tags: val.split(',').map((t) => t.trim()).filter(Boolean) } }));
+                            const lastPart = val.split(',').pop()?.trim() ?? '';
+                            setQuestionTagQuery(lastPart);
+                            setQuestionShowTagSuggestions(lastPart.length > 0);
+                          }}
+                          onFocus={() => {
+                            const val = selectedQuestion.tags?.join(', ') ?? '';
+                            const lastPart = val.split(',').pop()?.trim() ?? '';
+                            if (lastPart.length > 0) { setQuestionTagQuery(lastPart); setQuestionShowTagSuggestions(true); }
+                          }}
+                          onBlur={() => setTimeout(() => setQuestionShowTagSuggestions(false), 200)}
+                          placeholder="vocabulary, grammar, reading..."
+                        />
+                        {questionShowTagSuggestions && (
+                          <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-40 overflow-y-auto">
+                            {allTagNames
+                              .filter((t) => t.toLowerCase().includes(questionTagQuery.toLowerCase()) && !(selectedQuestion.tags ?? []).includes(t))
+                              .slice(0, 8)
+                              .map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className="flex w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const current = selectedQuestion.tags?.join(', ') ?? '';
+                                    const parts = current.split(',');
+                                    parts[parts.length - 1] = tag;
+                                    const newVal = parts.join(', ') + ', ';
+                                    setQuestions((p) => ({ ...p, [selectedQuestion.id]: { ...p[selectedQuestion.id], tags: newVal.split(',').map((t) => t.trim()).filter(Boolean) } }));
+                                    setQuestionShowTagSuggestions(false);
+                                    setQuestionTagQuery('');
+                                  }}
+                                >
+                                  {tag}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Choices for MCQ */}
-                    {['MCQ', 'MULTI_MCQ', 'multiple-choice', 'multiple-correct-answers'].includes(selectedQuestion.type) && (
+                    {typeShowsChoices(selectedQuestion.type) && (
                       <div className="space-y-3 border-t border-gray-100 pt-4">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium">
                             Đáp án lựa chọn
                             <span className="ml-2 text-xs font-normal text-gray-500">
-                              ({['MCQ', 'multiple-choice'].includes(selectedQuestion.type) ? 'Chỉ một đáp án đúng' : 'Có thể chọn nhiều'})
+                              ({typeAllowsMultipleCorrect(selectedQuestion.type) ? 'Có thể chọn nhiều đáp án đúng' : 'Chỉ một đáp án đúng'})
                             </span>
                           </Label>
                           <Button
@@ -1331,7 +1528,8 @@ export function ExamCreationPage() {
                                   [selectedQuestion.id]: {
                                     ...p[selectedQuestion.id],
                                     choices: p[selectedQuestion.id].choices.map((c, i) => {
-                                      if (['MCQ', 'multiple-choice'].includes(selectedQuestion.type)) {
+                                      if (!typeAllowsMultipleCorrect(selectedQuestion.type)) {
+                                        // Single-answer types: selecting one clears the rest.
                                         return i === idx ? { ...c, isCorrect: !c.isCorrect } : { ...c, isCorrect: false };
                                       }
                                       return i === idx ? { ...c, isCorrect: !c.isCorrect } : c;
@@ -1354,11 +1552,18 @@ export function ExamCreationPage() {
                       </div>
                     )}
 
-                    {/* Fill blank */}
-                    {['fill-blank'].includes(selectedQuestion.type) && (
-                      <div className="space-y-3">
+                    {/* Fill blank / short answer */}
+                    {typeIsFill(selectedQuestion.type) && (
+                      <div className="space-y-3 border-t border-gray-100 pt-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm">Đáp án chấp nhận</Label>
+                          <Label className="text-sm font-medium">
+                            Đáp án chấp nhận
+                            <span className="ml-2 text-xs font-normal text-gray-500">
+                              ({selectedQuestion.type === QuestionType.FillExactInTheBlank
+                                ? 'Khớp chính xác'
+                                : 'Chấp nhận bất kỳ đáp án nào trong danh sách'})
+                            </span>
+                          </Label>
                           <Button
                             type="button" variant="outline" size="sm"
                             onClick={() => setQuestions((p) => {
@@ -1390,11 +1595,11 @@ export function ExamCreationPage() {
                       </div>
                     )}
 
-                    {/* Essay / Speaking */}
-                    {['essay', 'speaking'].includes(selectedQuestion.type) && (
+                    {/* Writing / subjective */}
+                    {typeIsSubjective(selectedQuestion.type) && (
                       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        <span>Câu hỏi tự luận/nói không có đáp án cố định. Rubric chấm điểm vui lòng ghi ở phần giải thích.</span>
+                        <span>Câu hỏi tự luận/viết không có đáp án cố định và được chấm thủ công. Rubric chấm điểm vui lòng ghi ở phần giải thích.</span>
                       </div>
                     )}
 

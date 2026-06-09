@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TagsService } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { RefreshCw, Plus, Network, ListTree, Edit2, Move, Trash2 } from 'lucide-react';
+import { RefreshCw, Plus, Network, Edit2, Move, Trash2 } from 'lucide-react';
 
 type TagTreeNode = {
   id: string;
@@ -101,8 +101,6 @@ export function AdminTagManager() {
   useEffect(() => {
     void loadTags();
   }, []);
-
-  const flatPreview = useMemo(() => list.slice(0, 50), [list]);
 
   const handleCreateTag = async () => {
     if (!tagName.trim()) {
@@ -251,57 +249,18 @@ export function AdminTagManager() {
           </div>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
-            <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
-              <Network className="h-4 w-4 text-primary" />
-              <h3 className="font-medium text-gray-900">Cây nhãn</h3>
-            </div>
-            {loading ? (
-              <p className="text-sm text-gray-500">Đang tải...</p>
-            ) : tree.length === 0 ? (
-              <p className="text-sm text-gray-500">API chưa trả cây tag nào.</p>
-            ) : (
-              <TagTree nodes={tree} onRename={handleRename} onMove={handleMove} onDelete={handleDelete} />
-            )}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
+          <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
+            <Network className="h-4 w-4 text-primary" />
+            <h3 className="font-medium text-gray-900">Cây nhãn</h3>
           </div>
-
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 max-h-[600px] overflow-y-auto">
-            <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
-              <ListTree className="h-4 w-4 text-secondary" />
-              <h3 className="font-medium text-gray-900">Danh sách nhãn (Phẳng)</h3>
-            </div>
-            {loading ? (
-              <p className="text-sm text-gray-500">Đang tải...</p>
-            ) : flatPreview.length === 0 ? (
-              <p className="text-sm text-gray-500">API chưa trả danh sách tag nào.</p>
-            ) : (
-              <div className="space-y-2">
-                {flatPreview.map((tag) => (
-                  <div key={tag.id} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-gray-900">{tag.name}</p>
-                      {tag.parentName && <p className="text-xs text-gray-500">parent: <span className="font-medium">{tag.parentName}</span></p>}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/90 hover:bg-primary/10" onClick={() => handleRename(tag.id, tag.name)}>
-                        <Edit2 className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={() => handleMove(tag.id)}>
-                        <Move className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(tag.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {list.length > flatPreview.length && (
-                  <p className="text-xs text-center text-gray-400 font-medium py-2">Đang hiển thị {flatPreview.length}/{list.length} tag.</p>
-                )}
-              </div>
-            )}
-          </div>
+          {loading ? (
+            <p className="text-sm text-gray-500">Đang tải...</p>
+          ) : tree.length === 0 ? (
+            <p className="text-sm text-gray-500">API chưa trả cây tag nào.</p>
+          ) : (
+            <TagTree nodes={tree} onRename={handleRename} onMove={handleMove} onDelete={handleDelete} />
+          )}
         </div>
       </CardContent>
     </Card>
