@@ -130,16 +130,18 @@ export function UserPage() {
 						const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
 						const identity = (identityRes as any).data ?? identityRes;
 						if (identity && identity.id) {
-							dispatch(setUser({
-								...currUser,
-								id: identity.id ?? currUser.id,
-								email: identity.mail ?? identity.email ?? currUser.email,
-								fullName: identity.fullName ?? identity.username ?? currUser.fullName,
-								username: identity.username ?? currUser.username,
-								avatarUrl: identity.avatarUrl ?? currUser.avatarUrl,
-								createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
-								roleId: identity.roleId ?? currUser.roleId,
-							}));
+							dispatch(
+								setUser({
+									...currUser,
+									id: identity.id ?? currUser.id,
+									email: identity.mail ?? identity.email ?? currUser.email,
+									fullName: identity.fullName ?? identity.username ?? currUser.fullName,
+									username: identity.username ?? currUser.username,
+									avatarUrl: identity.avatarUrl || currUser.avatarUrl,
+									createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
+									roleId: identity.roleId ?? currUser.roleId,
+								}),
+							);
 						}
 					} catch {
 						// ignore identity fetch failure
@@ -172,14 +174,16 @@ export function UserPage() {
 
 					// Fetch recent attempt history
 					const historyRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-						undefined, undefined, 20
+						undefined,
+						undefined,
+						20,
 					);
 					if (historyRes.data) {
 						const data = historyRes.data as any;
 						setAttemptHistory(data.attempts ?? []);
 					}
 				} catch (e) {
-					console.error("Failed to load profile data:", e);
+					console.error('Failed to load profile data:', e);
 				}
 			};
 			fetchProfileData();
@@ -199,7 +203,7 @@ export function UserPage() {
 				setUser({
 					...currUser,
 					fullName: profileForm.fullName || currUser.fullName,
-				})
+				}),
 			);
 			toast({ title: 'Cập nhật hồ sơ thành công' });
 			setIsProfileDialogOpen(false);
@@ -263,7 +267,11 @@ export function UserPage() {
 				contentType: file.type,
 			});
 			const data = (presignRes as any).data ?? presignRes;
-			const { uploadUrl, id: fileId, formData } = data as {
+			const {
+				uploadUrl,
+				id: fileId,
+				formData,
+			} = data as {
 				uploadUrl: string;
 				id: string;
 				formData?: Record<string, string>;
@@ -297,7 +305,11 @@ export function UserPage() {
 
 	const handleDeleteCredential = async (credId: string) => {
 		if (credentials.length <= 1) {
-			toast({ title: 'Không thể xóa', description: 'Bạn phải có ít nhất một phương thức đăng nhập.', variant: 'destructive' });
+			toast({
+				title: 'Không thể xóa',
+				description: 'Bạn phải có ít nhất một phương thức đăng nhập.',
+				variant: 'destructive',
+			});
 			return;
 		}
 		if (!confirm('Bạn có chắc muốn xóa phương thức đăng nhập này?')) return;
@@ -307,7 +319,11 @@ export function UserPage() {
 			setCredentials((prev) => prev.filter((c) => c.id !== credId));
 			toast({ title: 'Đã xóa phương thức đăng nhập' });
 		} catch (err: any) {
-			toast({ title: 'Xóa thất bại', description: extractApiErrorMessage(err, 'Không thể xóa phương thức đăng nhập.'), variant: 'destructive' });
+			toast({
+				title: 'Xóa thất bại',
+				description: extractApiErrorMessage(err, 'Không thể xóa phương thức đăng nhập.'),
+				variant: 'destructive',
+			});
 		} finally {
 			setIsLoading(false);
 		}
@@ -324,15 +340,22 @@ export function UserPage() {
 		}
 		setIsLoading(true);
 		try {
-			await AuthService.authGatewayControllerAddMailCredentialV1({ mail: addMailForm.email, password: addMailForm.password });
+			await AuthService.authGatewayControllerAddMailCredentialV1({
+				mail: addMailForm.email,
+				password: addMailForm.password,
+			});
 			const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
 			const creds = (credsRes as any).data ?? credsRes;
-			setCredentials(Array.isArray(creds) ? creds : creds?.credentials ?? []);
+			setCredentials(Array.isArray(creds) ? creds : (creds?.credentials ?? []));
 			toast({ title: 'Đã thêm phương thức đăng nhập bằng email' });
 			setIsCredDialogOpen(false);
 			setAddMailForm({ email: '', password: '' });
 		} catch (err: any) {
-			toast({ title: 'Thêm thất bại', description: extractApiErrorMessage(err, 'Không thể thêm phương thức đăng nhập.'), variant: 'destructive' });
+			toast({
+				title: 'Thêm thất bại',
+				description: extractApiErrorMessage(err, 'Không thể thêm phương thức đăng nhập.'),
+				variant: 'destructive',
+			});
 		} finally {
 			setIsLoading(false);
 		}
@@ -343,27 +366,40 @@ export function UserPage() {
 			await AuthService.authGatewayControllerAddGoogleCredV1();
 			toast({ title: 'Đang chuyển hướng đến Google...' });
 		} catch (err: any) {
-			toast({ title: 'Thêm thất bại', description: extractApiErrorMessage(err, 'Không thể liên kết Google.'), variant: 'destructive' });
+			toast({
+				title: 'Thêm thất bại',
+				description: extractApiErrorMessage(err, 'Không thể liên kết Google.'),
+				variant: 'destructive',
+			});
 		}
 	};
 
 	const formatDate = (date: Date | number | string) => {
-		const dateObj = typeof date === 'string' ? new Date(date) : typeof date === 'number' ? new Date(date) : date;
+		const dateObj =
+			typeof date === 'string' ? new Date(date)
+			: typeof date === 'number' ? new Date(date)
+			: date;
 		return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
 	};
 
 	return (
 		<div className='min-h-screen bg-background pb-20'>
 			{/* ── Profile Hero Header ── */}
-			<div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-4 md:px-6 lg:px-8 xl:px-10">
-				<div className="absolute inset-0 bg-black/10 pointer-events-none" />
-				<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-				<div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+			<div className='relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-20 px-4 md:px-6 lg:px-8 xl:px-10'>
+				<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+				<div className='absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none' />
+				<div className='absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none' />
 
-				<div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8">
-					<div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+				<div className='relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8'>
+					<div className='relative group cursor-pointer' onClick={() => avatarInputRef.current?.click()}>
 						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
-							<AvatarImage src={currUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`} />
+							<AvatarImage
+								key={currUser?.avatarUrl}
+								src={
+									(currUser?.avatarUrl ? `https://${currUser.avatarUrl}` : undefined) ||
+									`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`
+								}
+							/>
 							<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
 								{(currUser?.fullName || 'User')
 									.split(' ')
@@ -373,29 +409,23 @@ export function UserPage() {
 									.toUpperCase()}
 							</AvatarFallback>
 						</Avatar>
-						<div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-							{uploadingAvatar ? (
-								<Loader2 className="h-6 w-6 text-white animate-spin" />
-							) : (
-								<Camera className="h-6 w-6 text-white" />
-							)}
+						<div className='absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'>
+							{uploadingAvatar ?
+								<Loader2 className='h-6 w-6 text-white animate-spin' />
+							:	<Camera className='h-6 w-6 text-white' />}
 						</div>
-						<input
-							ref={avatarInputRef}
-							type="file"
-							accept="image/*"
-							className="hidden"
-							onChange={handleAvatarUpload}
-						/>
+						<input ref={avatarInputRef} type='file' accept='image/*' className='hidden' onChange={handleAvatarUpload} />
 					</div>
 					<div className='flex-1 text-center md:text-left'>
-						<h1 className='text-4xl font-extrabold mb-2 text-white drop-shadow-md'>{currUser?.fullName || 'Người dùng'}</h1>
+						<h1 className='text-4xl font-extrabold mb-2 text-white drop-shadow-md'>
+							{currUser?.fullName || 'Người dùng'}
+						</h1>
 						<div className='flex flex-col md:flex-row items-center gap-4 text-primary-foreground/80 font-medium'>
 							<p className='flex items-center gap-2'>
 								<Mail className='h-5 w-5' />
 								{currUser?.email || 'Chưa có email'}
 							</p>
-							<span className="hidden md:block text-primary-foreground/60">•</span>
+							<span className='hidden md:block text-primary-foreground/60'>•</span>
 							{currUser?.createdAt && (
 								<p className='flex items-center gap-2'>
 									<Calendar className='h-5 w-5' />
@@ -429,74 +459,79 @@ export function UserPage() {
 						>
 							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
 						</Button>
-
 					</div>
 				</div>
 			</div>
 
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-8 -mt-12 relative z-10'>
-
 				{/* Credentials Section */}
 				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
 					<div className='flex items-center justify-between mb-4 border-b border-gray-100 pb-4'>
 						<h2 className='text-xl font-bold text-gray-900 flex items-center gap-2'>
-							<Shield className="h-5 w-5 text-primary" /> Phương thức đăng nhập
+							<Shield className='h-5 w-5 text-primary' /> Phương thức đăng nhập
 						</h2>
-						<div className="flex gap-2">
-							<Button size="sm" variant="outline" onClick={() => setIsCredDialogOpen(true)}>
-								<Plus className="h-4 w-4 mr-1" /> Thêm Email
+						<div className='flex gap-2'>
+							<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
+								<Plus className='h-4 w-4 mr-1' /> Thêm Email
 							</Button>
-							<Button size="sm" variant="outline" onClick={handleAddGoogleCredential}>
-								<Plus className="h-4 w-4 mr-1" /> Liên kết Google
+							<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
+								<Plus className='h-4 w-4 mr-1' /> Liên kết Google
 							</Button>
 						</div>
 					</div>
-					{credentials.length === 0 ? (
-						<p className="text-gray-400 text-sm">Chưa tải được thông tin phương thức đăng nhập.</p>
-					) : (
-						<div className="space-y-3">
+					{credentials.length === 0 ?
+						<p className='text-gray-400 text-sm'>Chưa tải được thông tin phương thức đăng nhập.</p>
+					:	<div className='space-y-3'>
 							{credentials.map((cred) => (
-								<div key={cred.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-									<div className="flex items-center gap-3">
-										<div className={`p-2 rounded-lg ${cred.type === 'google' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-											{cred.type === 'google' ? (
-												<svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-											) : (
-												<Mail className="h-4 w-4" />
-											)}
+								<div
+									key={cred.id}
+									className='flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100'
+								>
+									<div className='flex items-center gap-3'>
+										<div
+											className={`p-2 rounded-lg ${cred.type === 'google' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}
+										>
+											{cred.type === 'google' ?
+												<svg className='h-4 w-4' viewBox='0 0 24 24' fill='currentColor'>
+													<path d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z' />
+													<path d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' />
+													<path d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z' />
+													<path d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z' />
+												</svg>
+											:	<Mail className='h-4 w-4' />}
 										</div>
 										<div>
-											<p className="font-medium text-gray-800 text-sm">
+											<p className='font-medium text-gray-800 text-sm'>
 												{cred.type === 'google' ? 'Google' : 'Email/Mật khẩu'}
 											</p>
-											<p className="text-xs text-gray-500">{cred.mail || cred.email || cred.identifier || ''}</p>
+											<p className='text-xs text-gray-500'>{cred.mail || cred.email || cred.identifier || ''}</p>
 										</div>
 									</div>
 									<Button
-										size="sm"
-										variant="ghost"
-										className="text-red-500 hover:text-red-700 hover:bg-red-50"
+										size='sm'
+										variant='ghost'
+										className='text-red-500 hover:text-red-700 hover:bg-red-50'
 										onClick={() => handleDeleteCredential(cred.id)}
 										disabled={isLoading || credentials.length <= 1}
 									>
-										<Trash2 className="h-4 w-4" />
+										<Trash2 className='h-4 w-4' />
 									</Button>
 								</div>
 							))}
 						</div>
-					)}
+					}
 				</div>
 
 				{/* Goals Section */}
 				<div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-6'>
 					<div className='flex items-center justify-between mb-6 border-b border-gray-100 pb-4'>
 						<h2 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
-							<Target className="h-6 w-6 text-primary" /> Mục tiêu của bạn
+							<Target className='h-6 w-6 text-primary' /> Mục tiêu của bạn
 						</h2>
 						{!goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-						{goal ? (
+						{goal ?
 							<Card className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
 								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
@@ -512,30 +547,42 @@ export function UserPage() {
 										<EditGoalButton goal={goal} onGoalUpdated={fetchGoal} />
 									</div>
 								</CardHeader>
-								<CardContent className="pt-4 pb-6">
+								<CardContent className='pt-4 pb-6'>
 									<p className='text-5xl font-extrabold text-primary drop-shadow-sm'>{goal.target}</p>
 								</CardContent>
 							</Card>
-						) : (
-							<div className="col-span-full py-8 text-center text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+						:	<div className='col-span-full py-8 text-center text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200'>
 								<p>Bạn chưa thiết lập mục tiêu nào. Hãy đặt ra mục tiêu để có động lực học tập nhé!</p>
 							</div>
-						)}
+						}
 					</div>
 				</div>
 
 				{/* Tabs */}
-				<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'overview' | 'achievements' | 'history')} className="mt-8">
-					<div className="flex justify-center mb-6">
+				<Tabs
+					value={activeTab}
+					onValueChange={(value) => setActiveTab(value as 'overview' | 'achievements' | 'history')}
+					className='mt-8'
+				>
+					<div className='flex justify-center mb-6'>
 						<TabsList className='bg-white/90 backdrop-blur-xl p-2 rounded-full shadow-lg border border-gray-100/50 w-fit inline-flex'>
-							<TabsTrigger value='overview' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
-								<TrendingUp className="h-4 w-4 mr-2 inline" /> Thống kê & Tổng quan
+							<TabsTrigger
+								value='overview'
+								className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'
+							>
+								<TrendingUp className='h-4 w-4 mr-2 inline' /> Thống kê & Tổng quan
 							</TabsTrigger>
-							<TabsTrigger value='achievements' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
-								<Award className="h-4 w-4 mr-2 inline" /> Danh hiệu ({earnedBadges.length})
+							<TabsTrigger
+								value='achievements'
+								className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'
+							>
+								<Award className='h-4 w-4 mr-2 inline' /> Danh hiệu ({earnedBadges.length})
 							</TabsTrigger>
-							<TabsTrigger value='history' className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-secondary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'>
-								<Edit className="h-4 w-4 mr-2 inline" /> Lịch sử luyện tập
+							<TabsTrigger
+								value='history'
+								className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-secondary data-[state=active]:text-white data-[state=active]:shadow-md transition-all'
+							>
+								<Edit className='h-4 w-4 mr-2 inline' /> Lịch sử luyện tập
 							</TabsTrigger>
 						</TabsList>
 					</div>
@@ -602,7 +649,7 @@ export function UserPage() {
 						<div className='border-0 shadow-md bg-white/90 backdrop-blur-sm rounded-xl overflow-hidden'>
 							<div className='p-6 border-b bg-slate-50'>
 								<h3 className='font-bold text-gray-800 text-lg flex items-center gap-2'>
-									<Calendar className="w-5 h-5 text-primary" />
+									<Calendar className='w-5 h-5 text-primary' />
 									Lịch sử làm bài gần đây ({attemptHistory.length})
 								</h3>
 							</div>
@@ -615,30 +662,30 @@ export function UserPage() {
 										<div key={attempt.id} className='p-4 hover:bg-muted/50 transition-colors'>
 											<div className='mb-3'>
 												<h3 className='text-base font-semibold text-foreground leading-tight'>
-													{attempt.examId ? (
-														<a href={`/results/${attempt.id}`} className="hover:text-primary hover:underline transition-colors">
+													{attempt.examId ?
+														<a
+															href={isPending ? `/test/${attempt.examId}` : `/results/${attempt.id}`}
+															className='hover:text-primary hover:underline transition-colors'
+														>
 															{attempt.examName || 'Đề thi không có tên'}
 														</a>
-													) : (
-														attempt.examName || 'Đề thi không có tên'
-													)}
+													:	attempt.examName || 'Đề thi không có tên'}
 												</h3>
 											</div>
 
 											<div className='flex items-center justify-between flex-wrap gap-3'>
 												{/* Left: status + dates */}
 												<div className='flex items-center gap-3 flex-wrap'>
-													{isPending ? (
+													{isPending ?
 														<span className='flex items-center gap-1.5 text-amber-600 text-sm font-medium'>
 															<Circle className='h-4 w-4' />
 															Đang làm
 														</span>
-													) : (
-														<span className='flex items-center gap-1.5 text-green-600 text-sm font-medium'>
+													:	<span className='flex items-center gap-1.5 text-green-600 text-sm font-medium'>
 															<CheckCircle2 className='h-4 w-4' />
 															Hoàn thành
 														</span>
-													)}
+													}
 
 													<div className='text-sm text-muted-foreground flex items-center gap-1'>
 														<Calendar className='h-3.5 w-3.5' />
@@ -657,7 +704,13 @@ export function UserPage() {
 													{!isPending && scorePct != null && (
 														<div className='text-right'>
 															<p className='text-xs text-muted-foreground'>Điểm</p>
-															<span className={`font-semibold ${scorePct >= 80 ? 'text-green-600' : scorePct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+															<span
+																className={`font-semibold ${
+																	scorePct >= 80 ? 'text-green-600'
+																	: scorePct >= 60 ? 'text-yellow-600'
+																	: 'text-red-600'
+																}`}
+															>
 																{scorePct}%
 															</span>
 														</div>
@@ -676,21 +729,17 @@ export function UserPage() {
 														<p className='text-xs text-muted-foreground'>Thời gian</p>
 														<span className='font-medium text-sm flex items-center gap-1'>
 															<Clock className='h-3.5 w-3.5 text-muted-foreground' />
-															{attempt.endedAt
-																? formatElapsed(attempt.startedAt, attempt.endedAt)
-																: `${Math.floor(attempt.durationLimit / 60)} phút`}
+															{attempt.endedAt ?
+																formatElapsed(attempt.startedAt, attempt.endedAt)
+															:	`${Math.floor(attempt.durationLimit / 60)} phút`}
 														</span>
 													</div>
 
 													{attempt.endedAt && (
-													<Button
-														variant='outline'
-														size='sm'
-														onClick={() => router.push(`/results/${attempt.id}`)}
-													>
-														Xem chi tiết
-													</Button>
-												)}
+														<Button variant='outline' size='sm' onClick={() => router.push(`/results/${attempt.id}`)}>
+															Xem chi tiết
+														</Button>
+													)}
 												</div>
 											</div>
 										</div>
@@ -717,53 +766,69 @@ export function UserPage() {
 
 					{/* Achievements */}
 					<TabsContent value='achievements' className='space-y-6 mt-6'>
-						<Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden">
-							<CardHeader className="bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between">
+						<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
+							<CardHeader className='bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between'>
 								<div>
-									<CardTitle className="text-xl font-bold text-gray-800">Kho danh hiệu của bạn</CardTitle>
+									<CardTitle className='text-xl font-bold text-gray-800'>Kho danh hiệu của bạn</CardTitle>
 									<CardDescription>Hoàn thành các mốc quan trọng để nhận danh hiệu vinh danh</CardDescription>
 								</div>
-								<div className="bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center">
-									<Trophy className="w-5 h-5 mr-2 text-emerald-600"/>
+								<div className='bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center'>
+									<Trophy className='w-5 h-5 mr-2 text-emerald-600' />
 									{earnedBadges.length} Danh hiệu
 								</div>
 							</CardHeader>
-							<CardContent className="pt-8 pb-8">
-								{earnedBadges.length === 0 ? (
-									<div className="text-center py-16">
-										<div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
-											<Lock className="w-10 h-10 text-gray-300" />
+							<CardContent className='pt-8 pb-8'>
+								{earnedBadges.length === 0 ?
+									<div className='text-center py-16'>
+										<div className='w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6'>
+											<Lock className='w-10 h-10 text-gray-300' />
 										</div>
-										<h3 className="text-xl font-bold text-gray-800 mb-2">Chưa có danh hiệu nào</h3>
-										<p className="text-gray-500 mb-6">Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
-										<Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push('/test-selection')}>
+										<h3 className='text-xl font-bold text-gray-800 mb-2'>Chưa có danh hiệu nào</h3>
+										<p className='text-gray-500 mb-6'>Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
+										<Button
+											className='bg-primary hover:bg-primary/90 text-white'
+											onClick={() => router.push('/test-selection')}
+										>
 											Luyện tập ngay
 										</Button>
 									</div>
-								) : (
-									<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+								:	<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'>
 										{earnedBadges.map((badge: any, index: number) => {
-											const colorClass = index % 3 === 0 ? 'bg-amber-400'
-															: index % 3 === 1 ? 'bg-secondary'
-															: 'bg-emerald-500';
+											const colorClass =
+												index % 3 === 0 ? 'bg-amber-400'
+												: index % 3 === 1 ? 'bg-secondary'
+												: 'bg-emerald-500';
 
 											return (
-												<div key={badge.id || index} className="flex flex-col items-center text-center group cursor-pointer">
-													<div className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}>
-														<Award className="w-12 h-12 text-white drop-shadow-sm" />
-														<div className="absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</div>
-														<div className="absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75">✨</div>
+												<div
+													key={badge.id || index}
+													className='flex flex-col items-center text-center group cursor-pointer'
+												>
+													<div
+														className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}
+													>
+														<Award className='w-12 h-12 text-white drop-shadow-sm' />
+														<div className='absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
+															✨
+														</div>
+														<div className='absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75'>
+															✨
+														</div>
 													</div>
-													<h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight mb-1">{badge.displayName || badge.name}</h4>
-													<p className="text-xs text-gray-500 line-clamp-2">{badge.description}</p>
+													<h4 className='font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight mb-1'>
+														{badge.displayName || badge.name}
+													</h4>
+													<p className='text-xs text-gray-500 line-clamp-2'>{badge.description}</p>
 													{badge.date && (
-														<p className="text-[10px] text-gray-400 mt-2">Đạt được: {formatDate(new Date(badge.date))}</p>
+														<p className='text-[10px] text-gray-400 mt-2'>
+															Đạt được: {formatDate(new Date(badge.date))}
+														</p>
 													)}
 												</div>
 											);
 										})}
 									</div>
-								)}
+								}
 							</CardContent>
 						</Card>
 					</TabsContent>
@@ -778,9 +843,7 @@ export function UserPage() {
 							<User className='h-5 w-5' />
 							Cập nhật hồ sơ
 						</DialogTitle>
-						<DialogDescription>
-							Cập nhật thông tin cá nhân của bạn
-						</DialogDescription>
+						<DialogDescription>Cập nhật thông tin cá nhân của bạn</DialogDescription>
 					</DialogHeader>
 					<div className='grid gap-4 py-4'>
 						<div className='grid gap-2'>
@@ -807,7 +870,9 @@ export function UserPage() {
 							Hủy
 						</Button>
 						<Button onClick={handleUpdateProfile} disabled={isLoading}>
-							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							{isLoading ?
+								<Loader2 className='h-4 w-4 animate-spin mr-2' />
+							:	null}
 							Lưu thay đổi
 						</Button>
 					</DialogFooter>
@@ -822,9 +887,7 @@ export function UserPage() {
 							<Key className='h-5 w-5' />
 							Đổi mật khẩu
 						</DialogTitle>
-						<DialogDescription>
-							Cập nhật mật khẩu mới cho tài khoản của bạn
-						</DialogDescription>
+						<DialogDescription>Cập nhật mật khẩu mới cho tài khoản của bạn</DialogDescription>
 					</DialogHeader>
 					<div className='grid gap-4 py-4'>
 						<div className='grid gap-2'>
@@ -844,7 +907,9 @@ export function UserPage() {
 									className='absolute right-0 top-0 h-full px-3'
 									onClick={() => setShowPassword(!showPassword)}
 								>
-									{showPassword ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+									{showPassword ?
+										<EyeOff className='h-4 w-4' />
+									:	<Eye className='h-4 w-4' />}
 								</Button>
 							</div>
 						</div>
@@ -864,7 +929,9 @@ export function UserPage() {
 							Hủy
 						</Button>
 						<Button onClick={handleChangePassword} disabled={isLoading}>
-							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							{isLoading ?
+								<Loader2 className='h-4 w-4 animate-spin mr-2' />
+							:	null}
 							Đổi mật khẩu
 						</Button>
 					</DialogFooter>
@@ -879,9 +946,7 @@ export function UserPage() {
 							<Mail className='h-5 w-5' />
 							Thêm đăng nhập bằng Email
 						</DialogTitle>
-						<DialogDescription>
-							Thêm một phương thức đăng nhập bằng email và mật khẩu
-						</DialogDescription>
+						<DialogDescription>Thêm một phương thức đăng nhập bằng email và mật khẩu</DialogDescription>
 					</DialogHeader>
 					<div className='grid gap-4 py-4'>
 						<div className='grid gap-2'>
@@ -910,7 +975,9 @@ export function UserPage() {
 							Hủy
 						</Button>
 						<Button onClick={handleAddMailCredential} disabled={isLoading}>
-							{isLoading ? <Loader2 className='h-4 w-4 animate-spin mr-2' /> : null}
+							{isLoading ?
+								<Loader2 className='h-4 w-4 animate-spin mr-2' />
+							:	null}
 							Thêm
 						</Button>
 					</DialogFooter>
