@@ -2,10 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { FlashCard, FlashcardList, TagType } from '../types/client';
+import { FlashCard, TagType } from '../types/client';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import { NavPagination } from './ui/nav-pagination';
+import { ReportDialog } from './ReportDialog';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
@@ -40,6 +41,7 @@ import {
 	X,
 	Folder,
 	ArrowLeft,
+	Flag,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -159,13 +161,11 @@ function FlashcardDialog({
 	open,
 	onOpenChange,
 	flashcard,
-	listId,
 	onSave,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
-	listId: string;
 	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => void;
 }) {
 	const [word, setWord] = useState('');
@@ -366,6 +366,7 @@ export function FlashcardListDetail() {
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
+	const [reportOpen, setReportOpen] = useState(false);
 	const [flashcardDialogOpen, setFlashcardDialogOpen] = useState(false);
 	const [editingFlashcard, setEditingFlashcard] = useState<FlashCard | undefined>();
 
@@ -492,14 +493,26 @@ export function FlashcardListDetail() {
 				<div className='absolute inset-0 bg-primary/5 pointer-events-none'></div>
 
 				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
-					<Button
-						variant="ghost"
-						onClick={() => router.push('/flashcards')}
-						className="flex items-center gap-2 mb-6 -ml-2 text-slate-500 hover:text-primary font-semibold"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Trở về danh sách bộ sưu tập
-					</Button>
+					<div className="flex items-center justify-between mb-6">
+						<Button
+							variant="ghost"
+							onClick={() => router.push('/flashcards')}
+							className="flex items-center gap-2 -ml-2 text-slate-500 hover:text-primary font-semibold"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							Trở về danh sách bộ sưu tập
+						</Button>
+						{currentUser && (
+							<Button
+								variant="ghost"
+								onClick={() => setReportOpen(true)}
+								className="flex items-center gap-2 text-slate-500 hover:text-red-600 font-semibold"
+							>
+								<Flag className="h-4 w-4" />
+								Báo cáo
+							</Button>
+						)}
+					</div>
 
 					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
 						<div className="flex items-center gap-5 text-center md:text-left">
@@ -607,25 +620,25 @@ export function FlashcardListDetail() {
 							Tạo thẻ ghi nhớ đầu tiên
 						</Button>
 					</div>
-				) : (
-					<>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-							{filteredFlashcards.map((flashcard) => (
-								<FlashcardCard
-									key={flashcard.id}
-									flashcard={flashcard}
-									tagName={getTagName(flashcard)}
-									editable={isOwnList}
-									onEdit={() => handleEditFlashcard(flashcard)}
-									onDelete={() => handleDeleteFlashcard(flashcard.id)}
-								/>
-							))}
-						</div>
-						{filteredFlashcards.length > 0 && (
-							<NavPagination page={cardPage} totalPages={Math.ceil(cardTotalCount / cardLimit)} onPageChange={setCardPage} />
-						)}
-					</>
-				)}
+              ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                      {filteredFlashcards.map((flashcard) => (
+                        <FlashcardCard
+                          key={flashcard.id}
+                          flashcard={flashcard}
+                          tagName={getTagName(flashcard)}
+                          editable={isOwnList}
+                          onEdit={() => handleEditFlashcard(flashcard)}
+                          onDelete={() => handleDeleteFlashcard(flashcard.id)}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+                {cardTotalCount > 0 && (
+                  <NavPagination page={cardPage} totalPages={Math.ceil(cardTotalCount / cardLimit)} onPageChange={setCardPage} />
+                )}
 			</div>
 
 			{/* Flashcard Dialog */}
@@ -633,9 +646,18 @@ export function FlashcardListDetail() {
 				open={flashcardDialogOpen}
 				onOpenChange={setFlashcardDialogOpen}
 				flashcard={editingFlashcard}
-				listId={listId}
 				onSave={handleAddFlashcard}
 			/>
+
+			{currentUser && (
+				<ReportDialog
+					open={reportOpen}
+					onOpenChange={setReportOpen}
+					targetType="other"
+					targetId={listId}
+					userId={currentUser.id}
+				/>
+			)}
 		</div>
 	);
 }

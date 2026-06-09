@@ -485,7 +485,7 @@ export function ExamCreationPage() {
         if (i < questionIds.length - 1) await delay(1000);
       }
 
-      const nextSections = Object.fromEntries(loadedSections.map((s) => [s.id, s]));
+      const nextSections = Object.fromEntries(loadedSections.map((s) => [s.id, { ...s, contentType: s.contentType || 'SECTION' }]));
       const nextQuestions = Object.fromEntries(loadedQuestions.map((q) => [q.id, q]));
 
       setExam(examPayload);
@@ -920,9 +920,46 @@ export function ExamCreationPage() {
                           <Input
                             className="pl-9"
                             value={examDraft.tagsInput}
-                            onChange={(e) => setExamDraft((p) => ({ ...p, tagsInput: e.target.value }))}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setExamDraft((p) => ({ ...p, tagsInput: val }));
+                              const parts = val.split(',');
+                              const lastPart = parts[parts.length - 1].trim();
+                              setTagQuery(lastPart);
+                              setShowTagSuggestions(lastPart.length > 0);
+                            }}
+                            onFocus={() => {
+                              const parts = examDraft.tagsInput.split(',');
+                              const lastPart = parts[parts.length - 1].trim();
+                              if (lastPart.length > 0) { setTagQuery(lastPart); setShowTagSuggestions(true); }
+                            }}
+                            onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
                             placeholder="toeic, full-test, listening..."
                           />
+                          {showTagSuggestions && (
+                            <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-40 overflow-y-auto">
+                              {allTagNames
+                                .filter((t) => t.toLowerCase().includes(tagQuery.toLowerCase()) && !examDraft.tagsInput.split(',').map((x) => x.trim()).includes(t))
+                                .slice(0, 8)
+                                .map((tag) => (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    className="flex w-full px-3 py-1.5 text-sm text-left hover:bg-gray-100"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      const parts = examDraft.tagsInput.split(',');
+                                      parts[parts.length - 1] = tag;
+                                      setExamDraft((p) => ({ ...p, tagsInput: parts.join(', ') + ', ' }));
+                                      setShowTagSuggestions(false);
+                                      setTagQuery('');
+                                    }}
+                                  >
+                                    {tag}
+                                  </button>
+                                ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

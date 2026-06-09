@@ -7,7 +7,6 @@ import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken 
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -59,7 +58,6 @@ interface ExamItem {
   createdAt?: string;
   updatedAt?: string;
   createdBy?: string;
-  rejectionReason?: string;
   reviewedBy?: string;
 }
 
@@ -74,8 +72,7 @@ export default function ExamApprovalPage() {
 
   const [selectedExam, setSelectedExam] = useState<ExamItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionLoading, setRejectionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -170,8 +167,7 @@ export default function ExamApprovalPage() {
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedExam || !rejectionReason.trim()) return;
+  const handleReject = async (examId: string) => {
     if (!hasApiSession()) {
       toast({
         title: 'Thiếu phiên backend',
@@ -181,23 +177,21 @@ export default function ExamApprovalPage() {
       return;
     }
 
-    setSubmitting(true);
+    setRejectionLoading(true);
     try {
       await ExamManagementService.examManagementGatewayControllerReviewExamV1(
-        selectedExam.id,
+        examId,
         { status: 'REJECTED' },
       );
       toast({ title: 'Đã từ chối', description: 'Đề thi đã được trả về cho tác giả chỉnh sửa.' });
-      setIsRejectDialogOpen(false);
       setIsPreviewOpen(false);
       setSelectedExam(null);
-      setRejectionReason('');
       await fetchExams();
     } catch (err) {
       console.error('Failed to reject exam', err);
       toast({ title: 'Từ chối thất bại', description: 'Không thể từ chối đề thi này.', variant: 'destructive' });
     } finally {
-      setSubmitting(false);
+      setRejectionLoading(false);
     }
   };
 
@@ -305,12 +299,6 @@ export default function ExamApprovalPage() {
                         <p className="font-semibold text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">
                           {exam.title}
                         </p>
-                        {exam.rejectionReason && (
-                          <p className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3 shrink-0" />
-                            {exam.rejectionReason}
-                          </p>
-                        )}
                       </td>
                       <td className="px-4 py-4 text-gray-500 hidden lg:table-cell">
                         {exam.createdBy || '--'}
@@ -356,11 +344,8 @@ export default function ExamApprovalPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  setSelectedExam(exam);
-                                  setIsRejectDialogOpen(true);
-                                }}
-                                disabled={submitting}
+                                onClick={() => handleReject(exam.id)}
+                                disabled={rejectionLoading}
                                 className="text-red-500 border-red-200 hover:bg-red-50 h-8 px-3"
                               >
                                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -414,16 +399,6 @@ export default function ExamApprovalPage() {
                 </div>
               </div>
 
-              {selectedExam.rejectionReason && (
-                <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-                  <h4 className="font-semibold text-red-800 flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Lý do từ chối trước đó
-                  </h4>
-                  <p className="text-sm text-red-700 bg-white/50 p-3 rounded-lg">{selectedExam.rejectionReason}</p>
-                </div>
-              )}
-
               <div className="bg-slate-50 p-4 rounded-xl border border-gray-100">
                 <Button
                   onClick={() => router.push(`/exam-creation?id=${selectedExam.id}`)}
@@ -443,11 +418,8 @@ export default function ExamApprovalPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setIsPreviewOpen(false);
-                    setIsRejectDialogOpen(true);
-                  }}
-                  disabled={submitting}
+                  onClick={() => handleReject(selectedExam!.id)}
+                  disabled={rejectionLoading}
                   className="text-red-500 border-red-200 hover:bg-red-50"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
@@ -470,48 +442,6 @@ export default function ExamApprovalPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Rejection Dialog */}
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-red-600 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              Từ chối đề thi
-            </DialogTitle>
-            <DialogDescription>
-              Vui lòng cung cấp lý do từ chối bài thi này. Tác giả của đề thi sẽ nhìn thấy thông báo này để chỉnh sửa.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <Textarea
-              placeholder="Nhập lý do từ chối chi tiết..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-          </div>
-          <DialogFooter className="mt-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsRejectDialogOpen(false);
-                setRejectionReason('');
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleReject}
-              disabled={!rejectionReason.trim() || submitting}
-              className="bg-red-500 hover:bg-red-600 text-white border-0"
-            >
-              {submitting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
-              Gửi từ chối
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

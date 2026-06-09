@@ -54,6 +54,7 @@ export function Dashboard() {
 	const [stats, setStats] = useState<any>(null);
 	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
 	const [rangeDays, setRangeDays] = useState(180);
+	const [completedCount, setCompletedCount] = useState<number | null>(null);
 	const [rangeOpen, setRangeOpen] = useState(false);
 
 	const fetchCalendar = useCallback(async (days: number) => {
@@ -88,6 +89,25 @@ export function Dashboard() {
 						.then(res => setStats(res.data))
 						.catch(() => {}),
 					fetchCalendar(rangeDays),
+					(async () => {
+						try {
+							let total = 0;
+							let cursor: string | undefined;
+							while (true) {
+								const res: any = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+									undefined, cursor, 200, undefined
+								);
+								const data = res?.data as { attempts?: Array<{ endedAt?: string }>; nextCursor?: string } | undefined;
+								if (!data?.attempts?.length) break;
+								total += data.attempts.filter(a => a.endedAt != null).length;
+								if (!data.nextCursor) break;
+								cursor = data.nextCursor;
+							}
+							setCompletedCount(total);
+						} catch {
+							console.warn("Failed to fetch completed attempt count");
+						}
+					})(),
 				]);
 			} finally {
 				setLoading(false);
@@ -155,7 +175,7 @@ export function Dashboard() {
 
 	if (!currentUser) return null;
 
-	const completedAttemptsCount = stats?.attemptCounts || 0;
+	const completedAttemptsCount = completedCount ?? stats?.attemptCounts ?? 0;
 	const averageScore = stats?.averageScoreInPercentage ? Math.round(stats.averageScoreInPercentage) : 0;
 	const topicCount = stats?.tagInfos?.length || 0;
 

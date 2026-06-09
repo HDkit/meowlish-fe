@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppSelector } from '@/lib/store/hooks';
-import { Notification, NotificationType } from '@/types/client';
+import { NotificationType } from '@/types/client';
+import { NotificationService, type NotificationResponse } from '@/lib/api/services/NotificationService';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -15,60 +16,68 @@ import {
 } from './ui/select';
 import { NavPagination } from './ui/nav-pagination';
 
-const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ElementType; color: string }> = {
-	[NotificationType.Report]: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
-	[NotificationType.Achievement]: { label: 'Thành tích', icon: Trophy, color: 'text-amber-600 bg-amber-100' },
-	[NotificationType.System]: { label: 'Hệ thống', icon: Info, color: 'text-gray-600 bg-gray-100' },
+const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+	report: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
+	achievement: { label: 'Thành tích', icon: Trophy, color: 'text-amber-600 bg-amber-100' },
+	system: { label: 'Hệ thống', icon: Info, color: 'text-gray-600 bg-gray-100' },
 };
 
 const DEFAULT_TYPE_CONFIG = { label: 'Thông báo', icon: Bell, color: 'text-gray-600 bg-gray-100' };
 
+type FilterType = NotificationType | 'all';
+
+function mapNotif(n: NotificationResponse) {
+	return {
+		...n,
+		createdAt: new Date(n.createdAt).getTime(),
+	};
+}
+
 export default function NotificationPage() {
 	const currUser = useAppSelector((state) => (state as any).currUser?.entity ?? (state as any).currUser?.current);
-	const allNotifications = useAppSelector((state) => state.notifications.list);
 	const { markAsRead, markAllAsRead, unreadCount } = useNotifications();
 
-	const [filterType, setFilterType] = useState<NotificationType | 'all'>('all');
+	const [filterType, setFilterType] = useState<FilterType>('all');
 	const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
 	const [page, setPage] = useState(1);
+	const [loading, setLoading] = useState(false);
+	const [notifications, setNotifications] = useState<(NotificationResponse & { createdAt: number })[]>([]);
+	const [totalCount, setTotalCount] = useState(0);
 	const limit = 20;
 
 	useEffect(() => { setPage(1); }, [filterType, filterRead]);
 
-	const myNotifications = useMemo(() => {
-		let filtered = allNotifications.filter((n) => n.userId === currUser?.id);
-		if (filterType !== 'all') filtered = filtered.filter((n) => n.type === filterType);
-		if (filterRead === 'unread') filtered = filtered.filter((n) => !n.isRead);
-		if (filterRead === 'read') filtered = filtered.filter((n) => n.isRead);
-		return filtered.sort((a, b) => b.createdAt - a.createdAt);
-	}, [allNotifications, currUser?.id, filterType, filterRead]);
+	const fetchNotifications = useCallback(async () => {
+		if (!currUser?.id) return;
+		setLoading(true);
+		try {
+			const res = await NotificationService.listNotifications(
+				currUser.id,
+				filterType === 'all' ? undefined : filterType,
+				filterRead === 'all' ? undefined : filterRead === 'unread' ? false : true,
+				page,
+				limit,
+			);
+			const data = (res as any)?.data ?? res;
+			setNotifications((data.notifications ?? []).map(mapNotif));
+			setTotalCount(data.totalCount ?? 0);
+		} catch (err) {
+			console.error('[NotificationPage] fetch error:', err);
+			setNotifications([]);
+			setTotalCount(0);
+		} finally {
+			setLoading(false);
+		}
+	}, [currUser?.id, filterType, filterRead, page]);
 
-	const paginatedNotifications = useMemo(() => {
-		const start = (page - 1) * limit;
-		return myNotifications.slice(start, start + limit);
-	}, [myNotifications, page, limit]);
+	useEffect(() => {
+		fetchNotifications();
+	}, [fetchNotifications]);
 
-	const totalPages = useMemo(() => Math.max(1, Math.ceil(myNotifications.length / limit)), [myNotifications.length, limit]);
-
-	const handleMarkRead = (notif: Notification) => {
-		markAsRead(notif.id);
-	};
-
-	const handleMarkAllRead = () => {
-		markAllAsRead();
-	};
-
-	const formatDate = (ts: number) => {
-		const diff = Date.now() - ts;
-		if (diff < 60000) return 'Vừa xong';
-		if (diff < 3600000) return `${Math.floor(diff / 60000)} phút trước`;
-		if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ trước`;
-		return new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-	};
+	const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
 	return (
 		<div className="min-h-screen bg-background pb-20">
-			{/* Hero Header */}
 			<div className="relative overflow-hidden bg-primary text-white">
 				<div className="absolute inset-0 bg-black/10" />
 				<div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -85,7 +94,7 @@ export default function NotificationPage() {
 							<p className="text-white/80">Theo dõi các cập nhật và phản hồi</p>
 						</div>
 						{unreadCount > 0 && (
-							<Button onClick={handleMarkAllRead} className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-xl">
+							<Button onClick={markAllAsRead} className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-xl">
 								<CheckCheck className="h-4 w-4 mr-2" /> Đánh dấu tất cả đã đọc
 							</Button>
 						)}
@@ -94,9 +103,8 @@ export default function NotificationPage() {
 			</div>
 
 			<div className="container mx-auto px-6 mt-6">
-				{/* Filters */}
 				<div className="flex flex-wrap gap-3 mb-6">
-					<Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+					<Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
 						<SelectTrigger className="w-[200px] rounded-xl">
 							<Filter className="h-4 w-4 mr-2" />
 							<SelectValue placeholder="Loại thông báo" />
@@ -120,8 +128,9 @@ export default function NotificationPage() {
 					</Select>
 				</div>
 
-				{/* Notification List */}
-				{paginatedNotifications.length === 0 ? (
+				{loading ? (
+					<div className="text-center py-16 text-muted-foreground">Đang tải...</div>
+				) : notifications.length === 0 ? (
 					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
 						<Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
 						<h3 className="text-lg font-bold text-gray-800">Không có thông báo</h3>
@@ -129,7 +138,7 @@ export default function NotificationPage() {
 					</div>
 				) : (
 					<div className="space-y-3">
-						{paginatedNotifications.map((notif) => {
+						{notifications.map((notif) => {
 							const conf = TYPE_CONFIG[notif.type] ?? DEFAULT_TYPE_CONFIG;
 							const Icon = conf.icon;
 							return (
@@ -150,7 +159,7 @@ export default function NotificationPage() {
 											<p className="text-xs text-gray-400 mt-2">{formatDate(notif.createdAt)}</p>
 										</div>
 										{!notif.isRead && (
-											<Button variant="ghost" size="sm" className="shrink-0 text-xs rounded-lg" onClick={() => handleMarkRead(notif)}>
+											<Button variant="ghost" size="sm" className="shrink-0 text-xs rounded-lg" onClick={() => markAsRead(notif.id)}>
 												Đánh dấu đã đọc
 											</Button>
 										)}
@@ -164,4 +173,12 @@ export default function NotificationPage() {
 			</div>
 		</div>
 	);
+}
+
+function formatDate(ts: number) {
+	const diff = Date.now() - ts;
+	if (diff < 60000) return 'Vừa xong';
+	if (diff < 3600000) return `${Math.floor(diff / 60000)} phút trước`;
+	if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ trước`;
+	return new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

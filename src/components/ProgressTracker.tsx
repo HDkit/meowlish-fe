@@ -31,11 +31,8 @@ import {
   Award,
   Brain,
   Sparkles,
-  ArrowUpDown,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -109,7 +106,7 @@ function getBarColor(pct: number) {
 
 // ─── Activity Heatmap ───
 
-function ActivityHeatmap({ data }: { data: Record<string, number> }) {
+function ActivityHeatmap({ data, rangeDays = 180 }: { data: Record<string, number>; rangeDays?: number }) {
   const weeks = useMemo(() => {
     const dateMap = new Map<string, number>();
     for (const [epochStr, count] of Object.entries(data)) {
@@ -122,7 +119,7 @@ function ActivityHeatmap({ data }: { data: Record<string, number> }) {
     today.setHours(0, 0, 0, 0);
 
     const start = new Date(today);
-    start.setDate(start.getDate() - (25 * 7 + today.getDay()));
+    start.setDate(start.getDate() - (Math.ceil(rangeDays / 7) * 7 + today.getDay()));
 
     const grid: { date: Date; count: number }[][] = [];
     let week: { date: Date; count: number }[] = [];
@@ -162,7 +159,7 @@ function ActivityHeatmap({ data }: { data: Record<string, number> }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{totalPracticed}</span> bài luyện tập trong 6 tháng
+          <span className="font-semibold text-foreground">{totalPracticed}</span> bài luyện tập
         </p>
       </div>
       <div className="flex gap-[3px] overflow-x-auto pb-2">
@@ -201,59 +198,59 @@ function ActivityHeatmap({ data }: { data: Record<string, number> }) {
 
 // ─── Score Trend Chart ───
 
-function ScoreTrendChart({ data }: { data: { date: string; score: number; name: string }[] }) {
-  if (data.length < 2) return null;
+// function ScoreTrendChart({ data }: { data: { date: string; score: number; name: string }[] }) {
+//   if (data.length < 2) return null;
 
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-        <defs>
-          <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis
-          dataKey="date"
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          domain={[0, 100]}
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(v) => `${v}%`}
-        />
-        <RechartsTooltip
-          contentStyle={{
-            borderRadius: '12px',
-            border: '1px solid hsl(var(--border))',
-            backgroundColor: 'hsl(var(--card))',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-            padding: '10px 14px',
-          }}
-          formatter={(value: number, _: string, props: any) => [
-            `${value}%`,
-            props.payload.name,
-          ]}
-          labelFormatter={() => ''}
-        />
-        <Area
-          type="monotone"
-          dataKey="score"
-          stroke="hsl(var(--primary))"
-          strokeWidth={2.5}
-          fill="url(#scoreGradient)"
-          dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-          activeDot={{ r: 5, strokeWidth: 2, stroke: 'white' }}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
+//   return (
+//     <ResponsiveContainer width="100%" height={280}>
+//       <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+//         <defs>
+//           <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+//             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+//             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+//           </linearGradient>
+//         </defs>
+//         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+//         <XAxis
+//           dataKey="date"
+//           tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+//           tickLine={false}
+//           axisLine={false}
+//         />
+//         <YAxis
+//           domain={[0, 100]}
+//           tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+//           tickLine={false}
+//           axisLine={false}
+//           tickFormatter={(v) => `${v}%`}
+//         />
+//         <RechartsTooltip
+//           contentStyle={{
+//             borderRadius: '12px',
+//             border: '1px solid hsl(var(--border))',
+//             backgroundColor: 'hsl(var(--card))',
+//             boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+//             padding: '10px 14px',
+//           }}
+//           formatter={(value: number, _: string, props: any) => [
+//             `${value}%`,
+//             props.payload.name,
+//           ]}
+//           labelFormatter={() => ''}
+//         />
+//         <Area
+//           type="monotone"
+//           dataKey="score"
+//           stroke="hsl(var(--primary))"
+//           strokeWidth={2.5}
+//           fill="url(#scoreGradient)"
+//           dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
+//           activeDot={{ r: 5, strokeWidth: 2, stroke: 'white' }}
+//         />
+//       </AreaChart>
+//     </ResponsiveContainer>
+//   );
+// }
 
 // ─── Skill Radar ───
 
@@ -399,7 +396,6 @@ export function ProgressTracker() {
   const [historySortDir, setHistorySortDir] = useState<get_users_attempt_history_req_dto_SortOptionsDto.direction>(
     get_users_attempt_history_req_dto_SortOptionsDto.direction.DESC
   );
-  const [historyCursor, setHistoryCursor] = useState<string | undefined>(undefined);
   const [historyNextCursor, setHistoryNextCursor] = useState<string | undefined>(undefined);
   const [historyPrevCursor, setHistoryPrevCursor] = useState<string | undefined>(undefined);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -461,7 +457,7 @@ export function ProgressTracker() {
 
   // Re-fetch history when sort changes
   useEffect(() => {
-    setHistoryCursor(undefined);
+    setHistoryNextCursor(undefined);
     fetchHistory(undefined, historySortKey, historySortDir);
   }, [historySortKey, historySortDir]);
 
@@ -688,21 +684,7 @@ export function ProgressTracker() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
-              <CardContent className="pt-6 pb-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                    <Star className="h-5 w-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Điểm cao nhất</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {bestScore != null ? `${bestScore}%` : '—'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
           </div>
         )}
 
@@ -762,30 +744,6 @@ export function ProgressTracker() {
 
         {/* Charts Section — 2 columns on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Score Trend */}
-          {scoreTrend.length >= 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Biểu đồ điểm số
-                  {insights.trend !== 'stable' && (
-                    <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
-                      insights.trend === 'improving'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {insights.trend === 'improving' ? '+' : ''}{insights.trendDiff}%
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScoreTrendChart data={scoreTrend} />
-              </CardContent>
-            </Card>
-          )}
-
           {/* Skill Radar/Bar */}
           {sortedTags.length > 0 && (
             <Card>
@@ -905,8 +863,7 @@ export function ProgressTracker() {
         )}
 
         {/* Recent Attempts */}
-        {history?.attempts && history.attempts.length > 0 && (
-          <Card>
+        <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -937,6 +894,12 @@ export function ProgressTracker() {
                   <div className="py-8 text-center text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                     Đang tải...
+                  </div>
+                ) : !history?.attempts?.length ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Chưa có bài làm nào</p>
+                    <p className="text-sm mt-1">Hãy làm bài thi thử để theo dõi tiến độ</p>
                   </div>
                 ) : (
                   history.attempts.map((attempt) => {
@@ -996,7 +959,7 @@ export function ProgressTracker() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setHistoryCursor(historyPrevCursor); fetchHistory(historyPrevCursor); }}
+                    onClick={() => fetchHistory(historyPrevCursor)}
                     disabled={!historyPrevCursor || historyLoading}
                     className="rounded-xl gap-1.5"
                   >
@@ -1006,7 +969,7 @@ export function ProgressTracker() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setHistoryCursor(historyNextCursor); fetchHistory(historyNextCursor); }}
+                    onClick={() => fetchHistory(historyNextCursor)}
                     disabled={!historyNextCursor || historyLoading}
                     className="rounded-xl gap-1.5"
                   >
@@ -1017,7 +980,6 @@ export function ProgressTracker() {
               )}
             </CardContent>
           </Card>
-        )}
       </div>
     </div>
   );

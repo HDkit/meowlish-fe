@@ -615,7 +615,13 @@ export function UserPage() {
 										<div key={attempt.id} className='p-4 hover:bg-muted/50 transition-colors'>
 											<div className='mb-3'>
 												<h3 className='text-base font-semibold text-foreground leading-tight'>
-													{attempt.examName || 'Đề thi không có tên'}
+													{attempt.examId ? (
+														<a href={`/results/${attempt.id}`} className="hover:text-primary hover:underline transition-colors">
+															{attempt.examName || 'Đề thi không có tên'}
+														</a>
+													) : (
+														attempt.examName || 'Đề thi không có tên'
+													)}
 												</h3>
 											</div>
 
@@ -676,6 +682,7 @@ export function UserPage() {
 														</span>
 													</div>
 
+													{attempt.endedAt && (
 													<Button
 														variant='outline'
 														size='sm'
@@ -683,6 +690,7 @@ export function UserPage() {
 													>
 														Xem chi tiết
 													</Button>
+												)}
 												</div>
 											</div>
 										</div>

@@ -373,7 +373,7 @@ export default function UserManagementPage() {
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
                   <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả vai trò</SelectItem>
                   {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id} className="text-gray-900 hover:bg-gray-100 cursor-pointer">
+                    <SelectItem key={role.id} value={role.name} className="text-gray-900 hover:bg-gray-100 cursor-pointer">
                       {ROLE_LABELS[role.name] || role.name}
                     </SelectItem>
                   ))}

@@ -259,6 +259,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 									dispatch(addUser({
 										id: i.id, email: '', password: '',
 										fullName: i.fullName ?? i.username ?? 'Ẩn danh',
+										username: i.username ?? '',
 										roleId: '', status: 'active', createdAt: Date.now(),
 									}));
 								}
@@ -312,6 +313,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 								email: d.email ?? '',
 								password: '',
 								fullName: d.fullName ?? d.username ?? 'Ẩn danh',
+								username: d.username ?? '',
 								roleId: d.roles?.[0] ?? '',
 								status: 'active',
 								createdAt: Date.now(),
@@ -334,7 +336,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		};
 	}, [room.id, dispatch]);
 
-	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
+	const getUserName = (uid: string) => { const u = users.find((u) => u.id === uid); return u?.fullName || u?.username || 'Ẩn danh'; };
 
 	const handleSend = () => {
 		if (!input.trim() || !socketRef.current || !joinedRef.current) return;
@@ -540,6 +542,9 @@ export default function ChatPage() {
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [deleteRoomId, setDeleteRoomId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState('');
+	const [roomNextCursor, setRoomNextCursor] = useState<string | undefined>(undefined);
+	const [roomPrevCursor, setRoomPrevCursor] = useState<string | undefined>(undefined);
+	const [roomLoading, setRoomLoading] = useState(false);
 
 	useEffect(() => {
 		if (isHydrated && !currUser) router.push('/auth');
@@ -547,23 +552,34 @@ export default function ChatPage() {
 
 	useEffect(() => {
 		if (!currUser) return;
-		ChatRoomService.listRooms(undefined, 50)
-			.then((res: any) => {
-				const data = (res as any).data ?? res;
-				const apiRooms: ChatRoom[] = (data.rooms ?? []).map((r: any) => ({
-					id: r.id,
-					name: r.name,
-					scheduledLiveUrl: r.scheduledLiveUrl,
-					scheduledDate: r.scheduledDate ? new Date(r.scheduledDate).getTime() : undefined,
-				}));
-				dispatch(setChatRooms(apiRooms));
-			})
-			.catch(err => console.error('[ChatPage] fetch rooms error:', err));
-	}, [currUser, dispatch]);
+		fetchRooms();
+	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	const getUserName = (uid: string) => users.find((u) => u.id === uid)?.fullName || 'Ẩn danh';
+	const fetchRooms = async (cursor?: string) => {
+		if (!currUser) return;
+		setRoomLoading(true);
+		try {
+			const res = await ChatRoomService.listRooms(cursor, 20);
+			const data = (res as any).data ?? res;
+			const apiRooms: ChatRoom[] = (data.rooms ?? []).map((r: any) => ({
+				id: r.id,
+				name: r.name,
+				scheduledLiveUrl: r.scheduledLiveUrl,
+				scheduledDate: r.scheduledDate ? new Date(r.scheduledDate).getTime() : undefined,
+			}));
+			dispatch(setChatRooms(apiRooms));
+			setRoomNextCursor(data.nextCursor ?? undefined);
+			setRoomPrevCursor(data.prevCursor ?? undefined);
+		} catch (err) {
+			console.error('[ChatPage] fetch rooms error:', err);
+		} finally {
+			setRoomLoading(false);
+		}
+	};
 
-	const getLastMessage = (roomId: string) => {
+ 	const getUserName = (uid: string) => { const u = users.find((u) => u.id === uid); return u?.fullName || u?.username || 'Ẩn danh'; };
+
+ 	const getLastMessage = (roomId: string) => {
 		const msgs = allMessages.filter((m) => m.roomId === roomId);
 		if (msgs.length === 0) return null;
 		return msgs.sort((a, b) => b.createdAt - a.createdAt)[0];
@@ -669,6 +685,8 @@ export default function ChatPage() {
 						</Button>
 					</div>
 				) : (
+					<>
+					{roomLoading && <div className="text-center py-4 text-muted-foreground">Đang tải...</div>}
 					<div className="space-y-3">
 						{filteredRooms.map((room) => {
 							const lastMsg = getLastMessage(room.id);
@@ -705,6 +723,17 @@ export default function ChatPage() {
 							);
 						})}
 					</div>
+					{(roomPrevCursor || roomNextCursor) && (
+						<div className="flex items-center justify-center gap-4 mt-4">
+							<Button variant="outline" size="sm" disabled={!roomPrevCursor || roomLoading} onClick={() => fetchRooms(roomPrevCursor)}>
+								Trước
+							</Button>
+							<Button variant="outline" size="sm" disabled={!roomNextCursor || roomLoading} onClick={() => fetchRooms(roomNextCursor)}>
+								Sau
+							</Button>
+						</div>
+					)}
+					</>
 				)}
 			</div>
 
