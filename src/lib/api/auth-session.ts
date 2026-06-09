@@ -24,13 +24,11 @@ const getStorage = (): Storage | null => {
 };
 
 export const getApiBaseUrl = (): string => {
-    // In browser, use relative paths to leverage Next.js rewrite rules
-    // This routes /api/* to the backend server via next.config.ts rewrites
-    if (isBrowser()) {
-        return '';
-    }
-    // For SSR/server-side, use full URL
-    return API_BASE_URL.replace(/\/+$/, '');
+    // Use the full backend URL directly (CORS is already open).
+    // The generated API client appends paths like /api/v1/... to this base,
+    // so strip any trailing /api suffix to avoid double /api.
+    const base = API_BASE_URL.replace(/\/+$/, '');
+    return base.replace(/\/api$/, '');
 };
 
 const getCookieValue = (name: string): string | undefined => {
