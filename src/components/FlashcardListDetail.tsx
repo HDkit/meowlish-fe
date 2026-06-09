@@ -64,13 +64,13 @@ function mapFlashCard(fc: any, listId: string): FlashCard {
 
 function FlashcardCard({
 	flashcard,
-	tagName,
+	tagNames,
 	editable,
 	onEdit,
 	onDelete,
 }: {
 	flashcard: FlashCard;
-	tagName?: string;
+	tagNames?: string[];
 	editable?: boolean;
 	onEdit: () => void;
 	onDelete: () => void;
@@ -87,10 +87,15 @@ function FlashcardCard({
 				{isFlipped && <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>}
 
 				<div className="flex items-start justify-between mb-4 relative z-20">
-					<div className="flex items-center gap-2">
-						{tagName && (
-							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-primary/10 text-primary border-primary/30'}`}>
+					<div className="flex flex-wrap items-center gap-1.5">
+						{(tagNames ?? []).slice(0, 3).map((tagName) => (
+							<Badge key={tagName} variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/20 border-white/30 text-white' : 'bg-primary/10 text-primary border-primary/30'}`}>
 								{tagName}
+							</Badge>
+						))}
+						{(tagNames?.length ?? 0) > 3 && (
+							<Badge variant="outline" className={`text-xs font-semibold ${isFlipped ? 'bg-white/10 border-white/20 text-white/80' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+								+{(tagNames?.length ?? 0) - 3}
 							</Badge>
 						)}
 					</div>
@@ -171,22 +176,36 @@ function FlashcardDialog({
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
 	const { toast } = useToast();
-	const [selectedTag, setSelectedTag] = useState('');
+	const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+	const [tagInput, setTagInput] = useState('');
+	const [tagSearch, setTagSearch] = useState('');
 	const tags = useAppSelector((state) => state.tags.list);
 	const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
+	const isSelectedTag = (tagId: string, tagName: string) =>
+		selectedTagIds.some((value) => value === tagId || value === tagName);
+	const suggestedTags = flashcardTags
+		.filter((tag) => {
+			const q = tagSearch.trim().toLowerCase();
+			if (!q) return true;
+			return tag.name.toLowerCase().includes(q);
+		})
+		.filter((tag) => !isSelectedTag(tag.id, tag.name))
+		.slice(0, 8);
 
 	useEffect(() => {
 		if (flashcard) {
 			setWord(flashcard.word);
 			setDefinition(flashcard.definition);
 			setNotes(flashcard.notes || '');
-			setSelectedTag(flashcard.tags[0] || '');
+			setSelectedTagIds(flashcard.tags ?? []);
 		} else {
 			setWord('');
 			setDefinition('');
 			setNotes('');
-			setSelectedTag('');
+			setSelectedTagIds([]);
 		}
+		setTagInput('');
+		setTagSearch('');
 	}, [flashcard, open]);
 
 	const applyTemplate = (field: 'definition' | 'notes') => {
@@ -207,18 +226,19 @@ Lưu ý: ...`);
 			toast({ title: 'Vui lòng điền đầy đủ từ và định nghĩa', variant: 'destructive' });
 			return;
 		}
-		const resultTags = selectedTag ? [selectedTag] : [];
-		onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: resultTags });
+		onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
 		setWord('');
 		setDefinition('');
 		setNotes('');
-		setSelectedTag('');
+		setSelectedTagIds([]);
+		setTagInput('');
+		setTagSearch('');
 		onOpenChange(false);
 	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-lg p-0 max-h-[90vh] flex flex-col">
 				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
@@ -230,7 +250,7 @@ Lưu ý: ...`);
 							: 'Thêm một thẻ ghi nhớ mới để học từ vựng hay ngữ pháp hiệu quả.'}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="px-6 py-4 space-y-5">
+				<div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
 					<div className="space-y-2">
 						<Label htmlFor="word" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
 						<Input
@@ -278,22 +298,72 @@ Lưu ý: ...`);
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="tag" className="text-slate-700 font-bold">Chủ đề</Label>
-						<Select value={selectedTag} onValueChange={setSelectedTag}>
-							<SelectTrigger id="tag" className="bg-slate-50 border-slate-200 rounded-xl h-11 focus:ring-primary focus:border-primary">
-								<SelectValue placeholder="Chọn một chủ đề" />
-							</SelectTrigger>
-							<SelectContent className="rounded-xl border-slate-200">
-								{flashcardTags.map((tag) => (
-									<SelectItem key={tag.id} value={tag.id} className="cursor-pointer">
-										{tag.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<Label className="text-slate-700 font-bold">Tags</Label>
+						<div className="space-y-2">
+							<div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+						{selectedTagIds.map((tagId) => {
+							const tagName = tags.find((t) => t.id === tagId)?.name ?? tagId;
+							return (
+										<Badge key={tagId} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
+											{tagName}
+											<button type="button" onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))} className="ml-0.5 hover:text-red-500">
+											<X className="h-3 w-3" />
+										</button>
+										</Badge>
+									);
+								})}
+								<Input
+									value={tagInput}
+									onChange={(e) => {
+										setTagInput(e.target.value);
+										setTagSearch(e.target.value);
+									}}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' || e.key === ',') {
+											e.preventDefault();
+											const value = tagInput.trim();
+											if (value && !selectedTagIds.some((id) => tags.find((t) => t.id === id)?.name.toLowerCase() === value.toLowerCase())) {
+												setSelectedTagIds((prev) => [...prev, value]);
+											}
+											setTagInput('');
+											setTagSearch('');
+										}
+										if (e.key === 'Backspace' && !tagInput && selectedTagIds.length > 0) {
+											setSelectedTagIds((prev) => prev.slice(0, -1));
+										}
+									}}
+									placeholder={selectedTagIds.length > 0 ? '' : 'Nhập tag rồi chọn gợi ý...'}
+									className="min-w-[160px] flex-1 border-0 p-0 shadow-none focus-visible:ring-0"
+								/>
+							</div>
+							<div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+								<div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">Gợi ý tag</div>
+								<div className="max-h-40 overflow-y-auto">
+								{suggestedTags.length === 0 ? (
+									<div className="px-3 py-3 text-sm text-slate-500">Không có tag phù hợp</div>
+								) : (
+									suggestedTags.map((tag) => (
+										<button
+											key={tag.id}
+											type="button"
+											onClick={() => {
+												setSelectedTagIds((prev) => [...prev, tag.id]);
+												setTagInput('');
+												setTagSearch('');
+											}}
+											className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5 transition-colors flex items-center justify-between"
+										>
+												<span className="font-medium text-slate-800">{tag.name}</span>
+												<span className="text-[11px] text-slate-400">{tag.tagType}</span>
+											</button>
+										))
+									)}
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
-				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
+				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
@@ -449,9 +519,10 @@ export function FlashcardListDetail() {
 		}
 	};
 
-	const getTagName = (flashcard: FlashCard) => {
-		const tag = tags.find((t) => flashcard.tags.includes(t.id));
-		return tag?.name;
+	const getTagNames = (flashcard: FlashCard) => {
+		return flashcard.tags
+			.map((tagValue) => tags.find((t) => t.id === tagValue || t.name === tagValue)?.name ?? tagValue)
+			.filter((name): name is string => !!name);
 	};
 
 	if (!isHydrated || !currentUser) {
@@ -633,14 +704,14 @@ export function FlashcardListDetail() {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
                       {filteredFlashcards.map((flashcard) => (
-                        <FlashcardCard
-                          key={flashcard.id}
-                          flashcard={flashcard}
-                          tagName={getTagName(flashcard)}
-                          editable={isOwnList}
-                          onEdit={() => handleEditFlashcard(flashcard)}
-                          onDelete={() => handleDeleteFlashcard(flashcard.id)}
-                        />
+						<FlashcardCard
+							key={flashcard.id}
+							flashcard={flashcard}
+							tagNames={getTagNames(flashcard)}
+							editable={isOwnList}
+							onEdit={() => handleEditFlashcard(flashcard)}
+							onDelete={() => handleDeleteFlashcard(flashcard.id)}
+						/>
                       ))}
                     </div>
                   </>

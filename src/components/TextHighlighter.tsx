@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { Button } from './ui/button';
-import { Trash2, Underline, Strikethrough, Plus, X, ChevronDown, Languages } from 'lucide-react';
-import { addFlashCard } from './store/flashCardSlice';
-import { addFlashcardList } from './store/flashcardListSlice';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Badge } from './ui/badge';
+import { Trash2, Underline, Strikethrough, Plus, X, Languages } from 'lucide-react';
 import { RootState } from './store/main/store';
-import type { FlashCard, FlashcardList } from '../types/client';
+import { TagType } from '../types/client';
+import type { FlashcardList } from '../types/client';
 import { useToast } from '@/components/ui/use-toast';
+import { FlashcardService } from '@/lib/api/services/FlashcardService';
+import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import { extractApiErrorMessage } from '@/lib/api-response';
 
 // --- TYPES ---
 type Highlight = {
@@ -30,11 +35,28 @@ type TextHighlighterProps = {
 type FlashcardFormData = {
   word: string;
   definition: string;
+  notes: string;
   listTitle: string;
   listDescription: string;
   selectedListId: string;
   createNewList: boolean;
 };
+
+function mapFlashcardList(list: any): FlashcardList {
+  return {
+    id: list.id,
+    authorId: list.authorId,
+    name: list.name,
+    description: list.description || undefined,
+    isPublic: !!list.isPublic,
+    tags: list.tags ?? [],
+    createdAt: new Date(list.createdAt).getTime(),
+  };
+}
+
+function normalizeTagName(tag: string) {
+  return tag.trim().toLowerCase();
+}
 
 // --- CONSTANTS ---
 const HIGHLIGHT_COLORS = [
@@ -60,12 +82,26 @@ const FlashcardFormModal = ({
   flashcardLists: FlashcardList[];
   onSaveSuccess: (word: string) => void;
 }) => {
-  const dispatch = useDispatch();
   const { toast } = useToast();
+  const [loadingLists, setLoadingLists] = useState(false);
+  const [apiFlashcardLists, setApiFlashcardLists] = useState<FlashcardList[]>(flashcardLists);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const tags = useSelector((state: RootState) => state.tags.list);
+  const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
+  const suggestedTags = flashcardTags
+    .filter((tag) => {
+      const q = normalizeTagName(tagInput);
+      if (!q) return true;
+      return normalizeTagName(tag.name).includes(q);
+    })
+    .filter((tag) => !selectedTags.some((t) => normalizeTagName(t) === normalizeTagName(tag.name)))
+    .slice(0, 8);
 
   const [formData, setFormData] = useState<FlashcardFormData>({
     word: '',
     definition: '',
+    notes: '',
     listTitle: '',
     listDescription: '',
     selectedListId: '',
@@ -74,21 +110,54 @@ const FlashcardFormModal = ({
 
   // Load dữ liệu khi mở form
   useEffect(() => {
-    if (isOpen) {
-      setFormData(prev => ({ 
-        ...prev, 
-        word: initialWord,
-        // Nếu có list thì chọn cái đầu tiên mặc định
-        selectedListId: flashcardLists.length > 0 ? flashcardLists[0].id : ''
-      }));
-    }
-  }, [isOpen, initialWord, flashcardLists]);
+    if (!isOpen) return;
+    setFormData(prev => ({
+      ...prev,
+      word: initialWord,
+    }));
+    setSelectedTags([]);
+    setTagInput('');
+  }, [isOpen, initialWord]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData((prev) => ({
+      ...prev,
+      selectedListId: prev.selectedListId || apiFlashcardLists[0]?.id || '',
+    }));
+  }, [isOpen, apiFlashcardLists]);
+
+  useEffect(() => {
+    setApiFlashcardLists(flashcardLists);
+  }, [flashcardLists]);
+
+  useEffect(() => {
+    if (!isOpen || !currentUser?.id) return;
+    let cancelled = false;
+    setLoadingLists(true);
+    FlashcardListService.listFlashCardLists(currentUser.id, undefined, 1, 200)
+      .then((res: any) => {
+        if (cancelled) return;
+        const data = res?.data ?? res;
+        setApiFlashcardLists((data.lists ?? []).map(mapFlashcardList));
+      })
+      .catch((err) => {
+        console.error('[TextHighlighter] fetch lists error:', err);
+        toast({ title: 'Không tải được danh sách flashcard', description: extractApiErrorMessage(err), variant: 'destructive' });
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLists(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentUser?.id, toast]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { word, definition, listTitle, listDescription, selectedListId, createNewList } = formData;
+    const { word, definition, notes, listTitle, listDescription, selectedListId, createNewList } = formData;
 
     if (!currentUser || !word.trim()) {
       toast({ title: 'Vui lòng nhập từ mới!', variant: 'destructive' });
@@ -99,59 +168,54 @@ const FlashcardFormModal = ({
 
     // 1. Xử lý tạo List mới
     if (createNewList && listTitle.trim()) {
-      const newListId = `fl-${Date.now()}`;
-      const newFlashcardList: FlashcardList = {
-        id: newListId,
-        authorId: currentUser.id,
-        name: listTitle.trim(),
-        description: listDescription.trim() || undefined,
-        isPublic: false,
-        tags: [],
-        createdAt: Date.now(),
-      };
-      dispatch(addFlashcardList(newFlashcardList));
-      listId = newListId;
+      try {
+        const rawList = await FlashcardListService.createFlashCardList({
+          name: listTitle.trim(),
+          description: listDescription.trim() || undefined,
+          isPublic: false,
+          tags: [],
+        });
+        const createdList = mapFlashcardList((rawList as any)?.data ?? rawList);
+        setApiFlashcardLists((prev) => [createdList, ...prev.filter((l) => l.id !== createdList.id)]);
+        listId = createdList.id;
+      } catch (err) {
+        toast({ title: 'Tạo list flashcard thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+        return;
+      }
     } 
-    // 2. Xử lý trường hợp chưa có list nào và không tạo mới
+    // 2. Nếu không có list thì chỉ báo lỗi, không tự tạo list ngầm
     else if (!listId) {
-      const defaultListId = `fl-${Date.now()}`;
-      dispatch(addFlashcardList({
-         id: defaultListId,
-         authorId: currentUser.id,
-         name: "Thẻ ghi nhớ",
-         isPublic: false,
-         tags: [],
-         createdAt: Date.now()
-      }));
-      listId = defaultListId;
+      toast({ title: 'Vui lòng chọn hoặc tạo list flashcard', variant: 'destructive' });
+      return;
     }
 
-    // 3. Tạo Flashcard
-    const newFlashcard: FlashCard = {
-      id: `f-${Date.now()}`,
-      authorId: currentUser.id,
-      listId: listId,
-      word: word.trim(),
-      definition: definition.trim(),
-      examples: [],
-      tags: [],
-      createdAt: Date.now(),
-    };
+    try {
+      await FlashcardService.createFlashCard({
+        word: word.trim(),
+        definition: definition.trim(),
+        notes: notes.trim() || undefined,
+        examples: [],
+        tags: selectedTags,
+        listId,
+      });
+      onSaveSuccess(word);
 
-    dispatch(addFlashCard(newFlashcard));
-    onSaveSuccess(word);
-    
-    // Reset form
-    setFormData({
-      word: '',
-      definition: '',
-      listTitle: '',
-      listDescription: '',
-      selectedListId: '',
-      createNewList: false
-    });
-    
-    onClose();
+      setFormData({
+        word: '',
+        definition: '',
+        notes: '',
+        listTitle: '',
+        listDescription: '',
+        selectedListId: listId,
+        createNewList: false,
+      });
+      setSelectedTags([]);
+      setTagInput('');
+
+      onClose();
+    } catch (err) {
+      toast({ title: 'Tạo flashcard thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+    }
   };
 
   return createPortal(
@@ -220,8 +284,9 @@ const FlashcardFormModal = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, selectedListId: e.target.value }))}
                 className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white text-gray-700"
               >
-                {flashcardLists.length === 0 && <option value="">(Chưa có danh sách nào)</option>}
-                {flashcardLists.map(list => (
+                 {loadingLists && <option value="">(Đang tải danh sách...)</option>}
+                 {!loadingLists && apiFlashcardLists.length === 0 && <option value="">(Chưa có danh sách nào)</option>}
+                 {apiFlashcardLists.map(list => (
                   <option key={list.id} value={list.id}>{list.name}</option>
                 ))}
               </select>
@@ -257,12 +322,88 @@ const FlashcardFormModal = ({
             ></textarea>
           </div>
 
-          {/* Expand options */}
-          <div className="pt-2">
-            <button type="button" className="text-primary text-sm font-medium hover:text-primary/80 flex items-center gap-1 transition-colors">
-              Thêm phiên âm, ví dụ, ảnh, ghi chú ... 
-              <ChevronDown size={14} />
-            </button>
+          {/* Notes */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-gray-800">Ghi chú</label>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">note</span>
+            </div>
+            <Textarea
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              rows={3}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none text-base shadow-sm"
+              placeholder="Ví dụ minh hoạ, mẹo nhớ, ngữ cảnh sử dụng..."
+            />
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-gray-800">Tags</label>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">gợi ý</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+                {selectedTags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
+                      className="ml-0.5 hover:text-red-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const value = tagInput.trim();
+                      if (value && !selectedTags.some((t) => normalizeTagName(t) === normalizeTagName(value))) {
+                        setSelectedTags((prev) => [...prev, value]);
+                      }
+                      setTagInput('');
+                    }
+                    if (e.key === 'Backspace' && !tagInput && selectedTags.length > 0) {
+                      setSelectedTags((prev) => prev.slice(0, -1));
+                    }
+                  }}
+                  placeholder={selectedTags.length > 0 ? '' : 'Nhập tag rồi chọn gợi ý...'}
+                  className="min-w-[180px] flex-1 border-0 p-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                  Gợi ý tag
+                </div>
+                <div className="max-h-44 overflow-y-auto">
+                  {suggestedTags.length === 0 ? (
+                    <div className="px-3 py-3 text-sm text-gray-500">Không có tag phù hợp</div>
+                  ) : (
+                    suggestedTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTags((prev) => [...prev, tag.name]);
+                            setTagInput('');
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5 transition-colors flex items-center justify-between"
+                        >
+                          <span className="font-medium text-gray-800">{tag.name}</span>
+                          <span className="text-[11px] text-gray-400">{tag.tagType}</span>
+                        </button>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
