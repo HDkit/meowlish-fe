@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Blog } from '../types/client';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Button } from './ui/button';
 import {
 	BookOpen,
 	Search,
@@ -13,6 +12,7 @@ import {
 	FileText,
 	Tag,
 	Loader2,
+	Check,
 } from 'lucide-react';
 import { BlogService } from '@/lib/api/services/BlogService';
 import { AuthService } from '@/lib/api-client';
@@ -90,22 +90,24 @@ export function BlogPage() {
 	const router = useRouter();
 	const [blogs, setBlogs] = useState<Blog[]>([]);
 	const [authorMap, setAuthorMap] = useState<Record<string, string>>({});
+	const [allAvailableTags, setAllAvailableTags] = useState<string[]>([
+		'hoc-tap', 'luyen-tap', 'nghe', 'phat-am', 'phuong-phap', 'podcast', 'tu-vung', 'viet-lach',
+	]);
 	const [loading, setLoading] = useState(true);
 
-	const [selectedTag, setSelectedTag] = useState<string | '__all__'>('__all__');
-	const [searchQuery, setSearchQuery] = useState('');
+	const [selectedTags, setSelectedTags] = useState<string[]>([]);
 	const [page, setPage] = useState(1);
 	const [totalCount, setTotalCount] = useState(0);
 	const limit = 12;
 
 	useEffect(() => {
 		setPage(1);
-	}, [selectedTag, searchQuery]);
+	}, [selectedTags]);
 
 	useEffect(() => {
 		setLoading(true);
-		const selectedTags = selectedTag !== '__all__' ? [selectedTag] : undefined;
-		BlogService.listBlogs(undefined, page, limit, selectedTags)
+		const tags = selectedTags.length > 0 ? selectedTags : undefined;
+		BlogService.listBlogs(undefined, page, limit, tags)
 			.then((res: any) => {
 				const data = (res as any).data ?? res;
 				const apiBlogs: Blog[] = (data.blogs ?? []).map((b: any) => ({
@@ -135,27 +137,13 @@ export function BlogPage() {
 			})
 			.catch(err => console.error('[BlogPage] fetch error:', err))
 			.finally(() => setLoading(false));
-	}, [page, selectedTag]);
+	}, [page, selectedTags]);
 
-	const allTags = useMemo(() => {
-		const tagSet = new Set<string>();
-		blogs.forEach((b) => b.tags?.forEach((t) => tagSet.add(t)));
-		return Array.from(tagSet).sort();
-	}, [blogs]);
+	const allTags = allAvailableTags;
 
 	const filteredBlogs = useMemo(() => {
-		let filtered = blogs;
-
-		if (searchQuery) {
-			filtered = filtered.filter(
-				(b) =>
-					b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					b.content.toLowerCase().includes(searchQuery.toLowerCase())
-			);
-		}
-
-		return [...filtered].sort((a, b) => b.createdAt - a.createdAt);
-	}, [blogs, searchQuery]);
+		return [...blogs].sort((a, b) => b.createdAt - a.createdAt);
+	}, [blogs]);
 
 	const getAuthorName = (authorId: string) => {
 		return authorMap[authorId] || 'Unknown';
@@ -188,19 +176,6 @@ export function BlogPage() {
 						Khám phá các bài viết hữu ích về chiến lược học tiếng Anh, kỹ năng làm bài thi, và kinh nghiệm học viên.
 					</p>
 
-					<div className="mt-10 w-full max-w-2xl mx-auto relative group">
-					<div className="relative flex items-center bg-white rounded-full shadow-2xl overflow-hidden border-2 border-transparent focus-within:border-primary transition-colors p-1">
-							<div className="pl-5 pr-3 text-gray-400 shrink-0">
-								<Search className="h-5 w-5" />
-							</div>
-							<input
-								placeholder="Tìm kiếm tựa đề, nội dung bài viết..."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="w-full py-3 pr-6 text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none focus:ring-0 text-lg font-medium"
-							/>
-						</div>
-					</div>
 				</div>
 			</div>
 
@@ -219,40 +194,42 @@ export function BlogPage() {
 								</CardHeader>
 								<CardContent className="p-3 space-y-1">
 									<button
-										onClick={() => setSelectedTag('__all__')}
-										className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${selectedTag === '__all__'
+										onClick={() => setSelectedTags([])}
+										className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group ${selectedTags.length === 0
 											? 'bg-primary/10 text-primary shadow-sm border border-primary/20'
 											: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100'
 											}`}
 									>
 										<span className="font-semibold">Tất cả bài viết</span>
-										<Badge className={`${selectedTag === '__all__' ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>{totalCount}</Badge>
 									</button>
 
 									<div className="h-px w-full bg-gray-100 my-2" />
 
-									{allTags.map((tag) => {
-										const count = blogs.filter((b) => b.tags?.includes(tag)).length;
-										const isSelected = selectedTag === tag;
-										return (
-											<button
-												key={tag}
-												onClick={() => setSelectedTag(tag)}
-												className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected
-													? 'bg-primary/10 text-primary shadow-sm border border-primary/20'
-													: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100'
-													}`}
-											>
-												<div className="flex items-center gap-3">
+									<div className="max-h-[400px] overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+										{allTags.map((tag) => {
+											const isSelected = selectedTags.includes(tag);
+											return (
+												<button
+													key={tag}
+													onClick={() =>
+														setSelectedTags((prev) =>
+															prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+														)
+													}
+													className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group ${isSelected
+														? 'bg-primary/10 text-primary shadow-sm border border-primary/20'
+														: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100'
+														}`}
+												>
+													{isSelected && <Check className="h-4 w-4 shrink-0" />}
 													<div className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700'}`}>
 														<Tag className="h-4 w-4" />
 													</div>
 													<span className={isSelected ? 'font-semibold' : 'font-medium'}>{tag}</span>
-												</div>
-												<Badge className={`${isSelected ? 'bg-primary hover:bg-primary/90 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border-0'} transition-colors`}>{count}</Badge>
-											</button>
-										);
-									})}
+												</button>
+											);
+										})}
+									</div>
 								</CardContent>
 							</Card>
 						</div>
@@ -262,7 +239,7 @@ export function BlogPage() {
 					<main className="flex-1 order-1 lg:order-2">
 						<div className="mb-6 flex items-center justify-between">
 							<h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-								{selectedTag === '__all__' ? 'Bài viết mới nhất' : selectedTag}
+								{selectedTags.length === 0 ? 'Bài viết mới nhất' : selectedTags.join(', ')}
 								<span className="text-sm font-normal text-gray-500 bg-gray-200 px-2.5 py-0.5 rounded-full ml-2">
 									{filteredBlogs.length}
 								</span>
@@ -276,15 +253,8 @@ export function BlogPage() {
 								</div>
 								<h3 className="text-lg font-bold text-gray-900 mb-1">Không có kết quả</h3>
 								<p className="text-gray-500 max-w-md mx-auto">
-									{searchQuery
-										? `Không tìm thấy bài viết nào chứa từ khóa "${searchQuery}"`
-										: 'Chưa có bài viết nào thuộc tag này.'}
+									Chưa có bài viết nào thuộc tag này.
 								</p>
-								{searchQuery && (
-									<Button variant="outline" className="mt-6" onClick={() => setSearchQuery('')}>
-										Xóa tìm kiếm
-									</Button>
-								)}
 							</div>
 						) : (
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-fr">
