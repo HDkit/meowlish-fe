@@ -2,7 +2,20 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, Clock, Loader2, PenTool, RefreshCw, Sparkles, Target, Trophy, XCircle } from 'lucide-react';
+import {
+	AlertCircle,
+	ArrowLeft,
+	CheckCircle2,
+	ChevronDown,
+	Clock,
+	Loader2,
+	PenTool,
+	RefreshCw,
+	Sparkles,
+	Target,
+	Trophy,
+	XCircle,
+} from 'lucide-react';
 
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
 import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
@@ -66,17 +79,14 @@ function parseWritingFeedback(additionalData: string | null | undefined): Writin
 
 	// ── Extract fields — exact AI-service names (README) first, aliases second ──
 	const overall =
-		obj.overall_score ?? obj.score ?? obj.band_score ?? obj.bandScore ??
-		obj.total_score ?? obj.overall ?? obj.band;
+		obj.overall_score ?? obj.score ?? obj.band_score ?? obj.bandScore ?? obj.total_score ?? obj.overall ?? obj.band;
 	if (overall === undefined || overall === null) return null;
 
 	const sub: Record<string, number> | undefined =
-		obj.sub_scores ?? obj.subScores ?? obj.criteria ?? obj.subscores ??
-		obj.breakdown ?? obj.scores ?? undefined;
+		obj.sub_scores ?? obj.subScores ?? obj.criteria ?? obj.subscores ?? obj.breakdown ?? obj.scores ?? undefined;
 
 	const feedback: string | undefined =
-		obj.detailed_feedback ?? obj.detailedFeedback ?? obj.feedback ??
-		obj.comment ?? obj.comments ?? undefined;
+		obj.detailed_feedback ?? obj.detailedFeedback ?? obj.feedback ?? obj.comment ?? obj.comments ?? undefined;
 
 	const corrected: string | undefined =
 		obj.corrected_version ?? obj.correctedVersion ?? obj.corrected_essay ?? undefined;
@@ -84,10 +94,10 @@ function parseWritingFeedback(additionalData: string | null | undefined): Writin
 	// Corrections: the AI service prompt uses error_type / original_text / corrected_text
 	const rawCorrections: any[] = obj.corrections ?? obj.errors ?? obj.mistakes ?? [];
 	const corrections = rawCorrections.map((c: any) => ({
-		type:        c.error_type     ?? c.type        ?? c.errorType    ?? 'Lỗi',
-		original:    c.original_text  ?? c.original    ?? c.originalText ?? '',
-		corrected:   c.corrected_text ?? c.corrected   ?? c.correctedText ?? '',
-		explanation: c.explanation    ?? c.reason      ?? c.note         ?? '',
+		type: c.error_type ?? c.type ?? c.errorType ?? 'Lỗi',
+		original: c.original_text ?? c.original ?? c.originalText ?? '',
+		corrected: c.corrected_text ?? c.corrected ?? c.correctedText ?? '',
+		explanation: c.explanation ?? c.reason ?? c.note ?? '',
 	}));
 
 	return {
@@ -384,9 +394,11 @@ export function TestResult() {
 
 	// Detect if this is a Writing-only test (case-insensitive type check)
 	const isWritingTest = useMemo(() => {
-		return flatQuestions.length > 0 && flatQuestions.every(q =>
-			q.q.type?.toLowerCase() === 'writing' ||
-			q.q.tags?.some(t => t.toLowerCase().includes('writing'))
+		return (
+			flatQuestions.length > 0 &&
+			flatQuestions.every(
+				(q) => q.q.type?.toLowerCase() === 'writing' || q.q.tags?.some((t) => t.toLowerCase().includes('writing')),
+			)
 		);
 	}, [flatQuestions]);
 
@@ -465,56 +477,61 @@ export function TestResult() {
 
 	const rawTotalPoints = reviewData?.totalPoints ?? 0;
 
-	const scoreLabel = isToeicLike
-		? 'Điểm TOEIC'
-		: isWritingTest
-			? 'Band IELTS trung bình'
-			: 'Điểm';
+	const scoreLabel =
+		isToeicLike ? 'Điểm TOEIC'
+		: isWritingTest ? 'Band IELTS trung bình'
+		: 'Điểm';
 
 	// Giá trị điểm chính để hiển thị:
 	// - TOEIC: điểm scaled 0–990 tự tính từ số câu đúng
 	// - Writing: band trung bình 0–9
 	// - Bài khác: score (điểm user đạt được), fallback 0 nếu BE chưa trả
-	const scoreMain = isToeicLike
-		? toeicScore?.totalScaled ?? 0
-		: isWritingTest
-			? Number(writingAvgScore || 0)
-			: attemptScore != null
-				? attemptScore === 0 && stats.correct > 0
-					? stats.correct
-					: attemptScore
-				: stats.correct ?? 0;
+	const scoreMain =
+		isToeicLike ? (toeicScore?.totalScaled ?? 0)
+		: isWritingTest ? Number(writingAvgScore || 0)
+		: attemptScore != null ?
+			attemptScore === 0 && stats.correct > 0 ?
+				stats.correct
+			:	attemptScore
+		:	(stats.correct ?? 0);
 
 	// Mẫu số hiển thị cạnh điểm
-	const scoreDenom = isToeicLike
-		? 990
-		: isWritingTest
-			? '9.0'
-			: rawTotalPoints || stats.total || 100;
+	const scoreDenom =
+		isToeicLike ? 990
+		: isWritingTest ? '9.0'
+		: rawTotalPoints || stats.total || 100;
 
 	// % cho các bài thường (non-TOEIC, non-writing) nếu có đủ dữ liệu
 	const scorePercent =
-		!isToeicLike && !isWritingTest && rawTotalPoints > 0
-			? Math.round((((attemptScore != null ? (attemptScore === 0 && stats.correct > 0 ? stats.correct : attemptScore) : stats.correct) || 0) / rawTotalPoints) * 100)
-			: null;
+		!isToeicLike && !isWritingTest && rawTotalPoints > 0 ?
+			Math.round(
+				(((attemptScore != null ?
+					attemptScore === 0 && stats.correct > 0 ?
+						stats.correct
+					:	attemptScore
+				:	stats.correct) || 0) /
+					rawTotalPoints) *
+					100,
+			)
+		:	null;
 
 	if (loading) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-				<div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-				<p className="mt-4 text-slate-600 font-medium">Đang tải kết quả...</p>
-			</div>	
+			<div className='flex flex-col items-center justify-center min-h-screen bg-slate-50'>
+				<div className='w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin' />
+				<p className='mt-4 text-slate-600 font-medium'>Đang tải kết quả...</p>
+			</div>
 		);
 	}
 
 	if (error || !reviewData) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-				<div className="text-red-500 mb-4">
-					<XCircle className="w-16 h-16" />
+			<div className='flex flex-col items-center justify-center min-h-screen bg-slate-50'>
+				<div className='text-red-500 mb-4'>
+					<XCircle className='w-16 h-16' />
 				</div>
-				<p className="text-slate-700 font-medium">{error || 'Không có dữ liệu bài làm.'}</p>
-				<Button onClick={() => router.push('/')} className="mt-4">
+				<p className='text-slate-700 font-medium'>{error || 'Không có dữ liệu bài làm.'}</p>
+				<Button onClick={() => router.push('/')} className='mt-4'>
 					Về trang chủ
 				</Button>
 			</div>
@@ -523,75 +540,74 @@ export function TestResult() {
 
 	if (isPendingGrading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col">
+			<div className='min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col'>
 				{/* Top bar */}
-				<div className="relative overflow-hidden bg-primary shadow-lg">
-					<div className="absolute inset-0 bg-black/10" />
-					<div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-					<div className="relative px-6 py-6 max-w-7xl mx-auto">
+				<div className='relative overflow-hidden bg-primary shadow-lg'>
+					<div className='absolute inset-0 bg-black/10' />
+					<div className='absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3' />
+					<div className='relative px-6 py-6 max-w-7xl mx-auto'>
 						<Button
-							variant="ghost"
+							variant='ghost'
 							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
-							className="flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium"
+							className='flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium'
 						>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowLeft className='h-4 w-4' />
 							Trở về
 						</Button>
 					</div>
 				</div>
 
-				<div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+				<div className='flex-1 flex flex-col items-center justify-center px-4 py-16'>
 					{/* Bouncing dots */}
-					<div className="flex justify-center gap-2.5">
+					<div className='flex justify-center gap-2.5'>
 						{[0, 1, 2].map((i) => (
 							<div
 								key={i}
-								className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce"
+								className='w-2.5 h-2.5 rounded-full bg-primary animate-bounce'
 								style={{ animationDelay: `${i * 0.18}s` }}
 							/>
 						))}
 					</div>
 
-						{pollingTimedOut ? (
-							<div className="space-y-4">
-								<p className="text-amber-600 font-semibold text-sm bg-amber-50 px-4 py-3 rounded-xl border border-amber-200">
-									Kết quả chưa sẵn sàng. Vui lòng quay lại sau để xem điểm và nhận xét.
-								</p>
-								<div className="flex gap-3 justify-center">
-									<Button
-										onClick={() => router.push('/history')}
-										className="bg-primary hover:bg-primary/90 text-white font-bold px-6 h-11 rounded-xl"
-									>
-										Xem lịch sử
-									</Button>
-									<Button
-										variant="outline"
-										onClick={() => {
-											setPollingTimedOut(false);
-											setPollElapsed(0);
-										}}
-										className="font-bold px-6 h-11 rounded-xl"
-									>
-										Thử lại
-									</Button>
-								</div>
+					{pollingTimedOut ?
+						<div className='space-y-4'>
+							<p className='text-amber-600 font-semibold text-sm bg-amber-50 px-4 py-3 rounded-xl border border-amber-200'>
+								Kết quả chưa sẵn sàng. Vui lòng quay lại sau để xem điểm và nhận xét.
+							</p>
+							<div className='flex gap-3 justify-center'>
+								<Button
+									onClick={() => router.push('/history')}
+									className='bg-primary hover:bg-primary/90 text-white font-bold px-6 h-11 rounded-xl'
+								>
+									Xem lịch sử
+								</Button>
+								<Button
+									variant='outline'
+									onClick={() => {
+										setPollingTimedOut(false);
+										setPollElapsed(0);
+									}}
+									className='font-bold px-6 h-11 rounded-xl'
+								>
+									Thử lại
+								</Button>
 							</div>
-						) : (
-							<Button
-								variant="outline"
-								onClick={() => router.push('/history')}
-								className="font-bold px-8 h-11 rounded-xl w-full border-slate-200 hover:bg-slate-50"
-							>
-								Quay lại sau
-							</Button>
-						)}
+						</div>
+					:	<Button
+							variant='outline'
+							onClick={() => router.push('/history')}
+							className='font-bold px-8 h-11 rounded-xl w-full border-slate-200 hover:bg-slate-50'
+						>
+							Quay lại sau
+						</Button>
+					}
 
-					<p className="mt-8 text-sm text-slate-500 text-center max-w-sm">
+					<p className='mt-8 text-sm text-slate-500 text-center max-w-sm'>
 						Kết quả sẽ được lưu tự động. Bạn có thể xem lại trong{' '}
 						<button
-							type="button"
+							type='button'
 							onClick={() => router.push('/history')}
-							className="font-bold text-primary hover:underline"
+							className='font-bold text-primary hover:underline'
 						>
 							Lịch sử làm bài
 						</button>
@@ -603,157 +619,173 @@ export function TestResult() {
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50 pb-20">
+		<div className='min-h-screen bg-slate-50 pb-20'>
 			{/* Header — writing variant */}
-			{isWritingTest ? (
-				<div className="mb-8 pt-6 pb-16 relative overflow-hidden">
-					<div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-green-700 pointer-events-none" />
-					<div className="absolute inset-0 bg-black/10 pointer-events-none" />
-					<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-					<div className="absolute bottom-0 left-0 w-72 h-72 bg-white/5 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+			{isWritingTest ?
+				<div className='mb-8 pt-6 pb-16 relative overflow-hidden'>
+					<div className='absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-green-700 pointer-events-none' />
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none' />
+					<div className='absolute bottom-0 left-0 w-72 h-72 bg-white/5 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none' />
 
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+					<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 						<Button
-							variant="ghost"
+							variant='ghost'
 							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
-							className="flex items-center gap-2 mb-6 -ml-2 text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
+							className='flex items-center gap-2 mb-6 -ml-2 text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors'
 						>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowLeft className='h-4 w-4' />
 							Trở về
 						</Button>
 
-						<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
-							<div className="flex-1">
-								<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
-									<PenTool className="w-4 h-4 text-emerald-200" /> KẾT QUẢ WRITING
+						<div className='flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left'>
+							<div className='flex-1'>
+								<div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm'>
+									<PenTool className='w-4 h-4 text-emerald-200' /> KẾT QUẢ WRITING
 								</div>
-								<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">{title}</h1>
-								<p className="text-white/80 font-medium text-lg max-w-2xl leading-relaxed">
+								<h1 className='text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md'>
+									{title}
+								</h1>
+								<p className='text-white/80 font-medium text-lg max-w-2xl leading-relaxed'>
 									Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
 								</p>
 							</div>
 
-							<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
-								<div className="absolute inset-0 bg-white/5 pointer-events-none" />
-								<span className="text-sm font-bold text-white/80 uppercase tracking-widest mb-1">Band trung bình</span>
-								<div className="flex items-baseline gap-1">
-									<span className="text-5xl font-black text-white drop-shadow-md">{Number(writingAvgScore).toFixed(1)}</span>
-									<span className="text-xl font-bold text-white bg-emerald-700 px-2.5 py-1 rounded-lg shadow-md">/9.0</span>
+							<div className='flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden'>
+								<div className='absolute inset-0 bg-white/5 pointer-events-none' />
+								<span className='text-sm font-bold text-white/80 uppercase tracking-widest mb-1'>Band trung bình</span>
+								<div className='flex items-baseline gap-1'>
+									<span className='text-5xl font-black text-white drop-shadow-md'>
+										{Number(writingAvgScore).toFixed(1)}
+									</span>
+									<span className='text-xl font-bold text-white bg-emerald-700 px-2.5 py-1 rounded-lg shadow-md'>
+										/9.0
+									</span>
 								</div>
-								<div className="mt-2 text-xs text-white/70 font-semibold">{flatQuestions.length} bài viết</div>
+								<div className='mt-2 text-xs text-white/70 font-semibold'>{flatQuestions.length} bài viết</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			) : (
-				/* Header — standard variant */
-				<div className="bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden">
-					<div className="absolute inset-0 bg-primary pointer-events-none" />
-					<div className="absolute inset-0 bg-black/10 pointer-events-none" />
-					<div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+			:	/* Header — standard variant */
+				<div className='bg-white border-b border-gray-200 mb-8 pt-6 pb-16 relative overflow-hidden'>
+					<div className='absolute inset-0 bg-primary pointer-events-none' />
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none' />
 
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+					<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
 						<Button
-							variant="ghost"
+							variant='ghost'
 							onClick={() => router.push(examId ? `/test/${examId}` : '/dashboard')}
-							className="flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors"
+							className='flex items-center gap-2 mb-6 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 font-medium transition-colors'
 						>
-							<ArrowLeft className="h-4 w-4" />
+							<ArrowLeft className='h-4 w-4' />
 							Trở về
 						</Button>
 
-						<div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left">
-							<div className="flex-1">
-								<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm">
-									<Trophy className="w-4 h-4 text-yellow-300" /> KẾT QUẢ BÀI THI
+						<div className='flex flex-col md:flex-row items-center md:items-start justify-between gap-8 text-center md:text-left'>
+							<div className='flex-1'>
+								<div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold mb-4 shadow-sm'>
+									<Trophy className='w-4 h-4 text-yellow-300' /> KẾT QUẢ BÀI THI
 								</div>
-								<h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md">{title}</h1>
-								<p className="text-primary-foreground/80 font-medium text-lg max-w-2xl leading-relaxed">
+								<h1 className='text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-md'>
+									{title}
+								</h1>
+								<p className='text-primary-foreground/80 font-medium text-lg max-w-2xl leading-relaxed'>
 									Nộp bài vào lúc {new Date(reviewData.endedAt).toLocaleString('vi-VN')}
 								</p>
 							</div>
 
-							<div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden">
-								<div className="absolute inset-0 bg-white/5 pointer-events-none" />
-								<span className="text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1">{scoreLabel}</span>
-								<div className="flex flex-col items-center gap-1">
-									<div className="flex items-baseline gap-1">
-										<span className="text-5xl font-black text-white drop-shadow-md">
+							<div className='flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl w-56 shrink-0 relative overflow-hidden'>
+								<div className='absolute inset-0 bg-white/5 pointer-events-none' />
+								<span className='text-sm font-bold text-primary-foreground/80 uppercase tracking-widest mb-1'>
+									{scoreLabel}
+								</span>
+								<div className='flex flex-col items-center gap-1'>
+									<div className='flex items-baseline gap-1'>
+										<span className='text-5xl font-black text-white drop-shadow-md'>
 											{isToeicLike ? scoreMain : Number(scoreMain).toFixed(1)}
 										</span>
-										<span className="text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md">
+										<span className='text-xl font-bold text-white bg-blue-600 px-2.5 py-1 rounded-lg shadow-md'>
 											/{scoreDenom}
 										</span>
 									</div>
 									{!isToeicLike && !isWritingTest && scorePercent != null && (
-										<div className="text-xs font-semibold text-primary-foreground/80">
+										<div className='text-xs font-semibold text-primary-foreground/80'>
 											{scoreMain}/{rawTotalPoints} điểm ({scorePercent}%)
 										</div>
 									)}
 								</div>
 								{isToeicLike && toeicScore && (
-									<div className="mt-2 text-xs text-primary-foreground/80 font-bold text-center">
-										<span className="block">Nghe {toeicScore.listening.scaled}/495</span>
-										<span className="block">Đọc {toeicScore.reading.scaled}/495</span>
+									<div className='mt-2 text-xs text-primary-foreground/80 font-bold text-center'>
+										<span className='block'>Nghe {toeicScore.listening.scaled}/495</span>
+										<span className='block'>Đọc {toeicScore.reading.scaled}/495</span>
 									</div>
 								)}
 							</div>
 						</div>
 					</div>
 				</div>
-			)}
+			}
 
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20">
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20'>
 				{/* Stats */}
 				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
-					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-						<div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100">
-							<Clock className="h-6 w-6" />
+					<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
+						<div className='w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100'>
+							<Clock className='h-6 w-6' />
 						</div>
-						<span className="text-sm font-bold text-slate-500 uppercase">Thời gian</span>
-						<span className="text-2xl font-black text-slate-800">{formatTime(timeTakenSeconds)}</span>
+						<span className='text-sm font-bold text-slate-500 uppercase'>Thời gian</span>
+						<span className='text-2xl font-black text-slate-800'>{formatTime(timeTakenSeconds)}</span>
 					</div>
 					{!isWritingTest && (
 						<>
-							<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-								<div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-500 mb-1 border border-green-100">
-									<CheckCircle2 className="h-6 w-6" />
+							<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
+								<div className='w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-500 mb-1 border border-green-100'>
+									<CheckCircle2 className='h-6 w-6' />
 								</div>
-								<span className="text-sm font-bold text-slate-500 uppercase">Đúng</span>
-								<span className="text-2xl font-black text-green-600">
+								<span className='text-sm font-bold text-slate-500 uppercase'>Đúng</span>
+								<span className='text-2xl font-black text-green-600'>
 									{stats.correct} / {stats.total}
 								</span>
 							</div>
-							<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-								<div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-1 border border-red-100">
-									<XCircle className="h-6 w-6" />
+							<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
+								<div className='w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-1 border border-red-100'>
+									<XCircle className='h-6 w-6' />
 								</div>
-								<span className="text-sm font-bold text-slate-500 uppercase">Sai</span>
-								<span className="text-2xl font-black text-red-600">{stats.incorrect}</span>
+								<span className='text-sm font-bold text-slate-500 uppercase'>Sai</span>
+								<span className='text-2xl font-black text-red-600'>{stats.incorrect}</span>
 							</div>
 						</>
 					)}
 					{isWritingTest && (
-						<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-							<div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 mb-1 border border-emerald-100">
-								<Trophy className="h-6 w-6" />
+						<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
+							<div className='w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 mb-1 border border-emerald-100'>
+								<Trophy className='h-6 w-6' />
 							</div>
-							<span className="text-sm font-bold text-slate-500 uppercase">Band trung bình</span>
-							<span className="text-2xl font-black text-emerald-600">{writingAvgScore}</span>
+							<span className='text-sm font-bold text-slate-500 uppercase'>Band trung bình</span>
+							<span className='text-2xl font-black text-emerald-600'>{writingAvgScore}</span>
 						</div>
 					)}
-					<div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-						<div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100">
-							<AlertCircle className="h-6 w-6" />
+					<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
+						<div className='w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 mb-1 border border-slate-100'>
+							<AlertCircle className='h-6 w-6' />
 						</div>
-						<span className="text-sm font-bold text-slate-500 uppercase">{isWritingTest ? 'Số bài viết' : 'Bỏ qua'}</span>
-						<span className="text-2xl font-black text-slate-800">{isWritingTest ? flatQuestions.length : stats.skipped}</span>
+						<span className='text-sm font-bold text-slate-500 uppercase'>
+							{isWritingTest ? 'Số bài viết' : 'Bỏ qua'}
+						</span>
+						<span className='text-2xl font-black text-slate-800'>
+							{isWritingTest ? flatQuestions.length : stats.skipped}
+						</span>
 					</div>
 				</div>
 
 				{/* Actions */}
-				<div className="flex flex-col sm:flex-row justify-center gap-4 py-4">
-					<Button onClick={() => router.push('/')} className="bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 font-bold px-8 h-12 rounded-xl shadow-sm">
+				<div className='flex flex-col sm:flex-row justify-center gap-4 py-4'>
+					<Button
+						onClick={() => router.push('/')}
+						className='bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 font-bold px-8 h-12 rounded-xl shadow-sm'
+					>
 						Về Trang Chủ
 					</Button>
 					{examId && (
@@ -762,28 +794,24 @@ export function TestResult() {
 								sessionStorage.setItem('testState', JSON.stringify({ retake: true }));
 								router.push(`/test/${examId}`);
 							}}
-							className="bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+							className='bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12 rounded-xl shadow-md transition-all hover:-translate-y-0.5'
 						>
-							<RefreshCw className="w-4 h-4 mr-2" /> Làm Lại Bài Thi
+							<RefreshCw className='w-4 h-4 mr-2' /> Làm Lại Bài Thi
 						</Button>
 					)}
 				</div>
 
 				{/* Detailed results */}
-				{isWritingTest ? (
-					<WritingFeedbackSection
-						flatQuestions={flatQuestions}
-						reviewData={reviewData!}
-					/>
-				) : (
-					<DetailedAnalysis
+				{isWritingTest ?
+					<WritingFeedbackSection flatQuestions={flatQuestions} reviewData={reviewData!} />
+				:	<DetailedAnalysis
 						flatQuestions={flatQuestions}
 						questionStatusById={questionStatusById}
 						toeicParts={toeicParts}
 						reviewData={reviewData!}
 						isWritingTest={isWritingTest}
 					/>
-				)}
+				}
 			</div>
 		</div>
 	);
@@ -799,10 +827,10 @@ function WritingFeedbackSection({
 	const [expandedTask, setExpandedTask] = useState<number | null>(0);
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-				<PenTool className="w-6 h-6 text-emerald-600" />
-				<h2 className="text-2xl font-extrabold text-slate-800">Nhận xét chi tiết từng bài viết</h2>
+		<div className='space-y-6'>
+			<div className='flex items-center gap-3 border-b border-slate-200 pb-4'>
+				<PenTool className='w-6 h-6 text-emerald-600' />
+				<h2 className='text-2xl font-extrabold text-slate-800'>Nhận xét chi tiết từng bài viết</h2>
 			</div>
 
 			{flatQuestions.map((item, idx) => {
@@ -812,52 +840,58 @@ function WritingFeedbackSection({
 				const isExpanded = expandedTask === idx;
 
 				return (
-					<div key={item.q.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+					<div key={item.q.id} className='bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden'>
 						{/* Task header */}
 						<button
-							type="button"
+							type='button'
 							onClick={() => setExpandedTask(isExpanded ? null : idx)}
-							className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-slate-50 transition-colors"
+							className='w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-slate-50 transition-colors'
 						>
-							<div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg shrink-0">
+							<div className='w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg shrink-0'>
 								{idx + 1}
 							</div>
-							<div className="flex-1 min-w-0">
-								<div className="font-bold text-slate-800 text-lg">
+							<div className='flex-1 min-w-0'>
+								<div className='font-bold text-slate-800 text-lg'>
 									{item.sectionName || item.q.content || `Task ${idx + 1}`}
 								</div>
 								{fb && fb.overall_score > 0 && (
-									<div className="text-sm text-emerald-600 font-bold mt-0.5">
-										Band {fb.overall_score.toFixed(1)}
-									</div>
+									<div className='text-sm text-emerald-600 font-bold mt-0.5'>Band {fb.overall_score.toFixed(1)}</div>
 								)}
 							</div>
-							<ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+							<ChevronDown
+								className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+							/>
 						</button>
 
 						{isExpanded && (
-							<div className="px-6 pb-6 space-y-6 border-t border-slate-100 pt-5">
+							<div className='px-6 pb-6 space-y-6 border-t border-slate-100 pt-5'>
 								{/* Score overview */}
 								{fb && fb.overall_score > 0 && (
-									<div className="flex flex-wrap gap-3">
-										<div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
-											<div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Điểm tổng</div>
-											<div className="text-3xl font-black text-emerald-700 mt-1">{fb.overall_score.toFixed(1)}</div>
+									<div className='flex flex-wrap gap-3'>
+										<div className='px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200'>
+											<div className='text-xs font-bold text-emerald-600 uppercase tracking-wider'>Điểm tổng</div>
+											<div className='text-3xl font-black text-emerald-700 mt-1'>{fb.overall_score.toFixed(1)}</div>
 										</div>
-										{fb.sub_scores && Object.entries(fb.sub_scores).map(([criterion, score]) => (
-											<div key={criterion} className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 min-w-[120px]">
-												<div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{criterion.replace(/_/g, ' ')}</div>
-												<div className="text-2xl font-black text-slate-800 mt-1">{Number(score).toFixed(1)}</div>
-											</div>
-										))}
+										{fb.sub_scores &&
+											Object.entries(fb.sub_scores).map(([criterion, score]) => (
+												<div
+													key={criterion}
+													className='px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 min-w-[120px]'
+												>
+													<div className='text-xs font-bold text-slate-500 uppercase tracking-wider'>
+														{criterion.replace(/_/g, ' ')}
+													</div>
+													<div className='text-2xl font-black text-slate-800 mt-1'>{Number(score).toFixed(1)}</div>
+												</div>
+											))}
 									</div>
 								)}
 
 								{/* Task prompt */}
 								{item.q.content && (
 									<div>
-										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Đề bài</h4>
-										<div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap">
+										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>Đề bài</h4>
+										<div className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap'>
 											{item.q.content}
 										</div>
 									</div>
@@ -866,8 +900,8 @@ function WritingFeedbackSection({
 								{/* User's essay */}
 								{userEssay && (
 									<div>
-										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bài viết của bạn</h4>
-										<div className="bg-blue-50/50 border border-blue-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>Bài viết của bạn</h4>
+										<div className='bg-blue-50/50 border border-blue-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
 											{userEssay}
 										</div>
 									</div>
@@ -876,8 +910,8 @@ function WritingFeedbackSection({
 								{/* AI Feedback */}
 								{fb?.detailed_feedback && (
 									<div>
-										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Nhận xét từ AI</h4>
-										<div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>Nhận xét từ AI</h4>
+										<div className='bg-amber-50 border border-amber-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
 											{fb.detailed_feedback}
 										</div>
 									</div>
@@ -886,27 +920,29 @@ function WritingFeedbackSection({
 								{/* Corrections */}
 								{fb?.corrections && fb.corrections.length > 0 && (
 									<div>
-										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
+										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>
 											Các lỗi cần sửa ({fb.corrections.length})
 										</h4>
-										<div className="space-y-2">
+										<div className='space-y-2'>
 											{fb.corrections.map((c, ci) => (
-												<div key={ci} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-md uppercase">{c.type}</span>
+												<div key={ci} className='bg-white border border-slate-200 rounded-xl p-4 space-y-2'>
+													<div className='flex items-center gap-2'>
+														<span className='text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-md uppercase'>
+															{c.type}
+														</span>
 													</div>
-													<div className="flex flex-col sm:flex-row gap-2 text-sm">
-														<div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3">
-															<div className="text-xs font-bold text-red-500 mb-1">Bản gốc</div>
-															<div className="text-red-800 line-through">{c.original}</div>
+													<div className='flex flex-col sm:flex-row gap-2 text-sm'>
+														<div className='flex-1 bg-red-50 border border-red-200 rounded-lg p-3'>
+															<div className='text-xs font-bold text-red-500 mb-1'>Bản gốc</div>
+															<div className='text-red-800 line-through'>{c.original}</div>
 														</div>
-														<div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3">
-															<div className="text-xs font-bold text-green-500 mb-1">Sửa lại</div>
-															<div className="text-green-800 font-medium">{c.corrected}</div>
+														<div className='flex-1 bg-green-50 border border-green-200 rounded-lg p-3'>
+															<div className='text-xs font-bold text-green-500 mb-1'>Sửa lại</div>
+															<div className='text-green-800 font-medium'>{c.corrected}</div>
 														</div>
 													</div>
 													{c.explanation && (
-														<p className="text-xs text-slate-600 leading-relaxed pl-1">{c.explanation}</p>
+														<p className='text-xs text-slate-600 leading-relaxed pl-1'>{c.explanation}</p>
 													)}
 												</div>
 											))}
@@ -917,8 +953,8 @@ function WritingFeedbackSection({
 								{/* Corrected version */}
 								{fb?.corrected_version && (
 									<div>
-										<h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bài viết đã sửa</h4>
-										<div className="bg-green-50/50 border border-green-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm">
+										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>Bài viết đã sửa</h4>
+										<div className='bg-green-50/50 border border-green-200 rounded-xl p-5 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
 											{fb.corrected_version}
 										</div>
 									</div>
@@ -926,9 +962,9 @@ function WritingFeedbackSection({
 
 								{/* No feedback yet */}
 								{!fb && (
-									<div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-5 text-slate-500">
-										<AlertCircle className="w-5 h-5 shrink-0" />
-										<span className="text-sm font-medium">Chưa có nhận xét từ AI cho bài viết này.</span>
+									<div className='flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-5 text-slate-500'>
+										<AlertCircle className='w-5 h-5 shrink-0' />
+										<span className='text-sm font-medium'>Chưa có nhận xét từ AI cho bài viết này.</span>
 									</div>
 								)}
 							</div>
@@ -959,38 +995,42 @@ function DetailedAnalysis({
 	const [detailLoading, setDetailLoading] = useState<string | null>(null);
 
 	const getCorrectKey = useCallback((q: QuestionReviewDto) => {
-		const correct = q.choices?.find(c => c.isCorrect);
+		const correct = q.choices?.find((c) => c.isCorrect);
 		return correct?.key || '–';
 	}, []);
 
-	const getUserAnswer = useCallback((qId: string) => {
-		const res = reviewData.responses?.find(r => r.questionId === qId);
-		return res?.answers?.join(', ') || '';
-	}, [reviewData]);
+	const getUserAnswer = useCallback(
+		(qId: string) => {
+			const res = reviewData.responses?.find((r) => r.questionId === qId);
+			return res?.answers?.join(', ') || '';
+		},
+		[reviewData],
+	);
 
-	const fetchDetail = useCallback(async (qId: string) => {
-		if (detailCache[qId]) {
-			setExpandedQ(prev => prev === qId ? null : qId);
-			return;
-		}
-		setDetailLoading(qId);
-		setExpandedQ(qId);
-		try {
-			const res = await ExamPracticeService.examPracticeGatewayControllerGetDetailedQuestionInfoV1(qId);
-			if (res.data) {
-				setDetailCache(prev => ({ ...prev, [qId]: res.data as QuestionDetailDto }));
+	const fetchDetail = useCallback(
+		async (qId: string) => {
+			if (detailCache[qId]) {
+				setExpandedQ((prev) => (prev === qId ? null : qId));
+				return;
 			}
-		} catch (err) {
-			console.error('Failed to load question detail:', err);
-		} finally {
-			setDetailLoading(null);
-		}
-	}, [detailCache]);
+			setDetailLoading(qId);
+			setExpandedQ(qId);
+			try {
+				const res = await ExamPracticeService.examPracticeGatewayControllerGetDetailedQuestionInfoV1(qId);
+				if (res.data) {
+					setDetailCache((prev) => ({ ...prev, [qId]: res.data as QuestionDetailDto }));
+				}
+			} catch (err) {
+				console.error('Failed to load question detail:', err);
+			} finally {
+				setDetailLoading(null);
+			}
+		},
+		[detailCache],
+	);
 
 	const tagAnalysis = useMemo(() => {
-		const filtered = analysisPart === 'overview'
-			? flatQuestions
-			: flatQuestions.filter(x => x.part === analysisPart);
+		const filtered = analysisPart === 'overview' ? flatQuestions : flatQuestions.filter((x) => x.part === analysisPart);
 
 		const byTag = new Map<string, { correct: number; incorrect: number; skipped: number; questions: number[] }>();
 
@@ -1012,18 +1052,22 @@ function DetailedAnalysis({
 			tag,
 			...data,
 			total: data.correct + data.incorrect + data.skipped,
-			accuracy: data.correct + data.incorrect > 0
-				? ((data.correct / (data.correct + data.incorrect)) * 100).toFixed(2)
-				: '–',
+			accuracy:
+				data.correct + data.incorrect > 0 ? ((data.correct / (data.correct + data.incorrect)) * 100).toFixed(2) : '–',
 		}));
 
 		const totals = rows.reduce(
-			(acc, r) => ({ correct: acc.correct + r.correct, incorrect: acc.incorrect + r.incorrect, skipped: acc.skipped + r.skipped }),
-			{ correct: 0, incorrect: 0, skipped: 0 }
+			(acc, r) => ({
+				correct: acc.correct + r.correct,
+				incorrect: acc.incorrect + r.incorrect,
+				skipped: acc.skipped + r.skipped,
+			}),
+			{ correct: 0, incorrect: 0, skipped: 0 },
 		);
-		const totalAcc = totals.correct + totals.incorrect > 0
-			? ((totals.correct / (totals.correct + totals.incorrect)) * 100).toFixed(2)
-			: '–';
+		const totalAcc =
+			totals.correct + totals.incorrect > 0 ?
+				((totals.correct / (totals.correct + totals.incorrect)) * 100).toFixed(2)
+			:	'–';
 
 		return { rows, totals, totalAcc };
 	}, [flatQuestions, questionStatusById, analysisPart]);
@@ -1042,28 +1086,28 @@ function DetailedAnalysis({
 
 	const analysisTabs = [
 		{ key: 'overview' as const, label: 'Tổng quát' },
-		...toeicParts.map(p => ({ key: p, label: `Part ${p}` })),
+		...toeicParts.map((p) => ({ key: p, label: `Part ${p}` })),
 	];
 
 	return (
-		<div className="space-y-8">
+		<div className='space-y-8'>
 			{/* Phân tích chi tiết */}
-			<div className="space-y-4">
-				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-					<Target className="w-6 h-6 text-primary" />
-					<h2 className="text-2xl font-extrabold text-slate-800">Phân tích chi tiết</h2>
+			<div className='space-y-4'>
+				<div className='flex items-center gap-3 border-b border-slate-200 pb-4'>
+					<Target className='w-6 h-6 text-primary' />
+					<h2 className='text-2xl font-extrabold text-slate-800'>Phân tích chi tiết</h2>
 				</div>
 
 				{toeicParts.length > 0 && (
-					<div className="flex flex-wrap gap-2">
-						{analysisTabs.map(tab => (
+					<div className='flex flex-wrap gap-2'>
+						{analysisTabs.map((tab) => (
 							<button
 								key={String(tab.key)}
 								onClick={() => setAnalysisPart(tab.key)}
 								className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-									analysisPart === tab.key
-										? 'bg-primary text-white shadow-md'
-										: 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+									analysisPart === tab.key ?
+										'bg-primary text-white shadow-md'
+									:	'bg-slate-100 text-slate-600 hover:bg-slate-200'
 								}`}
 							>
 								{tab.label}
@@ -1072,42 +1116,51 @@ function DetailedAnalysis({
 					</div>
 				)}
 
-				<div className="overflow-x-auto rounded-xl border border-slate-200">
-					<table className="w-full text-sm">
+				<div className='overflow-x-auto rounded-xl border border-slate-200'>
+					<table className='w-full text-sm'>
 						<thead>
-							<tr className="bg-slate-50 text-slate-600">
-								<th className="text-left px-4 py-3 font-bold">Phân loại câu hỏi</th>
-								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Đúng</th>
-								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Sai</th>
-								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Bỏ qua</th>
-								<th className="text-center px-3 py-3 font-bold whitespace-nowrap">Độ chính xác</th>
-								<th className="text-left px-4 py-3 font-bold">Danh sách câu</th>
+							<tr className='bg-slate-50 text-slate-600'>
+								<th className='text-left px-4 py-3 font-bold'>Phân loại câu hỏi</th>
+								<th className='text-center px-3 py-3 font-bold whitespace-nowrap'>Đúng</th>
+								<th className='text-center px-3 py-3 font-bold whitespace-nowrap'>Sai</th>
+								<th className='text-center px-3 py-3 font-bold whitespace-nowrap'>Bỏ qua</th>
+								<th className='text-center px-3 py-3 font-bold whitespace-nowrap'>Độ chính xác</th>
+								<th className='text-left px-4 py-3 font-bold'>Danh sách câu</th>
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-slate-100">
-							{tagAnalysis.rows.map(row => (
-								<tr key={row.tag} className="bg-white hover:bg-slate-50 transition-colors">
-									<td className="px-4 py-3 font-medium text-slate-800">{row.tag}</td>
-									<td className="text-center px-3 py-3 font-bold text-green-600">{row.correct}</td>
-									<td className="text-center px-3 py-3 font-bold text-red-500">{row.incorrect}</td>
-									<td className="text-center px-3 py-3 text-slate-400">{row.skipped}</td>
-									<td className={`text-center px-3 py-3 font-bold ${
-										row.accuracy === '–' ? 'text-slate-400' :
-										parseFloat(row.accuracy) >= 80 ? 'text-green-600' :
-										parseFloat(row.accuracy) >= 50 ? 'text-amber-600' : 'text-red-500'
-									}`}>{row.accuracy === '–' ? '–' : `${row.accuracy}%`}</td>
-									<td className="px-4 py-3 text-slate-500 text-xs">{row.questions.join(' ')}</td>
+						<tbody className='divide-y divide-slate-100'>
+							{tagAnalysis.rows.map((row) => (
+								<tr key={row.tag} className='bg-white hover:bg-slate-50 transition-colors'>
+									<td className='px-4 py-3 font-medium text-slate-800'>{row.tag}</td>
+									<td className='text-center px-3 py-3 font-bold text-green-600'>{row.correct}</td>
+									<td className='text-center px-3 py-3 font-bold text-red-500'>{row.incorrect}</td>
+									<td className='text-center px-3 py-3 text-slate-400'>{row.skipped}</td>
+									<td
+										className={`text-center px-3 py-3 font-bold ${
+											row.accuracy === '–' ? 'text-slate-400'
+											: parseFloat(row.accuracy) >= 80 ? 'text-green-600'
+											: parseFloat(row.accuracy) >= 50 ? 'text-amber-600'
+											: 'text-red-500'
+										}`}
+									>
+										{row.accuracy === '–' ? '–' : `${row.accuracy}%`}
+									</td>
+									<td className='px-4 py-3 text-slate-500 text-xs'>{row.questions.join(' ')}</td>
 								</tr>
 							))}
-							<tr className="bg-slate-50 font-bold">
-								<td className="px-4 py-3 text-slate-800">Tổng cộng</td>
-								<td className="text-center px-3 py-3 text-green-600">{tagAnalysis.totals.correct}</td>
-								<td className="text-center px-3 py-3 text-red-500">{tagAnalysis.totals.incorrect}</td>
-								<td className="text-center px-3 py-3 text-slate-400">{tagAnalysis.totals.skipped}</td>
-								<td className={`text-center px-3 py-3 ${
-									tagAnalysis.totalAcc === '–' ? 'text-slate-400' : 'text-primary'
-								}`}>{tagAnalysis.totalAcc === '–' ? '–' : `${tagAnalysis.totalAcc}%`}</td>
-								<td className="px-4 py-3"></td>
+							<tr className='bg-slate-50 font-bold'>
+								<td className='px-4 py-3 text-slate-800'>Tổng cộng</td>
+								<td className='text-center px-3 py-3 text-green-600'>{tagAnalysis.totals.correct}</td>
+								<td className='text-center px-3 py-3 text-red-500'>{tagAnalysis.totals.incorrect}</td>
+								<td className='text-center px-3 py-3 text-slate-400'>{tagAnalysis.totals.skipped}</td>
+								<td
+									className={`text-center px-3 py-3 ${
+										tagAnalysis.totalAcc === '–' ? 'text-slate-400' : 'text-primary'
+									}`}
+								>
+									{tagAnalysis.totalAcc === '–' ? '–' : `${tagAnalysis.totalAcc}%`}
+								</td>
+								<td className='px-4 py-3'></td>
 							</tr>
 						</tbody>
 					</table>
@@ -1115,24 +1168,20 @@ function DetailedAnalysis({
 			</div>
 
 			{/* Đáp án */}
-			<div className="space-y-4">
-				<div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-					<CheckCircle2 className="w-6 h-6 text-primary" />
-					<h2 className="text-2xl font-extrabold text-slate-800">Đáp án</h2>
+			<div className='space-y-4'>
+				<div className='flex items-center gap-3 border-b border-slate-200 pb-4'>
+					<CheckCircle2 className='w-6 h-6 text-primary' />
+					<h2 className='text-2xl font-extrabold text-slate-800'>Đáp án</h2>
 				</div>
 
-				<div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-800">
-					<strong>Chú ý:</strong> Khi làm lại các câu sai, điểm trung bình của bạn sẽ <strong>KHÔNG BỊ ẢNH HƯỞNG</strong>.
-				</div>
-
-				<div className="space-y-6">
+				<div className='space-y-6'>
 					{questionsByPart.map(([partNum, items]) => (
 						<div key={partNum}>
-							<h3 className="text-lg font-extrabold text-slate-800 mb-3">
+							<h3 className='text-lg font-extrabold text-slate-800 mb-3'>
 								{partNum > 0 ? `Part ${partNum}` : 'Câu hỏi'}
 							</h3>
-							<div className="space-y-1">
-								{items.map(item => {
+							<div className='space-y-1'>
+								{items.map((item) => {
 									const st = questionStatusById.get(item.q.id) || 'skipped';
 									const userAns = getUserAnswer(item.q.id);
 									const correctAns = getCorrectKey(item.q);
@@ -1142,59 +1191,62 @@ function DetailedAnalysis({
 
 									return (
 										<div key={item.q.id}>
-											<div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
-												isExpanded ? 'bg-primary/5' : 'hover:bg-slate-50'
-											}`}>
-												<span className="font-bold text-slate-500 w-8 text-right tabular-nums">{item.globalIndex}</span>
-												<span className={`font-bold min-w-[20px] ${
-													st === 'correct' ? 'text-green-600' :
-													st === 'incorrect' ? 'text-red-500' :
-													'text-slate-400'
-												}`}>{userAns || '–'}</span>
-												<span className="text-slate-400">:</span>
-												<span className="font-bold text-slate-700 min-w-[20px]">{correctAns}</span>
+											<div
+												className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
+													isExpanded ? 'bg-primary/5' : 'hover:bg-slate-50'
+												}`}
+											>
+												<span className='font-bold text-slate-500 w-8 text-right tabular-nums'>{item.globalIndex}</span>
+												<span
+													className={`font-bold min-w-[20px] ${
+														st === 'correct' ? 'text-green-600'
+														: st === 'incorrect' ? 'text-red-500'
+														: 'text-slate-400'
+													}`}
+												>
+													{userAns || '–'}
+												</span>
+												<span className='text-slate-400'>:</span>
+												<span className='font-bold text-slate-700 min-w-[20px]'>{correctAns}</span>
 
-												{st === 'correct' && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
-												{st === 'incorrect' && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
-												{st === 'skipped' && <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />}
+												{st === 'correct' && <CheckCircle2 className='w-4 h-4 text-green-500 shrink-0' />}
+												{st === 'incorrect' && <XCircle className='w-4 h-4 text-red-500 shrink-0' />}
+												{st === 'skipped' && <AlertCircle className='w-4 h-4 text-slate-400 shrink-0' />}
 
 												<button
 													onClick={() => fetchDetail(item.q.id)}
 													className={`ml-auto text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-														isExpanded
-															? 'bg-primary text-white'
-															: 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+														isExpanded ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 													}`}
 												>
-													{isLoading ? (
-														<Loader2 className="w-3 h-3 animate-spin" />
-													) : (
-														<ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-													)}
+													{isLoading ?
+														<Loader2 className='w-3 h-3 animate-spin' />
+													:	<ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
 													Chi tiết
 												</button>
 											</div>
 
 											{isExpanded && (
-												<div className="ml-12 mr-4 mt-1 mb-3 p-5 bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm">
-													{isLoading && !detail ? (
-														<div className="flex items-center gap-2 text-slate-500 py-4">
-															<Loader2 className="w-4 h-4 animate-spin" />
-															<span className="text-sm">Đang tải...</span>
+												<div className='ml-12 mr-4 mt-1 mb-3 p-5 bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm'>
+													{isLoading && !detail ?
+														<div className='flex items-center gap-2 text-slate-500 py-4'>
+															<Loader2 className='w-4 h-4 animate-spin' />
+															<span className='text-sm'>Đang tải...</span>
 														</div>
-													) : detail ? (
+													: detail ?
 														<>
 															{detail.sectionContext?.map((ctx, i) => (
-																<div key={i} className="space-y-3">
-																	{ctx.content && (
-																		<p className="text-slate-700 leading-relaxed">{ctx.content}</p>
-																	)}
-																	{ctx.fileUrls?.map(url => {
+																<div key={i} className='space-y-3'>
+																	{ctx.content && <p className='text-slate-700 leading-relaxed'>{ctx.content}</p>}
+																	{ctx.fileUrls?.map((url) => {
 																		const formatted = formatMediaUrl(url);
 																		if (isAudioUrl(url)) {
 																			return (
-																				<div key={url} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-																					<audio controls className="h-8 w-full">
+																				<div
+																					key={url}
+																					className='rounded-lg border border-slate-200 bg-slate-50 px-4 py-3'
+																				>
+																					<audio controls className='h-8 w-full'>
 																						<source src={formatted} />
 																					</audio>
 																				</div>
@@ -1202,9 +1254,13 @@ function DetailedAnalysis({
 																		}
 																		if (isImageUrl(url)) {
 																			return (
-																				<div key={url} className="overflow-hidden rounded-lg border border-slate-200">
+																				<div key={url} className='overflow-hidden rounded-lg border border-slate-200'>
 																					{/* eslint-disable-next-line @next/next/no-img-element */}
-																					<img src={formatted} alt="" className="h-auto w-full max-w-md object-contain" />
+																					<img
+																						src={formatted}
+																						alt=''
+																						className='h-auto w-full max-w-md object-contain'
+																					/>
 																				</div>
 																			);
 																		}
@@ -1213,28 +1269,40 @@ function DetailedAnalysis({
 																</div>
 															))}
 
-															{detail.content && (
-																<div className="text-slate-800 font-medium">{detail.content}</div>
-															)}
+															{detail.content && <div className='text-slate-800 font-medium'>{detail.content}</div>}
 
 															{item.q.choices?.length > 0 && (
-																<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+																<div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
 																	{item.q.choices.map((c, i) => {
 																		const letter = String.fromCharCode(65 + i);
 																		const isCorrect = c.isCorrect;
 																		const isUserPick = getUserAnswer(item.q.id).split(', ').includes(c.key);
 																		return (
-																			<div key={c.key} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-																				isCorrect
-																					? 'bg-green-50 border-green-300'
-																					: isUserPick
-																						? 'bg-red-50 border-red-300'
-																						: 'bg-white border-slate-200'
-																			}`}>
-																				<span className={`font-bold ${
-																					isCorrect ? 'text-green-600' : isUserPick ? 'text-red-500' : 'text-slate-500'
-																				}`}>{letter}.</span>
-																				<span className={isCorrect ? 'font-bold text-green-700' : isUserPick ? 'text-red-600' : 'text-slate-600'}>
+																			<div
+																				key={c.key}
+																				className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
+																					isCorrect ? 'bg-green-50 border-green-300'
+																					: isUserPick ? 'bg-red-50 border-red-300'
+																					: 'bg-white border-slate-200'
+																				}`}
+																			>
+																				<span
+																					className={`font-bold ${
+																						isCorrect ? 'text-green-600'
+																						: isUserPick ? 'text-red-500'
+																						: 'text-slate-500'
+																					}`}
+																				>
+																					{letter}.
+																				</span>
+																				<span
+																					className={
+																						isCorrect ? 'font-bold text-green-700'
+																						: isUserPick ?
+																							'text-red-600'
+																						:	'text-slate-600'
+																					}
+																				>
 																					{c.content || c.key}
 																				</span>
 																			</div>
@@ -1244,33 +1312,37 @@ function DetailedAnalysis({
 															)}
 
 															{detail.explanation && (
-																<div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-																	<p className="font-bold text-blue-800 text-sm mb-2">Giải thích chi tiết đáp án</p>
-																	<div className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{detail.explanation}</div>
+																<div className='bg-blue-50 border border-blue-200 rounded-xl p-4'>
+																	<p className='font-bold text-blue-800 text-sm mb-2'>Giải thích chi tiết đáp án</p>
+																	<div className='text-sm text-blue-900 leading-relaxed whitespace-pre-wrap'>
+																		{detail.explanation}
+																	</div>
 																</div>
 															)}
 
 															{detail.fileUrls?.length > 0 && (
-																<div className="space-y-2">
-																	{detail.fileUrls.filter(isAudioUrl).map(url => (
-																		<div key={url} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-																			<audio controls className="h-8 w-full">
+																<div className='space-y-2'>
+																	{detail.fileUrls.filter(isAudioUrl).map((url) => (
+																		<div key={url} className='rounded-lg border border-slate-200 bg-slate-50 px-4 py-3'>
+																			<audio controls className='h-8 w-full'>
 																				<source src={formatMediaUrl(url)} />
 																			</audio>
 																		</div>
 																	))}
-																	{detail.fileUrls.filter(isImageUrl).map(url => (
-																		<div key={url} className="overflow-hidden rounded-lg border border-slate-200">
+																	{detail.fileUrls.filter(isImageUrl).map((url) => (
+																		<div key={url} className='overflow-hidden rounded-lg border border-slate-200'>
 																			{/* eslint-disable-next-line @next/next/no-img-element */}
-																			<img src={formatMediaUrl(url)} alt="" className="h-auto w-full max-w-md object-contain" />
+																			<img
+																				src={formatMediaUrl(url)}
+																				alt=''
+																				className='h-auto w-full max-w-md object-contain'
+																			/>
 																		</div>
 																	))}
 																</div>
 															)}
 														</>
-													) : (
-														<p className="text-sm text-red-500">Không thể tải chi tiết câu hỏi.</p>
-													)}
+													:	<p className='text-sm text-red-500'>Không thể tải chi tiết câu hỏi.</p>}
 												</div>
 											)}
 										</div>
