@@ -100,10 +100,12 @@ export function BlogPage() {
 
 	useEffect(() => {
 		setPage(1);
-	}, [selectedTag]);
+	}, [selectedTag, searchQuery]);
 
 	useEffect(() => {
-		BlogService.listBlogs(undefined, page, limit)
+		setLoading(true);
+		const selectedTags = selectedTag !== '__all__' ? [selectedTag] : undefined;
+		BlogService.listBlogs(undefined, page, limit, selectedTags)
 			.then((res: any) => {
 				const data = (res as any).data ?? res;
 				const apiBlogs: Blog[] = (data.blogs ?? []).map((b: any) => ({
@@ -133,7 +135,7 @@ export function BlogPage() {
 			})
 			.catch(err => console.error('[BlogPage] fetch error:', err))
 			.finally(() => setLoading(false));
-	}, [page]);
+	}, [page, selectedTag]);
 
 	const allTags = useMemo(() => {
 		const tagSet = new Set<string>();
@@ -144,10 +146,6 @@ export function BlogPage() {
 	const filteredBlogs = useMemo(() => {
 		let filtered = blogs;
 
-		if (selectedTag !== '__all__') {
-			filtered = filtered.filter((b) => b.tags?.includes(selectedTag));
-		}
-
 		if (searchQuery) {
 			filtered = filtered.filter(
 				(b) =>
@@ -157,7 +155,7 @@ export function BlogPage() {
 		}
 
 		return [...filtered].sort((a, b) => b.createdAt - a.createdAt);
-	}, [blogs, selectedTag, searchQuery]);
+	}, [blogs, searchQuery]);
 
 	const getAuthorName = (authorId: string) => {
 		return authorMap[authorId] || 'Unknown';

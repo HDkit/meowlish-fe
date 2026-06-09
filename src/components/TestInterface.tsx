@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button } from './ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
+import { extractApiErrorMessage } from '@/lib/api-response';
+import { useToast } from '@/components/ui/use-toast';
 import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X } from 'lucide-react';
 import { TextHighlighter } from './TextHighlighter';
 
@@ -392,6 +394,7 @@ export function TestInterface() {
       ? params.id[0]
       : '';
   const router = useRouter();
+  const { toast } = useToast();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -494,6 +497,7 @@ export function TestInterface() {
         setNotesMap(notes);
       } catch (err) {
         console.error('Failed to load attempt:', err);
+        toast({ title: extractApiErrorMessage(err) || 'Không thể tải bài thi. Vui lòng thử lại.' });
       } finally {
         setLoading(false);
       }
@@ -621,6 +625,7 @@ export function TestInterface() {
         router.push(`/results/${attemptId}`);
       } catch (err) {
         console.error('Submit failed:', err);
+        toast({ title: extractApiErrorMessage(err) || 'Không thể nộp bài. Vui lòng thử lại.' });
         if (isAuto) router.push(`/results/${attemptId}`);
       } finally {
         isSubmittingRef.current = false;

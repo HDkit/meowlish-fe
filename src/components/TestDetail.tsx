@@ -19,6 +19,7 @@ import {
 	get_users_attempt_history_req_dto_SortOptionsDto,
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
+import { useToast } from '@/components/ui/use-toast';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 
 import { Textarea } from './ui/textarea';
@@ -87,6 +88,7 @@ export function ExamDetailPage() {
 	const { id } = useParams();
 	const router = useRouter();
 	const dispatch = useAppDispatch();
+	const { toast } = useToast();
 	if (!id) return <div>ID bài thi không hợp lệ</div>;
 
 	const examId = id as string;
@@ -297,7 +299,9 @@ export function ExamDetailPage() {
 			await handleStart();
 		} catch (e) {
 			console.error('Failed to submit ongoing attempt:', e);
-			setStartError('Không thể nộp bài cũ. Vui lòng thử lại sau.');
+			const msg = extractApiErrorMessage(e) || 'Không thể nộp bài. Vui lòng thử lại sau.';
+			toast({ title: msg });
+			setStartError(msg);
 		} finally {
 			setIsSubmittingOld(false);
 		}
@@ -312,6 +316,8 @@ export function ExamDetailPage() {
 				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(oldAttemptId);
 			} catch (e) {
 				console.error('Failed to submit old attempt:', e);
+				const msg = extractApiErrorMessage(e) || 'Không thể nộp bài cũ. Vui lòng thử lại sau.';
+				toast({ title: msg });
 			}
 		}
 		handleStart();
