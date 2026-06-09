@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Target, BookOpen, TrendingUp, PlayCircle, Calendar, Flame, ChevronDown } from 'lucide-react';
+import { Target, BookOpen, TrendingUp, PlayCircle, Calendar, Flame, ChevronDown, X } from 'lucide-react';
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -56,15 +56,15 @@ export function Dashboard() {
 	const [rangeDays, setRangeDays] = useState(180);
 	const [completedCount, setCompletedCount] = useState<number | null>(null);
 	const [rangeOpen, setRangeOpen] = useState(false);
+	const [customFrom, setCustomFrom] = useState('');
+	const [customTo, setCustomTo] = useState('');
+	const [showCustomPicker, setShowCustomPicker] = useState(false);
 
-	const fetchCalendar = useCallback(async (days: number) => {
+	const fetchCalendar = useCallback(async (from: string, to: string) => {
 		try {
-			const end = new Date();
-			const start = new Date();
-			start.setDate(end.getDate() - days);
 			const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-				from: start.toISOString(),
-				to: end.toISOString()
+				from,
+				to
 			});
 			if (summaryRes.data?.history) {
 				setCalendarHistory(summaryRes.data.history);
@@ -84,11 +84,14 @@ export function Dashboard() {
 		const fetchDashboardData = async () => {
 			setLoading(true);
 			try {
+				const end = new Date();
+				const start = new Date();
+				start.setDate(end.getDate() - rangeDays);
 				await Promise.all([
 					ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1()
 						.then(res => setStats(res.data))
 						.catch(() => {}),
-					fetchCalendar(rangeDays),
+					fetchCalendar(start.toISOString(), end.toISOString()),
 					(async () => {
 						try {
 							let total = 0;
@@ -278,7 +281,7 @@ export function Dashboard() {
 
 			<div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 				{/* Activity Heatmap */}
-				<Card className="border-0 shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all">
+				<Card className="border-0 shadow-md rounded-xl hover:shadow-lg transition-all">
 					<CardContent className="pt-6 pb-6">
 						<div className="flex items-center justify-between mb-4">
 							<h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
@@ -286,30 +289,80 @@ export function Dashboard() {
 								Hoạt động luyện tập
 							</h2>
 							<div className="relative">
-								<Button
-									variant="outline"
-									size="sm"
-									className="text-sm gap-1"
-									onClick={() => setRangeOpen(!rangeOpen)}
-								>
-									{selectedRange.label}
-									<ChevronDown className="h-3.5 w-3.5" />
-								</Button>
-								{rangeOpen && (
-									<div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[120px]">
-										{DATE_RANGES.map(range => (
-											<button
-												key={range.days}
-												className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === rangeDays ? 'font-bold text-primary' : 'text-slate-700'}`}
-												onClick={() => {
-													setRangeDays(range.days);
-													setRangeOpen(false);
-												}}
-											>
-												{range.label}
-											</button>
-										))}
+								{showCustomPicker ? (
+									<div className="flex items-center gap-2">
+										<input
+											type="date"
+											value={customFrom}
+											onChange={(e) => setCustomFrom(e.target.value)}
+											className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
+										/>
+										<span className="text-xs text-muted-foreground">→</span>
+										<input
+											type="date"
+											value={customTo}
+											onChange={(e) => setCustomTo(e.target.value)}
+											className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
+										/>
+										<Button
+											size="sm"
+											variant="default"
+											disabled={!customFrom || !customTo}
+											onClick={() => {
+												if (customFrom && customTo) {
+													fetchCalendar(new Date(customFrom).toISOString(), new Date(customTo).toISOString());
+												}
+											}}
+										>
+											Xem
+										</Button>
+										<Button size="sm" variant="ghost" onClick={() => setShowCustomPicker(false)}>
+											<X className="h-4 w-4" />
+										</Button>
 									</div>
+								) : (
+									<>
+										<Button
+											variant="outline"
+											size="sm"
+											className="text-sm gap-1"
+											onClick={() => setRangeOpen(!rangeOpen)}
+										>
+											{selectedRange.label}
+											<ChevronDown className="h-3.5 w-3.5" />
+										</Button>
+										{rangeOpen && (
+											<div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[160px]">
+												{DATE_RANGES.map(range => (
+													<button
+														key={range.days}
+														className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === rangeDays && !showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
+														onClick={() => {
+															setRangeDays(range.days);
+															setShowCustomPicker(false);
+															setRangeOpen(false);
+															const end = new Date();
+															const start = new Date();
+															start.setDate(end.getDate() - range.days);
+															fetchCalendar(start.toISOString(), end.toISOString());
+														}}
+													>
+														{range.label}
+													</button>
+												))}
+												<hr className="my-1 border-slate-100" />
+												<button
+													className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
+													onClick={() => {
+														setShowCustomPicker(true);
+														setRangeOpen(false);
+													}}
+												>
+													Tùy chỉnh
+												</button>
+											</div>
+										)}
+									</>
 								)}
 							</div>
 						</div>
@@ -328,9 +381,13 @@ export function Dashboard() {
 											<div
 												className={`w-[13px] h-[13px] rounded-[3px] ${getCellColor(day.count)} transition-colors`}
 											/>
-											<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
+											<div className={`absolute ${di < 2 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg`}>
 												{day.date.toLocaleDateString('vi-VN')}: {day.count} bài đã làm
-												<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+												{di < 2 ? (
+													<div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800" />
+												) : (
+													<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+												)}
 											</div>
 										</div>
 									))}

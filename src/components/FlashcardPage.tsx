@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
-import { NavPagination } from './ui/nav-pagination';
+
 import { useRouter } from 'next/navigation';
 
 // Dialog để tạo/sửa list
@@ -475,7 +475,19 @@ export function FlashcardPage() {
 										</Card>
 									))}
 								</div>
-								<NavPagination page={minePage} totalPages={Math.ceil(mineTotalCount / limit)} onPageChange={setMinePage} />
+								{mineTotalCount > 0 && (
+									<div className="flex items-center justify-center gap-4">
+										<Button variant="outline" size="sm" disabled={minePage <= 1} onClick={() => setMinePage(minePage - 1)}>
+											Trước
+										</Button>
+										<span className="text-sm text-muted-foreground">
+											Trang {minePage} / {Math.max(1, Math.ceil(mineTotalCount / limit))}
+										</span>
+										<Button variant="outline" size="sm" disabled={minePage >= Math.ceil(mineTotalCount / limit)} onClick={() => setMinePage(minePage + 1)}>
+											Sau
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 					</>
@@ -553,7 +565,19 @@ export function FlashcardPage() {
 										</Card>
 									))}
 								</div>
-								<NavPagination page={discoverPage} totalPages={Math.ceil(discoverTotalCount / limit)} onPageChange={setDiscoverPage} />
+								{discoverTotalCount > 0 && (
+									<div className="flex items-center justify-center gap-4">
+										<Button variant="outline" size="sm" disabled={discoverPage <= 1} onClick={() => setDiscoverPage(discoverPage - 1)}>
+											Trước
+										</Button>
+										<span className="text-sm text-muted-foreground">
+											Trang {discoverPage} / {Math.max(1, Math.ceil(discoverTotalCount / limit))}
+										</span>
+										<Button variant="outline" size="sm" disabled={discoverPage >= Math.ceil(discoverTotalCount / limit)} onClick={() => setDiscoverPage(discoverPage + 1)}>
+											Sau
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 					</>

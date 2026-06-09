@@ -5,7 +5,6 @@ import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/
 import { FlashCard, TagType } from '../types/client';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
-import { NavPagination } from './ui/nav-pagination';
 import { ReportDialog } from './ReportDialog';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
@@ -598,27 +597,37 @@ export function FlashcardListDetail() {
 				</div>
 
 				{/* Flashcard Grid */}
-				{filteredFlashcards.length === 0 ? (
+				{filteredFlashcards.length === 0 && cardTotalCount === 0 && !loading ? (
 					<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-16 text-center">
 						<div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
 							<BookOpen className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
 						</div>
-						<h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy thẻ ghi nhớ nào.</h3>
+						<h3 className="text-xl font-bold text-slate-800 mb-2">Danh sách thẻ trống</h3>
 						<p className="text-slate-500 mb-8 max-w-sm mx-auto font-medium">
-							{searchQuery || (selectedTagId && selectedTagId !== '__all__')
-								? 'Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn chủ đề khác nhé.'
-								: 'Bộ sưu tập này đang trống. Hãy nhấn nút thêm flashcard để làm đầy sổ học tập của bạn!'}
+							Bộ sưu tập này chưa có thẻ ghi nhớ nào.
 						</p>
-						<Button
-							onClick={() => {
-								setEditingFlashcard(undefined);
-								setFlashcardDialogOpen(true);
-							}}
-							className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
-						>
-							<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
-							Tạo thẻ ghi nhớ đầu tiên
-						</Button>
+						{isOwnList && (
+							<Button
+								onClick={() => {
+									setEditingFlashcard(undefined);
+									setFlashcardDialogOpen(true);
+								}}
+								className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-6 py-6 h-auto shadow-md transition-all hover:-translate-y-1 inline-flex"
+							>
+								<Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
+								Tạo thẻ ghi nhớ đầu tiên
+							</Button>
+						)}
+					</div>
+				) : filteredFlashcards.length === 0 && cardTotalCount > 0 ? (
+					<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-16 text-center">
+						<div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+							<BookOpen className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
+						</div>
+						<h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy kết quả</h3>
+						<p className="text-slate-500 mb-8 max-w-sm mx-auto font-medium">
+							Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn chủ đề khác nhé.
+						</p>
 					</div>
               ) : (
                   <>
@@ -637,7 +646,17 @@ export function FlashcardListDetail() {
                   </>
                 )}
                 {cardTotalCount > 0 && (
-                  <NavPagination page={cardPage} totalPages={Math.ceil(cardTotalCount / cardLimit)} onPageChange={setCardPage} />
+                  <div className="flex items-center justify-center gap-4">
+                    <Button variant="outline" size="sm" disabled={cardPage <= 1} onClick={() => setCardPage(cardPage - 1)}>
+                      Trước
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Trang {cardPage} / {Math.max(1, Math.ceil(cardTotalCount / cardLimit))}
+                    </span>
+                    <Button variant="outline" size="sm" disabled={cardPage >= Math.ceil(cardTotalCount / cardLimit)} onClick={() => setCardPage(cardPage + 1)}>
+                      Sau
+                    </Button>
+                  </div>
                 )}
 			</div>
 

@@ -22,6 +22,8 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  X,
   Flame,
   Zap,
   Star,
@@ -387,7 +389,23 @@ export function ProgressTracker() {
   const [calendar, setCalendar] = useState<UserCalendarDto | null>(null);
   const [history, setHistory] = useState<AttemptsHistoryDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  type DateRangeOption = { label: string; days: number };
+  const DATE_RANGES: DateRangeOption[] = [
+    { label: '1 tuần', days: 7 },
+    { label: '1 tháng', days: 30 },
+    { label: '3 tháng', days: 90 },
+    { label: '6 tháng', days: 180 },
+    { label: '1 năm', days: 365 },
+  ];
+
+  const [calendarRangeDays, setCalendarRangeDays] = useState(180);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
+
+  const selectedRange = DATE_RANGES.find(r => r.days === calendarRangeDays) || DATE_RANGES[3];
 
   // History sort/pagination
   const [historySortKey, setHistorySortKey] = useState<get_users_attempt_history_req_dto_SortOptionsDto.key>(
@@ -420,40 +438,42 @@ export function ProgressTracker() {
     }
   }, [historySortKey, historySortDir]);
 
+  const fetchCalendar = useCallback(async (from: string, to: string) => {
+    try {
+      const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
+        from,
+        to,
+      });
+      if (res.data) {
+        setCalendar(res.data as UserCalendarDto);
+      }
+    } catch (err) {
+      console.error('Failed to fetch calendar:', err);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchData = async () => {
-      const now = new Date();
-      const sixMonthsAgo = new Date(now);
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-      const results = await Promise.allSettled([
-        ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1(),
-        ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-          from: sixMonthsAgo.toISOString(),
-          to: now.toISOString(),
-        }),
-      ]);
-
-      const [statsResult, calendarResult] = results;
-
-      if (statsResult.status === 'fulfilled' && statsResult.value.data) {
-        setStats(statsResult.value.data as UserStatsDto);
+    const fetchStats = async () => {
+      try {
+        const statsResult = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
+        if (statsResult.data) {
+          setStats(statsResult.data as UserStatsDto);
+        }
+      } catch (err) {
+        console.error('Stats API failed:', err);
       }
-      if (calendarResult.status === 'fulfilled' && calendarResult.value.data) {
-        setCalendar(calendarResult.value.data as UserCalendarDto);
-      }
-
-      const allFailed = results.every(r => r.status === 'rejected');
-      if (allFailed) {
-        console.error('All API calls failed:', results);
-        setError('Không thể tải dữ liệu tiến độ. Vui lòng thử lại sau.');
-      }
-
       setLoading(false);
     };
-    fetchData();
+    fetchStats();
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - calendarRangeDays);
+    fetchCalendar(start.toISOString(), end.toISOString());
+  }, [calendarRangeDays, fetchCalendar]);
 
   // Re-fetch history when sort changes
   useEffect(() => {
@@ -547,23 +567,6 @@ export function ProgressTracker() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-        <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-          <Target className="h-6 w-6 text-destructive" />
-        </div>
-        <p className="text-destructive font-medium">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
-        >
-          Thử lại
-        </button>
-      </div>
-    );
-  }
-
   if (!computedStats && (!history?.attempts?.length)) {
     return (
       <div className="pb-20">
@@ -636,7 +639,7 @@ export function ProgressTracker() {
 
         {/* Stats Overview - 4 Cards */}
         {computedStats && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-center gap-3">
@@ -742,34 +745,31 @@ export function ProgressTracker() {
           </Card>
         )}
 
-        {/* Charts Section — 2 columns on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Skill Radar/Bar */}
-          {sortedTags.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Target className="h-5 w-5 text-primary" />
-                  Phân tích kỹ năng
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sortedTags.length >= 3 ? (
-                  <>
-                    <div className="hidden md:block">
-                      <SkillRadarChart tags={sortedTags} />
-                    </div>
-                    <div className="md:hidden">
-                      <SkillBarChart tags={sortedTags} />
-                    </div>
-                  </>
-                ) : (
-                  <SkillBarChart tags={sortedTags} />
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {/* Skill Radar/Bar — full width */}
+        {sortedTags.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Target className="h-5 w-5 text-primary" />
+                Phân tích kỹ năng
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sortedTags.length >= 3 ? (
+                <>
+                  <div className="hidden md:block">
+                    <SkillRadarChart tags={sortedTags} />
+                  </div>
+                  <div className="md:hidden">
+                    <SkillBarChart tags={sortedTags} />
+                  </div>
+                </>
+              ) : (
+                <SkillBarChart tags={sortedTags} />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tag Performance Detail (full width) */}
         {sortedTags.length > 0 && (
@@ -848,19 +848,100 @@ export function ProgressTracker() {
         )}
 
         {/* Activity Calendar */}
-        {calendar?.history && Object.keys(calendar.history).length > 0 && (
-          <Card>
+        <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Lịch luyện tập
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                  Lịch luyện tập
+                </CardTitle>
+                <div className="relative">
+                  {showCustomPicker ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={customFrom}
+                        onChange={(e) => setCustomFrom(e.target.value)}
+                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
+                      />
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <input
+                        type="date"
+                        value={customTo}
+                        onChange={(e) => setCustomTo(e.target.value)}
+                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
+                      />
+                      <Button
+                        size="sm"
+                        variant="default"
+                        disabled={!customFrom || !customTo}
+                        onClick={() => {
+                          if (customFrom && customTo) {
+                            fetchCalendar(new Date(customFrom).toISOString(), new Date(customTo).toISOString());
+                          }
+                        }}
+                      >
+                        Xem
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowCustomPicker(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-sm gap-1"
+                        onClick={() => setRangeOpen(!rangeOpen)}
+                      >
+                        {selectedRange.label}
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      {rangeOpen && (
+                        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[160px]">
+                          {DATE_RANGES.map(range => (
+                            <button
+                              key={range.days}
+                              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === calendarRangeDays && !showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
+                              onClick={() => {
+                                setCalendarRangeDays(range.days);
+                                setShowCustomPicker(false);
+                                setRangeOpen(false);
+                                const end = new Date();
+                                const start = new Date();
+                                start.setDate(end.getDate() - range.days);
+                                fetchCalendar(start.toISOString(), end.toISOString());
+                              }}
+                            >
+                              {range.label}
+                            </button>
+                          ))}
+                          <hr className="my-1 border-slate-100" />
+                          <button
+                            className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
+                            onClick={() => {
+                              setShowCustomPicker(true);
+                              setRangeOpen(false);
+                            }}
+                          >
+                            Tùy chỉnh
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <ActivityHeatmap data={calendar.history} />
+              {calendar?.history && Object.keys(calendar.history).length > 0 ? (
+                <ActivityHeatmap data={calendar.history} rangeDays={calendarRangeDays} />
+              ) : (
+                <p className="text-center text-muted-foreground py-8">Chưa có dữ liệu hoạt động trong khoảng thời gian này.</p>
+              )}
             </CardContent>
           </Card>
-        )}
 
         {/* Recent Attempts */}
         <Card>
