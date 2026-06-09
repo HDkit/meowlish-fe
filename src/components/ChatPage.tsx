@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { addChatRoom, updateChatRoom, removeChatRoom, setChatRooms } from '@/components/store/chatRoomSlice';
+import { updateChatRoom, removeChatRoom, setChatRooms } from '@/components/store/chatRoomSlice';
 import { addChatMessage } from '@/components/store/chatMessageSlice';
 import { addUser } from '@/components/store/userSlice';
 import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
+import { toast } from './ui/use-toast';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
 const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/api/v1/chat/ws/socket.io';
@@ -546,17 +547,8 @@ export default function ChatPage() {
 	const [roomPrevCursor, setRoomPrevCursor] = useState<string | undefined>(undefined);
 	const [roomLoading, setRoomLoading] = useState(false);
 
-	useEffect(() => {
-		if (isHydrated && !currUser) router.push('/auth');
-	}, [isHydrated, currUser, router]);
-
-	useEffect(() => {
-		if (!currUser) return;
-		fetchRooms();
-	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const fetchRooms = async (cursor?: string) => {
-		if (!currUser) return;
+	const fetchRooms = useCallback(async (cursor?: string) => {
+		if (!currUser) return null;
 		setRoomLoading(true);
 		try {
 			const res = await ChatRoomService.listRooms(cursor, 20);
@@ -567,15 +559,35 @@ export default function ChatPage() {
 				scheduledLiveUrl: r.scheduledLiveUrl,
 				scheduledDate: r.scheduledDate ? new Date(r.scheduledDate).getTime() : undefined,
 			}));
+
+			if (cursor && apiRooms.length === 0) {
+				toast({
+					title: 'Không có kết quả',
+					description: 'Trang này không còn phòng chat nào.',
+				});
+				return null;
+			}
+
 			dispatch(setChatRooms(apiRooms));
 			setRoomNextCursor(data.nextCursor ?? undefined);
 			setRoomPrevCursor(data.prevCursor ?? undefined);
+			return apiRooms;
 		} catch (err) {
 			console.error('[ChatPage] fetch rooms error:', err);
+			return null;
 		} finally {
 			setRoomLoading(false);
 		}
-	};
+	}, [currUser, dispatch]);
+
+	useEffect(() => {
+		if (isHydrated && !currUser) router.push('/auth');
+	}, [isHydrated, currUser, router]);
+
+	useEffect(() => {
+		if (!currUser) return;
+		fetchRooms();
+	}, [currUser, fetchRooms]);
 
  	const getUserName = (uid: string) => { const u = users.find((u) => u.id === uid); return u?.fullName || u?.username || 'Ẩn danh'; };
 
@@ -599,22 +611,16 @@ export default function ChatPage() {
 	const handleCreateRoom = async (name: string, liveUrl?: string, liveDate?: number) => {
 		if (!currUser) return;
 		try {
-			const res = await ChatRoomService.createRoom({ name });
-			const newRoom: ChatRoom = {
-				id: res.id,
-				name: res.name,
-				scheduledLiveUrl: res.scheduledLiveUrl,
-				scheduledDate: res.scheduledDate ? new Date(res.scheduledDate).getTime() : undefined,
-			};
-			if (liveUrl || liveDate) {
-				await ChatRoomService.updateSchedule(res.id, {
+			await ChatRoomService.createRoom({ name });
+			const roomsAfterCreate = await fetchRooms();
+			const createdRoom = roomsAfterCreate?.find((room) => room.name === name) ?? roomsAfterCreate?.[0];
+			if (createdRoom && (liveUrl || liveDate)) {
+				await ChatRoomService.updateSchedule(createdRoom.id, {
 					url: liveUrl,
 					time: liveDate ? new Date(liveDate).toISOString() : undefined,
 				});
-				newRoom.scheduledLiveUrl = liveUrl;
-				newRoom.scheduledDate = liveDate;
+				await fetchRooms();
 			}
-			dispatch(addChatRoom(newRoom));
 		} catch (err) {
 			console.error('Failed to create room:', err);
 		}
