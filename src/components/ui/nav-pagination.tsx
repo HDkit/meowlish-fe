@@ -7,8 +7,6 @@ interface NavPaginationProps {
 }
 
 export function NavPagination({ page, totalPages, onPageChange }: NavPaginationProps) {
-  if (totalPages <= 1) return null;
-
   const getPages = () => {
     const pages: (number | 'ellipsis')[] = [];
     const delta = 1;
