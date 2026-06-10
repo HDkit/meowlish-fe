@@ -19,6 +19,8 @@ const httpStatusMessages: Record<number, string> = {
   503: 'Dịch vụ tạm thời không khả dụng',
 };
 
+
+
 const DEFAULT_ERROR = 'Đã xảy ra lỗi. Vui lòng thử lại sau';
 
 const isTechnicalMessage = (msg: string): boolean => {

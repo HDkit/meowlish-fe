@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { FaGoogle } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -106,6 +106,39 @@ export function AuthForm() {
 		return Object.keys(errors).length === 0;
 	};
 
+	// Try to map backend field errors to form fields
+	const applyFieldErrors = (body: any) => {
+		if (!body) return;
+		const fieldErrors: Record<string, string> = {};
+		const src = body.error ?? body;
+
+		if (Array.isArray(src)) {
+			for (const item of src) {
+				if (item.field && item.message) fieldErrors[item.field] = item.message;
+			}
+		} else if (typeof src === 'object') {
+			for (const [field, msgs] of Object.entries(src)) {
+				if (field === 'message' || field === 'code') continue;
+				const msg = Array.isArray(msgs) ? msgs[0] : msgs;
+				if (typeof msg === 'string' && field !== 'message' && field !== 'code' && field !== 'statusCode') {
+					fieldErrors[field] = msg;
+				}
+			}
+		}
+		if (Object.keys(fieldErrors).length > 0) setValidationErrors(fieldErrors);
+	};
+
+	const authErrorMessage = (err: any, fallback: string) => {
+		const msg = extractApiErrorMessage(err, fallback);
+		const status = err?.status ?? err?.statusCode;
+		if (msg !== fallback) return msg;
+		if (status === 401) return 'Sai email hoặc mật khẩu';
+		if (status === 403) return 'Tài khoản của bạn đã bị khóa';
+		if (status === 404) return 'Tài khoản không tồn tại';
+		if (status === 409) return 'Email này đã được đăng ký';
+		return msg;
+	};
+
 	// Login handler
 	const handleLoginSubmit = async () => {
 		setLoading(true);
@@ -147,7 +180,8 @@ export function AuthForm() {
 			}
 		} catch (err: any) {
 			console.error(err);
-			setError(extractApiErrorMessage(err, 'Đăng nhập thất bại'));
+			applyFieldErrors(err.body);
+			setError(authErrorMessage(err, 'Đăng nhập thất bại'));
 		} finally {
 			setLoading(false);
 		}
@@ -183,7 +217,8 @@ export function AuthForm() {
 			router.push('/test-selection');
 		} catch (err: any) {
 			console.error(err);
-			setError(extractApiErrorMessage(err, 'Đăng ký thất bại'));
+			applyFieldErrors(err.body);
+			setError(authErrorMessage(err, 'Đăng ký thất bại'));
 		} finally {
 			setLoading(false);
 		}
@@ -297,8 +332,11 @@ export function AuthForm() {
 
 					<div className='space-y-4'>
 						{error && (
-							<Alert variant='destructive'>
-								<AlertDescription>{error}</AlertDescription>
+							<Alert variant='destructive' className='border-red-300 bg-red-50 py-3'>
+								<div className='flex items-start gap-3'>
+									<AlertCircle className='h-5 w-5 text-red-500 mt-0.5 shrink-0' />
+									<AlertDescription className='text-red-700 font-medium text-sm'>{error}</AlertDescription>
+								</div>
 							</Alert>
 						)}
 

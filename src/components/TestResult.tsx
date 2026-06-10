@@ -224,7 +224,8 @@ export function TestResult() {
 
 	const flatQuestions = useMemo((): FlatQuestion[] => {
 		if (!reviewData) return [];
-		const out: Omit<FlatQuestion, 'globalIndex'>[] = [];
+		const out: (Omit<FlatQuestion, 'globalIndex'> & { _nat: number })[] = [];
+		let nat = 0;
 
 		const walk = (sections: SectionReviewDto[], inheritedPart: number | null, rootSection: SectionReviewDto | null) => {
 			for (const s of sections || []) {
@@ -242,6 +243,7 @@ export function TestResult() {
 						rootSectionId: root.id,
 						rootSectionName: root.name,
 						ownerSectionFileUrls: s.fileUrls ?? [],
+						_nat: nat++,
 					});
 				}
 
@@ -250,7 +252,7 @@ export function TestResult() {
 		};
 
 		walk(reviewData.sections || [], null, null);
-		out.sort((a, b) => (a.q.order ?? 0) - (b.q.order ?? 0) || a.q.id.localeCompare(b.q.id));
+		out.sort((a, b) => (a.q.order ?? 0) - (b.q.order ?? 0) || a._nat - b._nat);
 		return out.map((item, i) => ({ ...item, globalIndex: i + 1 }));
 	}, [reviewData]);
 
@@ -1182,6 +1184,112 @@ function DetailedAnalysis({
 							</h3>
 							<div className='space-y-1'>
 								{items.map((item) => {
+									const isWriting = item.q.type?.toLowerCase() === 'writing';
+									if (isWriting) {
+										const res = reviewData.responses?.find((r) => r.questionId === item.q.id);
+										const userEssay = res?.answers?.[0] || '';
+										const fb = parseWritingFeedback(res?.additionalData);
+										return (
+											<div key={item.q.id} className='bg-white border border-slate-200 rounded-2xl p-5 space-y-4'>
+												<div className='flex items-center gap-3'>
+													<div className='w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0'>
+														{item.globalIndex}
+													</div>
+													<h4 className='font-bold text-slate-800'>
+														{item.sectionName || 'Writing'}
+													</h4>
+													{fb && fb.overall_score > 0 && (
+														<span className='ml-auto text-sm font-bold text-emerald-600'>
+															Band {fb.overall_score.toFixed(1)}
+														</span>
+													)}
+												</div>
+
+												{item.q.content && (
+													<div>
+														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Đề bài</h5>
+														<div className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap'>
+															{item.q.content}
+														</div>
+													</div>
+												)}
+
+												{userEssay && (
+													<div>
+														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Bài viết của bạn</h5>
+														<div className='bg-blue-50/50 border border-blue-200 rounded-xl p-4 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
+															{userEssay}
+														</div>
+													</div>
+												)}
+
+												{fb && fb.overall_score > 0 && (
+													<div className='flex flex-wrap gap-3'>
+														<div className='px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200'>
+															<div className='text-xs font-bold text-emerald-600 uppercase tracking-wider'>Điểm tổng</div>
+															<div className='text-2xl font-black text-emerald-700 mt-1'>{fb.overall_score.toFixed(1)}</div>
+														</div>
+														{fb.sub_scores && Object.entries(fb.sub_scores).map(([criterion, score]) => (
+															<div key={criterion} className='px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 min-w-[100px]'>
+																<div className='text-xs font-bold text-slate-500 uppercase tracking-wider'>{criterion.replace(/_/g, ' ')}</div>
+																<div className='text-xl font-black text-slate-800 mt-1'>{Number(score).toFixed(1)}</div>
+															</div>
+														))}
+													</div>
+												)}
+
+												{fb?.detailed_feedback && (
+													<div>
+														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Nhận xét từ AI</h5>
+														<div className='bg-amber-50 border border-amber-200 rounded-xl p-4 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
+															{fb.detailed_feedback}
+														</div>
+													</div>
+												)}
+
+												{fb?.corrections && fb.corrections.length > 0 && (
+													<div>
+														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Các lỗi cần sửa ({fb.corrections.length})</h5>
+														<div className='space-y-2'>
+															{fb.corrections.map((c, ci) => (
+																<div key={ci} className='border border-slate-200 rounded-xl p-4 space-y-2'>
+																	<span className='text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-md uppercase'>{c.type}</span>
+																	<div className='flex flex-col sm:flex-row gap-2 text-sm'>
+																		<div className='flex-1 bg-red-50 border border-red-200 rounded-lg p-3'>
+																			<div className='text-xs font-bold text-red-500 mb-1'>Bản gốc</div>
+																			<div className='text-red-800 line-through'>{c.original}</div>
+																		</div>
+																		<div className='flex-1 bg-green-50 border border-green-200 rounded-lg p-3'>
+																			<div className='text-xs font-bold text-green-500 mb-1'>Sửa lại</div>
+																			<div className='text-green-800 font-medium'>{c.corrected}</div>
+																		</div>
+																	</div>
+																	{c.explanation && <p className='text-xs text-slate-600 leading-relaxed pl-1'>{c.explanation}</p>}
+																</div>
+															))}
+														</div>
+													</div>
+												)}
+
+												{fb?.corrected_version && (
+													<div>
+														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Bài viết đã sửa</h5>
+														<div className='bg-green-50/50 border border-green-200 rounded-xl p-4 text-slate-800 leading-relaxed whitespace-pre-wrap text-sm'>
+															{fb.corrected_version}
+														</div>
+													</div>
+												)}
+
+												{!fb && (
+													<div className='flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-500'>
+														<AlertCircle className='w-5 h-5 shrink-0' />
+														<span className='text-sm font-medium'>Chưa có nhận xét cho bài viết này.</span>
+													</div>
+												)}
+											</div>
+										);
+									}
+
 									const st = questionStatusById.get(item.q.id) || 'skipped';
 									const userAns = getUserAnswer(item.q.id);
 									const correctAns = getCorrectKey(item.q);
