@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAppDispatch } from '@/lib/store/hooks';
-import { addReport } from '@/components/store/reportSlice';
 import { ReportService } from '@/lib/api/services/ReportService';
-import { Report, ReportStatus } from '@/types/client';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { Button } from './ui/button';
@@ -28,13 +25,12 @@ const TYPE_OPTIONS = [
 interface ReportDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	targetType?: 'blog' | 'exam' | 'user' | 'other';
+	targetType?: 'exam' | 'blog' | 'flashcard' | 'flashcard list';
 	targetId?: string;
 	userId: string;
 }
 
 export function ReportDialog({ open, onOpenChange, targetType, targetId, userId }: ReportDialogProps) {
-	const dispatch = useAppDispatch();
 	const { toast } = useToast();
 	const [type, setType] = useState('bug');
 	const [title, setTitle] = useState('');
@@ -46,29 +42,12 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 		setSubmitting(true);
 		try {
 			const res = await ReportService.createReport({
-				reportedBy: userId,
 				type,
 				title: title.trim(),
 				description: description.trim(),
 				targetType,
 				targetId,
 			});
-			const newReport: Report = {
-				id: res.id,
-				reportedBy: res.reportedBy,
-				type: res.type,
-				title: res.title,
-				description: res.description,
-				targetType: res.targetType,
-				targetId: res.targetId,
-				status: (res.status as ReportStatus) || ReportStatus.Pending,
-				adminResponse: res.adminResponse,
-				resolvedBy: res.resolvedBy,
-				fileIds: res.fileIds ?? [],
-				createdAt: new Date(res.createdAt).getTime(),
-				updatedAt: res.updatedAt ? new Date(res.updatedAt).getTime() : undefined,
-			};
-			dispatch(addReport(newReport));
 			setTitle('');
 			setDescription('');
 			setType('bug');

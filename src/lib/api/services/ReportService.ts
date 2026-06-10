@@ -24,7 +24,6 @@ export interface ListReportsResponse {
 }
 
 export interface CreateReportPayload {
-  reportedBy: string;
   type: string;
   title: string;
   description: string;

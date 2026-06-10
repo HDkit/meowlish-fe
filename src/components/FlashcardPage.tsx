@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
+import { ReportDialog } from './ReportDialog';
+import { Flag } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 
@@ -123,8 +125,6 @@ function ListDialog({
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none transition-all"
 						/>
 					</div>
-				</div>
-				<div className="px-6 py-4 space-y-5">
 					<div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
 						<Label htmlFor="public-switch" className="text-slate-700 font-bold cursor-pointer">Công khai</Label>
 						<Switch id="public-switch" checked={isPublic} onCheckedChange={setIsPublic} className="data-[state=unchecked]:bg-slate-300" />
@@ -195,6 +195,8 @@ export function FlashcardPage() {
 	const [mineTotalCount, setMineTotalCount] = useState(0);
 	const [discoverPage, setDiscoverPage] = useState(1);
 	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
+	const [reportOpen, setReportOpen] = useState(false);
+	const [reportTargetId, setReportTargetId] = useState<string | null>(null);
 	const limit = 12;
 
 	// Fetch my lists from API on mount/page change
@@ -340,6 +342,18 @@ export function FlashcardPage() {
 						</p>
 					</div>
 					<div className="flex-shrink-0">
+						{currentUser && (
+							<Button
+								variant="outline"
+								onClick={() => {
+									setReportTargetId(null);
+									setReportOpen(true);
+								}}
+								className="mr-3 bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-2xl px-5 py-7 shadow-sm"
+							>
+								<Flag className="h-5 w-5 mr-2" /> Báo cáo chung
+							</Button>
+						)}
 						<Button
 							onClick={() => {
 								setEditingList(undefined);
@@ -448,6 +462,14 @@ export function FlashcardPage() {
 														>
 															<Trash2 className="h-4 w-4" />
 														</Button>
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 bg-white shadow-sm"
+															onClick={(e) => { e.stopPropagation(); setReportTargetId(list.id); setReportOpen(true); }}
+														>
+															<Flag className="h-4 w-4" />
+														</Button>
 													</div>
 												</div>
 
@@ -539,6 +561,16 @@ export function FlashcardPage() {
 															</div>
 														</div>
 													</div>
+													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
+														<Button
+															variant="outline"
+															size="icon"
+															className="h-8 w-8 rounded-lg border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 bg-white shadow-sm"
+															onClick={(e) => { e.stopPropagation(); setReportTargetId(list.id); setReportOpen(true); }}
+														>
+															<Flag className="h-4 w-4" />
+														</Button>
+													</div>
 												</div>
 
 												<p className="text-sm text-slate-500 mb-2 line-clamp-2 min-h-[40px] font-medium leading-relaxed">
@@ -591,6 +623,16 @@ export function FlashcardPage() {
 				list={editingList}
 				onSave={handleAddList}
 			/>
+
+			{currentUser && (
+				<ReportDialog
+					open={reportOpen}
+					onOpenChange={setReportOpen}
+					targetType="flashcard list"
+					targetId={reportTargetId ?? undefined}
+					userId={currentUser.id}
+				/>
+			)}
 		</div>
 	);
 }

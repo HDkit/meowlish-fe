@@ -68,12 +68,14 @@ function FlashcardCard({
 	editable,
 	onEdit,
 	onDelete,
+	onReport,
 }: {
 	flashcard: FlashCard;
 	tagNames?: string[];
 	editable?: boolean;
 	onEdit: () => void;
 	onDelete: () => void;
+	onReport: () => void;
 }) {
 	const [isFlipped, setIsFlipped] = useState(false);
 
@@ -101,6 +103,14 @@ function FlashcardCard({
 					</div>
 					{editable && (
 						<div className={`flex items-center gap-1.5 transition-opacity relative z-50 ${isFlipped ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+							<Button
+								variant={isFlipped ? 'ghost' : 'outline'}
+								size="icon"
+								className={`h-8 w-8 rounded-lg shadow-sm ${isFlipped ? 'text-white hover:bg-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-amber-600 hover:bg-amber-50'}`}
+								onClick={(e) => { e.stopPropagation(); onReport(); }}
+							>
+								<Flag className="h-4 w-4" />
+							</Button>
 							<Button
 								variant={isFlipped ? 'ghost' : 'outline'}
 								size="icon"
@@ -436,6 +446,7 @@ export function FlashcardListDetail() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
 	const [reportOpen, setReportOpen] = useState(false);
+	const [reportFlashcardId, setReportFlashcardId] = useState<string | null>(null);
 	const [flashcardDialogOpen, setFlashcardDialogOpen] = useState(false);
 	const [editingFlashcard, setEditingFlashcard] = useState<FlashCard | undefined>();
 
@@ -711,8 +722,12 @@ export function FlashcardListDetail() {
 							editable={isOwnList}
 							onEdit={() => handleEditFlashcard(flashcard)}
 							onDelete={() => handleDeleteFlashcard(flashcard.id)}
+							onReport={() => {
+								setReportFlashcardId(flashcard.id);
+								setReportOpen(true);
+							}}
 						/>
-                      ))}
+					))}
                     </div>
                   </>
                 )}
@@ -743,8 +758,8 @@ export function FlashcardListDetail() {
 				<ReportDialog
 					open={reportOpen}
 					onOpenChange={setReportOpen}
-					targetType="other"
-					targetId={listId}
+					targetType={reportFlashcardId ? 'flashcard' : 'flashcard list'}
+					targetId={reportFlashcardId ? `${listId}/${reportFlashcardId}` : listId}
 					userId={currentUser.id}
 				/>
 			)}

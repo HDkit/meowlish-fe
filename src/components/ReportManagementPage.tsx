@@ -6,6 +6,7 @@ import { updateReport, removeReport, setReports } from '@/components/store/repor
 import { ReportService } from '@/lib/api/services/ReportService';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Report, ReportStatus } from '@/types/client';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -43,7 +44,23 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }
 	behavior: { label: 'Hành vi', icon: UserX },
 };
 
+function getResourceUrl(targetType?: string, targetId?: string): string | null {
+	if (!targetType || !targetId) return null;
+	switch (targetType) {
+		case 'exam': return `/test/${targetId}`;
+		case 'blog': return `/blog/${targetId}`;
+		case 'flashcard': {
+			const parts = targetId.split('/');
+			const listId = parts[0];
+			return listId ? `/flashcards/${listId}` : null;
+		}
+		case 'flashcard list': return `/flashcards/${targetId}`;
+		default: return null;
+	}
+}
+
 export default function ReportManagementPage() {
+	const router = useRouter();
 	const dispatch = useAppDispatch();
 	const { currUser, isHeadStaff } = useAuth();
 	const { toast } = useToast();
@@ -65,8 +82,10 @@ export default function ReportManagementPage() {
 	const fetchReports = useCallback(async (pageNum: number) => {
 		try {
 			const res = await ReportService.listReports(undefined, undefined, undefined, undefined, undefined, pageNum, limit);
-			if (res?.reports) {
-				dispatch(setReports(res.reports.map((r) => ({
+			const data = (res as any)?.data ?? res;
+			const reportsData = data?.reports ?? [];
+			if (reportsData.length > 0 || data?.totalCount === 0) {
+				dispatch(setReports(reportsData.map((r: any) => ({
 					id: r.id,
 					reportedBy: r.reportedBy,
 					type: r.type,
@@ -81,7 +100,10 @@ export default function ReportManagementPage() {
 					createdAt: new Date(r.createdAt).getTime(),
 					updatedAt: r.updatedAt ? new Date(r.updatedAt).getTime() : undefined,
 				}))));
-				setTotalCount(res.totalCount);
+				setTotalCount(data.totalCount ?? reportsData.length);
+			} else {
+				dispatch(setReports([]));
+				setTotalCount(0);
 			}
 		} catch (err) {
 			console.error('[ReportManagementPage] fetch error:', err);
@@ -231,11 +253,11 @@ export default function ReportManagementPage() {
 
 				{/* Report List */}
 				{filteredReports.length === 0 ? (
-					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
-						<Flag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-						<h3 className="text-lg font-bold text-gray-800">Không có báo cáo nào</h3>
-						<p className="text-gray-500 mt-1">Chưa có báo cáo nào phù hợp với bộ lọc</p>
-					</div>
+			<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
+				<Flag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+				<h3 className="text-lg font-bold text-gray-800">Không có báo cáo nào</h3>
+				<p className="text-gray-500 mt-1">{totalCount === 0 ? 'Hiện chưa có report nào' : 'Chưa có báo cáo nào phù hợp với bộ lọc'}</p>
+			</div>
 				) : (
 					<div className="space-y-4">
 						{filteredReports.map((report) => {
@@ -255,9 +277,16 @@ export default function ReportManagementPage() {
 													<Badge variant="outline" className="text-xs">
 														<CatIcon className="h-3 w-3 mr-1" />{catConf.label}
 													</Badge>
-													{report.targetType && (
-														<Badge variant="outline" className="text-xs text-gray-500">
-															{report.targetType === 'exam' ? 'Đề thi' : report.targetType === 'blog' ? 'Blog' : report.targetType === 'user' ? 'Người dùng' : 'Khác'}
+													{report.targetType && report.targetId && (
+														<Badge
+															variant="outline"
+															className="text-xs text-blue-600 border-blue-200 cursor-pointer hover:bg-blue-50 transition-colors"
+															onClick={() => {
+																const url = getResourceUrl(report.targetType, report.targetId);
+																if (url) router.push(url);
+															}}
+														>
+															{report.targetType === 'exam' ? 'Đề thi' : report.targetType === 'blog' ? 'Blog' : report.targetType === 'flashcard' ? 'Flashcard' : report.targetType === 'flashcard list' ? 'Bộ sưu tập' : 'Khác'}
 														</Badge>
 													)}
 												</div>
