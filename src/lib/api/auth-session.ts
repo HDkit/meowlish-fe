@@ -1,157 +1,212 @@
-import type { ResponseTokensDto } from './models/ResponseTokensDto';
+/**
+ * Browser session helpers.
+ *
+ * The backend keeps the JWTs in HttpOnly cookies (`access_token`, `refresh_token`):
+ * the browser sends them with every `credentials: 'include'` request and JavaScript
+ * never sees them. This module therefore never stores or reads a token. It only:
+ *  - refreshes the session once (POST /auth/refresh) when a request gets a 401,
+ *  - logs out (POST /auth/logout, which clears the cookies),
+ *  - detects the session (GET /auth/my/identity),
+ *  - keeps a non-secret `user_authenticated` hint cookie that the Next.js middleware
+ *    uses to route between /auth and the app (it can't see the API's HttpOnly cookies
+ *    when the API is on another host, and the access token is short-lived anyway).
+ */
+import type { User } from '@/types/client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com';
 
-export const ACCESS_TOKEN_STORAGE_KEY = 'access_token';
-export const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
-const ACCESS_TOKEN_COOKIE_KEY = 'access_token';
-const REFRESH_TOKEN_COOKIE_KEY = 'refresh_token';
+export const SESSION_HINT_COOKIE = 'user_authenticated';
+const SESSION_HINT_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
-let refreshPromise: Promise<string | null> | null = null;
-
-const isBrowser = () => typeof window !== 'undefined';
-
-const getStorage = (): Storage | null => {
-    if (!isBrowser()) {
-        return null;
-    }
-
-    try {
-        return window.localStorage;
-    } catch {
-        return null;
-    }
-};
+const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
 export const getApiBaseUrl = (): string => {
-    // Use the full backend URL directly (CORS is already open).
     // The generated API client appends paths like /api/v1/... to this base,
     // so strip any trailing /api suffix to avoid double /api.
     const base = API_BASE_URL.replace(/\/+$/, '');
     return base.replace(/\/api$/, '');
 };
 
-const getCookieValue = (name: string): string | undefined => {
-    if (!isBrowser()) {
-        return undefined;
+/** Routes whose 401 means "bad credentials", not "expired session": never refresh-and-retry them. */
+const NO_REFRESH_PATHS = [
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/logout',
+    '/api/v1/auth/google/tokens',
+];
+
+export const shouldRefreshOn401 = (path: string): boolean =>
+    !NO_REFRESH_PATHS.some((p) => path === p || path.startsWith(`${p}?`));
+
+export const markSessionActive = (): void => {
+    if (!isBrowser()) return;
+    document.cookie = `${SESSION_HINT_COOKIE}=true; path=/; max-age=${SESSION_HINT_MAX_AGE_SECONDS}; samesite=lax`;
+};
+
+export const clearSessionHint = (): void => {
+    if (!isBrowser()) return;
+    document.cookie = `${SESSION_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+};
+
+/**
+ * Removes tokens that older builds kept in localStorage and in JS-set cookies. A stale JS
+ * `access_token` cookie on the API's host would be read before the Bearer fallback. The
+ * browser ignores these cookie writes when the cookie is the gateway's HttpOnly one.
+ */
+export const purgeLegacyTokens = (): void => {
+    if (!isBrowser()) return;
+    try {
+        window.localStorage.removeItem('access_token');
+        window.localStorage.removeItem('refresh_token');
+    } catch {
+        // storage unavailable
     }
-
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : undefined;
-};
-
-const setCookieValue = (name: string, value: string, maxAgeSeconds: number): void => {
-    if (!isBrowser()) {
-        return;
-    }
-
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
-};
-
-const clearCookieValue = (name: string): void => {
-    if (!isBrowser()) {
-        return;
-    }
-
-    document.cookie = `${name}=; path=/; max-age=0; samesite=lax`;
-};
-
-export const getAccessToken = (): string | undefined => {
-    return getStorage()?.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? getCookieValue(ACCESS_TOKEN_COOKIE_KEY) ?? undefined;
-};
-
-export const getRefreshToken = (): string | undefined => {
-    return getStorage()?.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? getCookieValue(REFRESH_TOKEN_COOKIE_KEY) ?? undefined;
-};
-
-export const setApiTokens = (accessToken: string, refreshToken?: string): void => {
-    const storage = getStorage();
-
-    if (storage) {
-        storage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
-        if (refreshToken) {
-            storage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
-        }
-    }
-
-    setCookieValue(ACCESS_TOKEN_COOKIE_KEY, accessToken, 60 * 60 * 24 * 30);
-    if (refreshToken) {
-        setCookieValue(REFRESH_TOKEN_COOKIE_KEY, refreshToken, 60 * 60 * 24 * 30);
+    for (const name of ['access_token', 'refresh_token']) {
+        document.cookie = `${name}=; path=/; max-age=0; samesite=lax`;
     }
 };
 
-export const clearApiTokens = (): void => {
-    const storage = getStorage();
+let refreshPromise: Promise<boolean> | null = null;
 
-    if (storage) {
-        storage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-        storage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-    }
-
-    clearCookieValue(ACCESS_TOKEN_COOKIE_KEY);
-    clearCookieValue(REFRESH_TOKEN_COOKIE_KEY);
-    document.cookie = 'user_authenticated=; path=/; max-age=0; samesite=lax';
-};
-
-const extractTokens = (payload: unknown): ResponseTokensDto | null => {
-    if (!payload || typeof payload !== 'object') {
-        return null;
-    }
-
-    const entity = payload as { data?: ResponseTokensDto | null };
-    if (!entity.data?.accessToken) {
-        return null;
-    }
-
-    return entity.data;
-};
-
-export const refreshAccessToken = async (): Promise<string | null> => {
-    if (!isBrowser()) {
-        return null;
-    }
-
-    if (refreshPromise) {
-        return refreshPromise;
-    }
-
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-        return null;
-    }
+/**
+ * Asks the gateway to rotate the session cookies. Concurrent callers share one request.
+ * Resolves to true when the session is alive again.
+ */
+export const refreshSession = (): Promise<boolean> => {
+    if (refreshPromise) return refreshPromise;
 
     refreshPromise = (async () => {
         try {
             const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    Authorization: `Bearer ${refreshToken}`,
-                },
+                credentials: 'include',
+                headers: { Accept: 'application/json' },
             });
-
             if (!response.ok) {
-                clearApiTokens();
-                return null;
+                clearSessionHint();
+                return false;
             }
-
-            const body = await response.json().catch(() => null);
-            const tokens = extractTokens(body);
-
-            if (!tokens?.accessToken) {
-                clearApiTokens();
-                return null;
-            }
-
-            setApiTokens(tokens.accessToken, tokens.refreshToken ?? refreshToken);
-            return tokens.accessToken;
+            return true;
         } catch {
-            return null;
+            return false;
         } finally {
             refreshPromise = null;
         }
     })();
 
     return refreshPromise;
+};
+
+/** Clears the session cookies on the gateway and the local routing hint. Never throws. */
+export const logoutSession = async (): Promise<void> => {
+    try {
+        await fetch(`${getApiBaseUrl()}/api/v1/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+        });
+    } catch {
+        // the cookies may stay, but the local session is gone either way
+    } finally {
+        clearSessionHint();
+    }
+};
+
+export type OwnIdentity = {
+    id: string;
+    username: string;
+    fullName?: string;
+    avatarUrl?: string;
+    bio?: string;
+    phoneNumber?: string;
+    roles: string[];
+};
+
+/**
+ * Detects the session: GET /auth/my/identity with the cookies, refreshing once on a 401.
+ * Resolves to the identity, to null when there is no session (401), or to undefined when
+ * it couldn't tell (network error, 5xx). Does not redirect.
+ */
+export const fetchOwnIdentity = async (): Promise<OwnIdentity | null | undefined> => {
+    const get = () =>
+        fetch(`${getApiBaseUrl()}/api/v1/auth/my/identity`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+        });
+
+    try {
+        let response = await get();
+        if (response.status === 401 && (await refreshSession())) {
+            response = await get();
+        }
+        if (response.status === 401) {
+            clearSessionHint();
+            return null;
+        }
+        if (!response.ok) return undefined;
+        const body = await response.json().catch(() => null);
+        const data = body?.data ?? null;
+        if (!data?.id) return undefined;
+        markSessionActive();
+        return { ...data, roles: Array.isArray(data.roles) ? data.roles : [] } as OwnIdentity;
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Maps backend role names (libs/typing Role enum) to the app's role ids.
+ * Matches what the old token-permission mapping produced for the seeded roles:
+ * admin -> head staff; mod -> mod; teacher/mentor (exam:write) -> staff; anything else -> learner.
+ */
+export const roleIdFromRoles = (roles: readonly string[]): string => {
+    const names = roles.map((r) => String(r).toLowerCase());
+    if (names.includes('admin') || names.includes('head_staff')) return 'role-head-staff';
+    if (names.includes('mod')) return 'role-mod';
+    if (names.includes('staff') || names.includes('teacher') || names.includes('mentor')) return 'role-staff';
+    return 'role-learner';
+};
+
+export const isAdminRoleId = (roleId: string): boolean =>
+    roleId === 'role-mod' || roleId === 'role-staff' || roleId === 'role-head-staff';
+
+export const userFromIdentity = (identity: OwnIdentity, fallback: { email?: string; fullName?: string } = {}): User => ({
+    id: identity.id,
+    email: fallback.email ?? '',
+    fullName: identity.fullName || fallback.fullName || identity.username || 'User',
+    username: identity.username,
+    avatarUrl: identity.avatarUrl,
+    roleId: roleIdFromRoles(identity.roles),
+    password: '***',
+    status: 'active',
+    createdAt: Date.now(),
+    lastLoginAt: Date.now(),
+});
+
+/** After login/register/Google exchange set the cookies: loads the signed-in user, or throws. */
+export const loadSessionUser = async (fallback: { email?: string; fullName?: string } = {}): Promise<User> => {
+    const identity = await fetchOwnIdentity();
+    if (!identity) throw new Error('Không xác thực được phiên đăng nhập. Vui lòng thử lại.');
+    return userFromIdentity(identity, fallback);
+};
+
+/**
+ * Google login: swaps the one-time `loginToken` from the OAuth redirect for the session
+ * cookies (GET /auth/google/tokens sets them and returns `data: null`), then loads the user.
+ */
+export const exchangeGoogleLoginToken = async (loginToken: string): Promise<User> => {
+    const response = await fetch(
+        `${getApiBaseUrl()}/api/v1/auth/google/tokens?loginToken=${encodeURIComponent(loginToken)}`,
+        { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' } },
+    );
+    if (!response.ok) {
+        throw new Error(
+            response.status === 401
+                ? 'Phiên đăng nhập Google đã hết hạn. Vui lòng thử lại.'
+                : 'Không thể hoàn tất đăng nhập Google.',
+        );
+    }
+    return loadSessionUser();
 };

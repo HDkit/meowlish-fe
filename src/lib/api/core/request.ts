@@ -8,7 +8,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
-import { refreshAccessToken } from '../auth-session';
+import { refreshSession, shouldRefreshOn401 } from '../auth-session';
 const tryParseJson = (str: string) => {
     try { return JSON.parse(str); } catch { return str; }
 };
@@ -214,9 +214,8 @@ export const sendRequest = async (
         signal: controller.signal,
     };
 
-    if (config.WITH_CREDENTIALS) {
-        request.credentials = config.CREDENTIALS;
-    }
+    // Session JWTs live in HttpOnly cookies set by the gateway, so every call must carry them.
+    request.credentials = config.WITH_CREDENTIALS ? config.CREDENTIALS : 'include';
 
     onCancel(() => controller.abort());
 
@@ -319,10 +318,9 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             if (!onCancel.isCancelled) {
                 let response = await sendRequest(config, options, url, body, formData, headers, onCancel);
                 
-                // Check for 401 Unauthorized and try to refresh context
-                if (response.status === 401) {
-                    const newToken = await refreshAccessToken();
-                    if (newToken) {
+                // On a 401, rotate the session cookies once and retry the request once.
+                if (response.status === 401 && shouldRefreshOn401(options.url)) {
+                    if (await refreshSession()) {
                         headers = await getHeaders(config, options);
                         response = await sendRequest(config, options, url, body, formData, headers, onCancel);
                     } else if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {

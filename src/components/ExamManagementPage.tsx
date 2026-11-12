@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from './ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken } from '@/lib/api-client';
+import { ExamManagementService, SortOptionsDto } from '@/lib/api-client';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
 	EMPTY: {
@@ -61,7 +61,9 @@ export function ExamManagementPage() {
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
 
-	const hasApiSession = () => Boolean(getAccessToken() || getRefreshToken());
+	// The session lives in HttpOnly cookies; the signed-in user is what JS can see of it.
+	const signedIn = Boolean(currUser);
+	const hasApiSession = () => signedIn;
 
 	const fetchExams = useCallback(async () => {
 		if (!hasApiSession()) {
@@ -90,7 +92,7 @@ export function ExamManagementPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [toast]);
+	}, [toast, signedIn]);
 
 	useEffect(() => {
 		if (currUser) fetchExams();

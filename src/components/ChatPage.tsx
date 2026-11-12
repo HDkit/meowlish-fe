@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
+import { refreshSession } from '@/lib/api/auth-session';
 import { toast } from './ui/use-toast';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
@@ -278,16 +279,25 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 
 	useEffect(() => {
 		joinedRef.current = false;
-		const token = typeof window !== 'undefined'
-			? window.localStorage.getItem('access_token') || document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')
-			: null;
+		// The live service authenticates the handshake with the HttpOnly access_token cookie,
+		// which JS can't read: send credentials and pass no token.
 		const socket = io(API_BASE, {
 			path: SOCKET_PATH,
 			transports: ['websocket'],
-			query: { token: token || '' },
+			withCredentials: true,
 			autoConnect: false,
 		});
 		socketRef.current = socket;
+
+		// The server drops a handshake whose access cookie has expired: refresh once, reconnect.
+		let retriedAuth = false;
+		socket.on('disconnect', (reason) => {
+			if (reason !== 'io server disconnect' || retriedAuth) return;
+			retriedAuth = true;
+			void refreshSession().then((ok) => {
+				if (ok && socketRef.current === socket) socket.connect();
+			});
+		});
 
 		socket.on('connect', () => {
 			socket.emit('join-room', room.id);

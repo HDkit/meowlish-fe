@@ -14,59 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
-import { v4 as uuidv4 } from 'uuid';
-import { AuthService, setApiTokensState } from '@/lib/api-client';
-import { jwtDecode } from 'jwt-decode';
-import { User } from '@/types/client';
-
-const normalizeRoleIdFromToken = (decoded: any): string => {
-	const rawRole = decoded?.role || decoded?.roleId;
-	const normalizedRoles = Array.isArray(decoded?.roles)
-		? decoded.roles.map((role: unknown) => String(role).toLowerCase())
-		: [];
-	const normalizedPermissions = Array.isArray(decoded?.permissions)
-		? decoded.permissions.map((permission: unknown) => String(permission).toLowerCase())
-		: [];
-	const normalizedRawRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : '';
-
-	if (
-		normalizedRawRole === 'role-head-staff' ||
-		normalizedRawRole === 'head_staff' ||
-		normalizedRawRole === 'head-staff' ||
-		normalizedRawRole === 'admin' ||
-		normalizedRoles.includes('admin') ||
-		normalizedRoles.includes('head_staff') ||
-		normalizedPermissions.includes('exam:approve') ||
-		normalizedPermissions.includes('user:ban')
-	) {
-		return 'role-head-staff';
-	}
-
-	if (
-		normalizedRawRole === 'role-mod' ||
-		normalizedRawRole === 'mod' ||
-		normalizedRoles.includes('mod') ||
-		(normalizedPermissions.includes('exam:review') && normalizedPermissions.includes('user:lock'))
-	) {
-		return 'role-mod';
-	}
-
-	if (
-		normalizedRawRole === 'role-staff' ||
-		normalizedRawRole === 'staff' ||
-		normalizedRoles.includes('staff') ||
-		normalizedPermissions.includes('exam:write') ||
-		normalizedPermissions.includes('exam:review')
-	) {
-		return 'role-staff';
-	}
-
-	if (normalizedRawRole === 'role-learner' || normalizedRawRole === 'learner' || normalizedRoles.includes('learner')) {
-		return 'role-learner';
-	}
-
-	return 'role-learner';
-};
+import { AuthService, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
 
 export function AuthForm() {
 	const router = useRouter();
@@ -145,39 +93,11 @@ export function AuthForm() {
 		setError('');
 
 		try {
-			const res = await AuthService.authGatewayControllerLoginMailV1({ mail: formData.email, password: formData.password });
-			
-			const token = res.data?.accessToken;
-			if (!token) throw new Error('Không nhận được token từ server');
-			
-			setApiTokensState(token, res.data?.refreshToken);
-			
-			// Set authentication cookie for middleware
-			document.cookie = `user_authenticated=true; path=/; max-age=2592000`; // 30 days
-			
-			// Decode token to get user info if possible (or just use basic properties)
-			const decoded: any = jwtDecode(token);
-			
-			// For right now, let's inject a realistic user into Redux to keep the app working
-			const user: User = {
-				id: decoded.sub || decoded.id || uuidv4(),
-				email: formData.email,
-				fullName: decoded.name || decoded.fullName || formData.email.split('@')[0],
-				roleId: normalizeRoleIdFromToken(decoded),
-				password: '***',
-				status: 'active',
-				createdAt: Date.now(),
-				lastLoginAt: Date.now(),
-			};
-
+			// The gateway sets the HttpOnly session cookies; the body carries no token.
+			await AuthService.authGatewayControllerLoginMailV1({ mail: formData.email, password: formData.password });
+			const user = await loadSessionUser({ email: formData.email, fullName: formData.email.split('@')[0] });
 			dispatch(setUser(user));
-			
-			const isAdminRole = user.roleId === 'role-mod' || user.roleId === 'role-staff' || user.roleId === 'role-head-staff' || user.roleId === 'ADMIN';
-			if (isAdminRole) {
-				router.push('/dashboard');
-			} else {
-				router.push('/test-selection');
-			}
+			router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
 		} catch (err: any) {
 			console.error(err);
 			applyFieldErrors(err.body);
@@ -192,27 +112,8 @@ export function AuthForm() {
 		setLoading(true);
 		setError('');
 		try {
-			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
-			
-			const token = res.data?.accessToken;
-			if (!token) throw new Error('Không nhận được token từ server');
-			
-			setApiTokensState(token, res.data?.refreshToken);
-			document.cookie = `user_authenticated=true; path=/; max-age=2592000`;
-
-			const decoded: any = jwtDecode(token);
-
-			const newUser: User = {
-				id: decoded.sub || decoded.id || uuidv4(),
-				email: formData.email,
-				fullName: formData.fullName,
-				password: '***',
-				roleId: normalizeRoleIdFromToken(decoded),
-				status: 'active',
-				createdAt: Date.now(),
-				lastLoginAt: Date.now(),
-			};
-
+			await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
+			const newUser = await loadSessionUser({ email: formData.email, fullName: formData.fullName });
 			dispatch(setUser(newUser));
 			router.push('/test-selection');
 		} catch (err: any) {

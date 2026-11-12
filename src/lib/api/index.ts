@@ -77,7 +77,6 @@ export type { remove_role_from_req_dto_RemoveRoleFromDto } from './models/remove
 export type { ResponseDataDto } from './models/ResponseDataDto';
 export type { ResponseEntity } from './models/ResponseEntity';
 export type { ResponseReviewDto } from './models/ResponseReviewDto';
-export type { ResponseTokensDto } from './models/ResponseTokensDto';
 export type { review_exam_req_dto_ReviewExamDto } from './models/review_exam_req_dto_ReviewExamDto';
 export type { RoleDto } from './models/RoleDto';
 export type { RolesDto } from './models/RolesDto';

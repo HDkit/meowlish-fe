@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken } from '@/lib/api-client';
+import { ExamManagementService, SortOptionsDto } from '@/lib/api-client';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,7 +76,9 @@ export default function ExamApprovalPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const hasApiSession = () => Boolean(getAccessToken() || getRefreshToken());
+  // The session lives in HttpOnly cookies; the signed-in user is what JS can see of it.
+  const signedIn = Boolean(currUser);
+  const hasApiSession = () => signedIn;
 
   const fetchExams = useCallback(async () => {
     if (!hasApiSession()) {
@@ -105,7 +107,7 @@ export default function ExamApprovalPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, signedIn]);
 
   useEffect(() => {
     if (currUser) fetchExams();

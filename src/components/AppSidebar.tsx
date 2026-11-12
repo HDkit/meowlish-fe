@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { clearUser } from './store/currUserSlice';
-import { AuthService, clearApiToken } from '@/lib/api-client';
+import { logoutSession } from '@/lib/api-client';
 import {
   Sidebar,
   SidebarContent,
@@ -84,11 +84,8 @@ export function AppSidebar() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await AuthService.authGatewayControllerLogoutAllV1();
-    } catch {}
-    clearApiToken();
-    document.cookie = 'user_authenticated=; path=/; max-age=0';
+    // POST /auth/logout clears the HttpOnly session cookies and the routing hint.
+    await logoutSession();
     dispatch(clearUser());
     window.location.href = '/auth';
   };

@@ -47,7 +47,7 @@ export class AuthService {
         });
     }
     /**
-     * Refresh access tokens using a refresh token
+     * Refresh the session: reads the refresh_token cookie and rotates both session cookies (data: null)
      * @returns any
      * @throws ApiError
      */
@@ -55,6 +55,17 @@ export class AuthService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/auth/refresh',
+        });
+    }
+    /**
+     * Log out: clears the access_token and refresh_token cookies (data: null)
+     * @returns any
+     * @throws ApiError
+     */
+    public static authGatewayControllerLogoutV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/auth/logout',
         });
     }
     /**
@@ -91,7 +102,8 @@ export class AuthService {
         });
     }
     /**
-     * Add Google credential to existing account
+     * Add Google credential to existing account.
+     * Open with a top-level navigation (window.location), not this fetch: the OAuth state cookie must round-trip.
      * @returns any
      * @throws ApiError
      */
@@ -362,7 +374,7 @@ export class AuthService {
         });
     }
     /**
-     * Get access and refresh tokens from Google OAuth login token
+     * Exchange the one-time Google login token for the session cookies (data: null)
      * @param loginToken
      * @returns any
      * @throws ApiError

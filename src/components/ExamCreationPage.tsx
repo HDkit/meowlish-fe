@@ -6,8 +6,6 @@ import {
   ExamManagementService,
   FilesService,
   TagsService,
-  getAccessToken,
-  getRefreshToken,
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -435,7 +433,7 @@ export function ExamCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { isMod, isHeadStaff, isStaff } = useAuth();
+  const { currUser, isMod, isHeadStaff, isStaff } = useAuth();
 
   const queryExamId = searchParams.get('id');
 
@@ -479,8 +477,9 @@ export function ExamCreationPage() {
   const [questionMoveState, setQuestionMoveState] = useState<Record<string, QuestionMoveState>>({});
   const [reviewStatus, setReviewStatus] = useState('InDraft');
 
+  // The session lives in HttpOnly cookies; the signed-in user is what JS can see of it.
   const ensureApiSession = (action = 'thực hiện thao tác') => {
-    if (getAccessToken() || getRefreshToken()) return true;
+    if (currUser) return true;
     toast({ title: 'Chưa đăng nhập backend', description: `Đăng xuất rồi đăng nhập lại để ${action}.`, variant: 'destructive' });
     return false;
   };
