@@ -125,15 +125,4 @@ export class FlashcardListService {
       mediaType: 'application/json',
     });
   }
-
-  public static removeCardFromList(
-    listId: string,
-    cardId: string,
-  ): CancelablePromise<void> {
-    return __request(OpenAPI, {
-      method: 'DELETE',
-      url: '/api/v1/resources/flash-card-lists/{listId}/cards/{cardId}',
-      path: { listId, cardId },
-    });
-  }
 }
