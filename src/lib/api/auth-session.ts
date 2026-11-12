@@ -29,6 +29,9 @@ const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'un
  */
 export const getApiBaseUrl = (): string => '';
 
+/** Opened as a top-level navigation to link Google to the signed-in account (gateway redirects to Google). */
+export const GOOGLE_LINK_PATH = '/api/v1/auth/credentials/google';
+
 /** Routes whose 401 means "bad credentials", not "expired session": never refresh-and-retry them. */
 const NO_REFRESH_PATHS = [
     '/api/v1/auth/login',
@@ -231,3 +234,15 @@ export const exchangeGoogleLoginToken = async (loginToken: string): Promise<User
     return loadSessionUser();
 };
 
+/**
+ * Links Google to the signed-in account: a top-level navigation to GOOGLE_LINK_PATH (the access
+ * cookie authenticates it and the OAuth state cookie it sets must come back on the Google
+ * redirect). A navigation can't refresh-and-retry on a 401 and the access cookie lives only
+ * 15 min, so the session is refreshed first. Resolves 'expired' (no navigation) when the
+ * session is gone, so the caller can send the user to login.
+ */
+export const startGoogleLink = async (): Promise<'navigating' | 'expired'> => {
+    if ((await refreshSession()) === 'expired') return 'expired';
+    window.location.href = GOOGLE_LINK_PATH;
+    return 'navigating';
+};

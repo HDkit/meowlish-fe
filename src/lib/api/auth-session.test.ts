@@ -5,6 +5,8 @@ import { ApiError } from './core/ApiError';
 import {
 	fetchOwnIdentity,
 	getApiBaseUrl,
+	GOOGLE_LINK_PATH,
+	startGoogleLink,
 	logoutSession,
 	refreshSession,
 	roleIdFromRoles,
@@ -225,6 +227,28 @@ describe('same-origin API', () => {
 			'/api/v1/auth/refresh',
 			'/api/v1/auth/logout',
 		]);
+	});
+});
+
+describe('startGoogleLink', () => {
+	it('refreshes the session, then navigates to the same-origin link route', async () => {
+		const calls = mockFetch(json(201, null));
+		await expect(startGoogleLink()).resolves.toBe('navigating');
+		expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual(['POST /api/v1/auth/refresh']);
+		expect(location.href).toBe(GOOGLE_LINK_PATH);
+		expect(GOOGLE_LINK_PATH).toBe('/api/v1/auth/credentials/google');
+	});
+
+	it('does not navigate when the session has expired', async () => {
+		mockFetch(json(401, null));
+		await expect(startGoogleLink()).resolves.toBe('expired');
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+	});
+
+	it('still navigates when it cannot tell (refresh rate limited)', async () => {
+		mockFetch(json(429, null));
+		await expect(startGoogleLink()).resolves.toBe('navigating');
+		expect(location.href).toBe(GOOGLE_LINK_PATH);
 	});
 });
 

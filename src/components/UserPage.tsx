@@ -42,7 +42,7 @@ import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
-import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, getApiBaseUrl, logoutSession } from '@/lib/api-client';
+import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
 import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
@@ -350,11 +350,15 @@ export function UserPage() {
 		}
 	};
 
-	const handleAddGoogleCredential = () => {
-		// Top-level navigation, not fetch: the access_token cookie authenticates it and the
-		// OAuth state cookie it sets must come back on the Google redirect.
+	const handleAddGoogleCredential = async () => {
+		// Refreshes the (15 min) access cookie, then navigates to the gateway's Google link route.
+		if ((await startGoogleLink()) === 'expired') {
+			toast({ title: 'Phiên đăng nhập đã hết hạn', description: 'Vui lòng đăng nhập lại.', variant: 'destructive' });
+			dispatch(clearUser());
+			router.push('/auth?mode=login');
+			return;
+		}
 		toast({ title: 'Đang chuyển hướng đến Google...' });
-		window.location.href = `${getApiBaseUrl()}/api/v1/auth/credentials/google`;
 	};
 
 	const formatDate = (date: Date | number | string) => {
