@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SpeakingWritingPage } from '@/components/SpeakingWritingPage';
+import { AiUnavailableNotice } from '@/components/AiUnavailableNotice';
 
 export const metadata: Metadata = {
   title: 'Viết Bài (Writing)',
@@ -11,5 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default function WritingPage() {
-	return <SpeakingWritingPage mode="writing" />;
+	return (
+		<>
+			<AiUnavailableNotice feature='Luyện Viết (Writing)' />
+			<SpeakingWritingPage mode="writing" />
+		</>
+	);
 }

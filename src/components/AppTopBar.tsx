@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { NotificationDropdown } from './NotificationDropdown';
+import { AiStatusBanner } from './AiStatusBanner';
 import { SidebarTrigger } from './ui/sidebar';
 
 const pageTitles: Record<string, string> = {
@@ -40,6 +41,7 @@ export function AppTopBar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-white/82 backdrop-blur-xl">
+      <AiStatusBanner />
       <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-3 px-4 md:px-6 lg:px-8 xl:px-10">
         <SidebarTrigger />
         <h1 className="truncate text-xl font-semibold text-foreground">{title}</h1>

@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
+import { AiStatusBanner } from './AiStatusBanner';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export function LandingNavbar() {
@@ -17,6 +20,7 @@ export function LandingNavbar() {
 
   return (
     <header className="bg-white/90 backdrop-blur-md border-b border-border/60 sticky top-0 z-50">
+      <AiStatusBanner />
       <div className="container mx-auto px-4 h-16 flex items-center">
         <button
           onClick={() => router.push('/landing')}
@@ -26,6 +30,13 @@ export function LandingNavbar() {
         </button>
 
         <div className="flex items-center gap-3 ml-auto">
+          <Link
+            href="/changelog"
+            className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            Có gì mới
+          </Link>
           {!hydrated ? (
             <div className="w-24 h-9" />
           ) : isAuthenticated ? (

@@ -135,9 +135,11 @@
   margin: 0;
 }
 
+/* clip, not hidden: overflow-x: hidden on body makes it a scroll container,
+   which breaks position: sticky for the page headers */
 html,
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -172,17 +174,30 @@ body {
   }
 }
 
-/* Bulletproof fix for Shadcn/Radix UI layout shift on Windows */
+/* Bulletproof fix for Shadcn/Radix UI layout shift on Windows.
+   The always-on scrollbar lives on html (the viewport scroller) only; body must
+   not become a scroll container itself or sticky headers stop sticking. */
+html,
+html[data-scroll-locked] {
+  overflow-x: clip !important;
+  overflow-y: scroll !important;
+}
+
 html,
 body,
 body[data-scroll-locked],
 html[data-scroll-locked],
 body[style*="overflow"] {
-  overflow-x: hidden !important;
-  overflow-y: scroll !important;
   padding-right: 0 !important;
   margin-right: 0 !important;
   pointer-events: auto !important;
+}
+
+body,
+body[data-scroll-locked],
+body[style*="overflow"] {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
 }
 
 @layer utilities {

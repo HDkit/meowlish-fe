@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Bell,
   Flag,
+  Sparkles,
 } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { clearUser } from './store/currUserSlice';
@@ -49,6 +50,7 @@ const learnerLinks = [
   { href: '/blog', label: 'Blog', icon: Newspaper },
   { href: '/chat', label: 'Phòng Chat', icon: MessageCircle },
   { href: '/notifications', label: 'Thông báo', icon: Bell },
+  { href: '/changelog', label: 'Có gì mới', icon: Sparkles },
 ];
 
 const managementLinks = [

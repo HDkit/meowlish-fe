@@ -5,6 +5,7 @@ import StoreProvider from '@/lib/store/StoreProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiClientProvider } from '@/components/ApiClientProvider';
 import { FloatingLeaves } from '@/components/FloatingLeaves';
+import { WhatsNewDialog } from '@/components/changelog/WhatsNewDialog';
 import './globals.css';
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -53,6 +54,7 @@ export default function RootLayout({
             <FloatingLeaves count={8} opacity={0.2} />
             <ApiClientProvider>
               {children}
+              <WhatsNewDialog />
               <Toaster />
             </ApiClientProvider>
           </ThemeProvider>
