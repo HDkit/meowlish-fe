@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenAPI } from './core/OpenAPI';
 import { AuthService } from './services/AuthService';
+import { GoalsService } from './services/GoalsService';
 import { ApiError } from './core/ApiError';
 import {
 	fetchOwnIdentity,
@@ -252,3 +253,43 @@ describe('startGoogleLink', () => {
 	});
 });
 
+describe('locked account', () => {
+	const locked = () =>
+		new Response(JSON.stringify({ success: false, statusCode: 403, data: null, error: 'Account locked' }), {
+			status: 403,
+			headers: { 'Content-Type': 'application/json' },
+		});
+
+	it('a 403 "Account locked" from any API call logs out and redirects to login', async () => {
+		const calls = mockFetch(locked(), json(201, null));
+		await expect(GoalsService.goalGatewayControllerDeleteGoalV1()).rejects.toMatchObject({ status: 403 });
+		expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual([
+			'DELETE /api/v1/exams/goals/my',
+			'POST /api/v1/auth/logout',
+		]);
+		expect(location.href).toBe('/auth?mode=login&reason=locked');
+		expect(cookieWrites.some((c) => c.startsWith('user_authenticated=;'))).toBe(true);
+	});
+
+	it('a locked refresh counts as logged out', async () => {
+		mockFetch(locked(), json(201, null));
+		await expect(refreshSession()).resolves.toBe('expired');
+		expect(location.href).toBe('/auth?mode=login&reason=locked');
+	});
+
+	it('does not redirect from the login page (the form shows the error)', async () => {
+		location.pathname = '/auth';
+		mockFetch(locked(), json(201, null));
+		await expect(
+			AuthService.authGatewayControllerLoginMailV1({ mail: 'a@b.c', password: 'x' }),
+		).rejects.toMatchObject({ status: 403 });
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+	});
+
+	it('leaves other 403s alone', async () => {
+		const calls = mockFetch(json(403, null));
+		await expect(AuthService.authGatewayControllerGetOwnIdentityV1()).rejects.toMatchObject({ status: 403 });
+		expect(calls).toHaveLength(1);
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+	});
+});

@@ -62,6 +62,32 @@ export const clearSessionHint = (): void => {
     document.cookie = `${SESSION_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
 };
 
+/** The gateway's message for a locked identity (403 from login, refresh or any signed-in call). */
+const ACCOUNT_LOCKED = /account locked/i;
+
+/** Query flag the login page reads to explain why the user was signed out. */
+export const LOCKED_REASON = 'locked';
+
+/** True for a 403 whose body (`{ error }` from the gateway, or `{ message }`) says "Account locked". */
+export const isAccountLockedResponse = (status: number, body: unknown): boolean => {
+    if (status !== 403 || !body || typeof body !== 'object') return false;
+    const b = body as { error?: unknown; message?: unknown };
+    const message = typeof b.error === 'string' ? b.error : typeof b.message === 'string' ? b.message : '';
+    return ACCOUNT_LOCKED.test(message);
+};
+
+/**
+ * A locked account can't use its session: clear it (gateway cookies and the routing hint) and
+ * send the user to the login page with an explanation. Off the /auth pages only, so the login
+ * form can still show its own error. Never throws.
+ */
+export const handleAccountLocked = async (): Promise<void> => {
+    await logoutSession();
+    if (isBrowser() && !window.location.pathname.startsWith('/auth')) {
+        window.location.href = `/auth?mode=login&reason=${LOCKED_REASON}`;
+    }
+};
+
 /**
  * Removes tokens that older builds kept in localStorage and in JS-set cookies. A stale JS
  * `access_token` cookie on the API's host would be read before the Bearer fallback. The
@@ -82,7 +108,7 @@ export const purgeLegacyTokens = (): void => {
 
 /**
  * - `refreshed`: the session cookies were rotated, the session is alive.
- * - `expired`: the gateway answered 401, there is no session any more (logged out).
+ * - `expired`: the gateway answered 401 (or 403 "Account locked"), there is no session any more (logged out).
  * - `unavailable`: couldn't tell (429, 5xx, 403, network error); not treated as logged out.
  */
 export type RefreshResult = 'refreshed' | 'expired' | 'unavailable';
@@ -104,6 +130,13 @@ export const refreshSession = (): Promise<RefreshResult> => {
             if (response.status === 401) {
                 clearSessionHint();
                 return 'expired';
+            }
+            if (response.status === 403) {
+                const body = await response.json().catch(() => null);
+                if (isAccountLockedResponse(403, body)) {
+                    await handleAccountLocked();
+                    return 'expired';
+                }
             }
             return 'unavailable';
         } catch {
@@ -167,6 +200,13 @@ export const fetchOwnIdentity = async (
         if (response.status === 401) {
             clearSessionHint();
             return null;
+        }
+        if (response.status === 403) {
+            const body = await response.json().catch(() => null);
+            if (isAccountLockedResponse(403, body)) {
+                await handleAccountLocked();
+                return null;
+            }
         }
         if (!response.ok) return undefined;
         const body = await response.json().catch(() => null);

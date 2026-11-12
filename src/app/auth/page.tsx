@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { AuthForm } from '@/components/AuthForm';
-import { exchangeGoogleLoginToken, isAdminRoleId } from '@/lib/api-client';
+import { exchangeGoogleLoginToken, isAdminRoleId, LOCKED_REASON } from '@/lib/api-client';
 import { useAppDispatch } from '@/lib/store/hooks';
-import { setUser } from '@/components/store/currUserSlice';
+import { clearUser, setUser } from '@/components/store/currUserSlice';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -18,6 +18,18 @@ export default function AuthPage() {
   const [isProcessingToken, setIsProcessingToken] = useState(false);
   // The login token is single-use: don't let a re-run of the effect (StrictMode) spend it twice.
   const exchangedToken = useRef<string | null>(null);
+
+  // Signed out because the account was locked (src/lib/api/auth-session.ts handleAccountLocked).
+  const reason = searchParams.get('reason');
+  useEffect(() => {
+    if (reason !== LOCKED_REASON) return;
+    dispatch(clearUser());
+    toast({
+      title: 'Tài khoản đã bị khóa',
+      description: 'Bạn đã bị đăng xuất. Vui lòng liên hệ quản trị viên.',
+      variant: 'destructive',
+    });
+  }, [reason, dispatch, toast]);
 
   useEffect(() => {
     const loginToken = searchParams.get('loginToken');

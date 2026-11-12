@@ -1,12 +1,14 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /*
  * HAND EDITS (no codegen template in this repo; re-apply after regenerating):
- *  1. import { refreshSession, shouldRefreshOn401 } from '../auth-session';
+ *  1. import { handleAccountLocked, isAccountLockedResponse, refreshSession, shouldRefreshOn401 } from '../auth-session';
  *  2. sendRequest: always set `request.credentials` (session JWTs are HttpOnly cookies).
  *  3. request: on a 401 from a route where shouldRefreshOn401(options.url), call
  *     refreshSession() once; 'refreshed' -> retry once, 'expired' -> redirect to
  *     /auth?mode=login, 'unavailable' -> surface the original 401.
  *  4. No request/response body logging (bodies carry passwords).
+ *  5. request: a 403 "Account locked" from any route -> handleAccountLocked() (log out,
+ *     redirect to /auth?mode=login&reason=locked), then the ApiError is surfaced as usual.
  */
 /* istanbul ignore file */
 /* tslint:disable */
@@ -17,7 +19,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
-import { refreshSession, shouldRefreshOn401 } from '../auth-session';
+import { handleAccountLocked, isAccountLockedResponse, refreshSession, shouldRefreshOn401 } from '../auth-session';
 
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
@@ -324,6 +326,11 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
                 
                 const responseBody = await getResponseBody(response);
                 const responseHeader = getResponseHeader(response, options.responseHeader);
+
+                // A locked account can't use its session any more: log out everywhere in the app.
+                if (isAccountLockedResponse(response.status, responseBody)) {
+                    await handleAccountLocked();
+                }
 
 
                 const result: ApiResult = {
