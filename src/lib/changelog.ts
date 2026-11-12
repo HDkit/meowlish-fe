@@ -29,6 +29,24 @@ export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
 
 export const RELEASES: Release[] = [
 	{
+		version: '0.9.0',
+		date: '2026-11-12',
+		title: 'Đăng nhập bằng cookie & chấm Writing thử nghiệm',
+		summary:
+			'Phiên đăng nhập an toàn hơn và bài Writing đã có điểm trở lại, nhưng đó là điểm mẫu ngẫu nhiên để thử nghiệm, không phải AI chấm thật.',
+		changes: [
+			{
+				type: 'notice',
+				text: 'Chấm điểm Writing hiện dùng dịch vụ mô phỏng: sau vài giây chờ, bài làm nhận điểm và nhận xét ngẫu nhiên. Điểm này chỉ để thử nghiệm luồng chấm bài, không phản ánh trình độ thật.',
+			},
+			{ type: 'improved', text: 'Phiên đăng nhập được lưu trong cookie HttpOnly thay vì bộ nhớ trình duyệt.' },
+			{ type: 'improved', text: 'Đổi mật khẩu yêu cầu nhập mật khẩu hiện tại.' },
+			{ type: 'improved', text: 'Liên kết tài khoản Google bằng cách chuyển trang thay vì gọi API nền, ổn định hơn.' },
+			{ type: 'fixed', text: 'Sửa thẻ của đề thi, phần thi và câu hỏi khi chỉnh sửa (lưu theo ID).' },
+			{ type: 'fixed', text: 'Không còn bị đăng xuất khi gửi yêu cầu quá nhanh (lỗi 429); tài khoản bị khóa sẽ được đăng xuất ngay.' },
+		],
+	},
+	{
 		version: '0.8.0',
 		date: '2026-11-12',
 		title: 'Tạm ngưng dịch vụ AI & trang cập nhật',
