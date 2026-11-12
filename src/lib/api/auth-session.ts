@@ -34,6 +34,8 @@ const NO_REFRESH_PATHS = [
     '/api/v1/auth/refresh',
     '/api/v1/auth/logout',
     '/api/v1/auth/google/tokens',
+    // a 401 here is a wrong current password; the form refreshes the session before submitting
+    '/api/v1/auth/credentials/mail/password',
 ];
 
 export const shouldRefreshOn401 = (path: string): boolean =>
@@ -42,6 +44,12 @@ export const shouldRefreshOn401 = (path: string): boolean =>
 export const markSessionActive = (): void => {
     if (!isBrowser()) return;
     document.cookie = `${SESSION_HINT_COOKIE}=true; path=/; max-age=${SESSION_HINT_MAX_AGE_SECONDS}; samesite=lax`;
+};
+
+/** True when this browser has the routing hint, i.e. it had a session at some point. */
+export const hasSessionHint = (): boolean => {
+    if (!isBrowser()) return false;
+    return document.cookie.split(';').some((c) => c.trim().startsWith(`${SESSION_HINT_COOKIE}=true`));
 };
 
 export const clearSessionHint = (): void => {
@@ -67,13 +75,17 @@ export const purgeLegacyTokens = (): void => {
     }
 };
 
-let refreshPromise: Promise<boolean> | null = null;
-
 /**
- * Asks the gateway to rotate the session cookies. Concurrent callers share one request.
- * Resolves to true when the session is alive again.
+ * - `refreshed`: the session cookies were rotated, the session is alive.
+ * - `expired`: the gateway answered 401, there is no session any more (logged out).
+ * - `unavailable`: couldn't tell (429, 5xx, 403, network error); not treated as logged out.
  */
-export const refreshSession = (): Promise<boolean> => {
+export type RefreshResult = 'refreshed' | 'expired' | 'unavailable';
+
+let refreshPromise: Promise<RefreshResult> | null = null;
+
+/** Asks the gateway to rotate the session cookies. Concurrent callers share one request. */
+export const refreshSession = (): Promise<RefreshResult> => {
     if (refreshPromise) return refreshPromise;
 
     refreshPromise = (async () => {
@@ -83,13 +95,14 @@ export const refreshSession = (): Promise<boolean> => {
                 credentials: 'include',
                 headers: { Accept: 'application/json' },
             });
-            if (!response.ok) {
+            if (response.ok) return 'refreshed';
+            if (response.status === 401) {
                 clearSessionHint();
-                return false;
+                return 'expired';
             }
-            return true;
+            return 'unavailable';
         } catch {
-            return false;
+            return 'unavailable';
         } finally {
             refreshPromise = null;
         }
@@ -124,11 +137,14 @@ export type OwnIdentity = {
 };
 
 /**
- * Detects the session: GET /auth/my/identity with the cookies, refreshing once on a 401.
+ * Detects the session: GET /auth/my/identity with the cookies, refreshing once on a 401
+ * when `allowRefresh` (pass false for anonymous visitors so they don't hit /auth/refresh).
  * Resolves to the identity, to null when there is no session (401), or to undefined when
- * it couldn't tell (network error, 5xx). Does not redirect.
+ * it couldn't tell (network error, 5xx, refresh unavailable). Does not redirect.
  */
-export const fetchOwnIdentity = async (): Promise<OwnIdentity | null | undefined> => {
+export const fetchOwnIdentity = async (
+    { allowRefresh = true }: { allowRefresh?: boolean } = {},
+): Promise<OwnIdentity | null | undefined> => {
     const get = () =>
         fetch(`${getApiBaseUrl()}/api/v1/auth/my/identity`, {
             method: 'GET',
@@ -138,8 +154,10 @@ export const fetchOwnIdentity = async (): Promise<OwnIdentity | null | undefined
 
     try {
         let response = await get();
-        if (response.status === 401 && (await refreshSession())) {
-            response = await get();
+        if (response.status === 401 && allowRefresh) {
+            const refreshed = await refreshSession();
+            if (refreshed === 'unavailable') return undefined;
+            if (refreshed === 'refreshed') response = await get();
         }
         if (response.status === 401) {
             clearSessionHint();

@@ -93,6 +93,43 @@ describe('generated client with cookie auth', () => {
 		expect(cookieWrites.some((c) => c.startsWith('user_authenticated=;') && c.includes('max-age=0'))).toBe(true);
 	});
 
+	it('does not treat a rate-limited refresh (429) as logged out', async () => {
+		const calls = mockFetch(json(401, null), json(429, null));
+		await expect(AuthService.authGatewayControllerGetOwnIdentityV1()).rejects.toMatchObject({ status: 401 });
+		expect(calls).toHaveLength(2);
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+		expect(cookieWrites).toEqual([]);
+	});
+
+	it('does not treat a network error on refresh as logged out', async () => {
+		const fn = vi
+			.fn()
+			.mockResolvedValueOnce(json(401, null))
+			.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		vi.stubGlobal('fetch', fn);
+		await expect(AuthService.authGatewayControllerGetOwnIdentityV1()).rejects.toMatchObject({ status: 401 });
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+		expect(cookieWrites).toEqual([]);
+	});
+
+	it('does not refresh on a wrong current password (401 from the password route)', async () => {
+		const calls = mockFetch(json(401, null));
+		await expect(
+			AuthService.authGatewayControllerUpdateMailPasswordV1({ id: 'c', currentPassword: 'x', password: 'y' }),
+		).rejects.toMatchObject({ status: 401 });
+		expect(calls).toHaveLength(1);
+		expect(location.href).toBe('http://localhost:6767/dashboard');
+	});
+
+	it('never logs request or response bodies', async () => {
+		const log = vi.spyOn(console, 'log');
+		mockFetch(json(200, { secret: 'resp' }));
+		await AuthService.authGatewayControllerUpdateMailPasswordV1({ id: 'c', currentPassword: 'old-secret', password: 'new-secret' });
+		const logged = JSON.stringify(log.mock.calls);
+		expect(logged).not.toContain('old-secret');
+		expect(logged).not.toContain('resp');
+	});
+
 	it('does not refresh on a failed login (bad credentials, not an expired session)', async () => {
 		const calls = mockFetch(json(401, null));
 		await expect(
@@ -106,7 +143,7 @@ describe('refreshSession', () => {
 	it('shares one refresh request between concurrent callers', async () => {
 		const calls = mockFetch(json(201, null));
 		const [a, b] = await Promise.all([refreshSession(), refreshSession()]);
-		expect([a, b]).toEqual([true, true]);
+		expect([a, b]).toEqual(['refreshed', 'refreshed']);
 		expect(calls).toHaveLength(1);
 		expect(calls[0].init.body).toBeUndefined();
 	});
@@ -141,6 +178,18 @@ describe('fetchOwnIdentity', () => {
 		expect(calls).toHaveLength(2);
 	});
 
+	it('does not call refresh for anonymous visitors', async () => {
+		const calls = mockFetch(json(401, null));
+		await expect(fetchOwnIdentity({ allowRefresh: false })).resolves.toBeNull();
+		expect(calls.map((c) => c.url)).toEqual([`${base}/api/v1/auth/my/identity`]);
+	});
+
+	it('returns undefined (not logged out) when the refresh is rate limited', async () => {
+		mockFetch(json(401, null), json(429, null));
+		await expect(fetchOwnIdentity()).resolves.toBeUndefined();
+		expect(cookieWrites).toEqual([]);
+	});
+
 	it('returns undefined when it cannot tell (server error)', async () => {
 		mockFetch(json(503, null));
 		await expect(fetchOwnIdentity()).resolves.toBeUndefined();
@@ -160,6 +209,6 @@ describe('helpers', () => {
 		expect(shouldRefreshOn401('/api/v1/auth/login')).toBe(false);
 		expect(shouldRefreshOn401('/api/v1/auth/refresh')).toBe(false);
 		expect(shouldRefreshOn401('/api/v1/auth/my/identity')).toBe(true);
-		expect(shouldRefreshOn401('/api/v1/auth/credentials/mail/password')).toBe(true);
+		expect(shouldRefreshOn401('/api/v1/auth/credentials/mail/password')).toBe(false);
 	});
 });

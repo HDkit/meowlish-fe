@@ -1,4 +1,5 @@
 import { extractApiErrorMessage } from './api-response';
+import { refreshSession, type RefreshResult } from './api/auth-session';
 
 /**
  * Change-password flow (POST /auth/credentials/mail/password). The gateway needs the
@@ -14,6 +15,8 @@ export type PasswordChangeForm = {
 export type UpdateMailPasswordBody = { id: string; currentPassword: string; password: string };
 
 export const CURRENT_PASSWORD_INCORRECT = 'Mật khẩu hiện tại không đúng';
+export const NO_MAIL_CREDENTIAL = 'Tài khoản chưa có phương thức đăng nhập bằng email';
+export const SESSION_EXPIRED = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại';
 
 export const validatePasswordChange = (form: PasswordChangeForm): string | null => {
 	if (!form.currentPassword) return 'Vui lòng nhập mật khẩu hiện tại';
@@ -24,9 +27,13 @@ export const validatePasswordChange = (form: PasswordChangeForm): string | null 
 	return null;
 };
 
-/** The password belongs to the mail credential, not to the identity. */
+/** Backend LoginType values are 'MAIL' / 'GOOGLE'; compare case-insensitively. */
+export const isCredentialType = (type: string | undefined, expected: 'MAIL' | 'GOOGLE'): boolean =>
+	type?.toUpperCase() === expected;
+
+/** The password belongs to the mail credential, not to the identity. No mail credential -> null. */
 export const findMailCredentialId = (credentials: ReadonlyArray<{ id: string; type?: string }>): string | null =>
-	credentials.find((c) => c.type === 'mail')?.id ?? credentials.find((c) => c.type && c.type !== 'google')?.id ?? null;
+	credentials.find((c) => isCredentialType(c.type, 'MAIL'))?.id ?? null;
 
 export const passwordChangeErrorMessage = (err: unknown): string => {
 	const status = (err as any)?.status ?? (err as any)?.statusCode;
@@ -40,10 +47,14 @@ export const submitPasswordChange = async (
 	form: PasswordChangeForm,
 	credentialId: string | null,
 	update: (body: UpdateMailPasswordBody) => Promise<unknown>,
+	refresh: () => Promise<RefreshResult> = refreshSession,
 ): Promise<PasswordChangeResult> => {
 	const invalid = validatePasswordChange(form);
 	if (invalid) return { ok: false, message: invalid };
-	if (!credentialId) return { ok: false, message: 'Tài khoản chưa có phương thức đăng nhập bằng email' };
+	if (!credentialId) return { ok: false, message: NO_MAIL_CREDENTIAL };
+	// The password route never refreshes on a 401 (that 401 means a wrong current password),
+	// so make sure the access cookie is fresh first and an expiry isn't misreported.
+	if ((await refresh()) === 'expired') return { ok: false, message: SESSION_EXPIRED };
 	try {
 		await update({ id: credentialId, currentPassword: form.currentPassword, password: form.newPassword });
 		return { ok: true };

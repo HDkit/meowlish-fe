@@ -294,8 +294,8 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		socket.on('disconnect', (reason) => {
 			if (reason !== 'io server disconnect' || retriedAuth) return;
 			retriedAuth = true;
-			void refreshSession().then((ok) => {
-				if (ok && socketRef.current === socket) socket.connect();
+			void refreshSession().then((result) => {
+				if (result === 'refreshed' && socketRef.current === socket) socket.connect();
 			});
 		});
 

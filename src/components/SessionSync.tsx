@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { fetchOwnIdentity, userFromIdentity } from '@/lib/api/auth-session';
+import { fetchOwnIdentity, hasSessionHint, userFromIdentity } from '@/lib/api/auth-session';
 import { useAppDispatch, useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { clearUser, setUser } from '@/components/store/currUserSlice';
 
@@ -23,7 +23,9 @@ export function SessionSync() {
 		if (pathname?.startsWith('/auth') || pathname?.startsWith('/api/')) return;
 		checked.current = true;
 
-		void fetchOwnIdentity().then((identity) => {
+		// Anonymous visitors (no hint, no stored user) get one identity probe but no refresh call.
+		const allowRefresh = hasSessionHint() || Boolean(currUser);
+		void fetchOwnIdentity({ allowRefresh }).then((identity) => {
 			if (identity) {
 				dispatch(setUser(userFromIdentity(identity, { email: currUser?.email })));
 			} else if (identity === null && currUser) {

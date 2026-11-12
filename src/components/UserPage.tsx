@@ -43,7 +43,7 @@ import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, getApiBaseUrl, logoutSession } from '@/lib/api-client';
-import { findMailCredentialId, submitPasswordChange } from '@/lib/change-password';
+import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
 import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
@@ -472,9 +472,9 @@ export function UserPage() {
 								>
 									<div className='flex items-center gap-3'>
 										<div
-											className={`p-2 rounded-lg ${cred.type === 'google' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}
+											className={`p-2 rounded-lg ${isCredentialType(cred.type, 'GOOGLE') ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}
 										>
-											{cred.type === 'google' ?
+											{isCredentialType(cred.type, 'GOOGLE') ?
 												<svg className='h-4 w-4' viewBox='0 0 24 24' fill='currentColor'>
 													<path d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z' />
 													<path d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' />
@@ -485,7 +485,7 @@ export function UserPage() {
 										</div>
 										<div>
 											<p className='font-medium text-gray-800 text-sm'>
-												{cred.type === 'google' ? 'Google' : 'Email/Mật khẩu'}
+												{isCredentialType(cred.type, 'GOOGLE') ? 'Google' : 'Email/Mật khẩu'}
 											</p>
 											<p className='text-xs text-gray-500'>{cred.mail || cred.email || cred.identifier || ''}</p>
 										</div>
