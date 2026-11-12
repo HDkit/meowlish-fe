@@ -44,6 +44,8 @@ export { find_exams_req_dto_SortOptionsDto } from './models/find_exams_req_dto_S
 export type { flag_state_res_dto_FlagStateDto } from './models/flag_state_res_dto_FlagStateDto';
 export type { FoundBadgesDto } from './models/FoundBadgesDto';
 export type { FoundUsersBadgesDto } from './models/FoundUsersBadgesDto';
+export type { GoogleCalendarAccessTokenDto } from './models/GoogleCalendarAccessTokenDto';
+export type { GoogleCalendarConnectionDto } from './models/GoogleCalendarConnectionDto';
 export type { get_presigned_url_req_dto_GetPresignedUrlDto } from './models/get_presigned_url_req_dto_GetPresignedUrlDto';
 export type { get_user_calendar_req_dto_TimeRangeDto } from './models/get_user_calendar_req_dto_TimeRangeDto';
 export { get_users_attempt_history_req_dto_SortOptionsDto } from './models/get_users_attempt_history_req_dto_SortOptionsDto';

@@ -7,6 +7,8 @@ import type { assign_role_to_req_dto_AssignRoleToDto } from '../models/assign_ro
 import type { login_mail_req_dto_LoginMailDto } from '../models/login_mail_req_dto_LoginMailDto';
 import type { register_mail_req_dto_RegisterMailDto } from '../models/register_mail_req_dto_RegisterMailDto';
 import type { remove_role_from_req_dto_RemoveRoleFromDto } from '../models/remove_role_from_req_dto_RemoveRoleFromDto';
+import type { GoogleCalendarAccessTokenDto } from '../models/GoogleCalendarAccessTokenDto';
+import type { GoogleCalendarConnectionDto } from '../models/GoogleCalendarConnectionDto';
 import type { ResponseEntity } from '../models/ResponseEntity';
 import type { update_identity_req_dto_UpdateIdentityDto } from '../models/update_identity_req_dto_UpdateIdentityDto';
 import type { update_password_req_dto_UpdateMailPasswordDto } from '../models/update_password_req_dto_UpdateMailPasswordDto';
@@ -455,7 +457,7 @@ export class AuthService {
      */
     public static authGatewayControllerExchangeGoogleCalendarCodeV1(
         requestBody: { code: string },
-    ): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity & { data?: GoogleCalendarConnectionDto }> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/auth/google/calendar/exchange-code',
@@ -476,7 +478,7 @@ export class AuthService {
             expiresAt: number;
             scopes: string;
         },
-    ): CancelablePromise<ResponseEntity> {
+    ): CancelablePromise<ResponseEntity & { data?: GoogleCalendarConnectionDto }> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/auth/google/calendar/connect',
@@ -500,7 +502,7 @@ export class AuthService {
      * @returns any
      * @throws ApiError
      */
-    public static authGatewayControllerGetGoogleCalendarTokenV1(): CancelablePromise<ResponseEntity> {
+    public static authGatewayControllerGetGoogleCalendarTokenV1(): CancelablePromise<ResponseEntity & { data?: GoogleCalendarAccessTokenDto }> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/auth/google/calendar/token',
