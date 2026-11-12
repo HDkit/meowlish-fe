@@ -42,8 +42,9 @@ import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
-import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService } from '@/lib/api-client';
-import { setUser } from './store/currUserSlice';
+import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, getApiBaseUrl, logoutSession } from '@/lib/api-client';
+import { findMailCredentialId, submitPasswordChange } from '@/lib/change-password';
+import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
@@ -222,34 +223,22 @@ export function UserPage() {
 	// Handle password change
 	const handleChangePassword = async () => {
 		if (!currUser) return;
-		if (!passwordForm.newPassword) {
-			toast({ title: 'Vui lòng nhập mật khẩu mới', variant: 'destructive' });
-			return;
-		}
-		if (passwordForm.newPassword.length < 6) {
-			toast({ title: 'Mật khẩu mới phải có ít nhất 6 ký tự', variant: 'destructive' });
-			return;
-		}
-		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-			toast({ title: 'Mật khẩu xác nhận không khớp', variant: 'destructive' });
-			return;
-		}
 		setIsLoading(true);
 		try {
-			await AuthService.authGatewayControllerUpdateMailPasswordV1({
-				id: currUser.id,
-				password: passwordForm.newPassword,
-			});
-			toast({ title: 'Đổi mật khẩu thành công' });
+			const result = await submitPasswordChange(passwordForm, findMailCredentialId(credentials), (body) =>
+				AuthService.authGatewayControllerUpdateMailPasswordV1(body),
+			);
+			if (!result.ok) {
+				toast({ title: 'Đổi mật khẩu thất bại', description: result.message, variant: 'destructive' });
+				return;
+			}
 			setIsPasswordDialogOpen(false);
 			setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-		} catch (err: any) {
-			console.error('Failed to change password:', err);
-			toast({
-				title: 'Đổi mật khẩu thất bại',
-				description: extractApiErrorMessage(err, 'Không thể đổi mật khẩu.'),
-				variant: 'destructive',
-			});
+			// The backend revokes every session on a password change: sign in again.
+			toast({ title: 'Đổi mật khẩu thành công', description: 'Vui lòng đăng nhập lại bằng mật khẩu mới.' });
+			await logoutSession();
+			dispatch(clearUser());
+			router.push('/auth?mode=login');
 		} finally {
 			setIsLoading(false);
 		}
@@ -361,17 +350,11 @@ export function UserPage() {
 		}
 	};
 
-	const handleAddGoogleCredential = async () => {
-		try {
-			await AuthService.authGatewayControllerAddGoogleCredV1();
-			toast({ title: 'Đang chuyển hướng đến Google...' });
-		} catch (err: any) {
-			toast({
-				title: 'Thêm thất bại',
-				description: extractApiErrorMessage(err, 'Không thể liên kết Google.'),
-				variant: 'destructive',
-			});
-		}
+	const handleAddGoogleCredential = () => {
+		// Top-level navigation, not fetch: the access_token cookie authenticates it and the
+		// OAuth state cookie it sets must come back on the Google redirect.
+		toast({ title: 'Đang chuyển hướng đến Google...' });
+		window.location.href = `${getApiBaseUrl()}/api/v1/auth/credentials/google`;
 	};
 
 	const formatDate = (date: Date | number | string) => {
@@ -891,11 +874,23 @@ export function UserPage() {
 					</DialogHeader>
 					<div className='grid gap-4 py-4'>
 						<div className='grid gap-2'>
+							<Label htmlFor='currentPassword'>Mật khẩu hiện tại</Label>
+							<Input
+								id='currentPassword'
+								type={showPassword ? 'text' : 'password'}
+								autoComplete='current-password'
+								value={passwordForm.currentPassword}
+								onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+								placeholder='Nhập mật khẩu hiện tại'
+							/>
+						</div>
+						<div className='grid gap-2'>
 							<Label htmlFor='newPassword'>Mật khẩu mới</Label>
 							<div className='relative'>
 								<Input
 									id='newPassword'
 									type={showPassword ? 'text' : 'password'}
+									autoComplete='new-password'
 									value={passwordForm.newPassword}
 									onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
 									placeholder='Nhập mật khẩu mới'
