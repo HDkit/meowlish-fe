@@ -7,6 +7,7 @@ import {
   FilesService,
   TagsService,
 } from '@/lib/api-client';
+import { buildTagIdMap, diffTagIds, type TagRef } from '@/lib/tag-ids';
 import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AdminTagManager } from '@/components/admin/AdminTagManager';
@@ -451,15 +452,18 @@ export function ExamCreationPage() {
     setMounted(true);
     TagsService.tagGatewayControllerGetTagListV1()
       .then((res: any) => {
-        const list = res?.data?.list ?? [];
-        setAllTagNames(list.map((t: any) => t.name));
+        const list: TagRef[] = (res?.data?.list ?? []).map((t: any) => ({ id: String(t.id), name: String(t.name) }));
+        setAllTags(list);
       })
       .catch(() => {});
   }, []);
 
   const [exam, setExam] = useState<ExamDetails | null>(null);
   const [examDraft, setExamDraft] = useState({ title: '', description: '', duration: '60', tagsInput: '' });
-  const [allTagNames, setAllTagNames] = useState<string[]>([]);
+  // Tag edits send IDs; details list names. Keep both to translate.
+  const [allTags, setAllTags] = useState<TagRef[]>([]);
+  const allTagNames = useMemo(() => allTags.map((t) => t.name), [allTags]);
+  const tagIdByName = useMemo(() => buildTagIdMap(allTags), [allTags]);
   const [tagQuery, setTagQuery] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [sectionTagQuery, setSectionTagQuery] = useState('');
@@ -646,6 +650,7 @@ export function ExamCreationPage() {
       }
       const currentTags = exam?.tags ?? [];
       const nextTags = parseCommaSeparatedValues(examDraft.tagsInput);
+      const examTagIds = diffTagIds(currentTags, nextTags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateExamV1(
         examId,
         {
@@ -653,8 +658,7 @@ export function ExamCreationPage() {
           description: examDraft.description?.trim() || undefined,
           setDescriptionNull: !examDraft.description?.trim(),
           duration: Math.floor(duration),
-          addTags: nextTags.filter((t) => !currentTags.includes(t)),
-          removeTags: currentTags.filter((t) => !nextTags.includes(t)),
+          ...examTagIds,
         }
       );
       toast({ title: 'Đã lưu đề thi' });
@@ -715,6 +719,7 @@ export function ExamCreationPage() {
     const snap = sectionSnapshots[section.id] ?? section;
     setActionLoading(`save-section-${section.id}`);
     try {
+      const sectionTagIds = diffTagIds(snap.tags ?? [], section.tags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateSectionV1(
         section.id,
         {
@@ -722,8 +727,7 @@ export function ExamCreationPage() {
           setNameNull: !section.name?.trim(),
           directive: section.directive,
           contentType: section.contentType,
-          addTags: section.tags.filter((t) => !(snap.tags ?? []).includes(t)),
-          removeTags: (snap.tags ?? []).filter((t) => !section.tags.includes(t)),
+          ...sectionTagIds,
           addFiles: section.files.map((f) => f.id).filter((id) => !(snap.files ?? []).some((f) => f.id === id)),
           removeFiles: (snap.files ?? []).map((f) => f.id).filter((id) => !section.files.some((f) => f.id === id)),
         }
@@ -779,6 +783,7 @@ export function ExamCreationPage() {
     const nextChoices = question.choices ?? [];
     setActionLoading(`save-question-${question.id}`);
     try {
+      const questionTagIds = diffTagIds(snap.tags ?? [], question.tags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateQuestionV1(
         question.id,
         {
@@ -792,8 +797,7 @@ export function ExamCreationPage() {
             return { id: c.id!, key: c.key, content: c.content || undefined, setContentNull: !c.content, isCorrect: c.isCorrect, ...(prev ?? {}) };
           }),
           deleteChoicesIds: oldChoices.filter((c) => c.id && !nextChoices.some((x) => x.id === c.id)).map((c) => c.id as string),
-          addTags: question.tags.filter((t) => !(snap.tags ?? []).includes(t)),
-          removeTags: (snap.tags ?? []).filter((t) => !question.tags.includes(t)),
+          ...questionTagIds,
           addFiles: question.files.map((f) => f.id).filter((id) => !(snap.files ?? []).some((f) => f.id === id)),
           removeFiles: (snap.files ?? []).map((f) => f.id).filter((id) => !question.files.some((f) => f.id === id)),
         }
