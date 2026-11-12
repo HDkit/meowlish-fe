@@ -30,8 +30,9 @@ import { io, Socket } from 'socket.io-client';
 import { refreshSession } from '@/lib/api/auth-session';
 import { toast } from './ui/use-toast';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
-const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/api/v1/chat/ws/socket.io';
+// Same origin: next.config.ts rewrites /socket.io/* to the gateway's socket.io proxy, so the
+// HttpOnly access_token cookie (first-party here) rides along with the handshake.
+const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/socket.io';
 const ALLOWED_LIVE_URL = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|twitch\.tv)\//i;
 
 function isValidLiveUrl(url: string): boolean {
@@ -281,9 +282,13 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		joinedRef.current = false;
 		// The live service authenticates the handshake with the HttpOnly access_token cookie,
 		// which JS can't read: send credentials and pass no token.
-		const socket = io(API_BASE, {
+		const socket = io({
 			path: SOCKET_PATH,
-			transports: ['websocket'],
+			// The rewrite target has no trailing slash; avoid Next's /socket.io/ -> /socket.io redirect.
+			addTrailingSlash: false,
+			// Long-polling works through any HTTP proxy; the upgrade to WebSocket needs a proxy that
+			// forwards upgrades (see README), and socket.io keeps polling when it doesn't.
+			transports: ['polling', 'websocket'],
 			withCredentials: true,
 			autoConnect: false,
 		});

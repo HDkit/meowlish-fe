@@ -11,6 +11,7 @@ export function setupApiClient() {
     legacyPurged = true;
     purgeLegacyTokens();
   }
+  // '' = same origin: /api/v1/... goes through the Next.js rewrite to the gateway (next.config.ts).
   OpenAPI.BASE = getApiBaseUrl();
   OpenAPI.TOKEN = undefined;
   OpenAPI.WITH_CREDENTIALS = true;

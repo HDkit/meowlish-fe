@@ -212,3 +212,19 @@ describe('helpers', () => {
 		expect(shouldRefreshOn401('/api/v1/auth/credentials/mail/password')).toBe(false);
 	});
 });
+
+describe('same-origin API', () => {
+	it('uses a relative base so every call goes through the Next.js /api rewrite', async () => {
+		expect(getApiBaseUrl()).toBe('');
+		const calls = mockFetch(json(200, { id: 'u1', username: 'u', roles: [] }), json(201, null), json(201, null));
+		await AuthService.authGatewayControllerGetOwnIdentityV1();
+		await refreshSession();
+		await logoutSession();
+		expect(calls.map((c) => c.url)).toEqual([
+			'/api/v1/auth/my/identity',
+			'/api/v1/auth/refresh',
+			'/api/v1/auth/logout',
+		]);
+	});
+});
+

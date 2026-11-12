@@ -8,24 +8,26 @@
  *  - logs out (POST /auth/logout, which clears the cookies),
  *  - detects the session (GET /auth/my/identity),
  *  - keeps a non-secret `user_authenticated` hint cookie that the Next.js middleware
- *    uses to route between /auth and the app (it can't see the API's HttpOnly cookies
- *    when the API is on another host, and the access token is short-lived anyway).
+ *    uses to route between /auth and the app (the access token is short-lived and its
+ *    cookie is HttpOnly, so the middleware can't rely on it).
+ *
+ * Every request goes to THIS origin (`/api/v1/...`); next.config.ts rewrites `/api/*` (and
+ * `/socket.io/*`) to the gateway at NEXT_PUBLIC_API_URL. Calling the gateway host directly
+ * would be cross-site in production (public-suffix hosts like *.servebeer.com are separate
+ * sites), so the SameSite cookies would never be stored or sent.
  */
 import type { User } from '@/types/client';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com';
 
 export const SESSION_HINT_COOKIE = 'user_authenticated';
 const SESSION_HINT_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
-export const getApiBaseUrl = (): string => {
-    // The generated API client appends paths like /api/v1/... to this base,
-    // so strip any trailing /api suffix to avoid double /api.
-    const base = API_BASE_URL.replace(/\/+$/, '');
-    return base.replace(/\/api$/, '');
-};
+/**
+ * Base for API URLs: '' (same origin). Paths start with `/api/v1/...` and reach the gateway
+ * through the Next.js rewrite, so the session cookies are first-party.
+ */
+export const getApiBaseUrl = (): string => '';
 
 /** Routes whose 401 means "bad credentials", not "expired session": never refresh-and-retry them. */
 const NO_REFRESH_PATHS = [
@@ -228,3 +230,4 @@ export const exchangeGoogleLoginToken = async (loginToken: string): Promise<User
     }
     return loadSessionUser();
 };
+
