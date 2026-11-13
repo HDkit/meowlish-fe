@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Tabs, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { useToast } from './ui/use-toast';
 import {
@@ -22,7 +21,7 @@ import {
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { tagPath, useTagList } from '@/lib/tag-list';
+import { useTagList } from '@/lib/tag-list';
 import { TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
@@ -40,6 +39,8 @@ type FormattedExam = {
 };
 
 const META_TAGS = new Set(['ielts', 'toeic']);
+
+type ExamTypeFilter = 'all' | 'ielts' | 'toeic';
 
 function formatDurationShort(seconds: number): string {
 	if (seconds < 60) return `${seconds}s`;
@@ -59,15 +60,20 @@ export function TestSelection() {
 	// exam page returns to exactly this list.
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-	const selectedTab: 'ielts' | 'toeic' = searchParams.get('type') === 'toeic' ? 'toeic' : 'ielts';
+	// Exam type filter (?type=ielts|toeic); every exam by default.
+	const typeParam = searchParams.get('type');
+	const selectedTab: ExamTypeFilter = typeParam === 'ielts' || typeParam === 'toeic' ? typeParam : 'all';
 	const submittedSearchName = searchParams.get('q') ?? '';
 	const selectedTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
 	const [searchName, setSearchName] = useState(submittedSearchName);
 
 	const updateQuery = useCallback(
-		(patch: { type?: 'ielts' | 'toeic'; q?: string; tags?: string[] }) => {
+		(patch: { type?: ExamTypeFilter; q?: string; tags?: string[] }) => {
 			const next = new URLSearchParams(searchParams.toString());
-			if (patch.type !== undefined) next.set('type', patch.type);
+			if (patch.type !== undefined) {
+				if (patch.type === 'all') next.delete('type');
+				else next.set('type', patch.type);
+			}
 			if (patch.q !== undefined) {
 				if (patch.q.trim()) next.set('q', patch.q.trim());
 				else next.delete('q');
@@ -81,17 +87,24 @@ export function TestSelection() {
 		},
 		[pathname, router, searchParams],
 	);
-	const setSelectedTab = (type: 'ielts' | 'toeic') => updateQuery({ type: type });
+	const setSelectedTab = (type: ExamTypeFilter) => updateQuery({ type: type });
 	const setSubmittedSearchName = (q: string) => updateQuery({ q: q });
 	const setSelectedTags = (tags: string[]) => updateQuery({ tags: tags });
 
 	const { tags: allTags, loading: loadingTags } = useTagList();
-	/** Name of the tab's exam-type tag as stored (e.g. "TOEIC"), sent as a required tag. */
+	/** The chosen exam type's tag as stored (e.g. "TOEIC"), sent as a required tag; none for "all". */
 	const tabTagName = useMemo(
-		() => allTags.find((t) => t.name.toLowerCase() === selectedTab)?.name ?? selectedTab.toUpperCase(),
+		() =>
+			selectedTab === 'all' ? null : (
+				(allTags.find((t) => t.name.toLowerCase() === selectedTab)?.name ?? selectedTab.toUpperCase())
+			),
 		[allTags, selectedTab],
 	);
-	const otherTabTags = useMemo(() => [selectedTab === 'ielts' ? 'toeic' : 'ielts'], [selectedTab]);
+	/** Tags of the other exam type are hidden from the tag picker once a type is chosen. */
+	const otherTabTags = useMemo(
+		() => (selectedTab === 'all' ? [] : [selectedTab === 'ielts' ? 'toeic' : 'ielts']),
+		[selectedTab],
+	);
 
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
@@ -122,49 +135,6 @@ export function TestSelection() {
 		setCursor(undefined);
 	}, [selectedTab, submittedSearchName, selectedTags]);
 
-	// A link with tags but no exam type (e.g. "Luyện ngay" for a question type): open the tab whose
-	// exams carry those tags, from the tag tree if it says, else by asking which type has matches.
-	useEffect(() => {
-		if (searchParams.get('type') || selectedTags.length === 0 || allTags.length === 0) return;
-		let cancelled = false;
-		const byId = new Map(allTags.map((t) => [t.id, t]));
-		const typesInTree = new Set(
-			selectedTags.flatMap((name) => {
-				const tag = allTags.find((t) => t.name === name);
-				if (!tag) return [];
-				return [tag, ...tagPath(tag, byId)]
-					.map((t) => t.name.toLowerCase())
-					.filter((n): n is 'ielts' | 'toeic' => n === 'ielts' || n === 'toeic');
-			}),
-		);
-		if (typesInTree.size === 1) {
-			updateQuery({ type: [...typesInTree][0] });
-			return;
-		}
-		const hasExams = async (type: 'ielts' | 'toeic') => {
-			const typeTag = allTags.find((t) => t.name.toLowerCase() === type)?.name ?? type.toUpperCase();
-			const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
-				{ requiredTags: [typeTag], tags: selectedTags },
-				undefined,
-				undefined,
-				1,
-			);
-			return ((res as any).data?.exams?.length ?? 0) > 0;
-		};
-		void (async () => {
-			try {
-				const [ielts, toeic] = await Promise.all([hasExams('ielts'), hasExams('toeic')]);
-				if (!cancelled && toeic && !ielts) updateQuery({ type: 'toeic' });
-			} catch {
-				// keep the default tab
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [allTags, selectedTags]);
-
 	// keep the search box in step with the URL (back/forward)
 	useEffect(() => {
 		setSearchName(submittedSearchName);
@@ -180,8 +150,8 @@ export function TestSelection() {
 			try {
 				const filterTags = selectedTags;
 
-				// the tab is a required tag: IELTS exams on the IELTS tab only
-				const filter: find_exams_req_dto_FilterOptionsDto = { requiredTags: [tabTagName] };
+				// a chosen exam type is a required tag: only IELTS exams when IELTS is chosen
+				const filter: find_exams_req_dto_FilterOptionsDto = tabTagName ? { requiredTags: [tabTagName] } : {};
 				if (submittedSearchName.trim()) filter.name = submittedSearchName.trim();
 				if (filterTags.length > 0) filter.tags = filterTags;
 
@@ -337,16 +307,16 @@ export function TestSelection() {
 		);
 	};
 
-	const EmptyState = ({ type }: { type: 'ielts' | 'toeic' }) => {
-		const EmptyIcon = type === 'ielts' ? BookOpen : Headphones;
-		const label = type === 'ielts' ? 'IELTS' : 'TOEIC';
+	const EmptyState = ({ type }: { type: ExamTypeFilter }) => {
+		const EmptyIcon = type === 'toeic' ? Headphones : BookOpen;
+		const label = type === 'all' ? '' : type.toUpperCase();
 		return (
 			<div className="col-span-full py-24 text-center bg-white rounded-3xl border border-dashed border-slate-300">
 				<EmptyIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
 				{hasActiveFilters ? (
 					<>
 						<p className="text-slate-500 font-semibold text-lg">
-							Không tìm thấy đề thi {label} phù hợp
+							Không tìm thấy đề thi{label ? ` ${label}` : ''} phù hợp
 						</p>
 						<p className="text-slate-400 mt-2 text-sm">
 							Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
@@ -358,7 +328,7 @@ export function TestSelection() {
 				) : (
 					<>
 						<p className="text-slate-500 font-semibold text-lg">
-							Hệ thống đang cập nhật đề thi {label}
+							Hệ thống đang cập nhật đề thi{label ? ` ${label}` : ''}
 						</p>
 						<p className="text-slate-400 mt-2 text-sm">Vui lòng quay lại sau nhé!</p>
 					</>
@@ -412,16 +382,6 @@ export function TestSelection() {
 			</div>
 
 			<div className="w-full">
-				<Tabs
-					defaultValue="ielts"
-					value={selectedTab}
-					onValueChange={(value: any) => {
-						setSelectedTab(value);
-					}}
-					className="w-full"
-				>
-
-
 					<div className="space-y-4 mb-8">
 			{/* Search input */}
 			<div className="relative max-w-md mx-auto">
@@ -452,11 +412,27 @@ export function TestSelection() {
 
 			{/* Tag filter: compact searchable picker over the cached tag tree */}
 			<div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
+				<div role="radiogroup" aria-label="Loại đề" className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+					{(['all', 'ielts', 'toeic'] as const).map((t) => (
+						<button
+							key={t}
+							type="button"
+							role="radio"
+							aria-checked={selectedTab === t}
+							onClick={() => setSelectedTab(t)}
+							className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+								selectedTab === t ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+							}`}
+						>
+							{t === 'all' ? 'Tất cả' : t.toUpperCase()}
+						</button>
+					))}
+				</div>
 				<TagPicker
 					tags={allTags}
 					value={selectedTags}
 					onChange={setSelectedTags}
-					exclude={[...META_TAGS].filter((t) => t !== selectedTab).concat(otherTabTags)}
+					exclude={[...META_TAGS].concat(otherTabTags)}
 					label={getTagDisplayName}
 					loading={loadingTags}
 				/>
@@ -471,22 +447,24 @@ export function TestSelection() {
 			</div>
 		</div>
 
-					<TabsContent
-						value="ielts"
-						className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-					>
-						<div className="text-center space-y-3 mb-10">
-							<h3 className="text-2xl font-bold text-primary">
-								IELTS - International English Language Testing System
-							</h3>
-							<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
-								Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết
-								phục vụ cho du học và định cư.
-							</p>
-						</div>
+					<section className="space-y-8">
+						{selectedTab !== 'all' && (
+							<div className="text-center space-y-3 mb-10">
+								<h3 className={`text-2xl font-bold ${selectedTab === 'ielts' ? 'text-primary' : 'text-secondary'}`}>
+									{selectedTab === 'ielts' ?
+										'IELTS - International English Language Testing System'
+									:	'TOEIC - Test of English for International Communication'}
+								</h3>
+								<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
+									{selectedTab === 'ielts' ?
+										'Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết phục vụ cho du học và định cư.'
+									:	'Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên nghiệp.'}
+								</p>
+							</div>
+						)}
 
 						{/* Keep the current cards while a new filter loads (dimmed): swapping them for a
-							    loading text made the page flash on every tag click. */}
+						    loading text made the page flash on every tag click. */}
 						<div
 							className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 transition-opacity duration-200 ${
 								loadingExams && exams.length > 0 ? 'pointer-events-none opacity-60' : ''
@@ -500,47 +478,11 @@ export function TestSelection() {
 							) : exams.length > 0 ? (
 								exams.map((exam) => <React.Fragment key={exam.id}>{ExamCard({ exam: exam })}</React.Fragment>)
 							) : (
-								EmptyState({ type: 'ielts' })
+								EmptyState({ type: selectedTab })
 							)}
 						</div>
 						{PaginationControls()}
-					</TabsContent>
-
-					<TabsContent
-						value="toeic"
-						className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-					>
-						<div className="text-center space-y-3 mb-10">
-							<h3 className="text-2xl font-bold text-secondary">
-								TOEIC - Test of English for International Communication
-							</h3>
-							<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
-								Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên
-								nghiệp.
-							</p>
-						</div>
-
-						{/* Keep the current cards while a new filter loads (dimmed): swapping them for a
-							    loading text made the page flash on every tag click. */}
-						<div
-							className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 transition-opacity duration-200 ${
-								loadingExams && exams.length > 0 ? 'pointer-events-none opacity-60' : ''
-							}`}
-							aria-busy={loadingExams}
-						>
-							{loadingExams && exams.length === 0 ? (
-								<div className="col-span-full py-12 text-center text-slate-500">
-									Đang tải danh sách đề thi...
-								</div>
-							) : exams.length > 0 ? (
-								exams.map((exam) => <React.Fragment key={exam.id}>{ExamCard({ exam: exam })}</React.Fragment>)
-							) : (
-								EmptyState({ type: 'toeic' })
-							)}
-						</div>
-						{PaginationControls()}
-					</TabsContent>
-				</Tabs>
+					</section>
 			</div>
 		</div>
 	);
