@@ -1,68 +1,84 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Button } from './ui/button';
-import { ArrowRight, Mic, BookOpen, BarChart, Brain, Headphones, MessageCircle, TrendingUp } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
+import { Button } from './ui/button';
+import { ArrowRight, BookOpen, BarChart, Headphones, MessageCircle, TrendingUp, Mic } from 'lucide-react';
+
+// Photos (public/landing/*.webp) are from Unsplash, used under the Unsplash license (see
+// src/Attributions.md). The page reads as a climb: sunrise (hero), the trail (steps), the summit (CTA).
 
 export function LandingPage() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <section className="relative py-24 md:py-32 lg:py-40">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 animate-blob-morph pointer-events-none" />
-        <div className="container relative z-10 mx-auto px-6 text-center max-w-4xl">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight leading-tight">
-            Luyện Thi <span className="text-primary">IELTS &amp; TOEIC</span>
-            <br />
-            Hiệu Quả Hơn Mỗi Ngày
+      {/* Hero: sunrise over a sea of clouds */}
+      <section className="relative isolate overflow-hidden min-h-[min(calc(100svh-4rem),52rem)] flex items-end">
+        <Image
+          src="/landing/sunrise.webp"
+          alt="Bình minh trên biển mây giữa những đỉnh núi tuyết"
+          fill
+          priority
+          sizes="100vw"
+          className="-z-20 object-cover object-[30%_60%] sm:object-[50%_40%] animate-hero-settle"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-gradient-to-t from-[hsl(222_47%_8%/0.85)] via-[hsl(222_47%_8%/0.35)] to-transparent"
+        />
+        <div className="container mx-auto px-6 max-w-6xl pb-16 md:pb-24 pt-40">
+          <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] max-w-4xl [text-wrap:balance]">
+            Luyện Thi <span className="whitespace-nowrap">IELTS &amp; TOEIC,</span>{' '}
+            <span className="block">Hiệu Quả Hơn Mỗi Ngày</span>
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Hệ thống luyện thi tiếng Anh với AI chấm điểm tự động, luyện Speaking &amp; Writing thông minh.
+          <p className="mt-6 text-lg md:text-xl text-white/85 max-w-xl leading-relaxed">
+            Làm đề chuẩn format, luyện Speaking &amp; Writing, được AI chấm điểm và nhận xét ngay sau mỗi bài.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-4">
             <Button
               size="lg"
               onClick={() => router.push('/auth?mode=register')}
-              className="text-lg px-8 py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold shadow-[var(--shadow-heavy)] hover:shadow-[0_8px_30px_hsl(144_46%_55%/0.4)] hover:-translate-y-1"
+              className="text-lg px-8 py-6 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold shadow-[0_8px_30px_hsl(144_46%_30%/0.45)]"
             >
               Bắt Đầu Miễn Phí
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <button
-              onClick={() => {
-                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="text-muted-foreground hover:text-primary transition-colors text-lg font-medium"
+            <Link
+              href="/auth"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-2xl text-lg font-semibold text-white border border-white/40 bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Tìm hiểu thêm ↓
-            </button>
+              Dùng thử tài khoản demo
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* What You Get — Bento Grid */}
-      <section className="py-16 md:py-24 bg-[#fff6dc]">
+      {/* What you get */}
+      <section className="py-16 md:py-24 bg-[#fff6dc] dark:bg-card">
         <div className="container mx-auto px-6 max-w-6xl">
-          <h2 className="text-2xl md:text-4xl font-bold text-primary mb-12">
-            Bạn sẽ nhận được gì?
-          </h2>
+          <h2 className="text-2xl md:text-4xl font-bold text-primary mb-12">Bạn sẽ nhận được gì?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Large card — spans 2 columns */}
-            <div className="md:col-span-2 bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-medium)] hover:-translate-y-1 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <Mic className="h-6 w-6 text-primary" />
+            <article className="md:col-span-2 bg-card rounded-3xl overflow-hidden border border-border/50 shadow-[var(--shadow-soft)] grid sm:grid-cols-5">
+              <div className="relative sm:col-span-2 aspect-[16/10] sm:aspect-auto min-h-48">
+                <Image
+                  src="/landing/writing.webp"
+                  alt="Người học đang viết bài luận bên tách cà phê"
+                  fill
+                  sizes="(min-width: 768px) 26vw, 100vw"
+                  className="object-cover"
+                />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Luyện Speaking &amp; Writing với AI</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                AI phân tích phát âm, ngữ pháp, từ vựng và đưa ra nhận xét chi tiết theo tiêu chuẩn IELTS. Luyện tập không giới hạn, nhận feedback tức thì.
-              </p>
-            </div>
+              <div className="sm:col-span-3 p-8">
+                <h3 className="text-xl font-semibold mb-2">Luyện Speaking &amp; Writing với AI</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  AI phân tích phát âm, ngữ pháp, từ vựng và đưa ra nhận xét chi tiết theo tiêu chuẩn IELTS. Luyện tập không giới hạn, nhận feedback tức thì.
+                </p>
+              </div>
+            </article>
 
-            {/* Small card */}
-            <div className="bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-medium)] hover:-translate-y-1 transition-all duration-300">
+            <article className="bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)]">
               <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center mb-4">
                 <BookOpen className="h-6 w-6 text-secondary" />
               </div>
@@ -70,10 +86,9 @@ export function LandingPage() {
               <p className="text-muted-foreground leading-relaxed">
                 IELTS Academic, TOEIC Listening &amp; Reading với đề thi được biên soạn chất lượng.
               </p>
-            </div>
+            </article>
 
-            {/* Small card */}
-            <div className="bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-medium)] hover:-translate-y-1 transition-all duration-300">
+            <article className="bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)]">
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
                 <BarChart className="h-6 w-6 text-accent" />
               </div>
@@ -81,104 +96,131 @@ export function LandingPage() {
               <p className="text-muted-foreground leading-relaxed">
                 Biểu đồ chi tiết, activity heatmap, phân tích điểm mạnh/yếu từng kỹ năng.
               </p>
-            </div>
+            </article>
 
-            {/* Large card — spans 2 columns */}
-            <div className="md:col-span-2 bg-card rounded-2xl p-8 border border-border/50 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-medium)] hover:-translate-y-1 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <Brain className="h-6 w-6 text-primary" />
+            <article className="md:col-span-2 bg-card rounded-3xl overflow-hidden border border-border/50 shadow-[var(--shadow-soft)] grid sm:grid-cols-5">
+              <div className="sm:col-span-3 p-8 order-2 sm:order-1">
+                <h3 className="text-xl font-semibold mb-2">Flashcards &amp; Học từ vựng</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  Tạo bộ flashcard riêng, ôn tập với spaced repetition, học cùng bạn bè và chia sẻ bộ thẻ cho nhau.
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Flashcards &amp; Học từ vựng</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Tạo bộ flashcard riêng, ôn tập với spaced repetition. Ghi nhớ từ vựng hiệu quả hơn gấp 3 lần so với phương pháp truyền thống.
-              </p>
-            </div>
+              <div className="relative sm:col-span-2 aspect-[16/10] sm:aspect-auto min-h-48 order-1 sm:order-2">
+                <Image
+                  src="/landing/study-group.webp"
+                  alt="Nhóm bạn cùng ôn bài và cười đùa quanh bàn"
+                  fill
+                  sizes="(min-width: 768px) 26vw, 100vw"
+                  className="object-cover"
+                />
+              </div>
+            </article>
           </div>
         </div>
       </section>
 
-      {/* Speaking Feature Spotlight */}
-      <section className="py-16 md:py-24 bg-primary relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-48 h-48 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="container relative z-10 mx-auto px-6 max-w-6xl">
+      {/* Speaking spotlight */}
+      <section className="py-16 md:py-24 bg-primary">
+        <div className="container mx-auto px-6 max-w-6xl">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 text-white">
-              <span className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold mb-6 tracking-wide">
-                Tính năng nổi bật
-              </span>
-              <h2 className="text-2xl md:text-4xl font-bold mb-4">
-                Luyện Speaking 1-1 với AI
-              </h2>
-              <p className="text-white/80 text-lg leading-relaxed mb-8 max-w-xl">
-                Luyện nói tiếng Anh mọi lúc, mọi nơi. AI phản hồi tức thì về phát âm, ngữ pháp và từ vựng — như có gia sư riêng 24/7.
+              <h2 className="text-2xl md:text-4xl font-bold mb-4">Luyện Speaking 1-1 với AI</h2>
+              <p className="text-white/85 text-lg leading-relaxed mb-8 max-w-xl">
+                Luyện nói tiếng Anh mọi lúc, mọi nơi. AI phản hồi tức thì về phát âm, ngữ pháp và từ vựng, như có gia sư riêng 24/7.
               </p>
+              <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-5 mb-10 max-w-xl">
+                {[
+                  { icon: Headphones, title: 'Nghe & Nói tự nhiên', desc: 'Hội thoại thực tế theo chủ đề IELTS Speaking' },
+                  { icon: MessageCircle, title: 'Feedback tức thì', desc: 'Chấm phát âm, ngữ pháp, từ vựng ngay sau khi nói' },
+                  { icon: TrendingUp, title: 'Theo dõi tiến bộ', desc: 'Band score qua từng buổi luyện tập' },
+                  { icon: Mic, title: 'Không giới hạn', desc: 'Luyện bao nhiêu tùy thích, không cần đặt lịch' },
+                ].map(item => (
+                  <li key={item.title} className="flex gap-3">
+                    <item.icon className="h-5 w-5 mt-0.5 shrink-0 text-white" aria-hidden />
+                    <div>
+                      <p className="font-semibold">{item.title}</p>
+                      <p className="text-white/75 text-sm leading-relaxed">{item.desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
               <Link
                 href="/speaking"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Khám phá ngay
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:max-w-md">
-              {[
-                { icon: Headphones, title: 'Nghe & Nói tự nhiên', desc: 'Hội thoại thực tế theo chủ đề IELTS Speaking' },
-                { icon: MessageCircle, title: 'Feedback tức thì', desc: 'AI chấm điểm phát âm, ngữ pháp, từ vựng ngay lập tức' },
-                { icon: TrendingUp, title: 'Theo dõi tiến bộ', desc: 'Biểu đồ chi tiết band score qua từng buổi luyện tập' },
-                { icon: Mic, title: 'Không giới hạn', desc: 'Luyện tập bao nhiêu tùy thích, không cần đặt lịch' },
-              ].map((item) => (
-                <div key={item.title} className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20 hover:bg-white/20 transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center mb-3">
-                    <item.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-white mb-1">{item.title}</h3>
-                  <p className="text-white/70 text-sm leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
+            <div className="flex-1 w-full lg:max-w-lg">
+              <div className="relative aspect-[4/3] rounded-[2rem] overflow-hidden shadow-2xl ring-8 ring-white/15">
+                <Image
+                  src="/landing/speaking.webp"
+                  alt="Học viên đeo tai nghe chăm chú trước laptop"
+                  fill
+                  sizes="(min-width: 1024px) 32rem, 100vw"
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* How it works: the trail */}
       <section id="how-it-works" className="py-16 md:py-24 bg-card">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <h2 className="text-2xl md:text-4xl font-bold text-primary mb-16">
-            Bắt đầu như thế nào?
-          </h2>
-          <div className="space-y-12">
-            {[
-              { num: '01', title: 'Đăng ký tài khoản miễn phí', desc: 'Chỉ cần email hoặc tài khoản Google, bắt đầu trong 30 giây.' },
-              { num: '02', title: 'Chọn bài thi phù hợp', desc: 'IELTS Academic, TOEIC, hoặc bài thi luyện tập theo trình độ.' },
-              { num: '03', title: 'Luyện tập & theo dõi tiến độ', desc: 'Làm bài, nhận feedback AI, xem tiến bộ qua biểu đồ chi tiết.' },
-            ].map((step) => (
-              <div key={step.num} className="flex items-start gap-6">
-                <span className="text-4xl font-display font-bold text-primary/30 shrink-0 w-16">
-                  {step.num}
-                </span>
-                <div className="border-t border-border pt-4 flex-1">
-                  <h3 className="text-xl font-semibold mb-1">{step.title}</h3>
-                  <p className="text-muted-foreground">{step.desc}</p>
-                </div>
-              </div>
-            ))}
+        <div className="container mx-auto px-6 max-w-6xl grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="relative aspect-[4/5] sm:aspect-[16/10] lg:aspect-[4/5] rounded-[2rem] overflow-hidden">
+            <Image
+              src="/landing/trail.webp"
+              alt="Hai người leo núi trên con đường mòn hướng về dãy núi tuyết"
+              fill
+              sizes="(min-width: 1024px) 36rem, 100vw"
+              className="object-cover object-[60%_50%]"
+            />
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-4xl font-bold text-primary mb-12">Bắt đầu như thế nào?</h2>
+            <ol className="space-y-10">
+              {[
+                { num: '01', title: 'Đăng ký tài khoản miễn phí', desc: 'Chỉ cần email hoặc tài khoản Google, bắt đầu trong 30 giây.' },
+                { num: '02', title: 'Chọn bài thi phù hợp', desc: 'IELTS Academic, TOEIC, hoặc bài thi luyện tập theo trình độ.' },
+                { num: '03', title: 'Luyện tập & theo dõi tiến độ', desc: 'Làm bài, nhận feedback AI, xem tiến bộ qua biểu đồ chi tiết.' },
+              ].map(step => (
+                <li key={step.num} className="flex items-start gap-6">
+                  <span className="text-4xl font-display font-bold text-secondary shrink-0 w-16" aria-hidden>
+                    {step.num}
+                  </span>
+                  <div className="border-t border-border pt-4 flex-1">
+                    <h3 className="text-xl font-semibold mb-1">{step.title}</h3>
+                    <p className="text-muted-foreground">{step.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-16 md:py-24 bg-primary">
+      {/* CTA: the summit */}
+      <section className="relative isolate overflow-hidden py-28 md:py-40">
+        <Image
+          src="/landing/summit.webp"
+          alt=""
+          fill
+          sizes="100vw"
+          className="-z-20 object-cover object-[50%_35%]"
+        />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-[hsl(144_46%_18%/0.6)]" />
         <div className="container mx-auto px-6 text-center max-w-3xl">
-          <h2 className="text-2xl md:text-4xl font-bold text-white mb-8">
-            Bắt Đầu Ngay Hôm Nay
+          <h2 className="font-heading text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 [text-wrap:balance]">
+            Đỉnh band điểm của bạn đang chờ
           </h2>
+          <p className="text-white/85 text-lg mb-10">Bài luyện đầu tiên chỉ cách bạn một lần đăng ký.</p>
           <Button
             size="lg"
             onClick={() => router.push('/auth?mode=register')}
-            className="text-lg px-8 py-4 rounded-2xl bg-white text-primary font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1"
+            className="text-lg px-8 py-6 rounded-2xl bg-white text-primary hover:bg-white/90 font-bold shadow-xl"
           >
             Tạo Tài Khoản Miễn Phí
           </Button>
@@ -193,9 +235,7 @@ export function LandingPage() {
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl font-display font-semibold">Lingriser</span>
               </div>
-              <p className="text-background/60 text-sm">
-                Hệ thống luyện thi tiếng Anh với AI
-              </p>
+              <p className="text-background/60 text-sm">Hệ thống luyện thi tiếng Anh với AI</p>
             </div>
             <div className="flex gap-12 text-sm text-background/60">
               <div className="space-y-2">
@@ -211,7 +251,7 @@ export function LandingPage() {
             </div>
           </div>
           <div className="mt-8 pt-6 border-t border-background/10 text-center text-sm text-background/40">
-            © 2026 Lingriser. All rights reserved.
+            © 2026 Lingriser. All rights reserved. Ảnh: Unsplash.
           </div>
         </div>
       </footer>

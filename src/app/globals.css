@@ -327,3 +327,13 @@ body[style*="overflow"] {
     animation: leaf-drift var(--leaf-duration, 18s) linear infinite;
   }
 }
+
+/* Landing hero: the sunrise photo settles in once on load. */
+@keyframes hero-settle {
+  from { transform: scale(1.08); opacity: 0.6; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-hero-settle { animation: hero-settle 2.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-settle { animation: none; }
+}
