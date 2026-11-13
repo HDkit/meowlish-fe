@@ -188,6 +188,8 @@ export enum NotificationType {
 	Report = 'report',
 	Achievement = 'achievement',
 	System = 'system',
+	/** Flash card list proposals (received, accepted, rejected). */
+	Flashcard = 'flashcard',
 }
 
 export interface Notification extends MockDbType {
