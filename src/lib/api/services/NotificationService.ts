@@ -2,6 +2,16 @@ import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 
+/** Which notification types the user receives (GET/PATCH /notifications/preferences). */
+export interface NotificationPreferences {
+  achievementEnabled: boolean;
+  reportEnabled: boolean;
+  systemEnabled: boolean;
+  /** Stored but unused: the app sends no e-mail or push notifications yet. */
+  emailEnabled?: boolean;
+  pushEnabled?: boolean;
+}
+
 export interface NotificationResponse {
   id: string;
   recipientId: string;
@@ -64,6 +74,24 @@ export class NotificationService {
       method: 'POST',
       url: '/api/v1/notifications/read-all',
       body: { recipientId },
+      mediaType: 'application/json',
+    });
+  }
+
+  public static getPreferences(): CancelablePromise<{ data?: NotificationPreferences }> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/api/v1/notifications/preferences',
+    });
+  }
+
+  public static updatePreferences(
+    body: Partial<NotificationPreferences>,
+  ): CancelablePromise<{ data?: NotificationPreferences }> {
+    return __request(OpenAPI, {
+      method: 'PATCH',
+      url: '/api/v1/notifications/preferences',
+      body: body,
       mediaType: 'application/json',
     });
   }

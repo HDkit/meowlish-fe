@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   Users,
   Settings,
+  CircleUserRound,
   LogOut,
   MessageCircle,
   Bell,
@@ -71,6 +72,7 @@ const learnerGroups: NavGroup[] = [
     links: [
       { href: '/notifications', label: 'Thông báo', icon: Bell },
       { href: '/changelog', label: 'Có gì mới', icon: Sparkles },
+      { href: '/settings', label: 'Cài đặt', icon: Settings },
     ],
   },
 ];
@@ -226,7 +228,7 @@ export function AppSidebar() {
                 size="lg"
                 className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50"
               >
-                <Settings className="h-5 w-5" />
+                <CircleUserRound className="h-5 w-5" />
                 <span suppressHydrationWarning>{userDisplayName}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
