@@ -84,6 +84,7 @@
             "lint": "next lint",
             "dev:vite": "vite",
             "build:vite": "vite build",
-            "test": "vitest run"
+            "test": "vitest run",
+            "share": "bash scripts/vercel-deploy.sh"
       }
 }

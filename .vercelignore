@@ -1,0 +1,10 @@
+# Keep local secrets and build output out of the upload; Vercel installs and builds itself.
+.env
+.env.*
+!.env.example
+!.env.local.example
+.next
+node_modules
+coverage
+.claude
+docs
