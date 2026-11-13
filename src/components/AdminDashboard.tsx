@@ -24,7 +24,7 @@ import { ReportService } from '@/lib/api/services/ReportService';
 import { normalizeApiError } from '@/lib/api-errors';
 import { examStatusMeta, formatDate } from '@/lib/admin';
 import { Button } from '@/components/ui/button';
-import { AdminPageHeader, AdminStatCard, AdminStatGrid, DataTable, StatusBadge, useIdentityNames, type DataColumn } from './admin';
+import { AdminPageHeader, AdminStatCard, AdminStatGrid, DataTable, IdentityNameText, StatusBadge, useIdentityNames, type DataColumn } from './admin';
 import { loadExamCounts, loadManagedExams, type ExamCounts, type ManagedExam } from './admin/exams';
 
 type QuickLink = { href: string; label: string; description: string; icon: LucideIcon; badge?: number };
@@ -88,6 +88,8 @@ export default function AdminDashboard() {
 	const names = useIdentityNames(isHeadStaff ? recent.map((e) => e.createdBy) : []);
 
 	if (!allowed || !currUser) return null;
+	// Only the first load shows placeholders; "Làm mới" keeps the current numbers on screen.
+	const firstLoad = loading && exams.length === 0 && !counts;
 
 	const links: QuickLink[] = [
 		{ href: '/exam-creation', label: 'Tạo đề thi', description: 'Soạn đề mới với phần thi và câu hỏi', icon: FilePlus },
@@ -116,7 +118,7 @@ export default function AdminDashboard() {
 						className: 'hidden lg:table-cell whitespace-nowrap',
 						cell: (e: ManagedExam) => (
 							<span className="text-muted-foreground">
-								{e.createdBy === currUser.id ? 'Bạn' : (e.createdBy && names[e.createdBy]?.name) || '—'}
+								{e.createdBy === currUser.id ? 'Bạn' : <IdentityNameText id={e.createdBy} names={names} />}
 							</span>
 						),
 					},
@@ -145,10 +147,10 @@ export default function AdminDashboard() {
 				}
 			>
 				<AdminStatGrid>
-					<AdminStatCard label="Tổng đề thi" value={stats.total} icon={FileText} loading={loading} hint={`${stats.draft} bản nháp`} />
-					<AdminStatCard label="Chờ duyệt" value={stats.pending} icon={Clock} tone="warning" loading={loading} />
-					<AdminStatCard label="Cần sửa" value={stats.rejected} icon={XCircle} tone="danger" loading={loading} />
-					<AdminStatCard label="Đã xuất bản" value={stats.approved} icon={CheckCircle2} tone="success" loading={loading} />
+					<AdminStatCard label="Tổng đề thi" value={stats.total} icon={FileText} loading={firstLoad} hint={firstLoad ? '\u00a0' : `${stats.draft} bản nháp`} />
+					<AdminStatCard label="Chờ duyệt" value={stats.pending} icon={Clock} tone="warning" loading={firstLoad} />
+					<AdminStatCard label="Cần sửa" value={stats.rejected} icon={XCircle} tone="danger" loading={firstLoad} />
+					<AdminStatCard label="Đã xuất bản" value={stats.approved} icon={CheckCircle2} tone="success" loading={firstLoad} />
 				</AdminStatGrid>
 			</AdminPageHeader>
 

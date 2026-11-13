@@ -122,6 +122,9 @@ export function DataTable<T>({
 
 	return (
 		<div className={frame} aria-busy={loading}>
+			<span role="status" className="sr-only">
+				{loading ? 'Đang tải…' : ''}
+			</span>
 			{/* Table (md and up) */}
 			<div className="hidden max-h-[min(70vh,48rem)] overflow-auto md:block">
 				<table className="w-full border-separate border-spacing-0 text-sm">

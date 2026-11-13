@@ -7,4 +7,5 @@ export { ConfirmDialog } from './ConfirmDialog';
 export { DataTable, StatePanel, type DataColumn } from './DataTable';
 export { RowActions, type RowAction } from './RowActions';
 export { StatusBadge, TONE_CLASSES } from './StatusBadge';
-export { useIdentityNames, type IdentityName } from './useIdentityNames';
+export { useIdentityNames, isIdentityPending, type IdentityName } from './useIdentityNames';
+export { IdentityNameText } from './IdentityNameText';

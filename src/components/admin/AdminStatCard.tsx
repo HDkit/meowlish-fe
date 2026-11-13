@@ -40,17 +40,18 @@ export function AdminStatCard({
 				)}
 			</div>
 			<div className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
-				{loading ? <Skeleton className="h-7 w-12" /> : value}
+				{loading ? <Skeleton className="my-0.5 h-7 w-12" /> : value}
 			</div>
 			{hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
 		</>
 	);
 	const base = 'rounded-xl border bg-card p-3 text-left shadow-sm transition-colors sm:p-4';
-	if (!onClick) return <div className={base}>{body}</div>;
+	if (!onClick) return <div className={base} aria-busy={loading || undefined}>{body}</div>;
 	return (
 		<button
 			type="button"
 			aria-pressed={active}
+			aria-busy={loading || undefined}
 			onClick={onClick}
 			className={cn(
 				base,

@@ -28,6 +28,7 @@ import {
 	StatusBadge,
 	useIdentityNames,
 	type DataColumn,
+	IdentityNameText,
 } from './admin';
 
 const PAGE_SIZE = 20;
@@ -158,7 +159,7 @@ export default function BlogManagementPage() {
 			header: 'Tác giả',
 			className: 'whitespace-nowrap',
 			cell: (b) => (
-				<span className="text-muted-foreground">{b.authorId === currUser?.id ? 'Bạn' : (names[b.authorId]?.name ?? '—')}</span>
+				<span className="text-muted-foreground">{b.authorId === currUser?.id ? 'Bạn' : <IdentityNameText id={b.authorId} names={names} />}</span>
 			),
 		},
 		{
@@ -189,7 +190,7 @@ export default function BlogManagementPage() {
 				}
 			/>
 
-			<AdminToolbar summary={!loading && `${totalCount} bài viết`}>
+			<AdminToolbar summary={!(loading && blogs.length === 0) && `${totalCount} bài viết`}>
 				<AdminSearchInput value={search} onChange={setSearch} placeholder="Lọc trang này theo tiêu đề, nội dung…" />
 				<AdminFilterSelect
 					label="Nhãn"

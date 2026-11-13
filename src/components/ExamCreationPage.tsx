@@ -14,6 +14,8 @@ import { minutesInputToSeconds, secondsToMinutesInput } from '@/lib/exam-duratio
 import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AdminTagManager } from '@/components/admin/AdminTagManager';
+import { LoadingRegion } from '@/components/skeletons';
+import { Skeleton } from './ui/skeleton';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -441,7 +443,9 @@ export function ExamCreationPage() {
 
   const queryExamId = searchParams.get('id');
 
-  const [loading, setLoading] = useState(false);
+  // Opening an existing exam (?id=) starts in the loading state so the editor shows placeholders
+  // instead of an empty "new exam" form that fills in a moment later.
+  const [loading, setLoading] = useState(Boolean(queryExamId));
   const [savingExam, setSavingExam] = useState(false);
   // Errors of the exam info form (overview panel).
   const [examErrors, setExamErrors] = useState<{ title?: string; duration?: string; description?: string; tags?: string }>({});
@@ -867,6 +871,9 @@ export function ExamCreationPage() {
     }
   };
 
+  // First load of an existing exam: nothing to show yet.
+  const awaitingExam = Boolean(examId) && !exam && loading;
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -876,9 +883,13 @@ export function ExamCreationPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-14 py-2 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <BookOpen className="h-5 w-5 shrink-0 text-primary" />
-            <span className="min-w-0 truncate font-semibold text-gray-900" title={examDraft.title || undefined}>
-              {examDraft.title || 'Đề thi mới'}
-            </span>
+            {awaitingExam ? (
+              <Skeleton className="h-5 w-48" />
+            ) : (
+              <span className="min-w-0 truncate font-semibold text-gray-900" title={examDraft.title || undefined}>
+                {examDraft.title || 'Đề thi mới'}
+              </span>
+            )}
             {exam?.status && (
               <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                 {REVIEW_STATUSES.find((s) => s.value === exam.status)?.label ?? exam.status}
@@ -938,7 +949,16 @@ export function ExamCreationPage() {
 
               {/* Section tree với scroll, chiếm hết chiều cao còn lại */}
               <div className="pt-1 flex-1 min-h-0 overflow-y-auto pr-1">
-                {rootSectionIds.length === 0 ? (
+                {awaitingExam ? (
+                  <LoadingRegion label="Đang tải các section…" className="space-y-1.5 px-2 py-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <div key={i} className="flex items-center gap-2 py-1" style={{ paddingLeft: `${(i % 2) * 16}px` }}>
+                        <Skeleton className="size-3.5 shrink-0" />
+                        <Skeleton className={i % 2 ? 'h-4 w-28' : 'h-4 w-40'} />
+                      </div>
+                    ))}
+                  </LoadingRegion>
+                ) : rootSectionIds.length === 0 ? (
                   <p className="px-2 py-3 text-xs text-gray-400 text-center">
                     {examId ? 'Chưa có section nào' : 'Tạo đề trước để thêm section'}
                   </p>
@@ -982,7 +1002,34 @@ export function ExamCreationPage() {
             <TabsContent value="editor" className="space-y-4 mt-0">
 
               {/* Overview panel */}
-              {selectedNode.type === 'overview' && (
+              {selectedNode.type === 'overview' && awaitingExam && (
+                <Card className="border border-gray-200 shadow-none">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-base">Thông tin đề thi</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <LoadingRegion label="Đang tải đề thi…" className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-40 w-full" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                    </LoadingRegion>
+                  </CardContent>
+                </Card>
+              )}
+              {selectedNode.type === 'overview' && !awaitingExam && (
                 <Card className="border border-gray-200 shadow-none">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-base">Thông tin đề thi</CardTitle>

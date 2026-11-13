@@ -50,6 +50,7 @@ import {
 	StatusBadge,
 	useIdentityNames,
 	type DataColumn,
+	IdentityNameText,
 } from './admin';
 
 const PAGE_SIZE = 20;
@@ -196,7 +197,7 @@ export default function ReportManagementPage() {
 				</span>
 			),
 		},
-		{ id: 'reporter', header: 'Người gửi', className: 'whitespace-nowrap', cell: (r) => <span className="text-muted-foreground">{nameOf(r.reportedBy)}</span> },
+		{ id: 'reporter', header: 'Người gửi', className: 'whitespace-nowrap', cell: (r) => <span className="text-muted-foreground"><IdentityNameText id={r.reportedBy} names={names} fallback={r.reportedBy ? 'Người dùng' : '—'} /></span> },
 		{ id: 'status', header: 'Trạng thái', cell: (r) => <StatusBadge meta={reportStatusMeta(r.status)} /> },
 		{
 			id: 'created',
@@ -230,7 +231,7 @@ export default function ReportManagementPage() {
 				</AdminStatGrid>
 			</AdminPageHeader>
 
-			<AdminToolbar summary={!loading && `${totalCount} báo cáo`}>
+			<AdminToolbar summary={!(loading && reports.length === 0) && `${totalCount} báo cáo`}>
 				<AdminSearchInput value={search} onChange={setSearch} placeholder="Lọc trang này theo tiêu đề, nội dung…" />
 				<AdminFilterSelect
 					label="Trạng thái"

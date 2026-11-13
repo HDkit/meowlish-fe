@@ -236,7 +236,7 @@ export default function UserManagementPage() {
 			/>
 
 			<AdminToolbar
-				summary={!loading && loadError.length === 0 ? `Trang ${page + 1} · ${users.length} người dùng` : undefined}
+				summary={!(loading && users.length === 0) && loadError.length === 0 ? `Trang ${page + 1} · ${users.length} người dùng` : undefined}
 			>
 				<AdminFilterSelect
 					label="Tìm theo"

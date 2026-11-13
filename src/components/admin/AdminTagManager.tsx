@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { RefreshCw, Plus, Network, Edit2, Move, Trash2 } from 'lucide-react';
+import { LoadingRegion } from '@/components/skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type TagTreeNode = {
   id: string;
@@ -254,12 +256,21 @@ export function AdminTagManager() {
             <Network className="h-4 w-4 text-primary" />
             <h3 className="font-medium text-gray-900">Cây nhãn</h3>
           </div>
-          {loading ? (
-            <p className="text-sm text-gray-500">Đang tải...</p>
+          {loading && tree.length === 0 ? (
+            <LoadingRegion label="Đang tải cây nhãn…" className="space-y-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="flex items-center gap-2" style={{ paddingLeft: `${(i % 3) * 16}px` }}>
+                  <Skeleton className="size-4 shrink-0" />
+                  <Skeleton className={i % 2 ? 'h-4 w-32' : 'h-4 w-44'} />
+                </div>
+              ))}
+            </LoadingRegion>
           ) : tree.length === 0 ? (
             <p className="text-sm text-gray-500">API chưa trả cây tag nào.</p>
           ) : (
-            <TagTree nodes={tree} onRename={handleRename} onMove={handleMove} onDelete={handleDelete} />
+            <div aria-busy={loading} className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+              <TagTree nodes={tree} onRename={handleRename} onMove={handleMove} onDelete={handleDelete} />
+            </div>
           )}
         </div>
       </CardContent>

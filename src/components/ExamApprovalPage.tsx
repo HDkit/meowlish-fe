@@ -28,6 +28,7 @@ import {
 	StatusBadge,
 	useIdentityNames,
 	type DataColumn,
+	IdentityNameText,
 } from './admin';
 import { loadManagedExams, type ManagedExam } from './admin/exams';
 
@@ -70,6 +71,8 @@ export default function ExamApprovalPage() {
 	const [preview, setPreview] = useState<ManagedExam | null>(null);
 	const [toReject, setToReject] = useState<ManagedExam | null>(null);
 	const [approvingId, setApprovingId] = useState<string | null>(null);
+	// Only the first load shows placeholders; a refetch keeps the current numbers on screen.
+	const firstLoad = loading && exams.length === 0;
 
 	const fetchExams = useCallback(async () => {
 		if (!allowed) return;
@@ -152,7 +155,7 @@ export default function ExamApprovalPage() {
 				</div>
 			),
 		},
-		{ id: 'creator', header: 'Người tạo', cell: (e) => <span className="text-muted-foreground">{creatorName(e)}</span> },
+		{ id: 'creator', header: 'Người tạo', cell: (e) => <span className="text-muted-foreground"><IdentityNameText id={e.createdBy} names={names} /></span> },
 		{ id: 'status', header: 'Trạng thái', cell: (e) => <StatusBadge meta={examStatusMeta(e.status)} /> },
 		{
 			id: 'updated',
@@ -194,14 +197,14 @@ export default function ExamApprovalPage() {
 				}
 			>
 				<AdminStatGrid>
-					<AdminStatCard label="Chờ duyệt" value={counts.PENDING} icon={Clock} tone="warning" loading={loading} active={status === 'PENDING'} onClick={() => toggleStatus('PENDING')} />
-					<AdminStatCard label="Đã xuất bản" value={counts.APPROVED} icon={CheckCircle2} tone="success" loading={loading} active={status === 'APPROVED'} onClick={() => toggleStatus('APPROVED')} />
-					<AdminStatCard label="Cần sửa" value={counts.REJECTED} icon={XCircle} tone="danger" loading={loading} active={status === 'REJECTED'} onClick={() => toggleStatus('REJECTED')} />
-					<AdminStatCard label="Tất cả" value={counts.total} icon={FileText} loading={loading} active={status === 'all'} onClick={() => setStatus('all')} />
+					<AdminStatCard label="Chờ duyệt" value={counts.PENDING} icon={Clock} tone="warning" loading={firstLoad} active={status === 'PENDING'} onClick={() => toggleStatus('PENDING')} />
+					<AdminStatCard label="Đã xuất bản" value={counts.APPROVED} icon={CheckCircle2} tone="success" loading={firstLoad} active={status === 'APPROVED'} onClick={() => toggleStatus('APPROVED')} />
+					<AdminStatCard label="Cần sửa" value={counts.REJECTED} icon={XCircle} tone="danger" loading={firstLoad} active={status === 'REJECTED'} onClick={() => toggleStatus('REJECTED')} />
+					<AdminStatCard label="Tất cả" value={counts.total} icon={FileText} loading={firstLoad} active={status === 'all'} onClick={() => setStatus('all')} />
 				</AdminStatGrid>
 			</AdminPageHeader>
 
-			<AdminToolbar summary={!loading && `${filtered.length} đề thi`}>
+			<AdminToolbar summary={!firstLoad && `${filtered.length} đề thi`}>
 				<AdminSearchInput value={search} onChange={setSearch} placeholder="Tìm theo tên đề, mã đề, người tạo…" />
 				<AdminFilterSelect label="Trạng thái" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
 				{search && (
