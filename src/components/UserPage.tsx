@@ -43,6 +43,7 @@ import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
+import { getOwnIdentity, invalidateOwnIdentity } from '@/lib/own-identity';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
 import { type LoginMethod, loginMethodActions } from '@/lib/login-methods';
 import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
@@ -143,8 +144,7 @@ export function UserPage() {
 				try {
 					// Hydrate real profile from API
 					try {
-						const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
-						const identity = (identityRes as any).data ?? identityRes;
+						const identity = await getOwnIdentity();
 						if (identity && identity.id) {
 							dispatch(
 								setUser({
@@ -205,13 +205,17 @@ export function UserPage() {
 			};
 			fetchProfileData();
 		}
-	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
+		// Once per signed-in user. Depending on the whole `currUser` re-ran this after its own
+		// setUser() below, an endless loop of 6 requests that hit the rate limit and kept reloading
+		// the (freshly signed) avatar.
+	}, [currUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Handle profile update
 	const handleUpdateProfile = async () => {
 		if (!currUser) return;
 		setIsLoading(true);
 		try {
+			invalidateOwnIdentity();
 			await AuthService.authGatewayControllerUpdateIdentityV1({
 				// The demo account's username is read-only (the backend refuses a change).
 				username: isDemo ? undefined : profileForm.username || undefined,
@@ -294,9 +298,9 @@ export function UserPage() {
 				await fetch(ensuredUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
 			}
 
+			invalidateOwnIdentity();
 			await AuthService.authGatewayControllerUpdateIdentityV1({ avatarId: fileId });
-			const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
-			const identity = (identityRes as any).data ?? identityRes;
+			const identity = await getOwnIdentity({ fresh: true });
 			if (identity?.avatarUrl) {
 				dispatch(setUser({ ...currUser, avatarUrl: identity.avatarUrl }));
 			}
