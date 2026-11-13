@@ -208,6 +208,10 @@ export interface ChatRoom extends MockDbType {
 	name: string;
 	scheduledLiveUrl?: string;
 	scheduledDate?: number;
+	/** Room owner; undefined for rooms created before owners were recorded (admin-only). */
+	createdBy?: string;
+	/** Newest message, for the room list preview. */
+	lastMessage?: { id: string; uid: string; message: string; createdAt: number };
 }
 
 export interface ChatMessage extends MockDbType {

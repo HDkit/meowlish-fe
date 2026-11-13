@@ -7,6 +7,8 @@ export interface ChatRoomResponse {
   name: string;
   scheduledLiveUrl?: string;
   scheduledDate?: string;
+  createdBy?: string;
+  lastMessage?: { id: string; uid: string; message: string; createdAt: string };
 }
 
 export interface ListChatRoomsResponse {
