@@ -159,6 +159,8 @@ export class ExamPracticeService {
         sortBy?: find_exams_req_dto_SortOptionsDto,
         cursor?: string,
         limit?: number,
+        /** 1-based page number: page pagination with `totalCount` (the cursor is ignored) */
+        page?: number,
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -168,6 +170,7 @@ export class ExamPracticeService {
                 'sortBy': sortBy,
                 'cursor': cursor,
                 'limit': limit,
+                'page': page,
             },
         });
     }

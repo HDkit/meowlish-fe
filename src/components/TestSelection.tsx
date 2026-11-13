@@ -4,7 +4,6 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { useToast } from './ui/use-toast';
 import {
 	BookOpen,
 	Headphones,
@@ -22,6 +21,7 @@ import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
 import { useTagList } from '@/lib/tag-list';
+import { pageWindow } from '@/lib/pagination';
 import { TagChips, TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
@@ -42,6 +42,9 @@ const META_TAGS = new Set(['ielts', 'toeic']);
 
 type ExamTypeFilter = 'all' | 'ielts' | 'toeic';
 
+const PAGE_SIZE = 6;
+
+
 function formatDurationShort(seconds: number): string {
 	if (seconds < 60) return `${seconds}s`;
 	const h = Math.floor(seconds / 3600);
@@ -54,7 +57,6 @@ export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
 	const router = useRouter();
-	const { toast } = useToast();
 
 	// Tab, search and tags live in the URL (?type=toeic&q=…&tag=…), so the back button from an
 	// exam page returns to exactly this list.
@@ -65,11 +67,17 @@ export function TestSelection() {
 	const selectedTab: ExamTypeFilter = typeParam === 'ielts' || typeParam === 'toeic' ? typeParam : 'all';
 	const submittedSearchName = searchParams.get('q') ?? '';
 	const selectedTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	// page number in the URL too, so coming back from an exam lands on the same page
+	const pageParam = Number(searchParams.get('page'));
+	const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
 	const [searchName, setSearchName] = useState(submittedSearchName);
 
 	const updateQuery = useCallback(
-		(patch: { type?: ExamTypeFilter; q?: string; tags?: string[] }) => {
+		(patch: { type?: ExamTypeFilter; q?: string; tags?: string[]; page?: number }) => {
 			const next = new URLSearchParams(searchParams.toString());
+			// any filter change starts again at page 1; only an explicit page keeps one
+			if (patch.page !== undefined && patch.page > 1) next.set('page', String(patch.page));
+			else next.delete('page');
 			if (patch.type !== undefined) {
 				if (patch.type === 'all') next.delete('type');
 				else next.set('type', patch.type);
@@ -109,9 +117,11 @@ export function TestSelection() {
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
 
-	const [cursor, setCursor] = useState<string | undefined>(undefined);
-	const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
-	const [prevCursor, setPrevCursor] = useState<string | undefined>(undefined);
+	const [totalCount, setTotalCount] = useState(0);
+	const setPage = (p: number) => {
+		updateQuery({ page: p });
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -129,11 +139,6 @@ export function TestSelection() {
 		if (name.startsWith('toeic')) return TestType.TOEIC;
 		return TestType.IELTS;
 	}, []);
-
-	// Reset cursor when filters change
-	useEffect(() => {
-		setCursor(undefined);
-	}, [selectedTab, submittedSearchName, selectedTags]);
 
 	// keep the search box in step with the URL (back/forward)
 	useEffect(() => {
@@ -158,8 +163,9 @@ export function TestSelection() {
 				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
 					filter,
 					undefined,
-					cursor,
-					6,
+					undefined,
+					PAGE_SIZE,
+					page,
 				);
 
 				if (cancelled) return;
@@ -167,14 +173,13 @@ export function TestSelection() {
 				const data = (res as any).data;
 				const examsList = data?.exams || [];
 
-				if (examsList.length === 0 && cursor) {
-					toast({ title: 'Không còn kết quả' });
-					if (!cancelled) setLoadingExams(false);
+				const total = Number(data?.totalCount ?? examsList.length);
+				// a stale ?page= past the end (e.g. exams were removed): go to the last page
+				if (examsList.length === 0 && page > 1 && total > 0) {
+					updateQuery({ page: Math.ceil(total / PAGE_SIZE) });
 					return;
 				}
-
-				setNextCursor(data?.nextCursor || undefined);
-				setPrevCursor(data?.prevCursor || undefined);
+				setTotalCount(total);
 
 				const formattedExams: FormattedExam[] = examsList.map((e: any) => {
 					const rawTags: string[] = e.tags || [];
@@ -209,7 +214,8 @@ export function TestSelection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor, tabTagName]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, page, tabTagName]);
 
 	const clearFilters = () => {
 		setSearchName('');
@@ -337,29 +343,44 @@ export function TestSelection() {
 		);
 	};
 
+	const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 	const PaginationControls = () => {
-		if (!prevCursor && !nextCursor) return null;
+		if (pageCount <= 1) return null;
 		return (
-			<div className="flex items-center justify-center gap-4 mt-8">
+			<nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang đề thi">
 				<Button
 					variant="outline"
-					onClick={() => setCursor(prevCursor)}
-					disabled={!prevCursor || loadingExams}
+					onClick={() => setPage(page - 1)}
+					disabled={page <= 1 || loadingExams}
 					className="rounded-xl gap-1.5"
 				>
 					<ChevronLeft className="h-4 w-4" />
-					Trang trước
+					Trước
 				</Button>
+				{pageWindow(page, pageCount).map((p, i) =>
+					p === null ?
+						<span key={`gap-${i}`} className="px-1 text-slate-400">…</span>
+					:	<Button
+							key={p}
+							variant={p === page ? 'default' : 'outline'}
+							onClick={() => setPage(p)}
+							disabled={loadingExams}
+							aria-current={p === page ? 'page' : undefined}
+							className="h-10 w-10 rounded-xl p-0 tabular-nums"
+						>
+							{p}
+						</Button>,
+				)}
 				<Button
 					variant="outline"
-					onClick={() => setCursor(nextCursor)}
-					disabled={!nextCursor || loadingExams}
+					onClick={() => setPage(page + 1)}
+					disabled={page >= pageCount || loadingExams}
 					className="rounded-xl gap-1.5"
 				>
-					Trang sau
+					Sau
 					<ChevronRight className="h-4 w-4" />
 				</Button>
-			</div>
+			</nav>
 		);
 	};
 
