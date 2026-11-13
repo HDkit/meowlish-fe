@@ -29,8 +29,20 @@ const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'un
  */
 export const getApiBaseUrl = (): string => '';
 
+/** Opened as a top-level navigation to log in or register with Google (gateway redirects to Google). */
+export const GOOGLE_LOGIN_PATH = '/api/v1/auth/google';
+
 /** Opened as a top-level navigation to link Google to the signed-in account (gateway redirects to Google). */
 export const GOOGLE_LINK_PATH = '/api/v1/auth/credentials/google';
+
+/**
+ * Adds `?frontend=<this origin>` to a Google route. Several frontends share one backend, so the
+ * gateway needs it to send Google back through this frontend and land the user here; it accepts
+ * only origins it lists (GOOGLE_OAUTH_FRONTENDS) and treats the main frontend's own origin as the
+ * default.
+ */
+export const googleOAuthUrl = (path: string): string =>
+    `${path}?frontend=${encodeURIComponent(window.location.origin)}`;
 
 /** Routes whose 401 means "bad credentials", not "expired session": never refresh-and-retry them. */
 const NO_REFRESH_PATHS = [
@@ -287,6 +299,6 @@ export const exchangeGoogleLoginToken = async (loginToken: string): Promise<User
  */
 export const startGoogleLink = async (): Promise<'navigating' | 'expired'> => {
     if ((await refreshSession()) === 'expired') return 'expired';
-    window.location.href = GOOGLE_LINK_PATH;
+    window.location.href = googleOAuthUrl(GOOGLE_LINK_PATH);
     return 'navigating';
 };

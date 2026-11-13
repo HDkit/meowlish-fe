@@ -8,6 +8,8 @@ import {
 	fetchOwnIdentity,
 	getApiBaseUrl,
 	GOOGLE_LINK_PATH,
+	GOOGLE_LOGIN_PATH,
+	googleOAuthUrl,
 	startGoogleLink,
 	logoutSession,
 	refreshSession,
@@ -37,11 +39,15 @@ const mockFetch = (...responses: Response[]) => {
 };
 
 let cookieWrites: string[];
-let location: { pathname: string; href: string };
+let location: { pathname: string; href: string; origin: string };
 
 beforeEach(() => {
 	cookieWrites = [];
-	location = { pathname: '/dashboard', href: 'http://localhost:6767/dashboard' };
+	location = {
+		pathname: '/dashboard',
+		href: 'http://localhost:6767/dashboard',
+		origin: 'http://localhost:6767',
+	};
 	vi.stubGlobal('window', { location });
 	vi.stubGlobal('document', {
 		set cookie(v: string) {
@@ -261,7 +267,9 @@ describe('startGoogleLink', () => {
 		const calls = mockFetch(json(201, null));
 		await expect(startGoogleLink()).resolves.toBe('navigating');
 		expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual(['POST /api/v1/auth/refresh']);
-		expect(location.href).toBe(GOOGLE_LINK_PATH);
+		expect(location.href).toBe(
+			'/api/v1/auth/credentials/google?frontend=http%3A%2F%2Flocalhost%3A6767',
+		);
 		expect(GOOGLE_LINK_PATH).toBe('/api/v1/auth/credentials/google');
 	});
 
@@ -274,7 +282,16 @@ describe('startGoogleLink', () => {
 	it('still navigates when it cannot tell (refresh rate limited)', async () => {
 		mockFetch(json(429, null));
 		await expect(startGoogleLink()).resolves.toBe('navigating');
-		expect(location.href).toBe(GOOGLE_LINK_PATH);
+		expect(location.href).toBe(googleOAuthUrl(GOOGLE_LINK_PATH));
+	});
+});
+
+describe('googleOAuthUrl', () => {
+	it('tells the gateway which frontend started the Google flow', () => {
+		location.origin = 'https://meowlish-fe-share.vercel.app';
+		expect(googleOAuthUrl(GOOGLE_LOGIN_PATH)).toBe(
+			'/api/v1/auth/google?frontend=https%3A%2F%2Fmeowlish-fe-share.vercel.app',
+		);
 	});
 });
 

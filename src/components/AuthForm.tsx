@@ -15,7 +15,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
-import { AuthService, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
+import { AuthService, GOOGLE_LOGIN_PATH, googleOAuthUrl, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
 
 export function AuthForm() {
 	const router = useRouter();
@@ -136,9 +136,9 @@ export function AuthForm() {
 
 	// Social login (Google) - Direct redirect to avoid CORS
 	const handleGoogleLogin = () => {
-		// Direct redirect to backend OAuth endpoint
-		// This avoids CORS issues with fetch API
-		window.location.href = '/api/v1/auth/google';
+		// Top-level navigation (not fetch): the gateway redirects to Google. `frontend` tells it to
+		// bring the user back to this frontend.
+		window.location.href = googleOAuthUrl(GOOGLE_LOGIN_PATH);
 	};
 
 	const toggleMode = () => {
