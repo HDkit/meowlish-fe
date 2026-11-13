@@ -34,6 +34,10 @@ const KNOWN_ERRORS: Record<string, string> = {
 
 /** User-facing Vietnamese message for a forum/comment API error (never raw JSON). */
 export const communityErrorMessage = (error: unknown, fallback?: string): string => {
-  const message = extractApiErrorMessage(error, fallback);
-  return KNOWN_ERRORS[message] ?? message;
+  // forum/comment messages first (by the backend's raw text), then the app-wide translation
+  const body = (error as { body?: { error?: unknown; message?: unknown } } | null)?.body;
+  for (const raw of [body?.error, body?.message].flat()) {
+    if (typeof raw === 'string' && KNOWN_ERRORS[raw.trim()]) return KNOWN_ERRORS[raw.trim()];
+  }
+  return extractApiErrorMessage(error, fallback);
 };
