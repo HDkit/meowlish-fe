@@ -16,6 +16,7 @@ import {
 	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 import { Flag, Bug, FileText, UserX } from 'lucide-react';
+import type { ReportTargetType } from '@/lib/report-targets';
 
 const TYPE_OPTIONS = [
 	{ value: 'bug', label: 'Lỗi hệ thống (Bug)', icon: Bug },
@@ -26,14 +27,16 @@ const TYPE_OPTIONS = [
 interface ReportDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	targetType?: 'exam' | 'blog' | 'flashcard' | 'flashcard list';
+	targetType?: ReportTargetType;
 	targetId?: string;
 	userId: string;
 }
 
 export function ReportDialog({ open, onOpenChange, targetType, targetId, userId }: ReportDialogProps) {
 	const { toast } = useToast();
-	const [type, setType] = useState('bug');
+	// Reports about user content are usually about the content itself, not a bug.
+	const defaultType = targetType && targetType !== 'exam' ? 'content' : 'bug';
+	const [type, setType] = useState(defaultType);
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
 	const [submitting, setSubmitting] = useState(false);
@@ -57,7 +60,7 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 			});
 			setTitle('');
 			setDescription('');
-			setType('bug');
+			setType(defaultType);
 			onOpenChange(false);
 			toast({ title: 'Đã gửi báo cáo', description: 'Cảm ơn bạn! Chúng tôi sẽ xem xét sớm nhất.' });
 		} catch (err) {

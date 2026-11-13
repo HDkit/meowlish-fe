@@ -1,3 +1,4 @@
+import { REPORT_TARGET_LABELS, reportTargetUrl } from './report-targets';
 /** Pure helpers shared by the admin console pages (src/components/admin/*). */
 
 /** Colour family of a status badge; the badge component maps it to classes. */
@@ -30,32 +31,9 @@ export const REPORT_TYPES: Record<string, string> = {
 	behavior: 'Hành vi',
 };
 
-export const REPORT_TARGETS: Record<string, string> = {
-	exam: 'Đề thi',
-	blog: 'Bài viết',
-	flashcard: 'Flashcard',
-	'flashcard list': 'Bộ flashcard',
-};
-
-/** Where an admin can look at what a report is about; null when there is no page for it. */
-export const reportTargetUrl = (targetType?: string, targetId?: string): string | null => {
-	if (!targetType || !targetId) return null;
-	switch (targetType) {
-		case 'exam':
-			return `/test/${targetId}`;
-		case 'blog':
-			return `/blog/${targetId}`;
-		case 'flashcard': {
-			// Flashcard targets are "<listId>/<cardId>".
-			const listId = targetId.split('/')[0];
-			return listId ? `/flashcards/${listId}` : null;
-		}
-		case 'flashcard list':
-			return `/flashcards/${targetId}`;
-		default:
-			return null;
-	}
-};
+/** Report target labels and links come from lib/report-targets (one list for every target type). */
+export const REPORT_TARGETS: Record<string, string> = REPORT_TARGET_LABELS;
+export { reportTargetUrl };
 
 /** Backend role names (libs/typing Role) -> Vietnamese labels. */
 export const ROLE_LABELS: Record<string, string> = {
