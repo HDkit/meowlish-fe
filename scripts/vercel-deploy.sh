@@ -49,20 +49,29 @@ if [[ -n "${VERCEL_SCOPE:-}" ]]; then
 	scope=(--scope "$VERCEL_SCOPE")
 fi
 
-echo "Deploying to Vercel (API -> $API_URL)..." >&2
+echo "Deploying to Vercel (API -> $API_URL), takes about a minute..." >&2
+# The CLI's own output lists this deploy's unique URL, which sits behind Vercel login and which the
+# gateway refuses logins from (not in CORS_ORIGINS). Keep it in a log, shown only on failure, so
+# the only URL printed is the one that works.
+log="$(mktemp -t vercel-deploy.XXXXXX.log)"
 # --yes: link/create the project with defaults on the first run, no prompts.
 # --build-env: NEXT_PUBLIC_API_URL is read at build time (rewrites are baked into the build).
-out="$(npx --yes vercel@65.15.0 deploy --yes "${target[@]}" "${auth[@]}" "${scope[@]}" \
+if ! out="$(npx --yes vercel@65.15.0 deploy --yes "${target[@]}" "${auth[@]}" "${scope[@]}" \
 	--build-env NEXT_PUBLIC_API_URL="$API_URL" \
-	"$@")"
-url="$(node scripts/vercel-url.mjs <<<"$out")"
-
-echo >&2
-if [[ ${#target[@]} -gt 0 ]]; then
-	live="$(node scripts/vercel-url.mjs --production <<<"$out")"
-	echo "Live: $live  (this deploy: $url)" >&2
-	echo "$live"
-else
-	echo "Preview: $url" >&2
-	echo "$url"
+	"$@" 2>"$log")"; then
+	cat "$log" >&2
+	echo "$out" >&2
+	echo "Deploy failed (full log: $log)" >&2
+	exit 1
 fi
+
+if [[ ${#target[@]} -gt 0 ]]; then
+	url="$(node scripts/vercel-url.mjs --production <<<"$out")"
+	label="Live"
+else
+	url="$(node scripts/vercel-url.mjs <<<"$out")"
+	label="Preview (Vercel login required, logins refused by the gateway)"
+fi
+rm -f "$log"
+# Labelled in a terminal; just the URL when piped (url="$(npm run -s share)").
+if [[ -t 1 ]]; then echo "$label: $url"; else echo "$url"; fi
