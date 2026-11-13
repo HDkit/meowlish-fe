@@ -182,7 +182,7 @@ export function WritingTest() {
 			// Step 5: Poll for review (scoring may be async)
 			setEvaluationStep('Đang chờ AI chấm bài...');
 			let reviewResult: WritingEvaluationResult | null = null;
-			const maxRetries = 12; // 12 attempts × 5s = 60s max wait
+			const maxRetries = 60; // 60 attempts × 5s = 5 min max wait (the mock scorer takes 1-3 min)
 
 			for (let i = 0; i < maxRetries; i++) {
 				await sleep(i === 0 ? 2000 : 5000); // first wait 2s, then 5s intervals

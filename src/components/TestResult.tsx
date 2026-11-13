@@ -439,11 +439,11 @@ export function TestResult() {
 		return () => clearInterval(timer);
 	}, [isPendingGrading]);
 
-	// Poll for results every 5 s (max 3 min = 36 attempts)
+	// Poll for results every 5 s (max 5 min = 60 attempts; the mock scorer takes 1-3 min)
 	useEffect(() => {
 		if (!isPendingGrading || !id || pollingTimedOut) return;
 		let count = 0;
-		const MAX_POLLS = 36;
+		const MAX_POLLS = 60;
 
 		const intervalId = setInterval(async () => {
 			count++;

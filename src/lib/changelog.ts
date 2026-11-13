@@ -37,8 +37,9 @@ export const RELEASES: Release[] = [
 		changes: [
 			{
 				type: 'notice',
-				text: 'Chấm điểm Writing hiện dùng dịch vụ mô phỏng: sau vài giây chờ, bài làm nhận điểm và nhận xét ngẫu nhiên. Điểm này chỉ để thử nghiệm luồng chấm bài, không phản ánh trình độ thật.',
+				text: 'Chấm điểm Writing hiện dùng dịch vụ mô phỏng: sau khoảng 1–3 phút chờ, bài làm nhận điểm và nhận xét ngẫu nhiên. Điểm này chỉ để thử nghiệm luồng chấm bài, không phản ánh trình độ thật.',
 			},
+			{ type: 'improved', text: 'Trang làm bài và trang kết quả chờ điểm Writing tối đa 5 phút thay vì 1–3 phút.' },
 			{ type: 'improved', text: 'Phiên đăng nhập được lưu trong cookie HttpOnly thay vì bộ nhớ trình duyệt.' },
 			{ type: 'improved', text: 'Đổi mật khẩu yêu cầu nhập mật khẩu hiện tại.' },
 			{ type: 'improved', text: 'Liên kết tài khoản Google bằng cách chuyển trang thay vì gọi API nền, ổn định hơn.' },
