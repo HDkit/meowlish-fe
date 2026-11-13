@@ -44,6 +44,7 @@ import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
+import { type LoginMethod, loginMethodActions } from '@/lib/login-methods';
 import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
 import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
@@ -95,7 +96,7 @@ export function UserPage() {
 	});
 	const [showPassword, setShowPassword] = useState(false);
 	const [uploadingAvatar, setUploadingAvatar] = useState(false);
-	const [credentials, setCredentials] = useState<any[]>([]);
+	const [credentials, setCredentials] = useState<LoginMethod[]>([]);
 	const [isCredDialogOpen, setIsCredDialogOpen] = useState(false);
 	const [addMailForm, setAddMailForm] = useState({ email: '', password: '' });
 	const avatarInputRef = React.useRef<HTMLInputElement>(null);
@@ -104,6 +105,7 @@ export function UserPage() {
 	const { toast } = useToast();
 	const currUser = useAppSelector((state) => state.currUser.current);
 	const isDemo = currUser?.isDemo === true;
+	const methodActions = loginMethodActions(credentials, isDemo);
 
 	const fetchGoal = useCallback(async () => {
 		try {
@@ -444,14 +446,6 @@ export function UserPage() {
 						>
 							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
-						<Button
-							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
-							onClick={() => setIsPasswordDialogOpen(true)}
-							disabled={isDemo}
-							title={isDemo ? DEMO_READ_ONLY_NOTICE : undefined}
-						>
-							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
-						</Button>
 					</div>
 				</div>
 			</div>
@@ -463,13 +457,18 @@ export function UserPage() {
 						<h2 className='text-xl font-bold text-gray-900 flex items-center gap-2'>
 							<Shield className='h-5 w-5 text-primary' /> Phương thức đăng nhập
 						</h2>
+						{/* one method per type: offer only the ones the account doesn't have */}
 						<div className='flex gap-2'>
-							<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)} disabled={isDemo}>
-								<Plus className='h-4 w-4 mr-1' /> Thêm Email
-							</Button>
-							<Button size='sm' variant='outline' onClick={handleAddGoogleCredential} disabled={isDemo}>
-								<Plus className='h-4 w-4 mr-1' /> Liên kết Google
-							</Button>
+							{methodActions.canAddMail && (
+								<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
+									<Plus className='h-4 w-4 mr-1' /> Thêm Email
+								</Button>
+							)}
+							{methodActions.canLinkGoogle && (
+								<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
+									<Plus className='h-4 w-4 mr-1' /> Liên kết Google
+								</Button>
+							)}
 						</div>
 					</div>
 					{isDemo && (
@@ -505,18 +504,38 @@ export function UserPage() {
 											<p className='font-medium text-gray-800 text-sm'>
 												{isCredentialType(cred.type, 'GOOGLE') ? 'Google' : 'Email/Mật khẩu'}
 											</p>
-											<p className='text-xs text-gray-500'>{cred.mail || cred.email || cred.identifier || ''}</p>
+											<p className='text-xs text-gray-500'>
+												{isCredentialType(cred.type, 'GOOGLE') ? 'Đăng nhập bằng tài khoản Google' : cred.mail || ''}
+											</p>
 										</div>
 									</div>
-									<Button
-										size='sm'
-										variant='ghost'
-										className='text-red-500 hover:text-red-700 hover:bg-red-50'
-										onClick={() => handleDeleteCredential(cred.id)}
-										disabled={isLoading || isDemo || credentials.length <= 1}
-									>
-										<Trash2 className='h-4 w-4' />
-									</Button>
+									<div className='flex items-center gap-1'>
+										{methodActions.canChangePassword(cred) && (
+											<Button
+												size='sm'
+												variant='ghost'
+												onClick={() => setIsPasswordDialogOpen(true)}
+												disabled={isLoading}
+											>
+												<Key className='h-4 w-4 mr-1' /> Đổi mật khẩu
+											</Button>
+										)}
+										<Button
+											size='sm'
+											variant='ghost'
+											className='text-red-500 hover:text-red-700 hover:bg-red-50'
+											onClick={() => handleDeleteCredential(cred.id)}
+											disabled={isLoading || !methodActions.canRemove}
+											title={
+												isDemo ? DEMO_READ_ONLY_NOTICE
+												: !methodActions.canRemove ?
+													'Bạn phải có ít nhất một phương thức đăng nhập.'
+												:	undefined
+											}
+										>
+											<Trash2 className='h-4 w-4' />
+										</Button>
+									</div>
 								</div>
 							))}
 						</div>
