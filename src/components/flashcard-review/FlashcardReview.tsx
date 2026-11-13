@@ -93,9 +93,9 @@ export function FlashcardReview() {
 		setView('setup');
 	};
 
-	const restart = (scope: 'missed' | 'all') => {
+	const restart = () => {
 		if (!session) return;
-		dispatch({ type: 'restart', queue: buildRestartQueue(session, scope, Math.random) });
+		dispatch({ type: 'restart', queue: buildRestartQueue(session, Math.random) });
 	};
 
 	if (!isHydrated || !currentUser || !userId || view === 'boot') {
@@ -168,8 +168,7 @@ export function FlashcardReview() {
 			{view === 'session' && session && session.phase === 'summary' && (
 				<ReviewSummary
 					session={session}
-					onRetryMissed={() => restart('missed')}
-					onRetryAll={() => restart('all')}
+					onRestart={restart}
 					onChooseOther={backToSetup}
 				/>
 			)}

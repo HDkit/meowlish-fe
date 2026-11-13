@@ -23,15 +23,10 @@ export const ALL_MODES: readonly PromptMode[] = [
 	'note-to-word',
 ];
 
-export type DeckSize = 'all' | 10 | 20 | 50;
-
 export interface ReviewSettings {
 	listIds: string[];
 	modes: PromptMode[];
-	size: DeckSize;
 	shuffle: boolean;
-	/** Compare answers without Vietnamese/other diacritics ("con meo" == "con mèo"). */
-	ignoreAccents: boolean;
 }
 
 /** Random number source in [0, 1); injectable so decks are reproducible in tests. */
@@ -44,6 +39,3 @@ export interface Question {
 	mode: PromptMode;
 }
 
-export type Verdict = 'match' | 'close' | 'different' | 'empty';
-
-export type Grade = 'correct' | 'incorrect';

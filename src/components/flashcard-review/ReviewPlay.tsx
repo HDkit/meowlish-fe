@@ -1,30 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowRight, Check, Loader2, Pencil, SkipForward, X } from 'lucide-react';
+import { ArrowRight, Loader2, Pencil, SkipForward } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
 import { cn } from '../ui/utils';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { FlashcardService, type FlashCardResponse } from '@/lib/api/services/FlashcardService';
-import { compareAnswer, diffWords, type DiffToken } from '@/lib/flashcard-review/compare';
 import { FIELD_LABELS, MODE_LABELS, answerField, cardField, promptField } from '@/lib/flashcard-review/deck';
 import type { ReviewAction, ReviewSession } from '@/lib/flashcard-review/session';
-import type { Grade, Question, ReviewCard, Verdict } from '@/lib/flashcard-review/types';
+import type { Question, ReviewCard } from '@/lib/flashcard-review/types';
 import { toReviewCard, unwrap } from './useReviewLists';
 
 // native elements: the ui/ Input and Textarea don't forward refs (needed for focus management)
 const FIELD_CLASS =
 	'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base outline-none transition-[color,box-shadow] placeholder:text-slate-400 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 motion-reduce:transition-none';
-
-const VERDICT_UI: Record<Verdict | 'skipped', { label: string; hint: string; className: string }> = {
-	match: { label: 'Khớp', hint: 'Câu trả lời giống hệt nội dung đã lưu.', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
-	close: { label: 'Gần đúng', hint: 'Gần giống nội dung đã lưu. Hãy so sánh rồi tự chấm.', className: 'border-amber-200 bg-amber-50 text-amber-800' },
-	different: { label: 'Khác', hint: 'Khác với nội dung đã lưu. Có thể bạn diễn đạt khác, hãy tự chấm.', className: 'border-rose-200 bg-rose-50 text-rose-800' },
-	empty: { label: 'Chưa trả lời', hint: 'Bạn chưa nhập câu trả lời.', className: 'border-slate-200 bg-slate-50 text-slate-700' },
-	skipped: { label: 'Đã bỏ qua', hint: 'Xem đáp án đã lưu bên dưới.', className: 'border-slate-200 bg-slate-50 text-slate-700' },
-};
 
 function isTypingTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
@@ -35,29 +25,6 @@ function isInteractive(target: EventTarget | null): boolean {
 	return target instanceof HTMLElement && (isTypingTarget(target) || !!target.closest('button, a, [role="switch"]'));
 }
 
-function Tokens({ tokens, mark }: { tokens: DiffToken[]; mark: 'extra' | 'missing' }) {
-	return (
-		<>
-			{tokens.map((t, i) => (
-				<span key={i}>
-					{i > 0 && ' '}
-					{t.status === mark ? (
-						<mark
-							className={cn(
-								'rounded px-0.5',
-								mark === 'extra' ? 'bg-rose-100 text-rose-800 line-through decoration-rose-400/70' : 'bg-emerald-100 text-emerald-800',
-							)}
-						>
-							{t.text}
-						</mark>
-					) : (
-						t.text
-					)}
-				</span>
-			))}
-		</>
-	);
-}
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
 	const pct = max === 0 ? 0 : Math.round((value / max) * 100);
@@ -197,13 +164,8 @@ function Reveal({
 	const nextRef = useRef<HTMLButtonElement>(null);
 	const editRef = useRef<HTMLButtonElement>(null);
 	const owns = card.authorId === userId;
-	const options = { ignoreAccents: session.settings.ignoreAccents };
 	const expected = cardField(card, answerField(question.mode));
 	const answer = record?.answer ?? '';
-	const verdict = record?.skipped ? 'skipped' : compareAnswer(answer, expected, options).verdict;
-	const diff = diffWords(answer, expected, options);
-	const ui = VERDICT_UI[verdict];
-	const grade = record?.grade;
 
 	useEffect(() => {
 		nextRef.current?.focus();
@@ -214,9 +176,7 @@ function Reveal({
 		const onKey = (e: KeyboardEvent) => {
 			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
 			const key = e.key.toLowerCase();
-			if (key === '1') dispatch({ type: 'grade', grade: 'correct' });
-			else if (key === '2') dispatch({ type: 'grade', grade: 'incorrect' });
-			else if (key === 'e' && owns) {
+			if (key === 'e' && owns) {
 				e.preventDefault();
 				setEditing(true);
 			} else if (key === 'enter' && !isInteractive(e.target)) {
@@ -228,14 +188,12 @@ function Reveal({
 		return () => window.removeEventListener('keydown', onKey);
 	}, [editing, owns, dispatch]);
 
-	const setGrade = (g: Grade) => dispatch({ type: 'grade', grade: g });
-
 	return (
 		<div className="space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-			<div role="status" aria-live="polite" className={cn('rounded-xl border px-4 py-3', ui.className)}>
-				<p className="font-bold">{ui.label}</p>
-				<p className="text-sm opacity-90">{ui.hint}</p>
-			</div>
+			{/* no scoring: the player compares what they wrote with what they saved */}
+			<p className="text-sm text-slate-500" role="status" aria-live="polite">
+				So sánh điều bạn nhớ với nội dung đã lưu.
+			</p>
 
 			<div className="grid gap-3 md:grid-cols-2">
 				<div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -243,36 +201,16 @@ function Reveal({
 					{record?.skipped || !answer.trim() ? (
 						<p className="italic text-slate-400">(không có câu trả lời)</p>
 					) : (
-						<p className="whitespace-pre-wrap break-words text-lg font-medium text-slate-800">
-							<Tokens tokens={diff.answer} mark="extra" />
-						</p>
+						<p className="whitespace-pre-wrap break-words text-lg font-medium text-slate-800">{answer}</p>
 					)}
 				</div>
 				<div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
 					<p className="mb-1 text-xs font-bold uppercase tracking-wider text-primary/70">Đã lưu · {FIELD_LABELS[answerField(question.mode)]}</p>
 					<p className="whitespace-pre-wrap break-words text-lg font-semibold text-slate-900">
-						{answer.trim() && !record?.skipped ? <Tokens tokens={diff.expected} mark="missing" /> : expected}
+						{expected}
 					</p>
 				</div>
 			</div>
-			{verdict !== 'match' && verdict !== 'skipped' && answer.trim() && (
-				<p className="-mt-2 text-xs text-slate-500">
-					<mark className="rounded bg-rose-100 px-1 text-rose-800 line-through">gạch đỏ</mark>: có trong câu trả lời nhưng không có trong thẻ ·{' '}
-					<mark className="rounded bg-emerald-100 px-1 text-emerald-800">tô xanh</mark>: có trong thẻ nhưng bạn chưa viết
-				</p>
-			)}
-
-			<div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-2.5">
-				<Label htmlFor="review-reveal-accents" className="text-sm font-medium text-slate-600">
-					Bỏ qua dấu khi so sánh
-				</Label>
-				<Switch
-					id="review-reveal-accents"
-					checked={session.settings.ignoreAccents}
-					onCheckedChange={v => dispatch({ type: 'setIgnoreAccents', ignoreAccents: v })}
-				/>
-			</div>
-
 			{editing ? (
 				<CardEditor
 					card={card}
@@ -321,46 +259,19 @@ function Reveal({
 									</span>
 								)}
 							</div>
-						) : (
-							<p className="text-sm text-slate-500">
-								Thẻ này thuộc bộ của người khác nên bạn không thể sửa. Muốn chỉnh theo ý mình, hãy lưu một bản sao của bộ thẻ (nếu tính năng này có sẵn).
-							</p>
-						)}
+						) : null}
 					</div>
 				</div>
 			)}
 
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-				<div role="group" aria-label="Tự chấm" className="flex flex-1 items-center gap-2">
-					<span className="mr-1 hidden text-sm font-semibold text-slate-600 sm:inline">Tự chấm:</span>
-					<Button
-						type="button"
-						variant="outline"
-						aria-pressed={grade === 'correct'}
-						onClick={() => setGrade('correct')}
-						className={cn('h-11 flex-1 rounded-xl font-semibold sm:flex-none', grade === 'correct' && 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-50')}
-					>
-						<Check className="h-4 w-4" aria-hidden /> Đúng
-						<kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] opacity-60 sm:inline">1</kbd>
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						aria-pressed={grade === 'incorrect'}
-						onClick={() => setGrade('incorrect')}
-						className={cn('h-11 flex-1 rounded-xl font-semibold sm:flex-none', grade === 'incorrect' && 'border-rose-500 bg-rose-50 text-rose-700 hover:bg-rose-50')}
-					>
-						<X className="h-4 w-4" aria-hidden /> Chưa đúng
-						<kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] opacity-60 sm:inline">2</kbd>
-					</Button>
-				</div>
+			<div className="flex justify-end">
 				<Button
 					ref={nextRef}
 					onClick={() => dispatch({ type: 'next' })}
 					// a held Enter (from submitting) must not skip past the reveal
 					onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
 					disabled={editing} className="h-11 rounded-xl px-6 font-bold">
-					{isLast ? 'Xem kết quả' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
+					{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
 					<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
 				</Button>
 			</div>

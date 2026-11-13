@@ -591,7 +591,8 @@ export function FlashcardListDetail() {
 							</div>
 						</div>
 						<div className="flex flex-wrap items-center justify-center gap-3">
-						{cardTotalCount > 0 && (
+						{/* review mode only takes the player's own lists */}
+						{isOwnList && cardTotalCount > 0 && (
 							<Button
 								variant="outline"
 								onClick={() => router.push(`/flashcards/review?list=${encodeURIComponent(listId)}`)}

@@ -1,23 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-	compareAnswer,
-	diffWords,
-	editSimilarity,
-	expectedVariants,
-	levenshtein,
-	normalizeAnswer,
-	tokenOverlap,
-} from './compare';
-import {
-	applicableModes,
-	buildDeck,
-	countQualifying,
-	seededRng,
-	shuffle,
-} from './deck';
+import { applicableModes, buildDeck, seededRng, shuffle } from './deck';
 import {
 	buildRestartQueue,
 	createSession,
+	expectedAnswer,
 	isReviewSession,
 	reviewReducer,
 	summarize,
@@ -40,156 +26,54 @@ const card = (id: string, extra: Partial<ReviewCard> = {}): ReviewCard => ({
 const settings = (extra: Partial<ReviewSettings> = {}): ReviewSettings => ({
 	listIds: ['l1'],
 	modes: [...ALL_MODES],
-	size: 'all',
 	shuffle: false,
-	ignoreAccents: false,
 	...extra,
 });
 
-const opts = { ignoreAccents: false };
+describe('deck', () => {
+	const cards = [card('1', { notes: 'ghi chú 1' }), card('2'), card('3')];
 
-describe('normalizeAnswer', () => {
-	it('ignores case, punctuation, apostrophes and extra whitespace', () => {
-		expect(normalizeAnswer('  Don’t   STOP, now! ', opts)).toBe('dont stop now');
-		expect(normalizeAnswer('well-known', opts)).toBe('well known');
-	});
-	it('keeps accents unless asked to drop them', () => {
-		expect(normalizeAnswer('Con Mèo', opts)).toBe('con mèo');
-		expect(normalizeAnswer('Con Mèo đen', { ignoreAccents: true })).toBe('con meo den');
-	});
-	it('treats composed and decomposed forms alike', () => {
-		expect(normalizeAnswer('mèo', opts)).toBe(normalizeAnswer('mèo', opts));
-	});
-});
-
-describe('similarity', () => {
-	it('levenshtein', () => {
-		expect(levenshtein('kitten', 'sitting')).toBe(3);
-		expect(levenshtein('', 'abc')).toBe(3);
-		expect(levenshtein('mèo', 'meo')).toBe(1);
-	});
-	it('editSimilarity and tokenOverlap are 0..1', () => {
-		expect(editSimilarity('abc', 'abc')).toBe(1);
-		expect(editSimilarity('', '')).toBe(1);
-		expect(tokenOverlap('a b c', 'c b a')).toBe(1);
-		expect(tokenOverlap('a b', 'c d')).toBe(0);
-		expect(tokenOverlap('a a', 'a')).toBeCloseTo(2 / 3);
-	});
-	it('splits saved values into acceptable variants', () => {
-		expect(expectedVariants('run (v); sprint')).toEqual(['run (v); sprint', 'run ; sprint', 'run', 'sprint']);
-	});
-});
-
-describe('compareAnswer', () => {
-	it('match / close / different / empty', () => {
-		expect(compareAnswer('Beautiful!', 'beautiful', opts).verdict).toBe('match');
-		expect(compareAnswer('beautifull', 'beautiful', opts).verdict).toBe('close');
-		expect(compareAnswer('ugly', 'beautiful', opts).verdict).toBe('different');
-		expect(compareAnswer('  ?! ', 'beautiful', opts).verdict).toBe('empty');
-	});
-	it('accepts any listed alternative', () => {
-		expect(compareAnswer('sprint', 'run; sprint', opts).verdict).toBe('match');
-		expect(compareAnswer('run', 'run (v)', opts).verdict).toBe('match');
-	});
-	it('accent toggle', () => {
-		expect(compareAnswer('con meo', 'con mèo', opts).verdict).toBe('close');
-		expect(compareAnswer('con meo', 'con mèo', { ignoreAccents: true }).verdict).toBe('match');
-	});
-	it('word overlap makes long definitions close', () => {
-		expect(compareAnswer('một loại trái cây', 'loại trái cây ngọt', opts).verdict).toBe('close');
-	});
-});
-
-describe('diffWords', () => {
-	it('marks extra and missing words, keeping original spelling', () => {
-		const d = diffWords('a big Cat', 'a cat sat', opts);
-		expect(d.answer).toEqual([
-			{ text: 'a', status: 'same' },
-			{ text: 'big', status: 'extra' },
-			{ text: 'Cat', status: 'same' },
-		]);
-		expect(d.expected.map(t => t.status)).toEqual(['same', 'same', 'missing']);
-	});
-	it('lone punctuation is never highlighted', () => {
-		expect(diffWords('x', 'y - z', opts).expected[1]).toEqual({ text: '-', status: 'same' });
-	});
-});
-
-describe('deck building', () => {
-	const cards = [card('1', { notes: 'a note' }), card('2'), card('3', { definition: '  ' })];
-
-	it('applicable modes need both fields', () => {
+	it('knows which modes a card supports', () => {
 		expect(applicableModes(cards[0], ALL_MODES)).toEqual([...ALL_MODES]);
-		expect(applicableModes(cards[1], ALL_MODES)).toEqual(['word-to-definition', 'definition-to-word']);
-		expect(applicableModes(cards[2], ALL_MODES)).toEqual([]);
+		expect(applicableModes(cards[1], ALL_MODES)).not.toContain('note-to-word');
 	});
 
-	it('counts qualifying cards per mode selection', () => {
-		expect(countQualifying(cards, ALL_MODES)).toBe(2);
-		expect(countQualifying(cards, ['note-to-word'])).toBe(1);
-		expect(countQualifying([...cards, cards[0]], ['note-to-word'])).toBe(1);
+	it('asks EVERY card of the selected lists, once', () => {
+		const deck = buildDeck([...cards, cards[0]], settings(), seededRng(1));
+		expect(deck.map(q => q.cardId)).toEqual(['1', '2', '3']);
 	});
 
-	it('one question per card, in order when not shuffled', () => {
-		const deck = buildDeck(cards, { modes: ['note-to-word', 'word-to-definition'], size: 'all', shuffle: false }, seededRng(1));
-		expect(deck.map(q => q.cardId)).toEqual(['1', '2']);
-		expect(deck[1].mode).toBe('word-to-definition');
+	it('falls back to "Từ → Nghĩa" for a card none of the chosen modes fits', () => {
+		const deck = buildDeck(cards, settings({ modes: ['note-to-word'] }), seededRng(1));
+		expect(deck.map(q => q.mode)).toEqual(['note-to-word', 'word-to-definition', 'word-to-definition']);
 	});
 
-	it('cuts to the size and shuffles reproducibly', () => {
+	it('shuffles reproducibly and keeps every card', () => {
 		const many = Array.from({ length: 30 }, (_, i) => card(String(i)));
-		const a = buildDeck(many, { modes: ['word-to-definition'], size: 10, shuffle: true }, seededRng(42));
-		const b = buildDeck(many, { modes: ['word-to-definition'], size: 10, shuffle: true }, seededRng(42));
-		expect(a).toHaveLength(10);
+		const a = buildDeck(many, settings({ shuffle: true }), seededRng(7));
+		const b = buildDeck(many, settings({ shuffle: true }), seededRng(7));
 		expect(a).toEqual(b);
-		expect(a.map(q => q.cardId)).not.toEqual(many.slice(0, 10).map(c => c.id));
-	});
-
-	it('mixes modes across cards', () => {
-		const many = Array.from({ length: 40 }, (_, i) => card(String(i)));
-		const modes = new Set(buildDeck(many, settings(), seededRng(7)).map(q => q.mode));
-		expect(modes).toEqual(new Set(['word-to-definition', 'definition-to-word']));
-	});
-
-	it('shuffle keeps every element', () => {
-		const out = shuffle([1, 2, 3, 4, 5], seededRng(3));
-		expect([...out].sort()).toEqual([1, 2, 3, 4, 5]);
+		expect(a).toHaveLength(30);
+		expect(a.map(q => q.cardId)).not.toEqual(many.map(c => c.id));
+		expect(shuffle([1, 2, 3], seededRng(3)).sort()).toEqual([1, 2, 3]);
 	});
 });
 
-describe('session reducer', () => {
-	const cards = [card('1'), card('2')];
+describe('session (no scoring)', () => {
 	const start = (): ReviewSession =>
-		createSession('u1', cards, settings({ modes: ['word-to-definition'] }), seededRng(1))!;
+		createSession('u1', [card('1'), card('2')], settings({ modes: ['word-to-definition'] }), seededRng(1))!;
 
-	it('returns null when no card qualifies', () => {
-		expect(createSession('u1', cards, settings({ modes: ['note-to-word'] }), seededRng(1))).toBeNull();
-	});
-
-	it('plays through submit → grade → next → summary', () => {
+	it('records what the player wrote, reveals the saved value, then moves on', () => {
 		let s = start();
-		expect(s.phase).toBe('playing');
-		s = reviewReducer(s, { type: 'submit', answer: 'Nghĩa 1' });
+		s = reviewReducer(s, { type: 'submit', answer: 'my guess' });
 		expect(s.phase).toBe('reveal');
-		expect(s.answers['1:word-to-definition']).toMatchObject({ verdict: 'match', grade: 'correct' });
-		s = reviewReducer(s, { type: 'grade', grade: 'incorrect' });
-		expect(s.answers['1:word-to-definition'].grade).toBe('incorrect');
-		// submitting again while revealing is ignored
-		expect(reviewReducer(s, { type: 'submit', answer: 'x' })).toBe(s);
+		expect(s.answers['1:word-to-definition']).toEqual({ answer: 'my guess', skipped: false });
+		expect(expectedAnswer(s, s.queue[0])).toBe('nghĩa 1');
 		s = reviewReducer(s, { type: 'next' });
 		expect(s).toMatchObject({ phase: 'playing', index: 1 });
-		s = reviewReducer(s, { type: 'skip' });
-		expect(s.answers['2:word-to-definition']).toMatchObject({ skipped: true, grade: 'incorrect' });
-		s = reviewReducer(s, { type: 'next' });
+		s = reviewReducer(reviewReducer(s, { type: 'skip' }), { type: 'next' });
 		expect(s.phase).toBe('summary');
-		expect(summarize(s)).toMatchObject({ total: 2, correct: 0 });
-	});
-
-	it('pre-grades close answers as correct and different ones as incorrect', () => {
-		let s = reviewReducer(start(), { type: 'submit', answer: 'nghia 1' });
-		expect(s.answers['1:word-to-definition']).toMatchObject({ verdict: 'close', grade: 'correct' });
-		s = reviewReducer(reviewReducer(s, { type: 'next' }), { type: 'submit', answer: 'nope' });
-		expect(s.answers['2:word-to-definition']).toMatchObject({ verdict: 'different', grade: 'incorrect' });
+		expect(summarize(s)).toEqual({ total: 2, skipped: 1 });
 	});
 
 	it('updates the session copy of a card', () => {
@@ -198,16 +82,24 @@ describe('session reducer', () => {
 		expect(reviewReducer(s, { type: 'updateCard', card: card('zzz') })).toBe(s);
 	});
 
-	it('restarts with missed cards or all cards', () => {
+	it('restarts over every card', () => {
 		let s = start();
-		s = reviewReducer(reviewReducer(s, { type: 'submit', answer: 'nghĩa 1' }), { type: 'next' });
-		s = reviewReducer(reviewReducer(s, { type: 'submit', answer: 'wrong' }), { type: 'next' });
-		const missed = buildRestartQueue(s, 'missed', seededRng(2));
-		expect(missed.map(q => q.cardId)).toEqual(['2']);
-		const again = reviewReducer(s, { type: 'restart', queue: missed });
-		expect(again).toMatchObject({ phase: 'playing', index: 0, round: 2, answers: {} });
-		expect(buildRestartQueue(s, 'all', seededRng(2))).toHaveLength(2);
+		s = reviewReducer(reviewReducer(s, { type: 'submit', answer: 'x' }), { type: 'next' });
+		s = reviewReducer(reviewReducer(s, { type: 'submit', answer: 'y' }), { type: 'next' });
+		const queue = buildRestartQueue(s, seededRng(2));
+		expect(queue).toHaveLength(2);
+		expect(reviewReducer(s, { type: 'restart', queue: queue })).toMatchObject({
+			phase: 'playing',
+			index: 0,
+			round: 2,
+			answers: {},
+		});
 		expect(reviewReducer(s, { type: 'restart', queue: [] })).toBe(s);
+	});
+
+	it('rejects sessions stored by an older version', () => {
+		expect(isReviewSession({ ...start(), version: 1 })).toBe(false);
+		expect(isReviewSession(start())).toBe(true);
 	});
 });
 

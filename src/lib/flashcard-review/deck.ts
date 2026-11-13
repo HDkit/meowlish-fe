@@ -61,31 +61,28 @@ export function uniqueCards(cards: readonly ReviewCard[]): ReviewCard[] {
 	return cards.filter(c => (seen.has(c.id) ? false : (seen.add(c.id), true)));
 }
 
-/** How many cards can be asked with these modes. */
-export function countQualifying(cards: readonly ReviewCard[], modes: readonly PromptMode[]): number {
-	return uniqueCards(cards).filter(c => applicableModes(c, modes).length > 0).length;
-}
-
 function pick<T>(items: readonly T[], rng: Rng): T {
 	return items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
 }
 
+/** Every card has a word and a definition, so this mode always works. */
+const FALLBACK_MODE: PromptMode = 'word-to-definition';
+
 /**
- * One question per qualifying card. With several modes selected, each card gets one of the modes
- * it supports at random ("mixed"). Shuffled when `settings.shuffle`, then cut to `settings.size`.
+ * One question for EVERY card of the selected lists. With several modes selected, each card gets
+ * one of the selected modes it supports at random ("mixed"); a card none of them fits (e.g. only
+ * "Ghi chú → Từ" chosen and the card has no note) falls back to "Từ → Nghĩa". Shuffled when asked.
  */
 export function buildDeck(
 	cards: readonly ReviewCard[],
-	settings: Pick<ReviewSettings, 'modes' | 'size' | 'shuffle'>,
+	settings: Pick<ReviewSettings, 'modes' | 'shuffle'>,
 	rng: Rng,
 ): Question[] {
 	const questions: Question[] = [];
 	for (const card of uniqueCards(cards)) {
 		const modes = applicableModes(card, settings.modes);
-		if (modes.length === 0) continue;
-		const mode = pick(modes, rng);
+		const mode = modes.length > 0 ? pick(modes, rng) : FALLBACK_MODE;
 		questions.push({ key: `${card.id}:${mode}`, cardId: card.id, mode: mode });
 	}
-	const ordered = settings.shuffle ? shuffle(questions, rng) : questions;
-	return settings.size === 'all' ? ordered : ordered.slice(0, settings.size);
+	return settings.shuffle ? shuffle(questions, rng) : questions;
 }

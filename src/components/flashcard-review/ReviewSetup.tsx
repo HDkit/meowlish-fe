@@ -8,10 +8,9 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { cn } from '../ui/utils';
-import { MODE_LABELS, countQualifying } from '@/lib/flashcard-review/deck';
+import { MODE_LABELS, uniqueCards } from '@/lib/flashcard-review/deck';
 import {
 	ALL_MODES,
-	type DeckSize,
 	type PromptMode,
 	type ReviewCard,
 	type ReviewSettings,
@@ -21,15 +20,8 @@ import { useReviewLists, type ListDetail, type ReviewListInfo } from './useRevie
 const MODE_HINTS: Record<PromptMode, string> = {
 	'word-to-definition': 'Hiện từ tiếng Anh, bạn gõ nghĩa',
 	'definition-to-word': 'Hiện nghĩa, bạn gõ từ tiếng Anh',
-	'note-to-word': 'Hiện ghi chú, bạn gõ từ (chỉ thẻ có ghi chú)',
+	'note-to-word': 'Hiện ghi chú, bạn gõ từ (thẻ không có ghi chú sẽ hỏi Từ → Nghĩa)',
 };
-
-const SIZES: { value: DeckSize; label: string }[] = [
-	{ value: 'all', label: 'Tất cả' },
-	{ value: 10, label: '10' },
-	{ value: 20, label: '20' },
-	{ value: 50, label: '50' },
-];
 
 function CardCount({ detail, onRetry }: { detail?: ListDetail; onRetry: () => void }) {
 	if (!detail || detail.status === 'loading') {
@@ -165,27 +157,18 @@ export interface ReviewSetupProps {
 
 export function ReviewSetup({ userId, preselectId, initialSettings, resumable, onResume, onStart }: ReviewSetupProps) {
 	const [search, setSearch] = useState('');
-	const [query, setQuery] = useState('');
-	useEffect(() => {
-		const t = setTimeout(() => setQuery(search.trim()), 350);
-		return () => clearTimeout(t);
-	}, [search]);
-
-	const { mine, others, extra, details, retryDetail, reload } = useReviewLists(userId, query, preselectId);
+	// only the player's own lists can be reviewed
+	const { mine, details, retryDetail, reload } = useReviewLists(userId);
 
 	const [selected, setSelected] = useState<Record<string, ReviewListInfo>>({});
 	const [modes, setModes] = useState<PromptMode[]>(initialSettings?.modes?.length ? initialSettings.modes : [...ALL_MODES]);
-	const [size, setSize] = useState<DeckSize>(initialSettings?.size ?? 'all');
 	const [shuffle, setShuffle] = useState(initialSettings?.shuffle ?? true);
-	const [ignoreAccents, setIgnoreAccents] = useState(initialSettings?.ignoreAccents ?? false);
 
 	// restore the previous selection, or preselect ?list= (once each: a later uncheck sticks)
 	const [wantedIds] = useState(() => new Set(preselectId ? [preselectId] : (initialSettings?.listIds ?? [])));
 	useEffect(() => {
 		if (wantedIds.size === 0) return;
-		const found = [...(mine.data ?? []), ...(others.data ?? []), ...(extra ? [extra] : [])].filter(l =>
-			wantedIds.has(l.id),
-		);
+		const found = (mine.data ?? []).filter(l => wantedIds.has(l.id));
 		if (found.length === 0) return;
 		found.forEach(l => wantedIds.delete(l.id));
 		setSelected(prev => {
@@ -193,7 +176,7 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 			for (const l of found) next[l.id] = l;
 			return next;
 		});
-	}, [mine, others, extra, wantedIds]);
+	}, [mine, wantedIds]);
 
 	const toggle = (list: ReviewListInfo) => {
 		wantedIds.delete(list.id);
@@ -207,21 +190,22 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 
 	const needle = search.trim().toLocaleLowerCase('vi');
 	const mineFiltered = (mine.data ?? []).filter(l => !needle || l.name.toLocaleLowerCase('vi').includes(needle));
-	const shownIds = new Set([...mineFiltered, ...(others.data ?? [])].map(l => l.id));
-	// selected lists the current search hides (or a preselected list that is in neither group)
+	const shownIds = new Set(mineFiltered.map(l => l.id));
+	// selected lists the current search hides
 	const hiddenSelected = Object.values(selected).filter(l => !shownIds.has(l.id));
-
-	const preselectDetail = preselectId ? details[preselectId] : undefined;
+	// a ?list= that isn't one of the player's lists (someone else's, or deleted)
 	const preselectError =
-		preselectId && !selected[preselectId] && preselectDetail?.status === 'error' ? preselectDetail.message : '';
+		preselectId && mine.status === 'ready' && !mine.data.some(l => l.id === preselectId) ?
+			'Chỉ ôn tập được các bộ thẻ của bạn.'
+		:	'';
 
 	const selectedIds = Object.keys(selected);
 	const selectedDetails = selectedIds.map(id => details[id]);
 	const stillLoading = selectedDetails.some(d => !d || d.status === 'loading');
 	const failed = selectedDetails.some(d => d?.status === 'error');
 	const selectedCards = selectedDetails.flatMap(d => (d?.status === 'ready' ? d.cards : []));
-	const qualifying = countQualifying(selectedCards, modes);
-	const deckSize = size === 'all' ? qualifying : Math.min(size, qualifying);
+	// every card of the selected lists is asked
+	const deckSize = uniqueCards(selectedCards).length;
 
 	let blocker: string | null = null;
 	if (selectedIds.length === 0) blocker = 'Chọn ít nhất một bộ thẻ.';
@@ -229,19 +213,13 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 	else if (stillLoading) blocker = 'Đang tải thẻ…';
 	else if (selectedCards.length === 0)
 		blocker = failed ? 'Không tải được thẻ của các bộ đã chọn.' : 'Các bộ đã chọn chưa có thẻ nào.';
-	else if (qualifying === 0)
-		blocker = modes.every(m => m === 'note-to-word')
-			? 'Không có thẻ nào có ghi chú. Hãy chọn thêm cách hỏi khác.'
-			: 'Không có thẻ nào phù hợp với cách hỏi đã chọn.';
 
 	const start = () => {
 		if (blocker) return;
 		onStart(selectedCards, {
 			listIds: selectedIds,
 			modes: modes,
-			size: size,
 			shuffle: shuffle,
-			ignoreAccents: ignoreAccents,
 		});
 	};
 
@@ -292,7 +270,7 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 					<div className="space-y-6">
 						{preselectError && (
 							<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
-								Không mở được bộ thẻ đã chọn: {preselectError}
+								{preselectError}
 							</p>
 						)}
 						{hiddenSelected.length > 0 && (
@@ -314,18 +292,6 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 							loading={mine.status === 'loading'}
 							error={mine.status === 'error' ? mine.message : undefined}
 							empty={needle ? 'Không có bộ nào của bạn khớp tên này.' : 'Bạn chưa có bộ flashcard nào.'}
-							selected={selected}
-							onToggle={toggle}
-							details={details}
-							onRetryDetail={retryDetail}
-							onReload={reload}
-						/>
-						<ListGroup
-							title="Công khai"
-							lists={others.data ?? []}
-							loading={others.status === 'loading'}
-							error={others.status === 'error' ? others.message : undefined}
-							empty={query ? 'Không tìm thấy bộ công khai phù hợp.' : 'Chưa có bộ công khai nào của người khác.'}
 							selected={selected}
 							onToggle={toggle}
 							details={details}
@@ -370,37 +336,13 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 
 				<section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="review-step-options">
 					<h2 id="review-step-options" className="text-lg font-bold text-slate-800">
-						3. Số thẻ &amp; thứ tự
+						3. Thứ tự
 					</h2>
-					<div role="radiogroup" aria-label="Số thẻ" className="grid grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1">
-						{SIZES.map(opt => (
-							<button
-								key={opt.value}
-								type="button"
-								role="radio"
-								aria-checked={size === opt.value}
-								onClick={() => setSize(opt.value)}
-								className={cn(
-									'rounded-lg px-2 py-2 text-sm font-bold transition-colors motion-reduce:transition-none',
-									size === opt.value ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800',
-								)}
-							>
-								{opt.label}
-							</button>
-						))}
-					</div>
 					<div className="flex items-center justify-between gap-3">
 						<Label htmlFor="review-shuffle" className="font-semibold text-slate-700">
 							Xáo trộn thứ tự
 						</Label>
 						<Switch id="review-shuffle" checked={shuffle} onCheckedChange={setShuffle} />
-					</div>
-					<div className="flex items-center justify-between gap-3">
-						<Label htmlFor="review-accents" className="font-semibold text-slate-700">
-							Bỏ qua dấu khi so sánh
-							<span className="block text-xs font-normal text-slate-500">“con meo” được tính khớp với “con mèo”</span>
-						</Label>
-						<Switch id="review-accents" checked={ignoreAccents} onCheckedChange={setIgnoreAccents} />
 					</div>
 				</section>
 
@@ -415,9 +357,7 @@ export function ReviewSetup({ userId, preselectId, initialSettings, resumable, o
 								<span className="ml-1 text-sm font-semibold text-slate-500">thẻ sẽ được hỏi</span>
 							</p>
 							{selectedIds.length > 0 && !stillLoading && (
-								<p className="mt-1 text-xs text-slate-500">
-									{qualifying}/{selectedCards.length} thẻ trong {selectedIds.length} bộ phù hợp với cách hỏi
-								</p>
+								<p className="mt-1 text-xs text-slate-500">Tất cả thẻ trong {selectedIds.length} bộ đã chọn</p>
 							)}
 						</div>
 					</div>

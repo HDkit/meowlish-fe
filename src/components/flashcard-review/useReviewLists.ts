@@ -66,17 +66,13 @@ export type Loadable<T> =
 
 const MAX_PARALLEL = 4;
 const MINE_LIMIT = 100;
-const PUBLIC_LIMIT = 24;
 
 /**
- * The lists a player can review: their own (all, up to 100) and public lists of others (first
- * page of a name search), plus a preselected list that is in neither. Each visible list's cards
- * are fetched (a few at a time) for the card counts and the deck.
+ * The lists a player can review: only their own (up to 100). Each list's cards are fetched (a few
+ * at a time) for the card counts and the deck.
  */
-export function useReviewLists(userId: string | undefined, publicQuery: string, preselectId?: string) {
+export function useReviewLists(userId: string | undefined) {
 	const [mine, setMine] = useState<Loadable<ReviewListInfo[]>>({ status: 'loading' });
-	const [others, setOthers] = useState<Loadable<ReviewListInfo[]>>({ status: 'loading' });
-	const [extra, setExtra] = useState<ReviewListInfo | null>(null);
 	const [details, setDetails] = useState<Record<string, ListDetail>>({});
 	const [reloadKey, setReloadKey] = useState(0);
 	const inflight = useRef(new Set<string>());
@@ -99,33 +95,13 @@ export function useReviewLists(userId: string | undefined, publicQuery: string, 
 		};
 	}, [userId, reloadKey]);
 
-	useEffect(() => {
-		if (!userId) return;
-		let cancelled = false;
-		setOthers(prev => ({ status: 'loading', data: prev.data }));
-		FlashcardListService.listFlashCardLists(undefined, true, 1, PUBLIC_LIMIT, undefined, publicQuery)
-			.then(res => {
-				if (cancelled) return;
-				const data = unwrap<ListFlashCardListsResponse>(res);
-				const lists = (data.lists ?? []).filter(l => l.authorId !== userId).map(toInfo);
-				setOthers({ status: 'ready', data: lists });
-			})
-			.catch(err => {
-				if (!cancelled) setOthers({ status: 'error', message: extractApiErrorMessage(err) });
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [userId, publicQuery, reloadKey]);
-
-	const fetchDetail = useCallback((id: string, onInfo?: (info: ReviewListInfo) => void) => {
+	const fetchDetail = useCallback((id: string) => {
 		inflight.current.add(id);
 		setDetails(prev => ({ ...prev, [id]: { status: 'loading' } }));
 		FlashcardListService.getFlashCardList(id)
 			.then(res => {
 				inflight.current.delete(id);
 				const data = unwrap<FlashCardListDetailResponse>(res);
-				onInfo?.(toInfo(data));
 				const cards = (data.flashCards ?? []).map(fc => toReviewCard(fc, data.id, data.name));
 				setDetails(prev => ({ ...prev, [id]: { status: 'ready', cards: cards } }));
 			})
@@ -135,19 +111,7 @@ export function useReviewLists(userId: string | undefined, publicQuery: string, 
 			});
 	}, []);
 
-	// a preselected list (?list=) that is not among the loaded ones
-	useEffect(() => {
-		if (!userId || !preselectId || mine.status !== 'ready' || others.status === 'loading') return;
-		const known = [...mine.data, ...(others.data ?? [])].some(l => l.id === preselectId);
-		if (known || extra?.id === preselectId || details[preselectId]) return;
-		fetchDetail(preselectId, setExtra);
-	}, [userId, preselectId, mine, others, extra, details, fetchDetail]);
-
-	const visibleIds = [
-		...(mine.data ?? []).map(l => l.id),
-		...(others.data ?? []).map(l => l.id),
-		...(extra ? [extra.id] : []),
-	];
+	const visibleIds = (mine.data ?? []).map(l => l.id);
 	const visibleKey = visibleIds.join(',');
 
 	useEffect(() => {
@@ -173,5 +137,5 @@ export function useReviewLists(userId: string | undefined, publicQuery: string, 
 		setReloadKey(k => k + 1);
 	}, []);
 
-	return { mine: mine, others: others, extra: extra, details: details, retryDetail: retryDetail, reload: reload };
+	return { mine: mine, details: details, retryDetail: retryDetail, reload: reload };
 }
