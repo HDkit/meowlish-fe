@@ -25,6 +25,8 @@ import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Badge } from './ui/badge';
 import {
 	Clock,
@@ -369,7 +371,38 @@ export function ExamDetailPage() {
 		return `Part ${index + 1}`;
 	};
 
-	if (loading) return <div className='p-6 text-center text-gray-500'>Đang tải đề thi...</div>;
+	if (loading) {
+		return (
+			<LoadingRegion label='Đang tải đề thi…' className='min-h-screen bg-slate-50/50 pb-20'>
+				<div className='relative mb-8 overflow-hidden bg-primary pt-10 pb-12'>
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='relative z-10 mx-auto max-w-6xl space-y-6 px-6'>
+						<Skeleton className='mb-8 h-9 w-28 bg-white/20' />
+						<div className='flex gap-3'>
+							<Skeleton className='h-7 w-16 rounded-full bg-white/20' />
+							<Skeleton className='h-7 w-24 rounded-full bg-white/20' />
+						</div>
+						<Skeleton className='h-12 w-3/4 bg-white/25' />
+						<Skeleton className='h-6 w-1/2 bg-white/20' />
+						<div className='flex flex-wrap gap-6 pt-2'>
+							{Array.from({ length: 4 }, (_, i) => (
+								<Skeleton key={i} className='h-10 w-32 rounded-xl bg-black/20' />
+							))}
+						</div>
+					</div>
+				</div>
+				<div className='mx-auto max-w-6xl space-y-6 px-6'>
+					<Skeleton className='h-12 w-80 max-w-full rounded-2xl bg-slate-200/70' />
+					<div className='space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/60'>
+						<Skeleton className='h-6 w-48 bg-slate-100' />
+						{Array.from({ length: 3 }, (_, i) => (
+							<Skeleton key={i} className='h-16 w-full rounded-xl bg-slate-100' />
+						))}
+					</div>
+				</div>
+			</LoadingRegion>
+		);
+	}
 	if (loadError) {
 		return (
 			<div className='min-h-screen bg-slate-50 px-6 py-16'>
@@ -674,10 +707,18 @@ export function ExamDetailPage() {
 								</CardHeader>
 								<CardContent className='space-y-3'>
 									{myAttemptsLoading ? (
-										<div className='flex items-center justify-center gap-2 py-12 text-slate-500 text-sm'>
-											<Loader2 className='h-5 w-5 animate-spin' />
-											Đang tải lịch sử...
-										</div>
+										<LoadingRegion label='Đang tải lịch sử…' className='space-y-2'>
+											{Array.from({ length: 3 }, (_, i) => (
+												<div key={i} className='flex items-center gap-3 rounded-xl border border-slate-100 p-3.5'>
+													<Skeleton className='size-10 shrink-0 rounded-lg bg-slate-100' />
+													<div className='flex-1 space-y-2'>
+														<Skeleton className='h-4 w-1/3 bg-slate-100' />
+														<Skeleton className='h-3 w-1/4 bg-slate-100' />
+													</div>
+													<Skeleton className='h-5 w-14 bg-slate-100' />
+												</div>
+											))}
+										</LoadingRegion>
 									) : myAttemptsError ? (
 										<div className='flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>
 											<AlertCircle className='h-4 w-4 shrink-0' />

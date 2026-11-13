@@ -45,6 +45,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/community/ConfirmDialog';
 import { RelativeTime } from '@/components/community/RelativeTime';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/community/States';
+import { Skeleton } from '@/components/ui/skeleton';
 import { UserAvatar } from '@/components/community/UserAvatar';
 import { ForumBreadcrumb } from './ForumBreadcrumb';
 import { BODY_MAX, ThreadEditorDialog } from './ThreadEditorDialog';
@@ -280,8 +281,27 @@ export function ForumThreadView({ threadId }: { threadId: string }) {
 
   if (!thread) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <ListSkeleton rows={3} label="Đang tải chủ đề" />
+      <div className="mx-auto max-w-4xl space-y-5" role="status" aria-busy="true" aria-live="polite">
+        <span className="sr-only">Đang tải chủ đề…</span>
+        <Skeleton className="h-4 w-64 max-w-full bg-slate-100" />
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="space-y-4 border-b border-slate-100 p-5 md:p-6">
+            <Skeleton className="h-8 w-3/4 bg-slate-100" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-8 shrink-0 rounded-full bg-slate-100" />
+              <Skeleton className="h-4 w-28 bg-slate-100" />
+              <Skeleton className="h-4 w-20 bg-slate-100" />
+            </div>
+          </div>
+          <div className="space-y-2.5 p-5 md:p-6">
+            <Skeleton className="h-4 w-full bg-slate-100" />
+            <Skeleton className="h-4 w-11/12 bg-slate-100" />
+            <Skeleton className="h-4 w-2/3 bg-slate-100" />
+          </div>
+          <div className="h-12 border-t border-slate-100 bg-slate-50/60" />
+        </div>
+        <Skeleton className="h-5 w-32 bg-slate-100" />
+        <ListSkeleton rows={2} label="Đang tải câu trả lời" />
       </div>
     );
   }

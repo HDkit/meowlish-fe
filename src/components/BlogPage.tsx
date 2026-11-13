@@ -141,10 +141,11 @@ export function BlogPage() {
       {error ?
         <ErrorState message={error} onRetry={load} />
       : !blogs ?
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Đang tải bài viết">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
           {Array.from({ length: 6 }, (_, i) => (
             <CardSkeleton key={i} />
           ))}
+          <span className="sr-only">Đang tải bài viết…</span>
         </div>
       : blogs.length === 0 ?
         <EmptyState icon={<Search className="size-6" />} title="Không có bài viết phù hợp">

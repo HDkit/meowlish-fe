@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { NavPagination } from '@/components/ui/nav-pagination';
 import { useToast } from '@/components/ui/use-toast';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/community/States';
+import { Skeleton } from '@/components/ui/skeleton';
 import { RelativeTime } from '@/components/community/RelativeTime';
 import { UserAvatar } from '@/components/community/UserAvatar';
 import { ForumBreadcrumb } from './ForumBreadcrumb';
@@ -132,10 +133,19 @@ export function ForumCategoryView({ categoryId }: { categoryId: string }) {
             <Icon className="size-6" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{category?.name ?? 'Đang tải…'}</h2>
-            {category && <p className="mt-0.5 text-sm text-slate-500">{category.description}</p>}
+            {category ?
+              <>
+                <h2 className="text-xl font-bold text-slate-900 md:text-2xl">{category.name}</h2>
+                <p className="mt-0.5 text-sm text-slate-500">{category.description}</p>
+              </>
+            : <div role="status" aria-busy="true" className="space-y-2 pt-1">
+                <span className="sr-only">Đang tải chuyên mục…</span>
+                <Skeleton className="h-7 w-48 bg-slate-100" />
+                <Skeleton className="h-4 w-72 max-w-full bg-slate-100" />
+              </div>}
           </div>
         </div>
+        {!category && <Skeleton className="h-9 w-32 shrink-0 rounded-xl bg-slate-100" />}
         {category && (
           <div className="flex shrink-0 flex-col items-stretch gap-1 md:items-end">
             <Button onClick={() => setCreating(true)} disabled={!mayPost} className="rounded-xl">

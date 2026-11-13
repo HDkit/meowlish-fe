@@ -102,12 +102,22 @@ export function BlogDetail({ blogId }: { blogId: string }) {
 
   if (!blog) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4" role="status" aria-label="Đang tải bài viết">
+      <div className="mx-auto max-w-3xl space-y-4" role="status" aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
+        <span className="sr-only">Đang tải bài viết…</span>
         <Skeleton className="h-6 w-32 bg-slate-100" />
         <Skeleton className="h-10 w-3/4 bg-slate-100" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-10 shrink-0 rounded-full bg-slate-100" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 bg-slate-100" />
+            <Skeleton className="h-3 w-48 bg-slate-100" />
+          </div>
+        </div>
         <Skeleton className="aspect-[2/1] w-full rounded-3xl bg-slate-100" />
         <Skeleton className="h-4 w-full bg-slate-100" />
+        <Skeleton className="h-4 w-11/12 bg-slate-100" />
         <Skeleton className="h-4 w-5/6 bg-slate-100" />
+        <Skeleton className="h-4 w-2/3 bg-slate-100" />
       </div>
     );
   }

@@ -25,6 +25,8 @@ import type { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
 import { useAppSelector } from '@/lib/store/hooks';
 
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 
 type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
 
@@ -519,10 +521,34 @@ export function TestResult() {
 
 	if (loading) {
 		return (
-			<div className='flex flex-col items-center justify-center min-h-screen bg-slate-50'>
-				<div className='w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin' />
-				<p className='mt-4 text-slate-600 font-medium'>Đang tải kết quả...</p>
-			</div>
+			<LoadingRegion label='Đang tải kết quả…' className='min-h-screen bg-slate-50 pb-20'>
+				<div className='relative mb-8 overflow-hidden bg-primary pt-6 pb-16'>
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+						<Skeleton className='mb-6 h-9 w-24 bg-white/20' />
+						<div className='flex flex-col items-center justify-between gap-8 md:flex-row md:items-start'>
+							<div className='flex w-full flex-1 flex-col items-center gap-4 md:items-start'>
+								<Skeleton className='h-8 w-40 rounded-full bg-white/20' />
+								<Skeleton className='h-12 w-3/4 bg-white/25' />
+								<Skeleton className='h-6 w-64 max-w-full bg-white/20' />
+							</div>
+							<Skeleton className='h-36 w-56 shrink-0 rounded-3xl bg-white/15' />
+						</div>
+					</div>
+				</div>
+				<div className='relative z-20 mx-auto -mt-10 max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8'>
+					<div className='grid grid-cols-2 gap-4 md:grid-cols-4'>
+						{Array.from({ length: 4 }, (_, i) => (
+							<div key={i} className='flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm'>
+								<Skeleton className='size-12 rounded-full bg-slate-100' />
+								<Skeleton className='h-4 w-16 bg-slate-100' />
+								<Skeleton className='h-7 w-20 bg-slate-100' />
+							</div>
+						))}
+					</div>
+					<Skeleton className='h-64 w-full rounded-2xl bg-white shadow-sm ring-1 ring-slate-200' />
+				</div>
+			</LoadingRegion>
 		);
 	}
 
@@ -730,7 +756,7 @@ export function TestResult() {
 				</div>
 			}
 
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20'>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 motion-reduce:animate-none -mt-10 relative z-20'>
 				{/* Stats */}
 				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
 					<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
