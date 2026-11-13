@@ -6,10 +6,8 @@
 
 The web frontend for [meowlish](https://github.com/HDkit/meowlish): real-format mock tests, Speaking & Writing practice with AI feedback, flashcards and progress tracking.
 
-[![Deploy](https://github.com/HDkit/meowlish-fe/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/HDkit/meowlish-fe/actions/workflows/deploy.yml)
 [![Live](https://img.shields.io/badge/live-meowlish--fe.vercel.app-000?logo=vercel&logoColor=white)](https://meowlish-fe.vercel.app)
 ![Version](https://img.shields.io/badge/version-0.9.0-58c27d)
-![AI services](https://img.shields.io/badge/AI%20services-paused-f59e0b)
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=black)
@@ -19,8 +17,6 @@ The web frontend for [meowlish](https://github.com/HDkit/meowlish): real-format 
 ![Vitest](https://img.shields.io/badge/tested%20with-Vitest-6e9f18?logo=vitest&logoColor=white)
 
 [Live site](https://meowlish-fe.vercel.app) · [Backend](https://github.com/HDkit/meowlish) · [Changelog](https://meowlish-fe.vercel.app/changelog)
-
-<img src="public/landing/sunrise.webp" alt="Lingriser landing page hero: sunrise over a sea of clouds" width="100%" />
 
 </div>
 
