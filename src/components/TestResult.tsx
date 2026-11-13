@@ -1009,14 +1009,22 @@ function DetailedAnalysis({
 		[reviewData],
 	);
 
+	/**
+	 * One panel open at a time: opening a question closes the previous one (and clicking the open
+	 * one closes it). Details load once; a slow load never clears another question's spinner.
+	 */
 	const fetchDetail = useCallback(
 		async (qId: string) => {
-			if (detailCache[qId]) {
-				setExpandedQ((prev) => (prev === qId ? null : qId));
-				return;
+			const opening = expandedQ !== qId;
+			setExpandedQ(opening ? qId : null);
+			if (opening) {
+				// the panel above may have just collapsed; keep the opened question in view
+				requestAnimationFrame(() =>
+					document.getElementById(`q-detail-${qId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+				);
 			}
+			if (!opening || detailCache[qId]) return;
 			setDetailLoading(qId);
-			setExpandedQ(qId);
 			try {
 				const res = await ExamPracticeService.examPracticeGatewayControllerGetDetailedQuestionInfoV1(qId);
 				if (res.data) {
@@ -1025,16 +1033,19 @@ function DetailedAnalysis({
 			} catch (err) {
 				console.error('Failed to load question detail:', err);
 			} finally {
-				setDetailLoading(null);
+				setDetailLoading((prev) => (prev === qId ? null : prev));
 			}
 		},
-		[detailCache],
+		[detailCache, expandedQ],
 	);
 
 	const tagAnalysis = useMemo(() => {
 		const filtered = analysisPart === 'overview' ? flatQuestions : flatQuestions.filter((x) => x.part === analysisPart);
 
-		const byTag = new Map<string, { correct: number; incorrect: number; skipped: number; questions: number[] }>();
+		const byTag = new Map<
+			string,
+			{ correct: number; incorrect: number; skipped: number; questions: { n: number; st: string }[] }
+		>();
 
 		for (const item of filtered) {
 			const st = questionStatusById.get(item.q.id) || 'skipped';
@@ -1043,20 +1054,26 @@ function DetailedAnalysis({
 			for (const tag of tags) {
 				if (!byTag.has(tag)) byTag.set(tag, { correct: 0, incorrect: 0, skipped: 0, questions: [] });
 				const entry = byTag.get(tag)!;
-				entry.questions.push(item.globalIndex);
+				entry.questions.push({ n: item.globalIndex, st: st });
 				if (st === 'correct') entry.correct++;
 				else if (st === 'incorrect') entry.incorrect++;
 				else entry.skipped++;
 			}
 		}
 
-		const rows = Array.from(byTag.entries()).map(([tag, data]) => ({
-			tag,
-			...data,
-			total: data.correct + data.incorrect + data.skipped,
-			accuracy:
-				data.correct + data.incorrect > 0 ? ((data.correct / (data.correct + data.incorrect)) * 100).toFixed(2) : '–',
-		}));
+		// Accuracy over every question of the category: a skipped question is not a correct one, so a
+		// fully skipped category reads 0% instead of "–" (which looked like missing data).
+		const rows = Array.from(byTag.entries())
+			.map(([tag, data]) => {
+				const total = data.correct + data.incorrect + data.skipped;
+				return {
+					tag,
+					...data,
+					total,
+					accuracy: total > 0 ? ((data.correct / total) * 100).toFixed(2) : '–',
+				};
+			})
+			.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
 
 		const totals = rows.reduce(
 			(acc, r) => ({
@@ -1066,10 +1083,8 @@ function DetailedAnalysis({
 			}),
 			{ correct: 0, incorrect: 0, skipped: 0 },
 		);
-		const totalAcc =
-			totals.correct + totals.incorrect > 0 ?
-				((totals.correct / (totals.correct + totals.incorrect)) * 100).toFixed(2)
-			:	'–';
+		const totalCount = totals.correct + totals.incorrect + totals.skipped;
+		const totalAcc = totalCount > 0 ? ((totals.correct / totalCount) * 100).toFixed(2) : '–';
 
 		return { rows, totals, totalAcc };
 	}, [flatQuestions, questionStatusById, analysisPart]);
@@ -1147,7 +1162,23 @@ function DetailedAnalysis({
 									>
 										{row.accuracy === '–' ? '–' : `${row.accuracy}%`}
 									</td>
-									<td className='px-4 py-3 text-slate-500 text-xs'>{row.questions.join(' ')}</td>
+									<td className='px-4 py-3 text-xs'>
+										<div className='flex flex-wrap gap-1'>
+											{row.questions.map(({ n, st }) => (
+												<span
+													key={n}
+													title={st === 'correct' ? 'Đúng' : st === 'incorrect' ? 'Sai' : 'Bỏ qua'}
+													className={`inline-flex min-w-[1.75rem] justify-center rounded-md px-1.5 py-0.5 font-bold tabular-nums ${
+														st === 'correct' ? 'bg-green-100 text-green-700'
+														: st === 'incorrect' ? 'bg-red-100 text-red-600'
+														: 'bg-slate-100 text-slate-400'
+													}`}
+												>
+													{n}
+												</span>
+											))}
+										</div>
+									</td>
 								</tr>
 							))}
 							<tr className='bg-slate-50 font-bold'>
@@ -1298,7 +1329,7 @@ function DetailedAnalysis({
 									const isLoading = detailLoading === item.q.id;
 
 									return (
-										<div key={item.q.id}>
+										<div key={item.q.id} id={`q-detail-${item.q.id}`} className='scroll-mt-24'>
 											<div
 												className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
 													isExpanded ? 'bg-primary/5' : 'hover:bg-slate-50'
