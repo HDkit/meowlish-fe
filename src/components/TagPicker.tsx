@@ -65,10 +65,10 @@ export function TagPicker({
 						<ChevronsUpDown className="h-3.5 w-3.5 text-slate-400" />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent className="w-[min(22rem,calc(100vw-2rem))] p-0" align="start">
+				<PopoverContent className="w-[min(40rem,calc(100vw-2rem))] p-0" align="start">
 					<Command>
 						<CommandInput placeholder="Tìm chủ đề…" />
-						<CommandList className="max-h-72">
+						<CommandList className="max-h-[min(26rem,60vh)]">
 							<CommandEmpty>{loading ? 'Đang tải chủ đề…' : 'Không có chủ đề phù hợp.'}</CommandEmpty>
 							{groups.map((g) => (
 								<CommandGroup key={g.group} heading={g.group}>
@@ -79,17 +79,20 @@ export function TagPicker({
 												key={tag.id}
 												value={`${tag.name} ${path} ${label(tag.name)}`}
 												onSelect={() => toggle(tag.name)}
-												className="gap-2"
+												className="items-start gap-2 py-2"
 											>
 												<span
-													className={`flex h-4 w-4 items-center justify-center rounded border ${
+													className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
 														selected ? 'border-primary bg-primary text-white' : 'border-slate-300'
 													}`}
 												>
 													{selected && <Check className="h-3 w-3" />}
 												</span>
-												<span className="flex-1 truncate">{label(tag.name)}</span>
-												{path && <span className="truncate text-[11px] text-slate-400">{path}</span>}
+												{/* full names: wrap instead of truncating, the path on its own line */}
+												<span className="min-w-0 flex-1">
+													<span className="block break-words leading-snug">{label(tag.name)}</span>
+													{path && <span className="block break-words text-[11px] leading-snug text-slate-400">{path}</span>}
+												</span>
 											</CommandItem>
 										);
 									})}

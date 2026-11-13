@@ -386,7 +386,7 @@ export function FlashcardPage() {
 								setEditingList(undefined);
 								setListDialogOpen(true);
 							}}
-							className="bg-white hover:bg-primary/10 text-primary rounded-2xl px-8 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-1 font-bold text-lg border-2 border-white/90"
+							className="bg-white hover:bg-slate-50 text-primary rounded-2xl px-8 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-1 font-bold text-lg border-2 border-white/90"
 						>
 							<Plus className="h-6 w-6 mr-2" strokeWidth={3} />
 							Tạo Bộ Mới
