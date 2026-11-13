@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { DEMO_ACCOUNT } from '@/lib/demo-account';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -88,14 +89,14 @@ export function AuthForm() {
 	};
 
 	// Login handler
-	const handleLoginSubmit = async () => {
+	const handleLoginSubmit = async (credentials = { email: formData.email, password: formData.password }) => {
 		setLoading(true);
 		setError('');
 
 		try {
 			// The gateway sets the HttpOnly session cookies; the body carries no token.
-			await AuthService.authGatewayControllerLoginMailV1({ mail: formData.email, password: formData.password });
-			const user = await loadSessionUser({ email: formData.email, fullName: formData.email.split('@')[0] });
+			await AuthService.authGatewayControllerLoginMailV1({ mail: credentials.email, password: credentials.password });
+			const user = await loadSessionUser({ email: credentials.email, fullName: credentials.email.split('@')[0] });
 			dispatch(setUser(user));
 			router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
 		} catch (err: any) {
@@ -338,6 +339,27 @@ export function AuthForm() {
 								<span className='bg-background px-2 text-muted-foreground'>hoặc</span>
 							</div>
 						</div>
+
+						{isLogin && DEMO_ACCOUNT.enabled && (
+							<div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-sm'>
+								<Button
+									type='button'
+									variant='outline'
+									className='w-full rounded-xl font-semibold'
+									disabled={loading}
+									data-testid='demo-login'
+									onClick={() => {
+										setFormData({ ...formData, email: DEMO_ACCOUNT.email, password: DEMO_ACCOUNT.password });
+										void handleLoginSubmit({ email: DEMO_ACCOUNT.email, password: DEMO_ACCOUNT.password });
+									}}
+								>
+									Dùng thử bằng tài khoản demo
+								</Button>
+								<p className='mt-2 text-xs text-muted-foreground'>
+									{DEMO_ACCOUNT.email} / {DEMO_ACCOUNT.password}: tài khoản dùng chung, không đổi được mật khẩu.
+								</p>
+							</div>
+						)}
 
 						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={handleGoogleLogin} disabled={loading}>
 							<FaGoogle className='w-5 h-5 text-red-500 mr-2' />

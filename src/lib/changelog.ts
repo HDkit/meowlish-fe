@@ -39,6 +39,8 @@ export const RELEASES: Release[] = [
 				type: 'notice',
 				text: 'Chấm điểm Writing hiện dùng dịch vụ mô phỏng: sau khoảng 1–3 phút chờ, bài làm nhận điểm và nhận xét ngẫu nhiên. Điểm này chỉ để thử nghiệm luồng chấm bài, không phản ánh trình độ thật.',
 			},
+			{ type: 'new', text: 'Nút "Dùng thử bằng tài khoản demo" ở trang đăng nhập. Tài khoản demo dùng chung nên không đổi được mật khẩu, tên đăng nhập hay phương thức đăng nhập.' },
+			{ type: 'improved', text: 'Đề TOEIC mẫu dùng hình ảnh và âm thanh thật; Part 7 được viết lại theo đúng đoạn văn.' },
 			{ type: 'improved', text: 'Trang làm bài và trang kết quả chờ điểm Writing tối đa 5 phút thay vì 1–3 phút.' },
 			{ type: 'improved', text: 'Phiên đăng nhập được lưu trong cookie HttpOnly thay vì bộ nhớ trình duyệt.' },
 			{ type: 'improved', text: 'Đổi mật khẩu yêu cầu nhập mật khẩu hiện tại.' },

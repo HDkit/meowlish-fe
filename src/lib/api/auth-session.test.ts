@@ -13,6 +13,7 @@ import {
 	refreshSession,
 	roleIdFromRoles,
 	shouldRefreshOn401,
+	userFromIdentity,
 } from './auth-session';
 
 const json = (status: number, data: unknown) =>
@@ -213,6 +214,13 @@ describe('exchangeGoogleLoginToken', () => {
 	it('reports an expired token on 401', async () => {
 		mockFetch(json(401, null));
 		await expect(exchangeGoogleLoginToken('old')).rejects.toThrow('hết hạn');
+	});
+});
+
+describe('userFromIdentity', () => {
+	it('carries the demo flag so the account page can lock its credentials', () => {
+		expect(userFromIdentity({ id: 'demo', username: 'demo', roles: ['student'], isDemo: true }).isDemo).toBe(true);
+		expect(userFromIdentity({ id: 'u1', username: 'minh', roles: ['student'] }).isDemo).toBe(false);
 	});
 });
 

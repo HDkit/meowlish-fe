@@ -22,6 +22,8 @@ export interface User extends MockDbType {
 	roleId: string; // Role.id
 	status: 'active' | 'suspended' | 'banned';
 	avatarUrl?: string;
+	/** Shared public demo account: credentials and username are read-only. */
+	isDemo?: boolean;
 	createdAt: number;
 	lastLoginAt?: number;
 }

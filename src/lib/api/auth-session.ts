@@ -172,6 +172,7 @@ export type OwnIdentity = {
     bio?: string;
     phoneNumber?: string;
     roles: string[];
+    isDemo?: boolean;
 };
 
 /**
@@ -242,6 +243,7 @@ export const userFromIdentity = (identity: OwnIdentity, fallback: { email?: stri
     username: identity.username,
     avatarUrl: identity.avatarUrl,
     roleId: roleIdFromRoles(identity.roles),
+    isDemo: identity.isDemo === true,
     password: '***',
     status: 'active',
     createdAt: Date.now(),

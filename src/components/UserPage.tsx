@@ -44,6 +44,7 @@ import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
+import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
 import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
@@ -102,6 +103,7 @@ export function UserPage() {
 	const dispatch = useAppDispatch();
 	const { toast } = useToast();
 	const currUser = useAppSelector((state) => state.currUser.current);
+	const isDemo = currUser?.isDemo === true;
 
 	const fetchGoal = useCallback(async () => {
 		try {
@@ -141,6 +143,7 @@ export function UserPage() {
 									avatarUrl: identity.avatarUrl || currUser.avatarUrl,
 									createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
 									roleId: identity.roleId ?? currUser.roleId,
+									isDemo: identity.isDemo === true,
 								}),
 							);
 						}
@@ -197,7 +200,8 @@ export function UserPage() {
 		setIsLoading(true);
 		try {
 			await AuthService.authGatewayControllerUpdateIdentityV1({
-				username: profileForm.username || undefined,
+				// The demo account's username is read-only (the backend refuses a change).
+				username: isDemo ? undefined : profileForm.username || undefined,
 				fullName: profileForm.fullName || undefined,
 			});
 			dispatch(
@@ -443,6 +447,8 @@ export function UserPage() {
 						<Button
 							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
 							onClick={() => setIsPasswordDialogOpen(true)}
+							disabled={isDemo}
+							title={isDemo ? DEMO_READ_ONLY_NOTICE : undefined}
 						>
 							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
 						</Button>
@@ -458,14 +464,22 @@ export function UserPage() {
 							<Shield className='h-5 w-5 text-primary' /> Phương thức đăng nhập
 						</h2>
 						<div className='flex gap-2'>
-							<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
+							<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)} disabled={isDemo}>
 								<Plus className='h-4 w-4 mr-1' /> Thêm Email
 							</Button>
-							<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
+							<Button size='sm' variant='outline' onClick={handleAddGoogleCredential} disabled={isDemo}>
 								<Plus className='h-4 w-4 mr-1' /> Liên kết Google
 							</Button>
 						</div>
 					</div>
+					{isDemo && (
+						<p
+							className='mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800'
+							data-testid='demo-notice'
+						>
+							{DEMO_READ_ONLY_NOTICE}
+						</p>
+					)}
 					{credentials.length === 0 ?
 						<p className='text-gray-400 text-sm'>Chưa tải được thông tin phương thức đăng nhập.</p>
 					:	<div className='space-y-3'>
@@ -499,7 +513,7 @@ export function UserPage() {
 										variant='ghost'
 										className='text-red-500 hover:text-red-700 hover:bg-red-50'
 										onClick={() => handleDeleteCredential(cred.id)}
-										disabled={isLoading || credentials.length <= 1}
+										disabled={isLoading || isDemo || credentials.length <= 1}
 									>
 										<Trash2 className='h-4 w-4' />
 									</Button>
@@ -837,6 +851,7 @@ export function UserPage() {
 							<Label htmlFor='username'>Tên đăng nhập</Label>
 							<Input
 								id='username'
+								disabled={isDemo}
 								value={profileForm.username}
 								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
 								placeholder='Nhập tên đăng nhập'
