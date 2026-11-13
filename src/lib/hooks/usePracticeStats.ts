@@ -8,7 +8,10 @@ import { extractApiErrorMessage } from '@/lib/api-response';
 
 export type AsyncState<T> = {
 	data: T | null;
+	/** Nothing to show yet (first load). A reload keeps showing the previous data: see `refreshing`. */
 	loading: boolean;
+	/** Reloading while the previous data stays on screen (no skeleton flash). */
+	refreshing: boolean;
 	/** user-facing message, never raw error JSON */
 	error: string | null;
 	reload: () => void;
@@ -16,7 +19,7 @@ export type AsyncState<T> = {
 
 function useApiData<T>(fetcher: () => Promise<{ data?: unknown } | null | undefined>, key: string): AsyncState<T> {
 	const [data, setData] = useState<T | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [pending, setPending] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [nonce, setNonce] = useState(0);
 	const fetcherRef = useRef(fetcher);
@@ -24,7 +27,7 @@ function useApiData<T>(fetcher: () => Promise<{ data?: unknown } | null | undefi
 
 	useEffect(() => {
 		let cancelled = false;
-		setLoading(true);
+		setPending(true);
 		setError(null);
 		fetcherRef
 			.current()
@@ -37,7 +40,7 @@ function useApiData<T>(fetcher: () => Promise<{ data?: unknown } | null | undefi
 				setError(extractApiErrorMessage(err, 'Không tải được dữ liệu. Vui lòng thử lại.'));
 			})
 			.finally(() => {
-				if (!cancelled) setLoading(false);
+				if (!cancelled) setPending(false);
 			});
 		return () => {
 			cancelled = true;
@@ -45,8 +48,17 @@ function useApiData<T>(fetcher: () => Promise<{ data?: unknown } | null | undefi
 	}, [key, nonce]);
 
 	const reload = useCallback(() => setNonce(n => n + 1), []);
-	return { data: data, loading: loading, error: error, reload: reload };
+	return {
+		data: data,
+		loading: pending && data === null,
+		refreshing: pending && data !== null,
+		error: error,
+		reload: reload,
+	};
 }
+
+/** The longest range the activity endpoint serves (`days` max 371): one year plus a week. */
+export const MAX_ACTIVITY_DAYS = 371;
 
 /** Finished attempts per UTC day for the last `days` days, plus all-time streaks. */
 export function usePracticeActivity(days: number, enabled = true): AsyncState<UserActivityDto> {

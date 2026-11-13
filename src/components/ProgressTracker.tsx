@@ -9,7 +9,7 @@ import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { AttemptsHistoryDto } from '@/lib/api/models/AttemptsHistoryDto';
 import type { TagInfoDto } from '@/lib/api/models/TagInfoDto';
 import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
-import { usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
+import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
 import { practiceSuggestion } from '@/lib/skill-stats';
 import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
 import { SkillAnalysis } from './progress/SkillAnalysis';
@@ -78,7 +78,8 @@ export function ProgressTracker() {
   const [loading, setLoading] = useState(true);
 
   const [heatWeeks, setHeatWeeks] = useState(26);
-  const activity = usePracticeActivity(heatWeeks * 7);
+  // the full year once: switching 3/6/12 months is then client-side (no refetch, no skeleton flash)
+  const activity = usePracticeActivity(MAX_ACTIVITY_DAYS);
   const skills = useSkillStats();
   const suggestion = useMemo(
     () => (skills.data ? practiceSuggestion(skills.data.skills, skills.data.tags) : null),

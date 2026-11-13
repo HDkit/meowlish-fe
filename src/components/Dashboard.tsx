@@ -6,7 +6,7 @@ import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ExamPracticeService } from '@/lib/api-client';
-import { usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
+import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
 import { practiceSuggestion } from '@/lib/skill-stats';
 import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
 import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
@@ -20,7 +20,8 @@ export function Dashboard() {
 	const [stats, setStats] = useState<any>(null);
 	const [heatWeeks, setHeatWeeks] = useState(26);
 	const signedIn = isHydrated && !!currentUser;
-	const activity = usePracticeActivity(heatWeeks * 7, signedIn);
+	// the full year once: switching 3/6/12 months is then client-side (no refetch, no skeleton flash)
+	const activity = usePracticeActivity(MAX_ACTIVITY_DAYS, signedIn);
 	const skills = useSkillStats(signedIn);
 	const suggestion = useMemo(
 		() => (skills.data ? practiceSuggestion(skills.data.skills, skills.data.tags) : null),

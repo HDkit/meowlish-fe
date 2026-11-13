@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Tabs, TabsContent } from './ui/tabs';
@@ -485,18 +485,25 @@ export function TestSelection() {
 							</p>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-							{loadingExams ? (
+						{/* Keep the current cards while a new filter loads (dimmed): swapping them for a
+							    loading text made the page flash on every tag click. */}
+						<div
+							className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 transition-opacity duration-200 ${
+								loadingExams && exams.length > 0 ? 'pointer-events-none opacity-60' : ''
+							}`}
+							aria-busy={loadingExams}
+						>
+							{loadingExams && exams.length === 0 ? (
 								<div className="col-span-full py-12 text-center text-slate-500">
 									Đang tải danh sách đề thi...
 								</div>
 							) : exams.length > 0 ? (
-								exams.map((exam) => <ExamCard key={exam.id} exam={exam} />)
+								exams.map((exam) => <React.Fragment key={exam.id}>{ExamCard({ exam: exam })}</React.Fragment>)
 							) : (
-								<EmptyState type="ielts" />
+								EmptyState({ type: 'ielts' })
 							)}
 						</div>
-						<PaginationControls />
+						{PaginationControls()}
 					</TabsContent>
 
 					<TabsContent
@@ -513,18 +520,25 @@ export function TestSelection() {
 							</p>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-							{loadingExams ? (
+						{/* Keep the current cards while a new filter loads (dimmed): swapping them for a
+							    loading text made the page flash on every tag click. */}
+						<div
+							className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 transition-opacity duration-200 ${
+								loadingExams && exams.length > 0 ? 'pointer-events-none opacity-60' : ''
+							}`}
+							aria-busy={loadingExams}
+						>
+							{loadingExams && exams.length === 0 ? (
 								<div className="col-span-full py-12 text-center text-slate-500">
 									Đang tải danh sách đề thi...
 								</div>
 							) : exams.length > 0 ? (
-								exams.map((exam) => <ExamCard key={exam.id} exam={exam} />)
+								exams.map((exam) => <React.Fragment key={exam.id}>{ExamCard({ exam: exam })}</React.Fragment>)
 							) : (
-								<EmptyState type="toeic" />
+								EmptyState({ type: 'toeic' })
 							)}
 						</div>
-						<PaginationControls />
+						{PaginationControls()}
 					</TabsContent>
 				</Tabs>
 			</div>

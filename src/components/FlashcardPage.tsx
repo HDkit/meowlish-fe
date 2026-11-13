@@ -444,7 +444,7 @@ export function FlashcardPage() {
 								</div>
 
 								{/* List Cards Grid */}
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+								<div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${discoverLoading ? 'pointer-events-none opacity-60' : ''}`} aria-busy={discoverLoading}>
 									{myLists.map((list) => (
 										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
 											<div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
@@ -562,7 +562,8 @@ export function FlashcardPage() {
 								placeholder="Lọc theo tag…"
 							/>
 						</div>
-						{discoverLoading ? (
+						{/* only the first load shows a loading text; later searches keep the cards (dimmed) */}
+						{discoverLoading && discoverLists.length === 0 ? (
 							<div className="text-center py-12">
 								<p className="text-slate-500 font-medium">Đang tải...</p>
 							</div>

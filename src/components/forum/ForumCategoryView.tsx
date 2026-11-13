@@ -67,15 +67,18 @@ export function ForumCategoryView({ categoryId }: { categoryId: string }) {
       });
   }, [categoryId]);
 
+  /** Search/page changes keep the current threads on screen (dimmed) instead of flashing skeletons. */
+  const [reloading, setReloading] = useState(false);
   const loadThreads = useCallback(() => {
     setError(null);
-    setList(null);
+    setReloading(true);
     ForumService.listThreads(categoryId, { page: page, limit: THREADS_PER_PAGE, search: search })
       .then(res => setList(res.data ?? { threads: [], totalCount: 0 }))
       .catch(err => {
         if ((err as { status?: number })?.status === 404) setNotFound(true);
         else setError(communityErrorMessage(err, 'Không tải được danh sách chủ đề.'));
-      });
+      })
+      .finally(() => setReloading(false));
   }, [categoryId, page, search]);
 
   useEffect(loadThreads, [loadThreads]);
@@ -165,7 +168,11 @@ export function ForumCategoryView({ categoryId }: { categoryId: string }) {
         <EmptyState icon={<MessageSquare className="size-6" />} title={search ? 'Không có chủ đề phù hợp' : 'Chưa có chủ đề nào'}>
           {search ? 'Thử từ khóa khác.' : mayPost ? 'Hãy là người mở chủ đề đầu tiên!' : null}
         </EmptyState>
-      : <section aria-label="Danh sách chủ đề" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      : <section
+          aria-label="Danh sách chủ đề"
+          aria-busy={reloading}
+          className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-opacity duration-200 ${reloading ? 'pointer-events-none opacity-60' : ''}`}
+        >
           <ul className="divide-y divide-slate-100">
             {list.threads.map(thread => {
               const author = identities[thread.authorId];

@@ -57,9 +57,11 @@ export function BlogPage() {
     [page, pathname, router, selectedTags],
   );
 
+  /** A filter/page change keeps the current posts on screen (dimmed) instead of flashing skeletons. */
+  const [reloading, setReloading] = useState(false);
   const load = useCallback(() => {
     setError(null);
-    setBlogs(null);
+    setReloading(true);
     BlogService.listBlogs(undefined, page, PAGE_SIZE, tagKey ? tagKey.split(',') : undefined)
       .then(res => {
         // The gateway wraps payloads in `data`.
@@ -69,7 +71,8 @@ export function BlogPage() {
         setTotalCount(data?.totalCount ?? list.length);
         setKnownTags(prev => [...new Set([...prev, ...list.flatMap(b => b.tags ?? [])])]);
       })
-      .catch(err => setError(communityErrorMessage(err, 'Không tải được danh sách bài viết.')));
+      .catch(err => setError(communityErrorMessage(err, 'Không tải được danh sách bài viết.')))
+      .finally(() => setReloading(false));
   }, [page, tagKey]);
 
   useEffect(load, [load]);
@@ -147,7 +150,7 @@ export function BlogPage() {
         <EmptyState icon={<Search className="size-6" />} title="Không có bài viết phù hợp">
           {selectedTags.length > 0 ? 'Thử bỏ bớt bộ lọc chủ đề.' : 'Chưa có bài viết nào.'}
         </EmptyState>
-      : <>
+      : <div className={`space-y-8 transition-opacity duration-200 ${reloading ? 'pointer-events-none opacity-60' : ''}`} aria-busy={reloading}>
           {showFeatured && featured && <BlogCard blog={featured} author={identities[featured.authorId]} variant="featured" />}
           {gridPosts.length > 0 && (
             <section aria-label="Bài viết">
@@ -158,7 +161,7 @@ export function BlogPage() {
               </div>
             </section>
           )}
-        </>
+        </div>
       }
 
       <NavPagination page={page} totalPages={totalPages(totalCount, PAGE_SIZE)} onPageChange={p => setQuery({ page: p })} />
