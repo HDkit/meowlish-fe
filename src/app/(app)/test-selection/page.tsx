@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { TestSelection } from '@/components/TestSelection';
 
 export const metadata: Metadata = {
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function TestSelectionPage() {
-	return <TestSelection />;
+	// TestSelection keeps its filters in the URL (useSearchParams)
+	return (
+		<Suspense>
+			<TestSelection />
+		</Suspense>
+	);
 }

@@ -16,18 +16,16 @@ import {
 	ChevronLeft,
 	Search,
 	X,
-	Filter,
-	Check,
 	Users,
 } from 'lucide-react';
 
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
-import { useRouter } from 'next/navigation';
-import { ExamPracticeService, TagsService } from '@/lib/api-client';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ExamPracticeService } from '@/lib/api-client';
+import { useTagList } from '@/lib/tag-list';
+import { TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
-
-type TagNode = { id: string; name: string; parentId?: string };
 
 type FormattedExam = {
 	id: string;
@@ -57,12 +55,43 @@ export function TestSelection() {
 	const router = useRouter();
 	const { toast } = useToast();
 
-	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic'>('ielts');
-	const [searchName, setSearchName] = useState('');
-	const [submittedSearchName, setSubmittedSearchName] = useState('');
-	const [selectedTags, setSelectedTags] = useState<string[]>([]);
+	// Tab, search and tags live in the URL (?type=toeic&q=…&tag=…), so the back button from an
+	// exam page returns to exactly this list.
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const selectedTab: 'ielts' | 'toeic' = searchParams.get('type') === 'toeic' ? 'toeic' : 'ielts';
+	const submittedSearchName = searchParams.get('q') ?? '';
+	const selectedTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	const [searchName, setSearchName] = useState(submittedSearchName);
 
-	const [allTags, setAllTags] = useState<TagNode[]>([]);
+	const updateQuery = useCallback(
+		(patch: { type?: 'ielts' | 'toeic'; q?: string; tags?: string[] }) => {
+			const next = new URLSearchParams(searchParams.toString());
+			if (patch.type !== undefined) next.set('type', patch.type);
+			if (patch.q !== undefined) {
+				if (patch.q.trim()) next.set('q', patch.q.trim());
+				else next.delete('q');
+			}
+			if (patch.tags !== undefined) {
+				next.delete('tag');
+				for (const t of patch.tags) next.append('tag', t);
+			}
+			const qs = next.toString();
+			router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+		},
+		[pathname, router, searchParams],
+	);
+	const setSelectedTab = (type: 'ielts' | 'toeic') => updateQuery({ type: type });
+	const setSubmittedSearchName = (q: string) => updateQuery({ q: q });
+	const setSelectedTags = (tags: string[]) => updateQuery({ tags: tags });
+
+	const { tags: allTags, loading: loadingTags } = useTagList();
+	/** Name of the tab's exam-type tag as stored (e.g. "TOEIC"), sent as a required tag. */
+	const tabTagName = useMemo(
+		() => allTags.find((t) => t.name.toLowerCase() === selectedTab)?.name ?? selectedTab.toUpperCase(),
+		[allTags, selectedTab],
+	);
+	const otherTabTags = useMemo(() => [selectedTab === 'ielts' ? 'toeic' : 'ielts'], [selectedTab]);
 
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
@@ -77,19 +106,6 @@ export function TestSelection() {
 			router.push('/auth');
 		}
 	}, [isHydrated, currentUser, router]);
-
-	// Fetch tags on mount
-	useEffect(() => {
-		const fetchTags = async () => {
-			try {
-				const res = await TagsService.tagGatewayControllerGetTagListV1();
-				setAllTags((res as any).data?.list || []);
-			} catch (err) {
-				console.error('Failed to load tags:', err);
-			}
-		};
-		fetchTags();
-	}, []);
 
 	const deduceTestType = useCallback((raw: any): TestType => {
 		const lowerTags: string[] = raw?.tags?.map((t: string) => String(t).toLowerCase()) || [];
@@ -106,6 +122,11 @@ export function TestSelection() {
 		setCursor(undefined);
 	}, [selectedTab, submittedSearchName, selectedTags]);
 
+	// keep the search box in step with the URL (back/forward)
+	useEffect(() => {
+		setSearchName(submittedSearchName);
+	}, [submittedSearchName]);
+
 	// Fetch exams when filters or cursor change
 	useEffect(() => {
 		if (!currentUser) return;
@@ -116,13 +137,13 @@ export function TestSelection() {
 			try {
 				const filterTags = selectedTags;
 
-				const filter: find_exams_req_dto_FilterOptionsDto = {};
+				// the tab is a required tag: IELTS exams on the IELTS tab only
+				const filter: find_exams_req_dto_FilterOptionsDto = { requiredTags: [tabTagName] };
 				if (submittedSearchName.trim()) filter.name = submittedSearchName.trim();
 				if (filterTags.length > 0) filter.tags = filterTags;
 
-				const hasFilter = Object.keys(filter).length > 0;
 				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
-					hasFilter ? filter : undefined,
+					filter,
 					undefined,
 					cursor,
 					6,
@@ -175,24 +196,12 @@ export function TestSelection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor]);
+	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor, tabTagName]);
 
-	// Filterable tags: exclude meta tags (ielts/toeic) since those are handled by tabs
-	const filterableTags = useMemo(() => {
-		return allTags.filter((t) => !META_TAGS.has(t.name.toLowerCase()));
-	}, [allTags]);
-
-	const toggleTag = useCallback((tagName: string) => {
-		setSelectedTags((prev) =>
-			prev.includes(tagName) ? prev.filter((t) => t !== tagName) : [...prev, tagName],
-		);
-	}, []);
-
-	const clearFilters = useCallback(() => {
+	const clearFilters = () => {
 		setSearchName('');
-		setSubmittedSearchName('');
-		setSelectedTags([]);
-	}, []);
+		updateQuery({ q: '', tags: [] });
+	};
 
 	const hasActiveFilters = searchName.trim().length > 0 || selectedTags.length > 0;
 
@@ -272,7 +281,9 @@ export function TestSelection() {
 					<Button
 						className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-11 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)]"
 						onClick={() => {
-							router.push('/test/' + exam.id);
+							// remember this list (tab, search, tags) for the exam page's back button
+							const here = `${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`;
+							router.push(`/test/${exam.id}?from=${encodeURIComponent(here)}`);
 						}}
 					>
 						Vào thi ngay
@@ -396,39 +407,25 @@ export function TestSelection() {
 				)}
 			</div>
 
-			{/* Tag filter chips */}
-			{filterableTags.length > 0 && (
-				<div className="flex items-center gap-2 max-w-3xl mx-auto">
-					<Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
-					<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
-						{filterableTags.map((tag) => {
-							const isSelected = selectedTags.includes(tag.name);
-							return (
-								<button
-									key={tag.id}
-									onClick={() => toggleTag(tag.name)}
-									className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
-										isSelected
-											? 'bg-primary text-white border-primary shadow-sm ring-1 ring-primary/30'
-											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
-									}`}
-								>
-									{isSelected && <Check className="h-3.5 w-3.5" />}
-									{getTagDisplayName(tag.name)}
-								</button>
-							);
-						})}
-						{hasActiveFilters && (
-							<button
-								onClick={clearFilters}
-								className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all whitespace-nowrap flex-shrink-0"
-							>
-								Xóa bộ lọc
-							</button>
-						)}
-					</div>
-				</div>
-			)}
+			{/* Tag filter: compact searchable picker over the cached tag tree */}
+			<div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
+				<TagPicker
+					tags={allTags}
+					value={selectedTags}
+					onChange={setSelectedTags}
+					exclude={[...META_TAGS].filter((t) => t !== selectedTab).concat(otherTabTags)}
+					label={getTagDisplayName}
+					loading={loadingTags}
+				/>
+				{hasActiveFilters && (
+					<button
+						onClick={clearFilters}
+						className="rounded-full border border-red-200 px-3 py-1.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50"
+					>
+						Xóa bộ lọc
+					</button>
+				)}
+			</div>
 		</div>
 
 					<TabsContent

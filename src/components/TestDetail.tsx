@@ -331,6 +331,21 @@ export function ExamDetailPage() {
 		await handleStart();
 	};
 
+	/**
+	 * Back to where the user came from: the list URL passed as `?from=` (keeps its search and tags),
+	 * else the previous page in this tab, else the exam list.
+	 */
+	const goBack = () => {
+		const from = new URLSearchParams(window.location.search).get('from');
+		// same-site paths only, never an absolute or protocol-relative URL
+		if (from && from.startsWith('/') && !from.startsWith('//')) {
+			router.push(from);
+			return;
+		}
+		if (window.history.length > 1) router.back();
+		else router.push('/test-selection');
+	};
+
 	const getSkillIcon = (skill: Skill) => {
 		switch (skill) {
 			case Skill.Reading:
@@ -373,7 +388,7 @@ export function ExamDetailPage() {
 								{loadError}
 							</div>
 							<div className='flex flex-wrap gap-3'>
-								<Button variant="outline" onClick={() => router.push('/test-selection')}>
+								<Button variant="outline" onClick={goBack}>
 									<ArrowLeft className='mr-2 h-4 w-4' />
 									Quay lại danh sách đề
 								</Button>
@@ -403,11 +418,11 @@ export function ExamDetailPage() {
 					<div className="flex items-center justify-between mb-8">
 						<Button
 							variant="ghost"
-							onClick={() => router.push('/test-selection')}
+							onClick={goBack}
 							className="flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
 						>
 							<ArrowLeft className="h-4 w-4" />
-							Trở về danh sách đề thi
+							Quay lại
 						</Button>
 						{currentUser && (
 							<Button
