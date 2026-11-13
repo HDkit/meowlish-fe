@@ -10,6 +10,7 @@ import {
 import { buildTagIdMap, diffTagIds, type TagRef, UnknownTagsError } from '@/lib/tag-ids';
 import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
 import { normalizeApiError } from '@/lib/api-errors';
+import { minutesInputToSeconds, secondsToMinutesInput } from '@/lib/exam-duration';
 import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AdminTagManager } from '@/components/admin/AdminTagManager';
@@ -573,7 +574,7 @@ export function ExamCreationPage() {
       setExamDraft({
         title: examPayload.title ?? '',
         description: examPayload.description ?? '',
-        duration: String(examPayload.duration ?? 60),
+        duration: secondsToMinutesInput(examPayload.duration),
         tagsInput: (examPayload.tags ?? []).join(', '),
       });
       setSections(nextSections);
@@ -630,12 +631,12 @@ export function ExamCreationPage() {
 
   const saveExam = async () => {
     if (!ensureApiSession('lưu đề thi')) return;
-    const durationNum = Number(examDraft.duration);
-    const duration = Number.isFinite(durationNum) ? Math.floor(Math.max(0, durationNum)) : 0;
+    // The API takes seconds; the input is in minutes.
+    const duration = minutesInputToSeconds(examDraft.duration, exam?.duration);
 
     const localErrors: typeof examErrors = {};
     if (!examDraft.title.trim()) localErrors.title = 'Vui lòng nhập tên đề thi';
-    if (duration <= 0) localErrors.duration = 'Thời lượng phải là số phút lớn hơn 0';
+    if (duration === null) localErrors.duration = 'Thời lượng phải là số phút nguyên, lớn hơn 0';
     setExamErrors(localErrors);
     setExamFormErrors([]);
     if (Object.keys(localErrors).length > 0) {
@@ -650,7 +651,7 @@ export function ExamCreationPage() {
         const requestBody = {
           title: String(examDraft.title.trim()),
           description: String(examDraft.description?.trim() ?? ''),
-          duration: Math.floor(duration),
+          duration: duration!,
         };
         const res = await ExamManagementService.examManagementGatewayControllerCreateExamV1(requestBody);
         const created = extractEntityData<{ id?: string }>(res);
@@ -669,7 +670,7 @@ export function ExamCreationPage() {
           title: String(examDraft.title.trim()),
           description: examDraft.description?.trim() || undefined,
           setDescriptionNull: !examDraft.description?.trim(),
-          duration: Math.floor(duration),
+          duration: duration!,
           ...examTagIds,
         }
       );
@@ -919,7 +920,7 @@ export function ExamCreationPage() {
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Clock className="h-3.5 w-3.5" />
-                  <span>{formatDuration(examDraft.duration)}</span>
+                  <span>{formatDuration(Number(examDraft.duration) * 60)}</span>
                 </div>
               </div>
 
