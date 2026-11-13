@@ -6,9 +6,15 @@
 
 export type ChangeType = 'new' | 'improved' | 'fixed' | 'notice';
 
+/** Who the change matters to. Staff = moderators, admins and exam staff. */
+export type ChangeAudience = 'learner' | 'staff';
+
 export interface ChangeItem {
 	type: ChangeType;
+	/** Plain Vietnamese for end users: what they can do now, no technical terms. */
 	text: string;
+	/** Defaults to 'learner'. Staff items get their own section. */
+	audience?: ChangeAudience;
 }
 
 export interface Release {
@@ -22,64 +28,104 @@ export interface Release {
 
 export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
 	notice: 'Lưu ý',
-	new: 'Mới',
+	new: 'Tính năng mới',
 	improved: 'Cải thiện',
 	fixed: 'Sửa lỗi',
 };
 
 export const RELEASES: Release[] = [
 	{
-		version: '0.9.0',
-		date: '2026-11-12',
-		title: 'Đăng nhập bằng cookie & chấm Writing thử nghiệm',
+		version: '0.10.0',
+		date: '2026-11-14',
+		title: 'Diễn đàn, ôn tập flashcard & trang Tiến độ mới',
 		summary:
-			'Phiên đăng nhập an toàn hơn và bài Writing đã có điểm trở lại, nhưng đó là điểm mẫu ngẫu nhiên để thử nghiệm, không phải AI chấm thật.',
+			'Bản cập nhật lớn nhất từ trước đến nay: có chỗ để trò chuyện với cộng đồng, cách mới để ôn từ vựng, và bức tranh rõ ràng hơn về quá trình luyện tập của bạn.',
 		changes: [
 			{
 				type: 'notice',
-				text: 'Chấm điểm Writing hiện dùng dịch vụ mô phỏng: sau khoảng 1–3 phút chờ, bài làm nhận điểm và nhận xét ngẫu nhiên. Điểm này chỉ để thử nghiệm luồng chấm bài, không phản ánh trình độ thật.',
+				text: 'Điểm Writing hiện vẫn là điểm mẫu ngẫu nhiên để thử nghiệm, chưa phản ánh trình độ thật. Chấm Speaking, giải thích đáp án và dịch nhanh bằng AI vẫn đang tạm ngưng.',
 			},
-			{ type: 'new', text: 'Nút "Dùng thử bằng tài khoản demo" ở trang đăng nhập. Tài khoản demo dùng chung nên không đổi được mật khẩu, tên đăng nhập hay phương thức đăng nhập.' },
-			{ type: 'improved', text: 'Đề TOEIC mẫu dùng hình ảnh và âm thanh thật; Part 7 được viết lại theo đúng đoạn văn.' },
-			{ type: 'improved', text: 'Trang làm bài và trang kết quả chờ điểm Writing tối đa 5 phút thay vì 1–3 phút.' },
-			{ type: 'improved', text: 'Phiên đăng nhập được lưu trong cookie HttpOnly thay vì bộ nhớ trình duyệt.' },
-			{ type: 'improved', text: 'Đổi mật khẩu yêu cầu nhập mật khẩu hiện tại.' },
-			{ type: 'improved', text: 'Liên kết tài khoản Google bằng cách chuyển trang thay vì gọi API nền, ổn định hơn.' },
-			{ type: 'fixed', text: 'Sửa thẻ của đề thi, phần thi và câu hỏi khi chỉnh sửa (lưu theo ID).' },
-			{ type: 'fixed', text: 'Không còn bị đăng xuất khi gửi yêu cầu quá nhanh (lỗi 429); tài khoản bị khóa sẽ được đăng xuất ngay.' },
+			{ type: 'new', text: 'Diễn đàn: đặt câu hỏi và chia sẻ kinh nghiệm theo từng chủ đề, trả lời hoặc trích dẫn bài của người khác. Tìm thấy ở mục "Diễn đàn" trên thanh bên.' },
+			{ type: 'new', text: 'Bình luận dưới bài blog: trả lời thẳng vào một bình luận, bấm "Đang trả lời…" để xem lại bình luận gốc.' },
+			{ type: 'new', text: 'Chế độ Ôn tập flashcard: chọn các bộ thẻ của bạn và kiểu câu hỏi (Từ → Nghĩa, Nghĩa → Từ…), gõ những gì bạn nhớ rồi so với thẻ đã lưu. Không chấm điểm, cứ thoải mái ôn.' },
+			{ type: 'new', text: 'Lưu bộ flashcard công khai của người khác thành bộ của riêng bạn để tự chỉnh sửa, và cập nhật khi bản gốc có thay đổi.' },
+			{ type: 'new', text: 'Đề xuất thay đổi cho bộ flashcard gốc: chủ bộ xem từng thẻ được thêm, sửa, xoá rồi chấp nhận hoặc từ chối. Cả hai bên đều nhận được thông báo.' },
+			{ type: 'new', text: 'Trang Tiến độ mới: mỗi kỹ năng có một thẻ riêng với điểm gần nhất, xu hướng và mức độ, kèm gợi ý dạng câu hỏi nên luyện tiếp.' },
+			{ type: 'new', text: 'Lịch luyện tập theo tuần với mục tiêu số ngày học, cùng bản đồ hoạt động cho thấy những ngày bạn đã luyện tập và chuỗi ngày dài nhất.' },
+			{ type: 'new', text: 'Trang Cài đặt: bật hoặc tắt từng loại thông báo, chọn giao diện sáng hoặc tối.' },
+			{ type: 'new', text: 'Tìm bộ flashcard trong tab "Khám phá" theo tên hoặc thẻ. Bộ công khai của bạn cũng hiện ở đây.' },
+			{ type: 'new', text: 'Báo cáo bài viết trên diễn đàn và bình luận blog có nội dung không phù hợp.' },
+			{ type: 'improved', text: 'Bài Writing được chấm sau khoảng 1–3 phút, như khi có giám khảo đọc bài, và trang kết quả chờ đến khi có điểm cùng nhận xét.' },
+			{ type: 'improved', text: 'Blog được làm mới: bài nổi bật, ảnh bìa, thời gian đọc và gợi ý bài liên quan.' },
+			{ type: 'improved', text: 'Chọn thẻ khi tìm đề dễ hơn: gõ để tìm, thẻ được nhóm theo loại, thêm lựa chọn Tất cả / IELTS / TOEIC.' },
+			{ type: 'improved', text: 'Nút "Quay lại" trên trang đề thi đưa bạn về đúng danh sách cùng các bộ lọc đã chọn.' },
+			{ type: 'improved', text: 'Gợi ý thẻ khi tạo flashcard và bộ flashcard.' },
+			{ type: 'improved', text: 'Danh sách phòng chat hiện tin nhắn mới nhất kèm tên người gửi, và tải nhanh hơn.' },
+			{ type: 'improved', text: 'Hình nền mới nhẹ nhàng với họa tiết học tập, có cả phiên bản cho giao diện tối.' },
+			{ type: 'improved', text: 'Đổi bộ lọc không còn làm trang nhấp nháy: nội dung cũ vẫn hiển thị trong lúc tải.' },
+			{ type: 'improved', text: 'Thông báo lỗi trong biểu mẫu rõ ràng hơn, bằng tiếng Việt, hiện ngay dưới ô cần sửa và không bị tràn trên điện thoại.' },
+			{ type: 'improved', text: 'Bấm vào một thông báo sẽ mở đúng trang liên quan; thông báo thành tích nay bằng tiếng Việt.' },
+			{ type: 'improved', text: 'Trang kết quả dễ đọc hơn: mỗi lần chỉ mở một câu, bảng phân tích tô màu từng câu đúng, sai và bỏ trống.' },
+			{ type: 'fixed', text: 'Câu trả lời trong bài thi không còn bị mất: trang hiện "Đang lưu… / Đã lưu" và chỉ nộp bài khi mọi câu đã được lưu.' },
+			{ type: 'fixed', text: 'Mở lại một bài thi đã nộp sẽ đưa bạn đến trang kết quả thay vì báo lỗi.' },
+			{ type: 'fixed', text: 'Đề TOEIC hiện lại đầy đủ trong danh sách đề; lọc theo một thẻ không còn báo lỗi.' },
+			{ type: 'fixed', text: 'Hình ảnh trong đề thi và ảnh đại diện hiển thị lại bình thường.' },
+			{ type: 'fixed', text: 'Yêu cầu mật khẩu khi đăng ký nay được nói rõ từ đầu (ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký hiệu), không còn đăng ký thất bại khó hiểu.' },
+			{ type: 'new', audience: 'staff', text: 'Quản trị viên nhận thông báo ngay khi có báo cáo mới cần xử lý.' },
+			{ type: 'new', audience: 'staff', text: 'Kiểm duyệt viên có thể ghim, khoá hoặc xoá chủ đề trên diễn đàn.' },
+			{ type: 'new', audience: 'staff', text: 'Lọc bài blog theo tác giả trong trang Quản lý blog.' },
+			{ type: 'improved', audience: 'staff', text: 'Các trang quản trị được thiết kế lại: thẻ thống kê bấm vào để lọc, ô tìm kiếm, bảng dùng tốt trên điện thoại và hiện tên thật của người tạo, người báo cáo.' },
+			{ type: 'improved', audience: 'staff', text: 'Báo cáo về bài viết diễn đàn hay bình luận mở thẳng đến đúng nội dung bị báo cáo.' },
+			{ type: 'improved', audience: 'staff', text: 'Các nút trong phòng chat và thanh bên chỉ hiện những thao tác bạn được phép làm.' },
+			{ type: 'fixed', audience: 'staff', text: 'Thời lượng đề thi khi tạo hoặc sửa đề được lưu đúng theo phút.' },
+			{ type: 'fixed', audience: 'staff', text: 'Quản lý người dùng hiện đủ danh sách; gỡ vai trò và lọc theo vai trò hoạt động đúng.' },
+		],
+	},
+	{
+		version: '0.9.0',
+		date: '2026-11-12',
+		title: 'Đăng nhập an toàn hơn & tài khoản dùng thử',
+		summary: 'Tài khoản của bạn được bảo vệ tốt hơn, và giờ ai cũng có thể dùng thử Lingriser mà không cần đăng ký.',
+		changes: [
+			{
+				type: 'notice',
+				text: 'Bài Writing đã có điểm trở lại sau khoảng 1–3 phút, nhưng đó là điểm và nhận xét mẫu ngẫu nhiên để thử nghiệm, không phản ánh trình độ thật.',
+			},
+			{ type: 'new', text: 'Nút "Dùng thử bằng tài khoản demo" ở trang đăng nhập. Tài khoản demo dùng chung nên không đổi được mật khẩu, tên đăng nhập hay cách đăng nhập.' },
+			{ type: 'improved', text: 'Đề TOEIC mẫu có hình ảnh và âm thanh thật; Part 7 được viết lại cho khớp với đoạn văn.' },
+			{ type: 'improved', text: 'Phiên đăng nhập được bảo vệ tốt hơn trước các trang web lạ.' },
+			{ type: 'improved', text: 'Đổi mật khẩu cần nhập mật khẩu hiện tại.' },
+			{ type: 'improved', text: 'Liên kết tài khoản Google ổn định hơn.' },
+			{ type: 'fixed', text: 'Không còn bị đăng xuất bất ngờ khi thao tác nhanh; tài khoản bị khoá sẽ được đăng xuất ngay.' },
+			{ type: 'fixed', audience: 'staff', text: 'Thẻ của đề thi, phần thi và câu hỏi được lưu đúng khi chỉnh sửa.' },
 		],
 	},
 	{
 		version: '0.8.0',
 		date: '2026-11-12',
-		title: 'Tạm ngưng dịch vụ AI & trang cập nhật',
-		summary:
-			'Các tính năng dùng AI đang tạm ngưng. Những phần còn lại của Lingriser vẫn hoạt động bình thường.',
+		title: 'Tạm ngưng dịch vụ AI & trang "Có gì mới"',
+		summary: 'Các tính năng dùng AI đang tạm ngưng. Những phần còn lại của Lingriser vẫn hoạt động bình thường.',
 		changes: [
 			{
 				type: 'notice',
 				text: 'Dịch vụ AI tạm thời không hoạt động: chấm điểm Speaking/Writing, giải thích đáp án bằng AI và dịch nhanh trong bài thi sẽ không trả kết quả cho đến khi có thông báo mới.',
 			},
-			{ type: 'new', text: 'Trang "Có gì mới" và cửa sổ thông báo khi có phiên bản mới.' },
-			{ type: 'new', text: 'Thông báo trạng thái dịch vụ AI luôn hiển thị trên mọi trang.' },
-			{ type: 'fixed', text: 'Sửa lỗi hiển thị (hydration) trên Dashboard, Flashcards, Phòng Chat và Quản lý User.' },
-			{ type: 'fixed', text: 'Các yêu cầu API khi chạy local không còn bị gửi nhầm lên máy chủ production.' },
-			{ type: 'improved', text: 'Cập nhật thư viện (Next.js 15.5, Radix UI) và dọn dẹp tài liệu cũ.' },
-			{ type: 'improved', text: 'Thay bộ kiểm thử Playwright bằng unit test Vitest gọn nhẹ.' },
+			{ type: 'new', text: 'Trang "Có gì mới" và cửa sổ giới thiệu mỗi khi có phiên bản mới.' },
+			{ type: 'new', text: 'Thông báo trạng thái dịch vụ AI hiển thị trên mọi trang.' },
+			{ type: 'fixed', text: 'Sửa lỗi hiển thị trên Dashboard, Flashcards và Phòng chat.' },
 		],
 	},
 	{
 		version: '0.7.0',
 		date: '2026-06-10',
-		title: 'Blog, báo cáo nội dung & kiểm thử E2E',
+		title: 'Blog, báo cáo nội dung & lịch hoạt động',
 		changes: [
-			{ type: 'new', text: 'Lọc blog theo nhiều thẻ cùng lúc, xử lý ngay trên máy chủ.' },
-			{ type: 'new', text: 'Chọn khoảng thời gian tùy ý cho lịch hoạt động trên Dashboard.' },
-			{ type: 'new', text: 'Báo cáo flashcard và bộ flashcard vi phạm.' },
+			{ type: 'new', text: 'Lọc blog theo nhiều thẻ cùng lúc.' },
+			{ type: 'new', text: 'Chọn khoảng thời gian tuỳ ý cho lịch hoạt động trên Dashboard.' },
+			{ type: 'new', text: 'Báo cáo flashcard và bộ flashcard có nội dung không phù hợp.' },
 			{ type: 'new', text: 'Gắn nhiều thẻ cho mỗi flashcard.' },
-			{ type: 'improved', text: 'Hiển thị lỗi đăng nhập/đăng ký ngay tại từng ô nhập liệu.' },
-			{ type: 'improved', text: 'Bộ kiểm thử end-to-end bằng Playwright cho các luồng chính.' },
-			{ type: 'fixed', text: 'Ảnh đại diện sau khi tải lên hiển thị đúng; phân trang luôn hiển thị.' },
+			{ type: 'improved', text: 'Lỗi khi đăng nhập hoặc đăng ký hiện ngay dưới ô cần sửa.' },
+			{ type: 'fixed', text: 'Ảnh đại diện hiển thị đúng ngay sau khi tải lên; nút chuyển trang luôn hiện.' },
 		],
 	},
 	{
@@ -89,12 +135,12 @@ export const RELEASES: Release[] = [
 		changes: [
 			{ type: 'new', text: 'Đánh dấu câu hỏi và ghi chú ngay trong lúc làm bài.' },
 			{ type: 'new', text: 'Bôi đen để dịch nhanh trong bài thi (dùng AI).' },
-			{ type: 'new', text: 'Tab "Khám phá" với các bộ flashcard công khai; đặt chế độ công khai và thẻ cho bộ flashcard.' },
-			{ type: 'new', text: 'Phân trang phía máy chủ cho các trang danh sách.' },
-			{ type: 'new', text: 'Kiểm duyệt viên có thể duyệt/từ chối đề thi và cấm người dùng trong phòng chat.' },
-			{ type: 'improved', text: 'Bảng theo dõi câu hỏi thu gọn được, skeleton khi tải trang làm bài.' },
-			{ type: 'improved', text: 'Thông báo lỗi thân thiện hơn, tự động thử lại khi máy chủ gián đoạn.' },
-			{ type: 'fixed', text: 'Tin nhắn chat không còn bị lặp; sửa độ rộng thanh bên khi thu gọn.' },
+			{ type: 'new', text: 'Tab "Khám phá" với các bộ flashcard công khai; tự đặt bộ của bạn ở chế độ công khai và gắn thẻ.' },
+			{ type: 'improved', text: 'Danh sách dài được chia trang và tải nhanh hơn.' },
+			{ type: 'improved', text: 'Bảng theo dõi câu hỏi thu gọn được; trang làm bài hiện khung chờ khi đang tải.' },
+			{ type: 'improved', text: 'Thông báo lỗi dễ hiểu hơn, tự thử lại khi kết nối bị gián đoạn.' },
+			{ type: 'fixed', text: 'Tin nhắn chat không còn bị lặp; thanh bên hiển thị đúng khi thu gọn.' },
+			{ type: 'new', audience: 'staff', text: 'Kiểm duyệt viên có thể duyệt hoặc từ chối đề thi và cấm người dùng trong phòng chat.' },
 		],
 	},
 	{
@@ -102,12 +148,12 @@ export const RELEASES: Release[] = [
 		date: '2026-05-19',
 		title: 'Lingriser: cộng đồng & quản trị',
 		changes: [
-			{ type: 'new', text: 'Đổi tên ứng dụng thành Lingriser, logo và giao diện mới.' },
+			{ type: 'new', text: 'Ứng dụng có tên mới là Lingriser, cùng logo và giao diện mới.' },
 			{ type: 'new', text: 'Phòng chat, livestream và lịch phòng học.' },
-			{ type: 'new', text: 'Thông báo, quản lý báo cáo và vai trò Kiểm duyệt viên (Mod).' },
-			{ type: 'new', text: 'Mục tiêu học tập, thống kê và biểu đồ tiến độ kết nối dữ liệu thật.' },
-			{ type: 'new', text: 'Khóa/mở khóa tài khoản và tìm người dùng theo số điện thoại.' },
-			{ type: 'improved', text: 'Tối ưu SEO: metadata, robots.txt và sitemap.' },
+			{ type: 'new', text: 'Thông báo trong ứng dụng.' },
+			{ type: 'new', text: 'Đặt mục tiêu học tập, xem thống kê và biểu đồ tiến độ từ kết quả thật của bạn.' },
+			{ type: 'new', audience: 'staff', text: 'Trang quản lý báo cáo và vai trò Kiểm duyệt viên.' },
+			{ type: 'new', audience: 'staff', text: 'Khoá hoặc mở khoá tài khoản, tìm người dùng theo số điện thoại.' },
 		],
 	},
 	{
@@ -116,32 +162,31 @@ export const RELEASES: Release[] = [
 		title: 'Đăng nhập Google & chấm Writing bằng AI',
 		changes: [
 			{ type: 'new', text: 'Đăng nhập bằng tài khoản Google.' },
-			{ type: 'new', text: 'Chấm bài Writing bằng AI chạy nền, xem kết quả khi hoàn tất.' },
-			{ type: 'improved', text: 'Lịch sử làm bài và chuyển hướng đăng nhập ổn định hơn.' },
+			{ type: 'new', text: 'Chấm bài Writing bằng AI: nộp bài rồi quay lại xem kết quả khi chấm xong.' },
+			{ type: 'improved', text: 'Lịch sử làm bài ổn định hơn; sau khi đăng nhập bạn quay lại đúng trang đang xem.' },
 			{ type: 'improved', text: 'Làm mới trang luyện Speaking và Writing.' },
 		],
 	},
 	{
 		version: '0.3.0',
 		date: '2026-04-29',
-		title: 'Giao diện "Spring Garden"',
+		title: 'Giao diện mới "Spring Garden"',
 		changes: [
-			{ type: 'new', text: 'Thiết kế lại toàn bộ giao diện: màu sắc thống nhất, landing page dạng bento.' },
-			{ type: 'new', text: 'Điều hướng mới: thanh trên cho trang giới thiệu, thanh bên thu gọn được trong ứng dụng.' },
-			{ type: 'new', text: 'Chuỗi ngày học, biểu đồ radar kỹ năng và thành tích.' },
-			{ type: 'improved', text: 'Kết nối API thật cho tạo đề, đăng nhập và quản lý thẻ.' },
+			{ type: 'new', text: 'Toàn bộ giao diện được thiết kế lại với màu sắc thống nhất và trang giới thiệu mới.' },
+			{ type: 'new', text: 'Điều hướng mới: thanh trên cùng ở trang giới thiệu, thanh bên thu gọn được trong ứng dụng.' },
+			{ type: 'new', text: 'Chuỗi ngày học, biểu đồ kỹ năng và thành tích.' },
 			{ type: 'fixed', text: 'Âm thanh và hình ảnh trong bài thi hiển thị đúng.' },
 		],
 	},
 	{
 		version: '0.2.0',
 		date: '2026-03-05',
-		title: 'Chuyển sang Next.js & công cụ cho nhân viên',
+		title: 'Ứng dụng nhanh hơn & công cụ cho đội ngũ',
 		changes: [
-			{ type: 'new', text: 'Chuyển toàn bộ ứng dụng sang Next.js.' },
-			{ type: 'new', text: 'Tạo đề thi và duyệt đề cho quản trị viên.' },
-			{ type: 'new', text: 'Tính năng dành cho Staff và Head Staff.' },
-			{ type: 'improved', text: 'Việt hóa giao diện và làm mới trang Flashcard.' },
+			{ type: 'improved', text: 'Ứng dụng được xây dựng lại để chuyển trang nhanh hơn.' },
+			{ type: 'improved', text: 'Giao diện bằng tiếng Việt và trang Flashcard được làm mới.' },
+			{ type: 'new', audience: 'staff', text: 'Tạo đề thi và duyệt đề.' },
+			{ type: 'new', audience: 'staff', text: 'Công cụ riêng cho nhân viên và trưởng nhóm nhân viên.' },
 		],
 	},
 	{

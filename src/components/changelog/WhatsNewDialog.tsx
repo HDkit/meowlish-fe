@@ -58,7 +58,7 @@ export function WhatsNewDialog() {
 					<DialogTitle className='text-xl'>Có gì mới: {CURRENT_RELEASE.title}</DialogTitle>
 					{CURRENT_RELEASE.summary && <DialogDescription>{CURRENT_RELEASE.summary}</DialogDescription>}
 				</DialogHeader>
-				<ReleaseChanges release={CURRENT_RELEASE} />
+				<ReleaseChanges release={CURRENT_RELEASE} hideStaff />
 				<DialogFooter className='gap-2 sm:justify-between'>
 					<Button variant='outline' asChild>
 						<Link href='/changelog' onClick={() => handleOpenChange(false)}>

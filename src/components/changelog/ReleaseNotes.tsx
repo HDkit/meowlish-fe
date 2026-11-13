@@ -1,5 +1,5 @@
-import { CircleAlert, Sparkles, TrendingUp, Wrench } from 'lucide-react';
-import { CHANGE_TYPE_LABELS, type ChangeType, type Release } from '@/lib/changelog';
+import { CircleAlert, ShieldCheck, Sparkles, TrendingUp, Wrench } from 'lucide-react';
+import { CHANGE_TYPE_LABELS, type ChangeItem, type ChangeType, type Release } from '@/lib/changelog';
 import { cn } from '@/components/ui/utils';
 
 const TYPE_STYLES: Record<ChangeType, { icon: typeof Sparkles; className: string }> = {
@@ -9,7 +9,7 @@ const TYPE_STYLES: Record<ChangeType, { icon: typeof Sparkles; className: string
 	fixed: { icon: Wrench, className: 'bg-slate-100 text-slate-700' },
 };
 
-const TYPE_ORDER: ChangeType[] = ['notice', 'new', 'improved', 'fixed'];
+const GROUP_ORDER: ChangeType[] = ['new', 'improved', 'fixed'];
 
 export function formatReleaseDate(date: string) {
 	const [y, m, d] = date.split('-');
@@ -32,34 +32,85 @@ export function ReleaseHeader({ release, isLatest }: { release: Release; isLates
 	);
 }
 
-export function ReleaseChanges({ release }: { release: Release }) {
-	const items = [...release.changes].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
-
+function TypeHeading({ type, as: Tag = 'h3' }: { type: ChangeType; as?: 'h3' | 'h4' }) {
+	const { icon: Icon, className } = TYPE_STYLES[type];
 	return (
-		<ul className='space-y-2.5'>
-			{items.map(item => {
-				const { icon: Icon, className } = TYPE_STYLES[item.type];
+		<Tag className='flex items-center gap-2 text-sm font-semibold text-foreground'>
+			<span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-md', className)}>
+				<Icon className='h-3.5 w-3.5' aria-hidden='true' />
+			</span>
+			{CHANGE_TYPE_LABELS[type]}
+		</Tag>
+	);
+}
+
+function ChangeList({ items }: { items: ChangeItem[] }) {
+	return (
+		<ul className='mt-2 space-y-2 pl-8'>
+			{items.map(item => (
+				<li key={item.text} className='relative text-sm leading-relaxed text-foreground/90'>
+					<span aria-hidden='true' className='absolute -left-4 top-[0.6em] h-1.5 w-1.5 rounded-full bg-border' />
+					{item.text}
+				</li>
+			))}
+		</ul>
+	);
+}
+
+function GroupedChanges({ items, headingLevel }: { items: ChangeItem[]; headingLevel: 'h3' | 'h4' }) {
+	return (
+		<>
+			{GROUP_ORDER.map(type => {
+				const group = items.filter(item => item.type === type);
+				if (group.length === 0) return null;
 				return (
-					<li
-						key={item.text}
-						className={cn(
-							'flex items-start gap-3 text-sm leading-relaxed',
-							item.type === 'notice' && 'rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950',
-						)}
-					>
-						<span
-							className={cn(
-								'mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-								className,
-							)}
-						>
-							<Icon className='h-3 w-3' aria-hidden='true' />
-							{CHANGE_TYPE_LABELS[item.type]}
-						</span>
-						<span>{item.text}</span>
-					</li>
+					<section key={type}>
+						<TypeHeading type={type} as={headingLevel} />
+						<ChangeList items={group} />
+					</section>
 				);
 			})}
-		</ul>
+		</>
+	);
+}
+
+/**
+ * A release's changes grouped by kind (new, improved, fixed), notices first.
+ * Changes for moderators/admins sit in their own box at the end; `hideStaff`
+ * leaves them out (the pop-up dialog keeps to what every learner sees).
+ */
+export function ReleaseChanges({ release, hideStaff }: { release: Release; hideStaff?: boolean }) {
+	const notices = release.changes.filter(item => item.type === 'notice');
+	const rest = release.changes.filter(item => item.type !== 'notice');
+	const learner = rest.filter(item => item.audience !== 'staff');
+	const staff = hideStaff ? [] : rest.filter(item => item.audience === 'staff');
+
+	return (
+		<div className='space-y-5'>
+			{notices.map(item => (
+				<p
+					key={item.text}
+					className='flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950'
+				>
+					<CircleAlert className='mt-0.5 h-4 w-4 shrink-0 text-amber-600' aria-hidden='true' />
+					<span>
+						<span className='font-semibold'>{CHANGE_TYPE_LABELS.notice}: </span>
+						{item.text}
+					</span>
+				</p>
+			))}
+			<GroupedChanges items={learner} headingLevel='h3' />
+			{staff.length > 0 && (
+				<section className='rounded-xl border border-border/70 bg-muted/40 p-4'>
+					<h3 className='flex items-center gap-2 text-sm font-semibold text-foreground'>
+						<ShieldCheck className='h-4 w-4 text-muted-foreground' aria-hidden='true' />
+						Dành cho quản trị viên & kiểm duyệt viên
+					</h3>
+					<div className='mt-3 space-y-4'>
+						<GroupedChanges items={staff} headingLevel='h4' />
+					</div>
+				</section>
+			)}
+		</div>
 	);
 }

@@ -44,4 +44,13 @@ describe('changelog data', () => {
 		const pkg = await import('../../package.json');
 		expect(pkg.version).toBe(CURRENT_VERSION);
 	});
+
+	it('speaks to users, not developers', () => {
+		const jargon = /\b(api|id|ids|grpc|dto|schema|migration|refactor|cursor|queue|cookie|httponly|hydration|seo|next\.js|react|radix|playwright|vitest|e2e|429|404|409|backend|frontend|endpoint|cache)\b/i;
+		for (const release of RELEASES) {
+			for (const text of [release.title, release.summary ?? '', ...release.changes.map(c => c.text)]) {
+				expect(text, `v${release.version}: ${text}`).not.toMatch(jargon);
+			}
+		}
+	});
 });
