@@ -50,11 +50,13 @@ export class FlashcardListService {
     page?: number,
     limit?: number,
     tags?: string[],
+    /** case-insensitive substring of the list name */
+    name?: string,
   ): CancelablePromise<ListFlashCardListsResponse> {
     return __request(OpenAPI, {
       method: 'GET',
       url: '/api/v1/resources/flash-card-lists',
-      query: { authorId, isPublic, page, limit, tags },
+      query: { authorId, isPublic, page, limit, tags, name: name?.trim() || undefined },
     });
   }
 

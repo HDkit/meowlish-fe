@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { FlashCard, TagType } from '../types/client';
+import { FlashCard } from '../types/client';
+import { TagInput } from './TagInput';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import { ReportDialog } from './ReportDialog';
@@ -176,31 +177,21 @@ function FlashcardDialog({
 	onOpenChange,
 	flashcard,
 	onSave,
+	tagSuggestions,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
 	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => void;
+	/** Tags already used in this list, offered next to the exam tags. */
+	tagSuggestions?: string[];
 }) {
 	const [word, setWord] = useState('');
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
 	const { toast } = useToast();
+	// tag NAMES (the resource service stores free-text tags)
 	const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-	const [tagInput, setTagInput] = useState('');
-	const [tagSearch, setTagSearch] = useState('');
-	const tags = useAppSelector((state) => state.tags.list);
-	const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
-	const isSelectedTag = (tagId: string, tagName: string) =>
-		selectedTagIds.some((value) => value === tagId || value === tagName);
-	const suggestedTags = flashcardTags
-		.filter((tag) => {
-			const q = tagSearch.trim().toLowerCase();
-			if (!q) return true;
-			return tag.name.toLowerCase().includes(q);
-		})
-		.filter((tag) => !isSelectedTag(tag.id, tag.name))
-		.slice(0, 8);
 
 	useEffect(() => {
 		if (flashcard) {
@@ -214,8 +205,6 @@ function FlashcardDialog({
 			setNotes('');
 			setSelectedTagIds([]);
 		}
-		setTagInput('');
-		setTagSearch('');
 	}, [flashcard, open]);
 
 	const applyTemplate = (field: 'definition' | 'notes') => {
@@ -241,8 +230,6 @@ Lưu ý: ...`);
 		setDefinition('');
 		setNotes('');
 		setSelectedTagIds([]);
-		setTagInput('');
-		setTagSearch('');
 		onOpenChange(false);
 	};
 
@@ -308,69 +295,14 @@ Lưu ý: ...`);
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label className="text-slate-700 font-bold">Tags</Label>
-						<div className="space-y-2">
-							<div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
-						{selectedTagIds.map((tagId) => {
-							const tagName = tags.find((t) => t.id === tagId)?.name ?? tagId;
-							return (
-										<Badge key={tagId} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
-											{tagName}
-											<button type="button" onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))} className="ml-0.5 hover:text-red-500">
-											<X className="h-3 w-3" />
-										</button>
-										</Badge>
-									);
-								})}
-								<Input
-									value={tagInput}
-									onChange={(e) => {
-										setTagInput(e.target.value);
-										setTagSearch(e.target.value);
-									}}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault();
-											const value = tagInput.trim();
-											if (value && !selectedTagIds.some((id) => tags.find((t) => t.id === id)?.name.toLowerCase() === value.toLowerCase())) {
-												setSelectedTagIds((prev) => [...prev, value]);
-											}
-											setTagInput('');
-											setTagSearch('');
-										}
-										if (e.key === 'Backspace' && !tagInput && selectedTagIds.length > 0) {
-											setSelectedTagIds((prev) => prev.slice(0, -1));
-										}
-									}}
-									placeholder={selectedTagIds.length > 0 ? '' : 'Nhập tag rồi chọn gợi ý...'}
-									className="min-w-[160px] flex-1 border-0 p-0 shadow-none focus-visible:ring-0"
-								/>
-							</div>
-							<div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-								<div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">Gợi ý tag</div>
-								<div className="max-h-40 overflow-y-auto">
-								{suggestedTags.length === 0 ? (
-									<div className="px-3 py-3 text-sm text-slate-500">Không có tag phù hợp</div>
-								) : (
-									suggestedTags.map((tag) => (
-										<button
-											key={tag.id}
-											type="button"
-											onClick={() => {
-												setSelectedTagIds((prev) => [...prev, tag.id]);
-												setTagInput('');
-												setTagSearch('');
-											}}
-											className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5 transition-colors flex items-center justify-between"
-										>
-												<span className="font-medium text-slate-800">{tag.name}</span>
-												<span className="text-[11px] text-slate-400">{tag.tagType}</span>
-											</button>
-										))
-									)}
-								</div>
-							</div>
-						</div>
+						<Label htmlFor="card-tags" className="text-slate-700 font-bold">Tags</Label>
+						<TagInput
+							id="card-tags"
+							value={selectedTagIds}
+							onChange={setSelectedTagIds}
+							suggestions={tagSuggestions}
+							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
+						/>
 					</div>
 				</div>
 				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
@@ -473,8 +405,10 @@ export function FlashcardListDetail() {
 		return filtered;
 	}, [cards, searchQuery, selectedTagId]);
 
-	const flashcardTags = tags.filter(
-		(t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question
+	/** The tags used on this list's cards (free-text names), for the filter and suggestions. */
+	const cardTagNames = useMemo(
+		() => [...new Set(cards.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b)),
+		[cards],
 	);
 
 	const handleAddFlashcard = async (data: {
@@ -655,9 +589,9 @@ export function FlashcardListDetail() {
 							</SelectTrigger>
 							<SelectContent className="rounded-xl border-slate-200">
 								<SelectItem value="__all__" className="font-semibold text-primary">Tất cả chủ đề</SelectItem>
-								{flashcardTags.map((tag) => (
-									<SelectItem key={tag.id} value={tag.id} className="font-medium">
-										{tag.name}
+								{cardTagNames.map((tag) => (
+									<SelectItem key={tag} value={tag} className="font-medium">
+										{tag}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -752,6 +686,7 @@ export function FlashcardListDetail() {
 				onOpenChange={setFlashcardDialogOpen}
 				flashcard={editingFlashcard}
 				onSave={handleAddFlashcard}
+				tagSuggestions={cardTagNames}
 			/>
 
 			{currentUser && (

@@ -26,12 +26,11 @@ import {
 	BookOpen,
 	Folder,
 	ChevronRight,
-	X,
 } from 'lucide-react';
-import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { ReportDialog } from './ReportDialog';
-import { Flag } from 'lucide-react';
+import { Flag, Search } from 'lucide-react';
+import { TagInput } from './TagInput';
 
 import { useRouter } from 'next/navigation';
 
@@ -41,17 +40,19 @@ function ListDialog({
 	onOpenChange,
 	list,
 	onSave,
+	tagSuggestions,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	list?: FlashcardList;
 	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => void;
+	/** Tags already used on the user's lists, offered as suggestions. */
+	tagSuggestions?: string[];
 }) {
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
 	const [isPublic, setIsPublic] = useState(false);
 	const [tags, setTags] = useState<string[]>([]);
-	const [tagInput, setTagInput] = useState('');
 	const { toast } = useToast();
 
 	useEffect(() => {
@@ -67,14 +68,6 @@ function ListDialog({
 			setTags([]);
 		}
 	}, [list, open]);
-
-	const addTag = () => {
-		const t = tagInput.trim();
-		if (t && !tags.includes(t)) {
-			setTags([...tags, t]);
-		}
-		setTagInput('');
-	};
 
 	const handleSave = () => {
 		if (!name.trim()) {
@@ -131,31 +124,13 @@ function ListDialog({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="list-tags" className="text-slate-700 font-bold">Tags</Label>
-						<div className="flex gap-2 items-center">
-							<Input
-								id="list-tags"
-								value={tagInput}
-								onChange={(e) => setTagInput(e.target.value)}
-								onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-								placeholder="Nhập tag rồi nhấn Enter..."
-								className="flex-1 bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
-							/>
-							<Button type="button" variant="outline" size="sm" onClick={addTag} className="rounded-xl h-11 border-slate-200">
-								<Plus className="h-3 w-3 mr-1" />Thêm
-							</Button>
-						</div>
-						{tags.length > 0 && (
-							<div className="flex flex-wrap gap-1.5 pt-1">
-								{tags.map((tag) => (
-									<Badge key={tag} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
-										{tag}
-										<button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="ml-0.5 hover:text-red-500">
-											<X className="h-3 w-3" />
-										</button>
-									</Badge>
-								))}
-							</div>
-						)}
+						<TagInput
+							id="list-tags"
+							value={tags}
+							onChange={setTags}
+							suggestions={tagSuggestions}
+							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
+						/>
 					</div>
 				</div>
 				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
@@ -195,6 +170,18 @@ export function FlashcardPage() {
 	const [mineTotalCount, setMineTotalCount] = useState(0);
 	const [discoverPage, setDiscoverPage] = useState(1);
 	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
+	const [discoverSearch, setDiscoverSearch] = useState('');
+	const [discoverQuery, setDiscoverQuery] = useState('');
+	const [discoverTags, setDiscoverTags] = useState<string[]>([]);
+
+	// search as you type, 350 ms after the last keystroke
+	useEffect(() => {
+		const t = setTimeout(() => setDiscoverQuery(discoverSearch.trim()), 350);
+		return () => clearTimeout(t);
+	}, [discoverSearch]);
+	useEffect(() => {
+		setDiscoverPage(1);
+	}, [discoverQuery, discoverTags]);
 	const [reportOpen, setReportOpen] = useState(false);
 	const [reportTargetId, setReportTargetId] = useState<string | null>(null);
 	const limit = 12;
@@ -235,11 +222,18 @@ export function FlashcardPage() {
 	useEffect(() => {
 		if (activeTab !== 'discover' || !currentUser) return;
 		setDiscoverLoading(true);
-		FlashcardListService.listFlashCardLists(undefined, true, discoverPage, limit)
+		// every public list, the user's own included (they are marked "Của bạn")
+		FlashcardListService.listFlashCardLists(
+			undefined,
+			true,
+			discoverPage,
+			limit,
+			discoverTags.length > 0 ? discoverTags : undefined,
+			discoverQuery,
+		)
 			.then((res: any) => {
 				const data = (res as any)?.data ?? res;
 				const publicLists: FlashcardList[] = (data.lists ?? [])
-					.filter((l: any) => l.authorId !== currentUser.id)
 					.map((l: any) => ({
 						id: l.id,
 						authorId: l.authorId,
@@ -254,7 +248,13 @@ export function FlashcardPage() {
 			})
 			.catch((err) => console.error('[FlashcardPage] fetch discover lists error:', err))
 			.finally(() => setDiscoverLoading(false));
-	}, [activeTab, currentUser, discoverPage]);
+	}, [activeTab, currentUser, discoverPage, discoverQuery, discoverTags]);
+
+	/** Tags seen on the user's and the visible public lists: suggestions for forms and search. */
+	const knownListTags = useMemo(
+		() => [...new Set([...lists, ...discoverLists].flatMap((l) => l.tags ?? []))],
+		[lists, discoverLists],
+	);
 
 	const handleAddList = async (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
 		if (!currentUser) return;
@@ -517,6 +517,24 @@ export function FlashcardPage() {
 
 				{activeTab === 'discover' && (
 					<>
+						<div className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr]">
+							<div className="relative">
+								<Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+								<Input
+									value={discoverSearch}
+									onChange={(e) => setDiscoverSearch(e.target.value)}
+									placeholder="Tìm bộ flashcard theo tên…"
+									className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10"
+									aria-label="Tìm theo tên"
+								/>
+							</div>
+							<TagInput
+								value={discoverTags}
+								onChange={setDiscoverTags}
+								suggestions={knownListTags}
+								placeholder="Lọc theo tag…"
+							/>
+						</div>
 						{discoverLoading ? (
 							<div className="text-center py-12">
 								<p className="text-slate-500 font-medium">Đang tải...</p>
@@ -526,9 +544,13 @@ export function FlashcardPage() {
 								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
 									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
 								</div>
-								<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Sưu Tập Công Khai Nào</h3>
+								<h3 className="text-xl font-bold text-slate-800 mb-2">
+									{discoverQuery || discoverTags.length > 0 ? 'Không tìm thấy bộ flashcard phù hợp' : 'Chưa Có Bộ Sưu Tập Công Khai Nào'}
+								</h3>
 								<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
-									Hiện tại chưa có bộ flashcard công khai nào từ người dùng khác.
+									{discoverQuery || discoverTags.length > 0 ?
+										'Thử từ khóa hoặc tag khác.'
+									:	'Hãy là người đầu tiên chia sẻ một bộ flashcard công khai!'}
 								</p>
 							</div>
 						) : (
@@ -536,7 +558,7 @@ export function FlashcardPage() {
 								<div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
 									<h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
 										Bộ sưu tập công khai
-										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{discoverLists.length}</span>
+										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{discoverTotalCount}</span>
 									</h2>
 								</div>
 
@@ -555,9 +577,16 @@ export function FlashcardPage() {
 															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-emerald-600 transition-colors">
 																{list.name}
 															</h3>
-															<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
-																<BookOpen className="w-3.5 h-3.5 text-primary/80" />
-																Flashcards
+															<div className="flex flex-wrap items-center gap-1.5">
+																<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
+																	<BookOpen className="w-3.5 h-3.5 text-primary/80" />
+																	Flashcards
+																</div>
+																{list.authorId === currentUser?.id && (
+																	<span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+																		Của bạn
+																	</span>
+																)}
 															</div>
 														</div>
 													</div>
@@ -622,6 +651,7 @@ export function FlashcardPage() {
 				onOpenChange={setListDialogOpen}
 				list={editingList}
 				onSave={handleAddList}
+				tagSuggestions={knownListTags}
 			/>
 
 			{currentUser && (
