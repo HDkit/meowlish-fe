@@ -4,6 +4,7 @@ import { AuthService } from './services/AuthService';
 import { GoalsService } from './services/GoalsService';
 import { ApiError } from './core/ApiError';
 import {
+	exchangeGoogleLoginToken,
 	fetchOwnIdentity,
 	getApiBaseUrl,
 	GOOGLE_LINK_PATH,
@@ -196,6 +197,22 @@ describe('fetchOwnIdentity', () => {
 	it('returns undefined when it cannot tell (server error)', async () => {
 		mockFetch(json(503, null));
 		await expect(fetchOwnIdentity()).resolves.toBeUndefined();
+	});
+});
+
+describe('exchangeGoogleLoginToken', () => {
+	it('posts the login token as JSON (never in the URL), then loads the user', async () => {
+		const calls = mockFetch(json(201, null), json(200, { id: 'u1', username: 'minh', roles: ['user'] }));
+		await expect(exchangeGoogleLoginToken('t-1')).resolves.toMatchObject({ id: 'u1' });
+		expect(calls[0].url).toBe(`${base}/api/v1/auth/google/tokens`);
+		expect(calls[0].init.method).toBe('POST');
+		expect(calls[0].init.body).toBe(JSON.stringify({ loginToken: 't-1' }));
+		expect(new Headers(calls[0].init.headers).get('Content-Type')).toBe('application/json');
+	});
+
+	it('reports an expired token on 401', async () => {
+		mockFetch(json(401, null));
+		await expect(exchangeGoogleLoginToken('old')).rejects.toThrow('hết hạn');
 	});
 });
 

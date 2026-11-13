@@ -257,13 +257,15 @@ export const loadSessionUser = async (fallback: { email?: string; fullName?: str
 
 /**
  * Google login: swaps the one-time `loginToken` from the OAuth redirect for the session
- * cookies (GET /auth/google/tokens sets them and returns `data: null`), then loads the user.
+ * cookies (POST /auth/google/tokens with a JSON body sets them and returns `data: null`), then loads the user.
  */
 export const exchangeGoogleLoginToken = async (loginToken: string): Promise<User> => {
-    const response = await fetch(
-        `${getApiBaseUrl()}/api/v1/auth/google/tokens?loginToken=${encodeURIComponent(loginToken)}`,
-        { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' } },
-    );
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/google/tokens`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginToken: loginToken }),
+    });
     if (!response.ok) {
         throw new Error(
             response.status === 401

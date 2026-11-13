@@ -385,11 +385,10 @@ export class AuthService {
         loginToken: string,
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
-            method: 'GET',
+            method: 'POST',
             url: '/api/v1/auth/google/tokens',
-            query: {
-                'loginToken': loginToken,
-            },
+            body: { loginToken },
+            mediaType: 'application/json',
         });
     }
     /**
