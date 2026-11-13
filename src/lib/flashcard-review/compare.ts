@@ -122,8 +122,8 @@ export function diffWords(
 	const ew = words(expected);
 	const an = aw.map(w => normalizeAnswer(w, options));
 	const en = ew.map(w => normalizeAnswer(w, options));
-	const ai = an.map((w, i) => i).filter(i => an[i] !== '');
-	const ei = en.map((w, i) => i).filter(i => en[i] !== '');
+	const ai = an.map((_, i) => i).filter(i => an[i] !== '');
+	const ei = en.map((_, i) => i).filter(i => en[i] !== '');
 
 	// LCS table over the meaningful words
 	const dp: number[][] = Array.from({ length: ai.length + 1 }, () => new Array<number>(ei.length + 1).fill(0));
