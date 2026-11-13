@@ -19,6 +19,7 @@ const protectedRoutes = [
 	'/exam-creation',
 	'/exam-management',
 	'/blog-management',
+	'/report-management',
 ];
 
 // Define public routes
