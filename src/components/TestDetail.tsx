@@ -19,6 +19,7 @@ import {
 	get_users_attempt_history_req_dto_SortOptionsDto,
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
+import { flushAttemptSaves } from '@/lib/answer-sync';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 
@@ -291,9 +292,9 @@ export function ExamDetailPage() {
 		setIsSubmittingOld(true);
 		const idToSubmit = ongoingAttempt.id;
 		try {
+			// answers typed just before leaving the test page may still be saving
+			await flushAttemptSaves(idToSubmit);
 			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(idToSubmit);
-			// Chờ backend cập nhật trạng thái (race condition fix)
-			await new Promise(resolve => setTimeout(resolve, 500));
 			// Chỉ clear ongoingAttempt và bắt đầu bài mới khi nộp THÀNH CÔNG
 			setOngoingAttempt(null);
 			await handleStart();
@@ -313,14 +314,21 @@ export function ExamDetailPage() {
 		setPendingAttemptDialog({ open: false, attemptId: null });
 		if (oldAttemptId) {
 			try {
+				await flushAttemptSaves(oldAttemptId);
 				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(oldAttemptId);
-			} catch (e) {
-				console.error('Failed to submit old attempt:', e);
-				const msg = extractApiErrorMessage(e) || 'Không thể nộp bài cũ. Vui lòng thử lại sau.';
-				toast({ title: msg });
+			} catch (e: any) {
+				const status = e?.status ?? e?.body?.statusCode;
+				// 409: already submitted, so a new attempt can start; anything else: keep the old one
+				if (status !== 409) {
+					console.error('Failed to submit old attempt:', e);
+					const msg = extractApiErrorMessage(e) || 'Không thể nộp bài cũ. Vui lòng thử lại sau.';
+					toast({ title: msg, variant: 'destructive' });
+					setStartError(msg);
+					return;
+				}
 			}
 		}
-		handleStart();
+		await handleStart();
 	};
 
 	const getSkillIcon = (skill: Skill) => {
