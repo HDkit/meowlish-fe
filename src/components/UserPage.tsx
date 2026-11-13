@@ -407,7 +407,10 @@ export function UserPage() {
 							<AvatarImage
 								key={currUser?.avatarUrl}
 								src={
-									(currUser?.avatarUrl ? `https://${currUser.avatarUrl}` : undefined) ||
+									// the API returns absolute URLs; only add a scheme to a bare host/path
+									(currUser?.avatarUrl ?
+										/^https?:\/\//i.test(currUser.avatarUrl) ? currUser.avatarUrl : `https://${currUser.avatarUrl}`
+									:	undefined) ||
 									`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`
 								}
 							/>
