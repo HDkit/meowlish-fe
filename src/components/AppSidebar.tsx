@@ -83,10 +83,8 @@ const managementLinks: NavLink[] = [
   { href: '/blog-management', label: 'Quản lý Blog', icon: Newspaper },
 ];
 
-const modExtraLinks: NavLink[] = [
-  { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
-  { href: '/user-management', label: 'Quản lý User', icon: Users },
-];
+// Exam approval needs EXAM_APPROVE and user management the admin role, which mods don't have.
+const modExtraLinks: NavLink[] = [];
 
 const headStaffExtra: NavLink[] = [
   { href: '/exam-approval', label: 'Duyệt đề thi', icon: ClipboardCheck },
