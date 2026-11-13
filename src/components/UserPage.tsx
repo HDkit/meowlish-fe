@@ -149,73 +149,53 @@ export function UserPage() {
 
 	useEffect(() => {
 		if (currUser) {
+			// The sections are independent: load them in parallel, each filling in (and ending its
+			// skeleton) as soon as its own request settles; one failing doesn't block the others.
 			const fetchProfileData = async () => {
-				try {
-					// Hydrate real profile from API
-					try {
-						const identity = await getOwnIdentity();
-						if (identity && identity.id) {
-							dispatch(
-								setUser({
-									...currUser,
-									id: identity.id ?? currUser.id,
-									email: identity.mail ?? identity.email ?? currUser.email,
-									fullName: identity.fullName ?? identity.username ?? currUser.fullName,
-									username: identity.username ?? currUser.username,
-									avatarUrl: identity.avatarUrl || currUser.avatarUrl,
-									createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
-									roleId: identity.roleId ?? currUser.roleId,
-									isDemo: identity.isDemo === true,
-								}),
-							);
-						}
-					} catch {
-						// ignore identity fetch failure
+				const identityTask = (async () => {
+					const identity = await getOwnIdentity();
+					if (identity && identity.id) {
+						dispatch(
+							setUser({
+								...currUser,
+								id: identity.id ?? currUser.id,
+								email: identity.mail ?? identity.email ?? currUser.email,
+								fullName: identity.fullName ?? identity.username ?? currUser.fullName,
+								username: identity.username ?? currUser.username,
+								avatarUrl: identity.avatarUrl || currUser.avatarUrl,
+								createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
+								roleId: identity.roleId ?? currUser.roleId,
+								isDemo: identity.isDemo === true,
+							}),
+						);
 					}
-
-					try {
-						const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
-						const creds = (credsRes as any).data ?? credsRes;
-						if (Array.isArray(creds)) {
-							setCredentials(creds);
-						} else if (creds?.credentials) {
-							setCredentials(creds.credentials);
-						}
-					} catch {
-						// ignore credentials fetch failure
-					}
-					markLoaded('creds');
-
-					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100);
-					if (badgesRes.data?.badges) {
-						setEarnedBadges(badgesRes.data.badges);
-					}
-					markLoaded('badges');
-
-					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
-					if (statsRes.data) {
-						setUserStats(statsRes.data as unknown as UserStatsDto);
-					}
-
-					// Fetch goal
-					await fetchGoal();
-					markLoaded('goal');
-
-					// Fetch recent attempt history
-					const historyRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-						undefined,
-						undefined,
-						20,
-					);
-					if (historyRes.data) {
-						const data = historyRes.data as any;
-						setAttemptHistory(data.attempts ?? []);
-					}
-				} catch (e) {
-					console.error('Failed to load profile data:', e);
-				} finally {
-					markLoaded('creds', 'badges', 'goal', 'history');
-				}
+				})();
+				const credsTask = (async () => {
+					const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
+					const creds = (credsRes as any).data ?? credsRes;
+					if (Array.isArray(creds)) setCredentials(creds);
+					else if (creds?.credentials) setCredentials(creds.credentials);
+				})().finally(() => markLoaded('creds'));
+				const badgesTask = AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100)
+					.then((badgesRes) => {
+						if (badgesRes.data?.badges) setEarnedBadges(badgesRes.data.badges);
+					})
+					.finally(() => markLoaded('badges'));
+				const statsTask = ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1().then((statsRes) => {
+					if (statsRes.data) setUserStats(statsRes.data as unknown as UserStatsDto);
+				});
+				const goalTask = fetchGoal().finally(() => markLoaded('goal'));
+				const historyTask = ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+					undefined,
+					undefined,
+					20,
+				)
+					.then((historyRes) => {
+						if (historyRes.data) setAttemptHistory((historyRes.data as any).attempts ?? []);
+					})
+					.finally(() => markLoaded('history'));
+				const results = await Promise.allSettled([identityTask, credsTask, badgesTask, statsTask, goalTask, historyTask]);
+				for (const r of results) if (r.status === 'rejected') console.error('Failed to load profile data:', r.reason);
 			};
 			fetchProfileData();
 		}

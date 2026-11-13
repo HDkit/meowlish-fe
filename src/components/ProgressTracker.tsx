@@ -155,7 +155,7 @@ export function ProgressTracker() {
       setLoading(false);
     };
     fetchStats();
-    fetchHistory();
+    // history: the sort effect below also runs on mount and fetches it (fetching here too doubled it)
   }, []);
 
   // Re-fetch history when sort changes
