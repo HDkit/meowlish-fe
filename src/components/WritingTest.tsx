@@ -192,18 +192,10 @@ export function WritingTest() {
 					const reviewData = (reviewRes as any)?.data as AttemptReviewDto | undefined;
 
 					if (reviewData) {
+						// Only the scorer's band/feedback counts. `totalPoints` is the attempt's MAXIMUM points,
+						// set the moment it is submitted, so it must never be shown as the score.
 						reviewResult = extractWritingResultFromReview(reviewData);
 						if (reviewResult) break;
-
-						// If we got review data but no additionalData yet, the scoring might still be processing
-						if (reviewData.totalPoints != null && reviewData.totalPoints > 0) {
-							// Has score but no detailed feedback - use basic info
-							reviewResult = {
-								overall_score: reviewData.totalPoints,
-								detailed_feedback: 'Điểm đã được chấm. Nhận xét chi tiết có thể chưa sẵn sàng.',
-							};
-							break;
-						}
 					}
 				} catch {
 					// Review not ready yet, continue polling
