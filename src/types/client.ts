@@ -198,6 +198,8 @@ export interface Notification extends MockDbType {
 	isRead: boolean;
 	linkType?: 'blog' | 'report';
 	linkId?: string;
+	/** In-app path to open on click (`data.action` from the backend), e.g. "/report-management". */
+	action?: string;
 	createdAt: number;
 }
 

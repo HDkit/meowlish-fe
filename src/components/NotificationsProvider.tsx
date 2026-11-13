@@ -14,11 +14,16 @@ const POLL_INTERVAL = 30_000;
 function mapToNotification(n: NotificationResponse): Notification {
   let linkType: Notification['linkType'] = undefined;
   let linkId: string | undefined = undefined;
+  let action: string | undefined = undefined;
   if (n.data) {
     try {
       const parsed = JSON.parse(n.data);
       linkType = parsed.linkType ?? undefined;
       linkId = parsed.linkId ?? undefined;
+      // same-site paths only, never an absolute or protocol-relative URL
+      if (typeof parsed.action === 'string' && parsed.action.startsWith('/') && !parsed.action.startsWith('//')) {
+        action = parsed.action;
+      }
     } catch {}
   }
   return {
@@ -30,6 +35,7 @@ function mapToNotification(n: NotificationResponse): Notification {
     isRead: n.isRead,
     linkType,
     linkId,
+    action,
     createdAt: new Date(n.createdAt).getTime(),
   };
 }

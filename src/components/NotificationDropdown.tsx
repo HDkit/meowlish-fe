@@ -41,7 +41,11 @@ export function NotificationDropdown() {
 		if (!notif.isRead) {
 			markAsRead(notif.id);
 		}
-		if (notif.linkType === 'blog') {
+		if (notif.action) {
+			router.push(notif.action);
+		} else if (notif.type === 'achievement') {
+			router.push('/progress');
+		} else if (notif.linkType === 'blog') {
 			router.push('/blog');
 		} else if (notif.linkType === 'report') {
 			router.push('/notifications');
