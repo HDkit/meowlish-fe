@@ -46,8 +46,7 @@ export function TagPicker({
 		onChange(value.includes(name) ? value.filter((v) => v !== name) : [...value, name]);
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
 					<Button
 						variant="outline"
@@ -57,11 +56,15 @@ export function TagPicker({
 					>
 						<Tags className="h-4 w-4 text-primary" />
 						{placeholder}
-						{value.length > 0 && (
-							<span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
-								{value.length}
-							</span>
-						)}
+						{/* always rendered (invisible at 0) so the button keeps its width */}
+						<span
+							className={`min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums ${
+								value.length > 0 ? 'bg-primary text-white' : 'invisible'
+							}`}
+							aria-hidden={value.length === 0}
+						>
+							{value.length}
+						</span>
 						<ChevronsUpDown className="h-3.5 w-3.5 text-slate-400" />
 					</Button>
 				</PopoverTrigger>
@@ -101,8 +104,26 @@ export function TagPicker({
 						</CommandList>
 					</Command>
 				</PopoverContent>
-			</Popover>
+		</Popover>
+	);
+}
 
+/**
+ * The picked tags as removable chips. Rendered by the page on its own row, below the filter
+ * controls: next to the (centered) button, every new chip pushed the button sideways.
+ */
+export function TagChips({
+	value,
+	onChange,
+	label = (n) => n,
+}: {
+	value: string[];
+	onChange: (names: string[]) => void;
+	label?: (name: string) => string;
+}) {
+	if (value.length === 0) return null;
+	return (
+		<div className="flex flex-wrap items-center justify-center gap-2">
 			{value.map((name) => (
 				<span
 					key={name}
@@ -111,7 +132,7 @@ export function TagPicker({
 					{label(name)}
 					<button
 						type="button"
-						onClick={() => toggle(name)}
+						onClick={() => onChange(value.filter((v) => v !== name))}
 						className="rounded-full p-0.5 hover:bg-primary/20"
 						aria-label={`Bỏ chọn ${label(name)}`}
 					>

@@ -22,7 +22,7 @@ import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
 import { useTagList } from '@/lib/tag-list';
-import { TagPicker } from './TagPicker';
+import { TagChips, TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
 
@@ -436,15 +436,20 @@ export function TestSelection() {
 					label={getTagDisplayName}
 					loading={loadingTags}
 				/>
-				{hasActiveFilters && (
-					<button
-						onClick={clearFilters}
-						className="rounded-full border border-red-200 px-3 py-1.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50"
-					>
-						Xóa bộ lọc
-					</button>
-				)}
+				{/* keeps its space when hidden, so the controls never shift */}
+				<button
+					onClick={clearFilters}
+					disabled={!hasActiveFilters}
+					aria-hidden={!hasActiveFilters}
+					tabIndex={hasActiveFilters ? 0 : -1}
+					className={`rounded-full border border-red-200 px-3 py-1.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50 ${
+						hasActiveFilters ? '' : 'invisible'
+					}`}
+				>
+					Xóa bộ lọc
+				</button>
 			</div>
+			<TagChips value={selectedTags} onChange={setSelectedTags} label={getTagDisplayName} />
 		</div>
 
 					<section className="space-y-8">
