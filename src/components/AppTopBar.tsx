@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   '/user-management': 'Quản lý User',
   '/user': 'Thông tin cá nhân',
   '/chat': 'Phòng Chat',
+  '/forum': 'Diễn đàn',
   '/notifications': 'Thông báo',
 };
 
@@ -32,6 +33,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/test/')) return 'Chi tiết đề thi';
   if (pathname.startsWith('/results/')) return 'Kết quả bài thi';
   if (pathname.startsWith('/flashcards/')) return 'Bộ Flashcard';
+  if (pathname.startsWith('/forum/')) return 'Diễn đàn';
+  if (pathname.startsWith('/blog/')) return 'Bài viết';
   return '';
 }
 

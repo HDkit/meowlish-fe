@@ -12,6 +12,7 @@ const protectedRoutes = [
 	'/user-management',
 	'/flashcards',
 	'/blog',
+	'/forum',
 	'/speaking-writing',
 	'/speaking',
 	'/writing',

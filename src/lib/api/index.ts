@@ -120,6 +120,7 @@ export { ExamPracticeService } from './services/ExamPracticeService';
 export { FilesService } from './services/FilesService';
 export { FlashcardService } from './services/FlashcardService';
 export { FlashcardListService } from './services/FlashcardListService';
+export { ForumService } from './services/ForumService';
 export { GoalsService } from './services/GoalsService';
 export { NotificationService } from './services/NotificationService';
 export { ReportService } from './services/ReportService';

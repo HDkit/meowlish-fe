@@ -20,6 +20,7 @@ import {
   CircleUserRound,
   LogOut,
   MessageCircle,
+  MessagesSquare,
   Bell,
   Flag,
   Sparkles,
@@ -64,6 +65,7 @@ const learnerGroups: NavGroup[] = [
     label: 'Cộng đồng',
     links: [
       { href: '/blog', label: 'Blog', icon: Newspaper },
+      { href: '/forum', label: 'Diễn đàn', icon: MessagesSquare },
       { href: '/chat', label: 'Phòng Chat', icon: MessageCircle },
     ],
   },
