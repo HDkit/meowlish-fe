@@ -44,6 +44,7 @@ import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
 import { getOwnIdentity, invalidateOwnIdentity } from '@/lib/own-identity';
+import { attemptHref, isAttemptFinished } from '@/lib/attempt-href';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
 import { type LoginMethod, loginMethodActions } from '@/lib/login-methods';
 import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
@@ -699,7 +700,7 @@ export function UserPage() {
 							</div>
 							<div className='divide-y border-t-0'>
 								{attemptHistory.map((attempt) => {
-									const isPending = !attempt.endedAt;
+									const isPending = !isAttemptFinished(attempt);
 									const scorePct = getScorePercent(attempt);
 
 									return (
@@ -708,7 +709,7 @@ export function UserPage() {
 												<h3 className='text-base font-semibold text-foreground leading-tight'>
 													{attempt.examId ?
 														<a
-															href={isPending ? `/test/${attempt.examId}` : `/results/${attempt.id}`}
+															href={attemptHref(attempt)}
 															className='hover:text-primary hover:underline transition-colors'
 														>
 															{attempt.examName || 'Đề thi không có tên'}
@@ -779,11 +780,9 @@ export function UserPage() {
 														</span>
 													</div>
 
-													{attempt.endedAt && (
-														<Button variant='outline' size='sm' onClick={() => router.push(`/results/${attempt.id}`)}>
-															Xem chi tiết
-														</Button>
-													)}
+													<Button variant='outline' size='sm' onClick={() => router.push(attemptHref(attempt))}>
+														{isPending ? 'Tiếp tục' : 'Xem chi tiết'}
+													</Button>
 												</div>
 											</div>
 										</div>

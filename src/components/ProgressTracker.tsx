@@ -11,6 +11,7 @@ import type { TagInfoDto } from '@/lib/api/models/TagInfoDto';
 import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
 import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
 import { practiceSuggestion } from '@/lib/skill-stats';
+import { attemptHref } from '@/lib/attempt-href';
 import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
 import { SkillAnalysis } from './progress/SkillAnalysis';
 import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
@@ -499,7 +500,7 @@ export function ProgressTracker() {
                   return (
                     <div
                       key={attempt.id}
-                      onClick={() => router.push(`/results/${attempt.id}/detail`)}
+                      onClick={() => router.push(attemptHref(attempt))}
                       className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">

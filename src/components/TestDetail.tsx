@@ -20,6 +20,7 @@ import {
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
 import { flushAttemptSaves } from '@/lib/answer-sync';
+import { attemptHref } from '@/lib/attempt-href';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 
@@ -792,7 +793,7 @@ export function ExamDetailPage() {
 																			type='button'
 																			size='sm'
 																			className='rounded-lg font-semibold'
-																			onClick={() => router.push(`/test/do/${attempt.id}`)}
+																			onClick={() => router.push(attemptHref(attempt))}
 																		>
 																			<Play className='mr-1.5 h-3.5 w-3.5' />
 																			Tiếp tục
@@ -803,7 +804,7 @@ export function ExamDetailPage() {
 																			variant='outline'
 																			size='sm'
 																			className='rounded-lg font-semibold'
-																			onClick={() => router.push(`/results/${attempt.id}`)}
+																			onClick={() => router.push(attemptHref(attempt))}
 																		>
 																			Xem chi tiết
 																		</Button>
