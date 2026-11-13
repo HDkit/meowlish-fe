@@ -55,6 +55,10 @@ import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
+import { Skeleton } from './ui/skeleton';
+import { ListRowsSkeleton, LoadingRegion } from './skeletons';
+
+type ProfilePart = 'creds' | 'badges' | 'goal' | 'history';
 
 function formatElapsed(startedAt: string, endedAt?: string): string {
 	const start = new Date(startedAt).getTime();
@@ -112,6 +116,11 @@ export function UserPage() {
 		clearDialogError();
 	}, [isProfileDialogOpen, isPasswordDialogOpen, isCredDialogOpen]);
 	const avatarInputRef = React.useRef<HTMLInputElement>(null);
+	// Which parts of the profile have been fetched, so each section shows a skeleton
+	// (not an empty state or a 0) until its own data is in.
+	const [loadedParts, setLoadedParts] = useState<ReadonlySet<ProfilePart>>(() => new Set());
+	const markLoaded = (...parts: ProfilePart[]) => setLoadedParts((prev) => new Set([...prev, ...parts]));
+	const isLoaded = (part: ProfilePart) => loadedParts.has(part);
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
 	const { toast } = useToast();
@@ -175,11 +184,13 @@ export function UserPage() {
 					} catch {
 						// ignore credentials fetch failure
 					}
+					markLoaded('creds');
 
 					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100);
 					if (badgesRes.data?.badges) {
 						setEarnedBadges(badgesRes.data.badges);
 					}
+					markLoaded('badges');
 
 					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
 					if (statsRes.data) {
@@ -188,6 +199,7 @@ export function UserPage() {
 
 					// Fetch goal
 					await fetchGoal();
+					markLoaded('goal');
 
 					// Fetch recent attempt history
 					const historyRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
@@ -201,6 +213,8 @@ export function UserPage() {
 					}
 				} catch (e) {
 					console.error('Failed to load profile data:', e);
+				} finally {
+					markLoaded('creds', 'badges', 'goal', 'history');
 				}
 			};
 			fetchProfileData();
@@ -403,7 +417,7 @@ export function UserPage() {
 
 				<div className='relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8'>
 					<div className='relative group cursor-pointer' onClick={() => avatarInputRef.current?.click()}>
-						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
+						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl bg-white/20'>
 							<AvatarImage
 								key={currUser?.avatarUrl}
 								src={
@@ -414,7 +428,8 @@ export function UserPage() {
 									`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`
 								}
 							/>
-							<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
+							{/* delayMs: show the initials only if the image is slow or fails, not for a flash before it loads */}
+							<AvatarFallback delayMs={600} className='bg-primary text-white text-4xl font-bold'>
 								{(currUser?.fullName || 'User')
 									.split(' ')
 									.map((n) => n[0])
@@ -480,12 +495,12 @@ export function UserPage() {
 						</h2>
 						{/* one method per type: offer only the ones the account doesn't have */}
 						<div className='flex gap-2'>
-							{methodActions.canAddMail && (
+							{isLoaded('creds') && methodActions.canAddMail && (
 								<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
 									<Plus className='h-4 w-4 mr-1' /> Thêm Email
 								</Button>
 							)}
-							{methodActions.canLinkGoogle && (
+							{isLoaded('creds') && methodActions.canLinkGoogle && (
 								<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
 									<Plus className='h-4 w-4 mr-1' /> Liên kết Google
 								</Button>
@@ -500,7 +515,11 @@ export function UserPage() {
 							{DEMO_READ_ONLY_NOTICE}
 						</p>
 					)}
-					{credentials.length === 0 ?
+					{!isLoaded('creds') ?
+						<LoadingRegion label='Đang tải phương thức đăng nhập…'>
+							<ListRowsSkeleton rows={1} trailing={false} rowClassName='bg-gray-50 border-gray-100 px-4 py-3' />
+						</LoadingRegion>
+					: credentials.length === 0 ?
 						<p className='text-gray-400 text-sm'>Chưa tải được thông tin phương thức đăng nhập.</p>
 					:	<div className='space-y-3'>
 							{credentials.map((cred) => (
@@ -569,10 +588,14 @@ export function UserPage() {
 						<h2 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
 							<Target className='h-6 w-6 text-primary' /> Mục tiêu của bạn
 						</h2>
-						{!goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
+						{isLoaded('goal') && !goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-						{goal ?
+						{!isLoaded('goal') ?
+							<LoadingRegion label='Đang tải mục tiêu…'>
+								<Skeleton className='h-[150px] rounded-xl' />
+							</LoadingRegion>
+						: goal ?
 							<Card className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
 								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
@@ -617,7 +640,7 @@ export function UserPage() {
 								value='achievements'
 								className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'
 							>
-								<Award className='h-4 w-4 mr-2 inline' /> Danh hiệu ({earnedBadges.length})
+								<Award className='h-4 w-4 mr-2 inline' /> Danh hiệu{isLoaded('badges') && ` (${earnedBadges.length})`}
 							</TabsTrigger>
 							<TabsTrigger
 								value='history'
@@ -666,7 +689,7 @@ export function UserPage() {
 								</Card>
 							)}
 
-							{!goal && (
+							{isLoaded('goal') && !goal && (
 								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
 									<CardContent className='py-12 text-center'>
 										<Target className='h-12 w-12 mx-auto mb-4 text-gray-300' />
@@ -691,7 +714,7 @@ export function UserPage() {
 							<div className='p-6 border-b bg-slate-50'>
 								<h3 className='font-bold text-gray-800 text-lg flex items-center gap-2'>
 									<Calendar className='w-5 h-5 text-primary' />
-									Lịch sử làm bài gần đây ({attemptHistory.length})
+									Lịch sử làm bài gần đây{isLoaded('history') && ` (${attemptHistory.length})`}
 								</h3>
 							</div>
 							<div className='divide-y border-t-0'>
@@ -787,7 +810,12 @@ export function UserPage() {
 									);
 								})}
 
-								{attemptHistory.length === 0 && (
+								{!isLoaded('history') && (
+									<LoadingRegion label='Đang tải lịch sử làm bài…' className='p-4'>
+										<ListRowsSkeleton rows={4} rowClassName='border-0' />
+									</LoadingRegion>
+								)}
+								{isLoaded('history') && attemptHistory.length === 0 && (
 									<div className='text-center py-12'>
 										<Calendar className='h-12 w-12 mx-auto mb-3 opacity-30' />
 										<p className='text-gray-500'>Bạn chưa có bài kiểm tra nào.</p>
@@ -815,11 +843,24 @@ export function UserPage() {
 								</div>
 								<div className='bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center'>
 									<Trophy className='w-5 h-5 mr-2 text-emerald-600' />
-									{earnedBadges.length} Danh hiệu
+									{isLoaded('badges') ? earnedBadges.length : '–'} Danh hiệu
 								</div>
 							</CardHeader>
 							<CardContent className='pt-8 pb-8'>
-								{earnedBadges.length === 0 ?
+								{!isLoaded('badges') ?
+									<LoadingRegion
+										label='Đang tải danh hiệu…'
+										className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'
+									>
+										{Array.from({ length: 5 }, (_, i) => (
+											<div key={i} className='flex flex-col items-center gap-2'>
+												<Skeleton className='w-28 h-28 mb-2 rounded-full' />
+												<Skeleton className='h-4 w-24' />
+												<Skeleton className='h-3 w-20' />
+											</div>
+										))}
+									</LoadingRegion>
+								: earnedBadges.length === 0 ?
 									<div className='text-center py-16'>
 										<div className='w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6'>
 											<Lock className='w-10 h-10 text-gray-300' />

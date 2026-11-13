@@ -108,7 +108,8 @@ export function WeeklyPlanCard({
 						</Button>
 					</div>
 				) : loading || !week ? (
-					<div className="space-y-4" aria-busy="true">
+					<div className="space-y-4" role="status" aria-busy="true">
+						<span className="sr-only">Đang tải…</span>
 						<Skeleton className="h-10 rounded-xl" />
 						<div className="grid grid-cols-7 gap-1.5 sm:gap-2">
 							{Array.from({ length: 7 }, (_, i) => (

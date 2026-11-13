@@ -263,7 +263,8 @@ export function SkillAnalysis({
 						</Button>
 					</div>
 				) : loading || !stats ? (
-					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" aria-busy="true">
+					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="status" aria-busy="true">
+						<span className="sr-only">Đang tải…</span>
 						{[0, 1, 2, 3].map(i => (
 							<Skeleton key={i} className="h-[210px] rounded-2xl" />
 						))}

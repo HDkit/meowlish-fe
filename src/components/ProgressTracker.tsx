@@ -14,12 +14,13 @@ import { practiceSuggestion } from '@/lib/skill-stats';
 import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
 import { SkillAnalysis } from './progress/SkillAnalysis';
 import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
+import { Skeleton } from './ui/skeleton';
+import { ListRowsSkeleton, LoadingRegion, StatTilesSkeleton } from './skeletons';
 import {
   Trophy,
   Clock,
   FileText,
   TrendingUp,
-  Loader2,
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
@@ -64,6 +65,30 @@ function InsightCard({
         <p className="text-xs text-muted-foreground font-medium">{title}</p>
         <p className="font-bold text-sm mt-0.5">{value}</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Hero ───
+
+function ProgressHero() {
+  return (
+    <div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-24 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+
+      <div className="relative z-10 max-w-3xl mx-auto space-y-4">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold shadow-sm mb-2">
+          <TrendingUp className="w-4 h-4" /> TIẾN ĐỘ HỌC TẬP
+        </div>
+        <h2 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5">
+          Theo Dõi Tiến Độ
+        </h2>
+        <p className="text-primary-foreground/80 text-lg md:text-xl font-medium">
+          Phân tích chi tiết quá trình luyện tập, điểm mạnh và điểm cần cải thiện của bạn.
+        </p>
       </div>
     </div>
   );
@@ -198,12 +223,31 @@ export function ProgressTracker() {
 
   // ─── Render states ───
 
-  if (loading) {
+  // Without stats, the empty state depends on the history too: wait for it rather than flash "no data".
+  if (loading || (!stats && !history && historyLoading)) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground text-sm">Đang tải dữ liệu tiến độ...</p>
-      </div>
+      <LoadingRegion label="Đang tải dữ liệu tiến độ…" className="pb-20">
+        <ProgressHero />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-6 -mt-16 relative z-10">
+          <StatTilesSkeleton
+            count={3}
+            className="grid-cols-3 md:grid-cols-3"
+            tileClassName="border-0 shadow-lg bg-white/95 px-6 pt-6 pb-5"
+          />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+            <Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent>
+              <ListRowsSkeleton rows={5} rowClassName="border-0 bg-muted/40" />
+            </CardContent>
+          </Card>
+        </div>
+      </LoadingRegion>
     );
   }
 
@@ -257,23 +301,7 @@ export function ProgressTracker() {
   return (
     <div className="pb-20">
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-24 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-
-        <div className="relative z-10 max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold shadow-sm mb-2">
-            <TrendingUp className="w-4 h-4" /> TIẾN ĐỘ HỌC TẬP
-          </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5">
-            Theo Dõi Tiến Độ
-          </h2>
-          <p className="text-primary-foreground/80 text-lg md:text-xl font-medium">
-            Phân tích chi tiết quá trình luyện tập, điểm mạnh và điểm cần cải thiện của bạn.
-          </p>
-        </div>
-      </div>
+      <ProgressHero />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-6 -mt-16 relative z-10">
 
@@ -441,12 +469,14 @@ export function ProgressTracker() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {historyLoading ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    Đang tải...
-                  </div>
+              <div
+                className={`space-y-2 transition-opacity ${historyLoading && history?.attempts?.length ? 'opacity-60' : ''}`}
+                aria-busy={historyLoading}
+              >
+                {historyLoading && !history?.attempts?.length ? (
+                  <LoadingRegion>
+                    <ListRowsSkeleton rows={5} rowClassName="border-0 bg-muted/40" />
+                  </LoadingRegion>
                 ) : !history?.attempts?.length ? (
                   <div className="py-12 text-center text-muted-foreground">
                     <Clock className="h-8 w-8 mx-auto mb-3 opacity-30" />

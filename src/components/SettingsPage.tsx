@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Bell, ChevronRight, KeyRound, Loader2, Moon, Palette, Sun, Trophy, Flag, Megaphone, UserRound } from 'lucide-react';
 import { Switch } from './ui/switch';
+import { Skeleton } from './ui/skeleton';
 import { useToast } from './ui/use-toast';
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { NotificationService, type NotificationPreferences } from '@/lib/api/services/NotificationService';
@@ -128,7 +129,7 @@ export function SettingsPage() {
 			<Section icon={Bell} title="Thông báo" description="Bật hoặc tắt từng loại thông báo trong ứng dụng. Thay đổi được lưu ngay.">
 				{loadError ?
 					<p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 break-words">{loadError}</p>
-				:	<ul className="divide-y divide-slate-100">
+				:	<ul className="divide-y divide-slate-100" aria-busy={loading} aria-label={loading ? 'Đang tải cài đặt thông báo…' : undefined}>
 						{NOTIFICATION_TYPES.map(({ key, title, description, icon: Icon }) => (
 							<li key={key} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
 								<Icon className="h-5 w-5 shrink-0 text-slate-400" />
@@ -137,12 +138,16 @@ export function SettingsPage() {
 									<span className="block text-sm text-slate-500">{description}</span>
 								</label>
 								{saving === key && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-								<Switch
-									id={`pref-${key}`}
-									checked={prefs[key]}
-									disabled={loading || saving !== null}
-									onCheckedChange={(v) => void toggle(key, v)}
-								/>
+								{/* a placeholder until the saved value is known, so the switch doesn't flip after load */}
+								{loading ?
+									<Skeleton className="h-[1.15rem] w-8 shrink-0 rounded-full" />
+								:	<Switch
+										id={`pref-${key}`}
+										checked={prefs[key]}
+										disabled={saving !== null}
+										onCheckedChange={(v) => void toggle(key, v)}
+									/>
+								}
 							</li>
 						))}
 					</ul>

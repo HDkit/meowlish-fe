@@ -161,7 +161,8 @@ export function ActivityHeatmapCard({
 						</Button>
 					</div>
 				) : loading || !activity || !heatmap || !summary ? (
-					<div className="space-y-4" aria-busy="true">
+					<div className="space-y-4" role="status" aria-busy="true">
+						<span className="sr-only">Đang tải…</span>
 						<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 							{[0, 1, 2, 3].map(i => (
 								<Skeleton key={i} className="h-[62px] rounded-2xl" />

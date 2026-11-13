@@ -10,6 +10,8 @@ import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hoo
 import { practiceSuggestion } from '@/lib/skill-stats';
 import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
 import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion, StatTilesSkeleton } from './skeletons';
 
 export function Dashboard() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
@@ -41,13 +43,24 @@ export function Dashboard() {
 			.finally(() => setLoading(false));
 	}, [isHydrated, currentUser, router]);
 
-	if (!isHydrated || loading) {
-		return <div className="min-h-screen bg-background flex items-center justify-center">
-			<div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-		</div>;
+	if (!isHydrated || !currentUser) {
+		// Shaped like the hero + cards below, so nothing jumps once the user is known.
+		return (
+			<LoadingRegion className='min-h-screen bg-background pb-10'>
+				<div className="bg-primary">
+					<div className="px-6 py-10 max-w-6xl mx-auto">
+						<Skeleton className="h-9 w-80 max-w-full bg-white/25" />
+						<Skeleton className="h-6 w-[28rem] max-w-full mt-3 bg-white/20" />
+						<StatTilesSkeleton className="mt-8" tileClassName="bg-white/20 border-white/20 [&_[data-slot=skeleton]]:bg-white/25" />
+					</div>
+				</div>
+				<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
+					<Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+					<Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+				</div>
+			</LoadingRegion>
+		);
 	}
-
-	if (!currentUser) return null;
 
 	const completedAttemptsCount = activity.data?.totalAttempts ?? stats?.attemptCounts ?? 0;
 	const streak = activity.data?.currentStreak ?? 0;
@@ -90,14 +103,14 @@ export function Dashboard() {
 					</div>
 
 					{/* Stats */}
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8" aria-busy={loading}>
 						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-primary/30 rounded-lg">
 									<BookOpen className="h-5 w-5 text-primary-foreground/80" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{completedAttemptsCount}</div>
+									<div className="text-2xl font-bold">{loading && !activity.data ? <StatValueSkeleton /> : completedAttemptsCount}</div>
 									<div className="text-xs text-primary-foreground/60">Đề đã làm</div>
 								</div>
 							</div>
@@ -108,7 +121,7 @@ export function Dashboard() {
 									<Target className="h-5 w-5 text-emerald-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{averageScore}%</div>
+									<div className="text-2xl font-bold">{loading ? <StatValueSkeleton /> : <>{averageScore}%</>}</div>
 									<div className="text-xs text-primary-foreground/60">Điểm trung bình</div>
 								</div>
 							</div>
@@ -119,7 +132,7 @@ export function Dashboard() {
 									<Flame className="h-5 w-5 text-orange-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{streak}</div>
+									<div className="text-2xl font-bold">{activity.loading && !activity.data ? <StatValueSkeleton /> : streak}</div>
 									<div className="text-xs text-primary-foreground/60">Ngày liên tiếp</div>
 								</div>
 							</div>
@@ -130,7 +143,7 @@ export function Dashboard() {
 									<TrendingUp className="h-5 w-5 text-secondary-foreground" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{topicCount}</div>
+									<div className="text-2xl font-bold">{loading ? <StatValueSkeleton /> : <>{topicCount}</>}</div>
 									<div className="text-xs text-primary-foreground/60">Chủ đề đã ôn</div>
 								</div>
 							</div>
@@ -196,6 +209,16 @@ export function Dashboard() {
 					))}
 				</div>
 			</div>
+		</div>
+	);
+}
+
+/** Placeholder the height of a stat number, so the tiles keep their size. */
+function StatValueSkeleton() {
+	return (
+		<div className="py-1">
+			<Skeleton className="h-6 w-10 bg-white/25" />
+			<span className="sr-only">Đang tải…</span>
 		</div>
 	);
 }
