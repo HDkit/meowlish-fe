@@ -55,8 +55,11 @@ function findFirstQuestionId(sections: SectionDataDto[]): string | null {
  */
 function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 	try {
-		const parsed = JSON.parse(additionalData);
-		return { ...parsed, additionalData };
+		let parsed: unknown = JSON.parse(additionalData);
+		// the backend stores the scorer's result as a JSON string inside JSON: decode both layers
+		if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+		if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+		return { ...(parsed as WritingEvaluationResult), additionalData };
 	} catch {
 		return {
 			overall_score: 0,
