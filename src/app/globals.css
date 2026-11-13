@@ -385,3 +385,16 @@ body[style*="overflow"] {
 @media (prefers-reduced-motion: reduce) {
   .app-pattern::before { animation: none; }
 }
+
+/* Blog comments: the comment a "Đang trả lời …" link points to glows briefly. */
+.comment-flash {
+  border-radius: 0.75rem;
+  animation: comment-flash 1.6s ease-out;
+}
+@keyframes comment-flash {
+  0%, 30% { background-color: hsl(var(--primary) / 0.14); box-shadow: 0 0 0 6px hsl(var(--primary) / 0.14); }
+  100% { background-color: transparent; box-shadow: 0 0 0 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comment-flash { animation: none; background-color: hsl(var(--primary) / 0.12); }
+}

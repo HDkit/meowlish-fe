@@ -103,6 +103,22 @@ interface ItemContext {
   onReport: (comment: BlogComment) => void;
 }
 
+/** Plain-text start of a comment, for the "Đang trả lời" tooltip. */
+const excerpt = (markdown: string): string => {
+  const text = markdown.replace(/[#*_`>\[\]()!~-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+};
+
+/** Scrolls to a comment and briefly highlights it (the parent of a flattened reply). */
+const showComment = (id: string) => {
+  const el = document.getElementById(`comment-${id}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const target = el.firstElementChild ?? el;
+  target.classList.add('comment-flash');
+  setTimeout(() => target.classList.remove('comment-flash'), 1600);
+};
+
 function CommentItem({ comment, parent, ctx }: { comment: BlogComment; parent?: BlogComment; ctx: ItemContext }) {
   const author = ctx.identities[comment.authorId];
   const isAuthor = !!ctx.currentUserId && ctx.currentUserId === comment.authorId;
@@ -128,10 +144,20 @@ function CommentItem({ comment, parent, ctx }: { comment: BlogComment; parent?: 
                 {comment.editedAt && <span className="text-xs italic text-slate-400">(đã chỉnh sửa)</span>}
               </div>
               {capped && parent && (
-                <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-                  <CornerDownRight className="size-3" aria-hidden="true" />
-                  trả lời {parent.deleted ? 'bình luận đã xóa' : displayName(ctx.identities[parent.authorId])}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => showComment(parent.id)}
+                  title={parent.deleted ? undefined : excerpt(parent.content)}
+                  className="mt-0.5 flex max-w-full items-center gap-1 rounded text-left text-xs text-slate-500 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <CornerDownRight className="size-3 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    Đang trả lời{' '}
+                    <span className="font-semibold">
+                      {parent.deleted ? 'một bình luận đã xóa' : displayName(ctx.identities[parent.authorId])}
+                    </span>
+                  </span>
+                </button>
               )}
               {ctx.editing === comment.id ?
                 <div className="mt-2">

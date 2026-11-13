@@ -1,7 +1,11 @@
 import type { BlogComment } from './api/services/BlogCommentService';
 
 /** Indentation stops here; deeper replies are drawn at this level with an "↪ name" hint. */
-export const MAX_VISUAL_DEPTH = 4;
+/**
+ * Indentation levels shown (Facebook style): top-level comments (0) and one level of replies (1).
+ * Deeper replies render at level 1 with a "Đang trả lời <name>" link to the comment they answer.
+ */
+export const MAX_VISUAL_DEPTH = 1;
 
 export const visualDepth = (depth: number): number => Math.min(Math.max(depth, 0), MAX_VISUAL_DEPTH);
 

@@ -32,7 +32,9 @@ describe('comment tree helpers', () => {
 
   it('caps the visual depth', () => {
     expect(visualDepth(0)).toBe(0);
-    expect(visualDepth(2)).toBe(2);
+    expect(visualDepth(1)).toBe(1);
+    // two levels on screen; deeper replies stay at the reply level
+    expect(visualDepth(2)).toBe(1);
     expect(visualDepth(12)).toBe(MAX_VISUAL_DEPTH);
   });
 
