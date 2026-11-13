@@ -113,6 +113,7 @@ export type { UserStatsDto } from './models/UserStatsDto';
 export { AchievementsService } from './services/AchievementsService';
 export { AuthService } from './services/AuthService';
 export { BlogService } from './services/BlogService';
+export { BlogCommentService } from './services/BlogCommentService';
 export { ChatRoomService } from './services/ChatRoomService';
 export { ChatMessageService } from './services/ChatMessageService';
 export { ExamManagementService } from './services/ExamManagementService';

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { BlogPage } from '@/components/BlogPage';
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function BlogListPage() {
-	return <BlogPage />;
+	return (
+		<Suspense>
+			<BlogPage />
+		</Suspense>
+	);
 }
