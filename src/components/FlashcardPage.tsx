@@ -35,7 +35,7 @@ import { Copy, Flag, Loader2, Search } from 'lucide-react';
 import { TagInput } from './TagInput';
 import { ForkListButton } from './flashcards/ForkListButton';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 // Dialog để tạo/sửa list
 function ListDialog({
@@ -188,25 +188,49 @@ export function FlashcardPage() {
 
 	const [listDialogOpen, setListDialogOpen] = useState(false);
 	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
-	const [activeTab, setActiveTab] = useState<'mine' | 'discover'>('mine');
+	// Tab, pages and the Discover search live in the URL (?tab=discover&page=2&dpage=3&q=…&tag=…), so
+	// coming back from a list (or reloading) shows the same tab and page.
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const readPage = (key: string) => {
+		const n = Number(searchParams.get(key));
+		return Number.isInteger(n) && n > 0 ? n : 1;
+	};
+	const activeTab: 'mine' | 'discover' = searchParams.get('tab') === 'discover' ? 'discover' : 'mine';
+	const minePage = readPage('page');
+	const discoverPage = readPage('dpage');
+	const discoverQuery = searchParams.get('q') ?? '';
+	const discoverTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	const updateQuery = (patch: Record<string, string | string[] | number | null>) => {
+		const next = new URLSearchParams(searchParams.toString());
+		for (const [key, value] of Object.entries(patch)) {
+			next.delete(key);
+			if (Array.isArray(value)) value.forEach((v) => next.append(key, v));
+			else if (value !== null && value !== '' && !(typeof value === 'number' && value <= 1)) next.set(key, String(value));
+		}
+		const qs = next.toString();
+		router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+	};
+	const setActiveTab = (tab: 'mine' | 'discover') => updateQuery({ tab: tab === 'discover' ? 'discover' : null });
+	const setMinePage = (page: number) => updateQuery({ page: page });
+	const setDiscoverPage = (page: number) => updateQuery({ dpage: page });
+	// a new search or tag filter starts at the first page
+	const setDiscoverQuery = (q: string) => {
+		if (q !== discoverQuery) updateQuery({ q: q || null, dpage: null });
+	};
+	const setDiscoverTags = (tags: string[]) => updateQuery({ tag: tags, dpage: null });
 	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
 	const [discoverLoading, setDiscoverLoading] = useState(false);
-	const [minePage, setMinePage] = useState(1);
 	const [mineTotalCount, setMineTotalCount] = useState(0);
-	const [discoverPage, setDiscoverPage] = useState(1);
 	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
-	const [discoverSearch, setDiscoverSearch] = useState('');
-	const [discoverQuery, setDiscoverQuery] = useState('');
-	const [discoverTags, setDiscoverTags] = useState<string[]>([]);
+	const [discoverSearch, setDiscoverSearch] = useState(discoverQuery);
 
 	// search as you type, 350 ms after the last keystroke
 	useEffect(() => {
 		const t = setTimeout(() => setDiscoverQuery(discoverSearch.trim()), 350);
 		return () => clearTimeout(t);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [discoverSearch]);
-	useEffect(() => {
-		setDiscoverPage(1);
-	}, [discoverQuery, discoverTags]);
 	const [reportOpen, setReportOpen] = useState(false);
 	const [reportTargetId, setReportTargetId] = useState<string | null>(null);
 	const limit = 12;
@@ -241,12 +265,7 @@ export function FlashcardPage() {
 		[lists, currentUser]
 	);
 
-	// Fetch public lists for discover tab
-	useEffect(() => {
-		if (activeTab !== 'discover' || !currentUser) return;
-		setDiscoverLoading(true);
-		setDiscoverPage(1);
-	}, [activeTab, currentUser]);
+	// Fetch public lists for discover tab (its page comes from the URL)
 
 	useEffect(() => {
 		if (activeTab !== 'discover' || !currentUser) return;
@@ -533,7 +552,7 @@ export function FlashcardPage() {
 
 												<Button
 													className="w-full mt-auto bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-12 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)] gap-2"
-													onClick={() => router.push(`/flashcards/${list.id}`)}
+													onClick={() => router.push(`/flashcards/${list.id}?from=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`)}`)}
 												>
 													Mở Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
 												</Button>
@@ -672,7 +691,7 @@ export function FlashcardPage() {
 													)}
 													<Button
 														className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
-														onClick={() => router.push(`/flashcards/${list.id}`)}
+														onClick={() => router.push(`/flashcards/${list.id}?from=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`)}`)}
 													>
 														Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
 													</Button>

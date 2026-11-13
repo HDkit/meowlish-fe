@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { FlashcardPage } from '@/components/FlashcardPage';
 
 export const metadata: Metadata = {
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function FlashcardsPage() {
-	return <FlashcardPage />;
+	// FlashcardPage keeps its tab, pages and search in the URL (useSearchParams)
+	return (
+		<Suspense>
+			<FlashcardPage />
+		</Suspense>
+	);
 }

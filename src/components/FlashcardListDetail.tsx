@@ -556,7 +556,11 @@ export function FlashcardListDetail() {
 					<div className="flex items-center justify-between mb-6">
 						<Button
 							variant="ghost"
-							onClick={() => router.push('/flashcards')}
+							onClick={() => {
+								// back to the list view it was opened from (tab, page, search kept in ?from=)
+								const from = new URLSearchParams(window.location.search).get('from');
+								router.push(from && from.startsWith('/flashcards') && !from.startsWith('//') ? from : '/flashcards');
+							}}
 							className="flex items-center gap-2 -ml-2 text-slate-500 hover:text-primary font-semibold"
 						>
 							<ArrowLeft className="h-4 w-4" />
