@@ -22,7 +22,7 @@ import {
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
-import { useTagList } from '@/lib/tag-list';
+import { tagPath, useTagList } from '@/lib/tag-list';
 import { TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
@@ -121,6 +121,49 @@ export function TestSelection() {
 	useEffect(() => {
 		setCursor(undefined);
 	}, [selectedTab, submittedSearchName, selectedTags]);
+
+	// A link with tags but no exam type (e.g. "Luyện ngay" for a question type): open the tab whose
+	// exams carry those tags, from the tag tree if it says, else by asking which type has matches.
+	useEffect(() => {
+		if (searchParams.get('type') || selectedTags.length === 0 || allTags.length === 0) return;
+		let cancelled = false;
+		const byId = new Map(allTags.map((t) => [t.id, t]));
+		const typesInTree = new Set(
+			selectedTags.flatMap((name) => {
+				const tag = allTags.find((t) => t.name === name);
+				if (!tag) return [];
+				return [tag, ...tagPath(tag, byId)]
+					.map((t) => t.name.toLowerCase())
+					.filter((n): n is 'ielts' | 'toeic' => n === 'ielts' || n === 'toeic');
+			}),
+		);
+		if (typesInTree.size === 1) {
+			updateQuery({ type: [...typesInTree][0] });
+			return;
+		}
+		const hasExams = async (type: 'ielts' | 'toeic') => {
+			const typeTag = allTags.find((t) => t.name.toLowerCase() === type)?.name ?? type.toUpperCase();
+			const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
+				{ requiredTags: [typeTag], tags: selectedTags },
+				undefined,
+				undefined,
+				1,
+			);
+			return ((res as any).data?.exams?.length ?? 0) > 0;
+		};
+		void (async () => {
+			try {
+				const [ielts, toeic] = await Promise.all([hasExams('ielts'), hasExams('toeic')]);
+				if (!cancelled && toeic && !ielts) updateQuery({ type: 'toeic' });
+			} catch {
+				// keep the default tab
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [allTags, selectedTags]);
 
 	// keep the search box in step with the URL (back/forward)
 	useEffect(() => {
