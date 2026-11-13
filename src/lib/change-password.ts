@@ -1,4 +1,4 @@
-import { extractApiErrorMessage } from './api-response';
+import { extractApiErrorMessage, passwordPolicyError } from './api-errors';
 import { refreshSession, type RefreshResult } from './api/auth-session';
 
 /**
@@ -21,7 +21,8 @@ export const SESSION_EXPIRED = 'Phiên đăng nhập đã hết hạn. Vui lòng
 export const validatePasswordChange = (form: PasswordChangeForm): string | null => {
 	if (!form.currentPassword) return 'Vui lòng nhập mật khẩu hiện tại';
 	if (!form.newPassword) return 'Vui lòng nhập mật khẩu mới';
-	if (form.newPassword.length < 6) return 'Mật khẩu mới phải có ít nhất 6 ký tự';
+	const weak = passwordPolicyError(form.newPassword);
+	if (weak) return weak;
 	if (form.newPassword !== form.confirmPassword) return 'Mật khẩu xác nhận không khớp';
 	if (form.newPassword === form.currentPassword) return 'Mật khẩu mới phải khác mật khẩu hiện tại';
 	return null;

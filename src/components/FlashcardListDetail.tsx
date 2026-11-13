@@ -9,7 +9,8 @@ import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
 import { ReportDialog } from './ReportDialog';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
-import { extractApiErrorMessage } from '@/lib/api-response';
+import { extractApiErrorMessage, normalizeApiError } from '@/lib/api-errors';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -42,6 +43,7 @@ import {
 	Folder,
 	ArrowLeft,
 	Flag,
+	Loader2,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -182,14 +184,17 @@ function FlashcardDialog({
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
-	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => void;
+	/** Rejects on failure: the dialog then shows the error and stays open. */
+	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => Promise<void>;
 	/** Tags already used in this list, offered next to the exam tags. */
 	tagSuggestions?: string[];
 }) {
 	const [word, setWord] = useState('');
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
-	const { toast } = useToast();
+	const [saving, setSaving] = useState(false);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	const [formErrors, setFormErrors] = useState<string[]>([]);
 	// tag NAMES (the resource service stores free-text tags)
 	const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
@@ -205,7 +210,16 @@ function FlashcardDialog({
 			setNotes('');
 			setSelectedTagIds([]);
 		}
+		setFieldErrors({});
+		setFormErrors([]);
 	}, [flashcard, open]);
+
+	const clearFieldError = (field: string) =>
+		setFieldErrors((prev) => {
+			if (!prev[field]) return prev;
+			const { [field]: _, ...rest } = prev;
+			return rest;
+		});
 
 	const applyTemplate = (field: 'definition' | 'notes') => {
 		if (field === 'definition') {
@@ -220,22 +234,32 @@ Lưu ý: ...`);
 		}
 	};
 
-	const handleSave = () => {
-		if (!word.trim() || !definition.trim()) {
-			toast({ title: 'Vui lòng điền đầy đủ từ và định nghĩa', variant: 'destructive' });
-			return;
+	const handleSave = async () => {
+		const missing: Record<string, string> = {};
+		if (!word.trim()) missing.word = 'Vui lòng nhập từ hoặc cụm từ';
+		if (!definition.trim()) missing.definition = 'Vui lòng nhập định nghĩa';
+		setFieldErrors(missing);
+		setFormErrors([]);
+		if (Object.keys(missing).length > 0) return;
+		setSaving(true);
+		try {
+			await onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
+			onOpenChange(false);
+		} catch (err) {
+			const res = normalizeApiError(err, {
+				fallback: 'Không thể lưu thẻ ghi nhớ',
+				fields: { word: 'word', definition: 'definition', notes: 'notes' },
+			});
+			setFieldErrors(res.fieldErrors);
+			setFormErrors(res.messages);
+		} finally {
+			setSaving(false);
 		}
-		onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
-		setWord('');
-		setDefinition('');
-		setNotes('');
-		setSelectedTagIds([]);
-		onOpenChange(false);
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-lg p-0 max-h-[90vh] flex flex-col">
+		<Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-lg p-0 max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col">
 				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
@@ -251,12 +275,16 @@ Lưu ý: ...`);
 					<div className="space-y-2">
 						<Label htmlFor="word" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
 						<Input
-							id="word"
+							{...fieldA11y('word', fieldErrors.word)}
 							placeholder="VD: Aberration, Present Perfect..."
 							value={word}
-							onChange={(e) => setWord(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+							onChange={(e) => {
+								setWord(e.target.value);
+								clearFieldError('word');
+							}}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="word" message={fieldErrors.word} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
@@ -268,13 +296,17 @@ Lưu ý: ...`);
 							)}
 						</div>
 						<Textarea
-							id="definition"
+							{...fieldA11y('definition', fieldErrors.definition)}
 							placeholder="Nghĩa của từ hoặc cụm từ..."
 							value={definition}
-							onChange={(e) => setDefinition(e.target.value)}
+							onChange={(e) => {
+								setDefinition(e.target.value);
+								clearFieldError('definition');
+							}}
 							rows={3}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="definition" message={fieldErrors.definition} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
@@ -286,13 +318,17 @@ Lưu ý: ...`);
 							)}
 						</div>
 						<Textarea
-							id="notes"
+							{...fieldA11y('notes', fieldErrors.notes)}
 							placeholder="Ví dụ minh hoạ, ghi chú thêm..."
 							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
+							onChange={(e) => {
+								setNotes(e.target.value);
+								clearFieldError('notes');
+							}}
 							rows={3}
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
 						/>
+						<FieldError id="notes" message={fieldErrors.notes} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="card-tags" className="text-slate-700 font-bold">Tags</Label>
@@ -304,12 +340,14 @@ Lưu ý: ...`);
 							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
 						/>
 					</div>
+					<FormErrorSummary messages={formErrors} />
 				</div>
 				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
-					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
+						{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{flashcard ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
@@ -440,11 +478,12 @@ export function FlashcardListDetail() {
 				const fc = (res as any)?.data ?? res;
 				setCards((prev) => [...prev, mapFlashCard(fc, listId)]);
 			}
+			setEditingFlashcard(undefined);
 		} catch (err) {
 			console.error('[FlashcardListDetail] save error:', err);
-			toast({ title: 'Lưu thẻ ghi nhớ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+			// FlashcardDialog shows the error and stays open.
+			throw err;
 		}
-		setEditingFlashcard(undefined);
 	};
 
 	const handleEditFlashcard = (flashcard: FlashCard) => {

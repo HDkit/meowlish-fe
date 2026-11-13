@@ -19,6 +19,8 @@ import {
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
+import { extractApiErrorMessage, normalizeApiError } from '@/lib/api-errors';
 import {
 	Plus,
 	Edit,
@@ -29,7 +31,7 @@ import {
 } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { ReportDialog } from './ReportDialog';
-import { Flag, Search } from 'lucide-react';
+import { Flag, Loader2, Search } from 'lucide-react';
 import { TagInput } from './TagInput';
 
 import { useRouter } from 'next/navigation';
@@ -45,7 +47,8 @@ function ListDialog({
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	list?: FlashcardList;
-	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => void;
+	/** Rejects on failure: the dialog then shows the error and stays open. */
+	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => Promise<void>;
 	/** Tags already used on the user's lists, offered as suggestions. */
 	tagSuggestions?: string[];
 }) {
@@ -53,7 +56,9 @@ function ListDialog({
 	const [description, setDescription] = useState('');
 	const [isPublic, setIsPublic] = useState(false);
 	const [tags, setTags] = useState<string[]>([]);
-	const { toast } = useToast();
+	const [saving, setSaving] = useState(false);
+	const [nameError, setNameError] = useState('');
+	const [formErrors, setFormErrors] = useState<string[]>([]);
 
 	useEffect(() => {
 		if (list) {
@@ -67,24 +72,36 @@ function ListDialog({
 			setIsPublic(false);
 			setTags([]);
 		}
+		setNameError('');
+		setFormErrors([]);
 	}, [list, open]);
 
-	const handleSave = () => {
+	const handleSave = async () => {
 		if (!name.trim()) {
-			toast({ title: 'Vui lòng nhập tên list', variant: 'destructive' });
+			setNameError('Vui lòng nhập tên bộ flashcard');
 			return;
 		}
-		onSave({ name: name.trim(), description: description.trim(), isPublic, tags });
-		setName('');
-		setDescription('');
-		setIsPublic(false);
-		setTags([]);
-		onOpenChange(false);
+		setSaving(true);
+		setFormErrors([]);
+		try {
+			await onSave({ name: name.trim(), description: description.trim(), isPublic, tags });
+			onOpenChange(false);
+		} catch (err) {
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: list ? 'Không thể lưu bộ flashcard' : 'Không thể tạo bộ flashcard',
+				fields: { name: 'name' },
+				labels: { name: 'Tên bộ flashcard' },
+			});
+			setNameError(fieldErrors.name ?? '');
+			setFormErrors(messages);
+		} finally {
+			setSaving(false);
+		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
+		<Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0 max-h-[calc(100dvh-2rem)] flex flex-col">
 				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
@@ -96,16 +113,20 @@ function ListDialog({
 							: 'Tổ chức các thẻ ghi nhớ vào một bộ sưu tập mới để tiện ôn luyện.'}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="px-6 py-4 space-y-5">
+				<div className="px-6 py-4 space-y-5 flex-1 min-h-0 overflow-y-auto">
 					<div className="space-y-2">
 						<Label htmlFor="list-name" className="text-slate-700 font-bold">Tên Bộ Flashcard <span className="text-red-500">*</span></Label>
 						<Input
-							id="list-name"
+							{...fieldA11y('list-name', nameError)}
 							placeholder="VD: Từ vựng IELTS, Ngữ pháp cơ bản..."
 							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 transition-all"
+							onChange={(e) => {
+								setName(e.target.value);
+								if (nameError) setNameError('');
+							}}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 transition-all aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="list-name" message={nameError} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="list-description" className="text-slate-700 font-bold">Mô Tả</Label>
@@ -132,12 +153,14 @@ function ListDialog({
 							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
 						/>
 					</div>
+					<FormErrorSummary messages={formErrors} />
 				</div>
-				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
-					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
+				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+						{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{list ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
@@ -148,6 +171,7 @@ function ListDialog({
 
 export function FlashcardPage() {
 	const router = useRouter();
+	const { toast } = useToast();
 	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
@@ -295,10 +319,12 @@ export function FlashcardPage() {
 				};
 				dispatch(addFlashcardList(newList));
 			}
+			setEditingList(undefined);
 		} catch (err) {
 			console.error('[FlashcardPage] save list error:', err);
+			// ListDialog shows the error and stays open.
+			throw err;
 		}
-		setEditingList(undefined);
 	};
 
 	const handleEditList = (list: FlashcardList) => {
@@ -313,6 +339,7 @@ export function FlashcardPage() {
 				dispatch(removeFlashcardList(listId));
 			} catch (err) {
 				console.error('[FlashcardPage] delete list error:', err);
+				toast({ title: 'Xóa bộ flashcard thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			}
 		}
 	};

@@ -7,8 +7,10 @@ import {
   FilesService,
   TagsService,
 } from '@/lib/api-client';
-import { buildTagIdMap, diffTagIds, type TagRef } from '@/lib/tag-ids';
+import { buildTagIdMap, diffTagIds, type TagRef, UnknownTagsError } from '@/lib/tag-ids';
 import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
+import { normalizeApiError } from '@/lib/api-errors';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AdminTagManager } from '@/components/admin/AdminTagManager';
 import { Button } from './ui/button';
@@ -440,6 +442,9 @@ export function ExamCreationPage() {
 
   const [loading, setLoading] = useState(false);
   const [savingExam, setSavingExam] = useState(false);
+  // Errors of the exam info form (overview panel).
+  const [examErrors, setExamErrors] = useState<{ title?: string; duration?: string; description?: string; tags?: string }>({});
+  const [examFormErrors, setExamFormErrors] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>({ type: 'overview' });
   const [examId, setExamId] = useState<string | null>(queryExamId);
@@ -628,8 +633,16 @@ export function ExamCreationPage() {
     const durationNum = Number(examDraft.duration);
     const duration = Number.isFinite(durationNum) ? Math.floor(Math.max(0, durationNum)) : 0;
 
-    if (!examDraft.title.trim()) { toast({ title: 'Thiếu tên đề', variant: 'destructive' }); return; }
-    if (duration <= 0) { toast({ title: 'Thời lượng không hợp lệ (phải > 0)', variant: 'destructive' }); return; }
+    const localErrors: typeof examErrors = {};
+    if (!examDraft.title.trim()) localErrors.title = 'Vui lòng nhập tên đề thi';
+    if (duration <= 0) localErrors.duration = 'Thời lượng phải là số phút lớn hơn 0';
+    setExamErrors(localErrors);
+    setExamFormErrors([]);
+    if (Object.keys(localErrors).length > 0) {
+      // The fields live in the overview panel; show it so the messages are visible.
+      setSelectedNode({ type: 'overview' });
+      return;
+    }
 
     setSavingExam(true);
     try {
@@ -639,7 +652,6 @@ export function ExamCreationPage() {
           description: String(examDraft.description?.trim() ?? ''),
           duration: Math.floor(duration),
         };
-        console.log('Creating exam with body:', requestBody);
         const res = await ExamManagementService.examManagementGatewayControllerCreateExamV1(requestBody);
         const created = extractEntityData<{ id?: string }>(res);
         if (!created?.id) throw new Error('API không trả về id đề thi.');
@@ -664,7 +676,19 @@ export function ExamCreationPage() {
       toast({ title: 'Đã lưu đề thi' });
       await loadEditorData(examId);
     } catch (error) {
-      toast({ title: 'Lưu thất bại', description: extractApiErrorMessage(error), variant: 'destructive' });
+      if (error instanceof UnknownTagsError) {
+        setExamErrors({ tags: error.message });
+        setSelectedNode({ type: 'overview' });
+        return;
+      }
+      const { messages, fieldErrors } = normalizeApiError(error, {
+        fallback: 'Không thể lưu đề thi',
+        fields: { title: 'title', duration: 'duration', description: 'description', addTags: 'tags', removeTags: 'tags' },
+      });
+      setExamErrors(fieldErrors);
+      setExamFormErrors(messages);
+      setSelectedNode({ type: 'overview' });
+      toast({ title: 'Lưu thất bại', description: 'Xem chi tiết lỗi trong phần Thông tin đề thi.', variant: 'destructive' });
     } finally {
       setSavingExam(false);
     }
@@ -847,26 +871,26 @@ export function ExamCreationPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="mx-auto max-w-7xl px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-gray-900">
+      <div className="bg-white border-b border-gray-200 sticky top-16 z-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-14 py-2 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <BookOpen className="h-5 w-5 shrink-0 text-primary" />
+            <span className="min-w-0 truncate font-semibold text-gray-900" title={examDraft.title || undefined}>
               {examDraft.title || 'Đề thi mới'}
             </span>
             {exam?.status && (
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                 {REVIEW_STATUSES.find((s) => s.value === exam.status)?.label ?? exam.status}
               </span>
             )}
             {examId && (
-              <span className="text-xs text-gray-400 font-mono">#{shortId(examId)}</span>
+              <span className="hidden shrink-0 text-xs text-gray-400 font-mono sm:inline">#{shortId(examId)}</span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {examId && (
-              <Button variant="ghost" size="sm" onClick={() => void loadEditorData(examId)} disabled={loading}>
+              <Button variant="ghost" size="sm" aria-label="Tải lại" onClick={() => void loadEditorData(examId)} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             )}
@@ -965,39 +989,52 @@ export function ExamCreationPage() {
                   <CardContent className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-sm">Tên đề thi <span className="text-red-500">*</span></Label>
+                        <Label htmlFor="exam-title" className="text-sm">Tên đề thi <span className="text-red-500">*</span></Label>
                         <Input
+                          {...fieldA11y('exam-title', examErrors.title)}
                           value={examDraft.title}
-                          onChange={(e) => setExamDraft((p) => ({ ...p, title: e.target.value }))}
+                          onChange={(e) => {
+                            setExamDraft((p) => ({ ...p, title: e.target.value }));
+                            if (examErrors.title) setExamErrors(({ title: _, ...rest }) => rest);
+                          }}
                           placeholder="VD: TOEIC Full Test Simulation 1"
                         />
+                        <FieldError id="exam-title" message={examErrors.title} />
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-sm">Mô tả</Label>
+                        <Label htmlFor="exam-description" className="text-sm">Mô tả</Label>
                         <Textarea
+                          {...fieldA11y('exam-description', examErrors.description)}
                           rows={3}
                           value={examDraft.description}
                           onChange={(e) => setExamDraft((p) => ({ ...p, description: e.target.value }))}
                           placeholder="Mô tả ngắn về nội dung và mục tiêu của đề thi..."
                         />
+                        <FieldError id="exam-description" message={examErrors.description} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Thời lượng (phút)</Label>
+                        <Label htmlFor="exam-duration" className="text-sm">Thời lượng (phút)</Label>
                         <div className="relative">
                           <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
+                            {...fieldA11y('exam-duration', examErrors.duration)}
                             className="pl-9"
                             value={examDraft.duration}
-                            onChange={(e) => setExamDraft((p) => ({ ...p, duration: e.target.value }))}
+                            onChange={(e) => {
+                              setExamDraft((p) => ({ ...p, duration: e.target.value }));
+                              if (examErrors.duration) setExamErrors(({ duration: _, ...rest }) => rest);
+                            }}
                             type="number" min="1"
                           />
                         </div>
+                        <FieldError id="exam-duration" message={examErrors.duration} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
+                        <Label htmlFor="exam-tags" className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
                         <div className="relative">
                           <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
+                            {...fieldA11y('exam-tags', examErrors.tags)}
                             className="pl-9"
                             value={examDraft.tagsInput}
                             onChange={(e) => {
@@ -1041,6 +1078,7 @@ export function ExamCreationPage() {
                             </div>
                           )}
                         </div>
+                        <FieldError id="exam-tags" message={examErrors.tags} />
                       </div>
                     </div>
 
@@ -1098,6 +1136,8 @@ export function ExamCreationPage() {
                         </Button>
                       </div>
                     )}
+
+                    <FormErrorSummary messages={examFormErrors} title="Không thể lưu đề thi" />
 
                     <div className="flex justify-end">
                       <Button onClick={() => void saveExam()} disabled={savingExam}>

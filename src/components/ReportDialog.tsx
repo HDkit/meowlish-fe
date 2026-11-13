@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ReportService } from '@/lib/api/services/ReportService';
 import { useToast } from '@/components/ui/use-toast';
-import { extractApiErrorMessage } from '@/lib/api-response';
+import { normalizeApiError } from '@/lib/api-errors';
+import { FormErrorSummary } from './ui/form-feedback';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -36,12 +37,18 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
 	const [submitting, setSubmitting] = useState(false);
+	const [errors, setErrors] = useState<string[]>([]);
+
+	useEffect(() => {
+		if (open) setErrors([]);
+	}, [open]);
 
 	const handleSubmit = async () => {
 		if (!title.trim() || !description.trim() || submitting) return;
 		setSubmitting(true);
+		setErrors([]);
 		try {
-			const res = await ReportService.createReport({
+			await ReportService.createReport({
 				type,
 				title: title.trim(),
 				description: description.trim(),
@@ -52,9 +59,10 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 			setDescription('');
 			setType('bug');
 			onOpenChange(false);
+			toast({ title: 'Đã gửi báo cáo', description: 'Cảm ơn bạn! Chúng tôi sẽ xem xét sớm nhất.' });
 		} catch (err) {
 			console.error('[ReportDialog] create error:', err);
-			toast({ title: 'Gửi báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+			setErrors(normalizeApiError(err, { fallback: 'Gửi báo cáo thất bại' }).messages);
 		} finally {
 			setSubmitting(false);
 		}
@@ -62,7 +70,7 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+			<DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-h-[calc(100dvh-2rem)] flex flex-col">
 				<div className="h-2 w-full bg-red-500" />
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -73,11 +81,11 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 						Mô tả vấn đề bạn gặp phải để chúng tôi xem xét và xử lý.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="px-6 py-4 space-y-4">
+				<div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
 					<div className="space-y-2">
-						<Label className="font-bold">Loại báo cáo <span className="text-red-500">*</span></Label>
+						<Label htmlFor="report-type" className="font-bold">Loại báo cáo <span className="text-red-500">*</span></Label>
 						<Select value={type} onValueChange={setType}>
-							<SelectTrigger className="rounded-xl">
+							<SelectTrigger id="report-type" className="rounded-xl">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -93,8 +101,9 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 						</Select>
 					</div>
 					<div className="space-y-2">
-						<Label className="font-bold">Tiêu đề <span className="text-red-500">*</span></Label>
+						<Label htmlFor="report-title" className="font-bold">Tiêu đề <span className="text-red-500">*</span></Label>
 						<Input
+							id="report-title"
 							placeholder="VD: Lỗi hiển thị câu hỏi"
 							value={title}
 							onChange={(e) => setTitle(e.target.value)}
@@ -103,7 +112,7 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 					</div>
 					<div className="space-y-2">
 						<div className="flex items-center justify-between">
-							<Label className="font-bold">Mô tả chi tiết <span className="text-red-500">*</span></Label>
+							<Label htmlFor="report-description" className="font-bold">Mô tả chi tiết <span className="text-red-500">*</span></Label>
 							{!description && (
 								<button type="button" onClick={() => setDescription(`Mô tả vấn đề:\n\nCác bước tái tạo:\n1. ...\n2. ...\n\nKết quả mong muốn:\n\nKết quả thực tế:\n`)} className="text-xs text-primary hover:underline font-medium">
 									Dùng mẫu
@@ -111,6 +120,7 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 							)}
 						</div>
 						<Textarea
+							id="report-description"
 							placeholder="Mô tả cụ thể vấn đề bạn gặp phải..."
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
@@ -118,8 +128,9 @@ export function ReportDialog({ open, onOpenChange, targetType, targetId, userId 
 							className="rounded-xl resize-none"
 						/>
 					</div>
+					<FormErrorSummary messages={errors} />
 				</div>
-				<DialogFooter className="px-6 py-4 bg-gray-50 border-t">
+				<DialogFooter className="shrink-0 px-6 py-4 bg-gray-50 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Hủy</Button>
 					<Button onClick={handleSubmit} disabled={!title.trim() || !description.trim() || submitting} className="rounded-xl bg-red-600 hover:bg-red-700">
 						<Flag className="h-4 w-4 mr-1" /> {submitting ? 'Đang gửi...' : 'Gửi báo cáo'}

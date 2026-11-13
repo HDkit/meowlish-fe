@@ -49,6 +49,8 @@ import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
 import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
+import { normalizeApiError, passwordPolicyError } from '@/lib/api-errors';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
@@ -99,6 +101,15 @@ export function UserPage() {
 	const [credentials, setCredentials] = useState<LoginMethod[]>([]);
 	const [isCredDialogOpen, setIsCredDialogOpen] = useState(false);
 	const [addMailForm, setAddMailForm] = useState({ email: '', password: '' });
+	// Errors of the open dialog (only one is open at a time); cleared whenever a dialog opens or closes.
+	const [dialogError, setDialogError] = useState<{ messages: string[]; fields: Record<string, string> }>({
+		messages: [],
+		fields: {},
+	});
+	const clearDialogError = () => setDialogError({ messages: [], fields: {} });
+	useEffect(() => {
+		clearDialogError();
+	}, [isProfileDialogOpen, isPasswordDialogOpen, isCredDialogOpen]);
 	const avatarInputRef = React.useRef<HTMLInputElement>(null);
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
@@ -216,11 +227,11 @@ export function UserPage() {
 			setIsProfileDialogOpen(false);
 		} catch (err: any) {
 			console.error('Failed to update profile:', err);
-			toast({
-				title: 'Cập nhật thất bại',
-				description: extractApiErrorMessage(err, 'Không thể cập nhật hồ sơ.'),
-				variant: 'destructive',
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: 'Không thể cập nhật hồ sơ.',
+				fields: { username: 'username', fullName: 'fullName' },
 			});
+			setDialogError({ messages: messages, fields: fieldErrors });
 		} finally {
 			setIsLoading(false);
 		}
@@ -230,12 +241,13 @@ export function UserPage() {
 	const handleChangePassword = async () => {
 		if (!currUser) return;
 		setIsLoading(true);
+		clearDialogError();
 		try {
 			const result = await submitPasswordChange(passwordForm, findMailCredentialId(credentials), (body) =>
 				AuthService.authGatewayControllerUpdateMailPasswordV1(body),
 			);
 			if (!result.ok) {
-				toast({ title: 'Đổi mật khẩu thất bại', description: result.message, variant: 'destructive' });
+				setDialogError({ messages: [result.message], fields: {} });
 				return;
 			}
 			setIsPasswordDialogOpen(false);
@@ -325,14 +337,16 @@ export function UserPage() {
 	};
 
 	const handleAddMailCredential = async () => {
-		if (!addMailForm.email || !addMailForm.password) {
-			toast({ title: 'Vui lòng nhập đầy đủ email và mật khẩu', variant: 'destructive' });
-			return;
+		const fields: Record<string, string> = {};
+		if (!addMailForm.email.trim()) fields.credEmail = 'Vui lòng nhập email';
+		else if (!/\S+@\S+\.\S+/.test(addMailForm.email)) fields.credEmail = 'Email không hợp lệ';
+		if (!addMailForm.password) fields.credPassword = 'Vui lòng nhập mật khẩu';
+		else {
+			const weak = passwordPolicyError(addMailForm.password);
+			if (weak) fields.credPassword = weak;
 		}
-		if (addMailForm.password.length < 6) {
-			toast({ title: 'Mật khẩu phải có ít nhất 6 ký tự', variant: 'destructive' });
-			return;
-		}
+		setDialogError({ messages: [], fields: fields });
+		if (Object.keys(fields).length > 0) return;
 		setIsLoading(true);
 		try {
 			await AuthService.authGatewayControllerAddMailCredentialV1({
@@ -346,11 +360,11 @@ export function UserPage() {
 			setIsCredDialogOpen(false);
 			setAddMailForm({ email: '', password: '' });
 		} catch (err: any) {
-			toast({
-				title: 'Thêm thất bại',
-				description: extractApiErrorMessage(err, 'Không thể thêm phương thức đăng nhập.'),
-				variant: 'destructive',
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: 'Không thể thêm phương thức đăng nhập.',
+				fields: { mail: 'credEmail', password: 'credPassword' },
 			});
+			setDialogError({ messages: messages, fields: fieldErrors });
 		} finally {
 			setIsLoading(false);
 		}
@@ -869,22 +883,25 @@ export function UserPage() {
 						<div className='grid gap-2'>
 							<Label htmlFor='username'>Tên đăng nhập</Label>
 							<Input
-								id='username'
+								{...fieldA11y('username', dialogError.fields.username)}
 								disabled={isDemo}
 								value={profileForm.username}
 								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
 								placeholder='Nhập tên đăng nhập'
 							/>
+							<FieldError id='username' message={dialogError.fields.username} className='-mt-2' />
 						</div>
 						<div className='grid gap-2'>
 							<Label htmlFor='fullName'>Họ và tên</Label>
 							<Input
-								id='fullName'
+								{...fieldA11y('fullName', dialogError.fields.fullName)}
 								value={profileForm.fullName}
 								onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
 								placeholder='Nhập họ và tên'
 							/>
+							<FieldError id='fullName' message={dialogError.fields.fullName} className='-mt-2' />
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsProfileDialogOpen(false)} disabled={isLoading}>
@@ -938,6 +955,7 @@ export function UserPage() {
 									variant='ghost'
 									size='sm'
 									className='absolute right-0 top-0 h-full px-3'
+									aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
 									onClick={() => setShowPassword(!showPassword)}
 								>
 									{showPassword ?
@@ -956,6 +974,7 @@ export function UserPage() {
 								placeholder='Nhập lại mật khẩu mới'
 							/>
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsPasswordDialogOpen(false)} disabled={isLoading}>
@@ -985,23 +1004,27 @@ export function UserPage() {
 						<div className='grid gap-2'>
 							<Label htmlFor='credEmail'>Email</Label>
 							<Input
-								id='credEmail'
+								{...fieldA11y('credEmail', dialogError.fields.credEmail)}
 								type='email'
 								value={addMailForm.email}
 								onChange={(e) => setAddMailForm({ ...addMailForm, email: e.target.value })}
 								placeholder='Nhập email'
 							/>
+							<FieldError id='credEmail' message={dialogError.fields.credEmail} className='-mt-2' />
 						</div>
 						<div className='grid gap-2'>
 							<Label htmlFor='credPassword'>Mật khẩu</Label>
 							<Input
-								id='credPassword'
+								{...fieldA11y('credPassword', dialogError.fields.credPassword)}
 								type='password'
+								autoComplete='new-password'
 								value={addMailForm.password}
 								onChange={(e) => setAddMailForm({ ...addMailForm, password: e.target.value })}
-								placeholder='Nhập mật khẩu (tối thiểu 6 ký tự)'
+								placeholder='Ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'
 							/>
+							<FieldError id='credPassword' message={dialogError.fields.credPassword} className='-mt-2' />
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsCredDialogOpen(false)} disabled={isLoading}>
