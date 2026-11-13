@@ -1,287 +1,243 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FileText, CheckCircle, Clock, AlertCircle, TrendingUp, Star, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ExamManagementService, SortOptionsDto } from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
+import {
+	ArrowRight,
+	CheckCircle2,
+	ClipboardCheck,
+	ClipboardList,
+	Clock,
+	FilePlus,
+	FileText,
+	Flag,
+	LayoutDashboard,
+	Newspaper,
+	RefreshCw,
+	Users,
+	XCircle,
+	type LucideIcon,
+} from 'lucide-react';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { ReportService } from '@/lib/api/services/ReportService';
+import { normalizeApiError } from '@/lib/api-errors';
+import { examStatusMeta, formatDate } from '@/lib/admin';
+import { Button } from '@/components/ui/button';
+import { AdminPageHeader, AdminStatCard, AdminStatGrid, DataTable, StatusBadge, useIdentityNames, type DataColumn } from './admin';
+import { loadExamCounts, loadManagedExams, type ExamCounts, type ManagedExam } from './admin/exams';
 
-interface ExamItem {
-  id: string;
-  title: string;
-  status: string;
-  createdAt?: string;
-  createdBy?: string;
-}
-
-interface ExamCounts {
-  total: number;
-  approved: number;
-  pending: number;
-  rejected: number;
-}
+type QuickLink = { href: string; label: string; description: string; icon: LucideIcon; badge?: number };
 
 export default function AdminDashboard() {
-  const { currUser, userRole, isMod, isStaff, isHeadStaff } = useAuth();
-  const [exams, setExams] = useState<ExamItem[]>([]);
-  const [counts, setCounts] = useState<ExamCounts | null>(null);
-  const [loading, setLoading] = useState(true);
+	const router = useRouter();
+	const { currUser, isMod, isStaff, isHeadStaff, canApproveExams } = useAuth();
+	const allowed = Boolean(currUser) && (isMod || isStaff || isHeadStaff);
 
-  useEffect(() => {
-    if (!currUser) return;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [examsRes, countsRes] = await Promise.all([
-          ExamManagementService.examManagementGatewayControllerFindExamsV1(
-            undefined,
-            undefined,
-            20,
-            { key: SortOptionsDto.key.CREATED_AT, direction: SortOptionsDto.direction.DESC },
-          ),
-          ExamManagementService.examManagementGatewayControllerGetExamCountsV1(),
-        ]);
-        setExams(examsRes.data?.exams ?? []);
-        if (countsRes.data) {
-          setCounts(countsRes.data as ExamCounts);
-        }
-      } catch (err) {
-        console.warn('AdminDashboard: failed to load data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [currUser]);
+	const [exams, setExams] = useState<ManagedExam[]>([]);
+	const [counts, setCounts] = useState<ExamCounts | null>(null);
+	const [pendingReports, setPendingReports] = useState<number | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string[]>([]);
 
-  if (!currUser || (!isMod && !isStaff && !isHeadStaff)) {
-    return null;
-  }
+	const load = useCallback(async () => {
+		if (!allowed || !currUser) return;
+		setLoading(true);
+		setError([]);
+		try {
+			const [list, globalCounts] = await Promise.all([
+				// Admins look at every exam, others at their own.
+				loadManagedExams(isHeadStaff ? {} : { createdBy: currUser.id }),
+				isHeadStaff ? loadExamCounts() : Promise.resolve(null),
+			]);
+			setExams(list.items);
+			setCounts(globalCounts);
+		} catch (err) {
+			setError(normalizeApiError(err, { fallback: 'Không thể tải dữ liệu đề thi' }).messages);
+		} finally {
+			setLoading(false);
+		}
+		if (isHeadStaff || isMod) {
+			ReportService.listReports(undefined, undefined, 'pending', undefined, undefined, 1, 1)
+				.then((res) => {
+					const data = ((res as { data?: unknown }).data ?? res) as { totalCount?: number };
+					setPendingReports(data.totalCount ?? 0);
+				})
+				.catch(() => setPendingReports(null));
+		}
+	}, [allowed, currUser, isHeadStaff, isMod]);
 
-  const myExams = isStaff ? exams.filter(exam => exam.createdBy === currUser.id) : exams;
-  const pendingExamsInList = exams.filter(exam => exam.status === 'PENDING');
+	useEffect(() => {
+		void load();
+	}, [load]);
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return { label: 'Đã xuất bản', color: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="h-3 w-3" /> };
-      case 'REJECTED':
-        return { label: 'Cần sửa', color: 'bg-red-100 text-red-700 border-red-200', icon: <AlertCircle className="h-3 w-3" /> };
-      case 'PENDING':
-        return { label: 'Chờ duyệt', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: <Clock className="h-3 w-3" /> };
-      default:
-        return { label: status || 'Không rõ', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: <FileText className="h-3 w-3" /> };
-    }
-  };
+	const stats = useMemo(() => {
+		if (counts) return { ...counts, draft: Math.max(0, counts.total - counts.approved - counts.pending - counts.rejected) };
+		const by = (s: string) => exams.filter((e) => e.status === s).length;
+		return { total: exams.length, approved: by('APPROVED'), pending: by('PENDING'), rejected: by('REJECTED'), draft: by('EMPTY') };
+	}, [counts, exams]);
 
-  return (
-    <div className="bg-background">
-      {/* Hero Header */}
-      <div className={`relative overflow-hidden bg-primary text-white`}>
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-16 w-32 h-32 bg-white/5 rounded-full translate-y-1/2" />
-        <div className="relative container mx-auto px-6 py-8">
-          <div className="flex items-center gap-3 mb-1">
-            {isHeadStaff
-              ? <Star className="h-7 w-7 text-yellow-300 fill-yellow-300" />
-              : <TrendingUp className="h-7 w-7 text-cyan-200" />
-            }
-            <h1 className="text-3xl font-bold">
-              {isHeadStaff ? 'Bảng quản trị' : 'Bảng điều khiển Staff'}
-            </h1>
-          </div>
-          <p className="text-white/80 text-sm">
-            Xin chào, <span className="font-semibold text-white">{currUser.fullName}</span>
-            {' '}({userRole?.name ?? currUser.roleId.replace('role-', '')})
-          </p>
-          {loading && (
-            <div className="flex items-center gap-2 mt-2 text-white/70 text-xs">
-              <RefreshCw className="h-3 w-3 animate-spin" />
-              Đang tải dữ liệu...
-            </div>
-          )}
-        </div>
-      </div>
+	const pendingExams = useMemo(
+		() =>
+			exams
+				.filter((e) => e.status === 'PENDING')
+				.sort((a, b) => new Date(a.updatedAt ?? 0).getTime() - new Date(b.updatedAt ?? 0).getTime()),
+		[exams],
+	);
+	const recent = exams.slice(0, 6);
+	const names = useIdentityNames(isHeadStaff ? recent.map((e) => e.createdBy) : []);
 
-      <div className="container mx-auto px-6 py-8 -mt-4">
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1.5 bg-secondary" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-              <CardTitle className="text-sm font-medium text-gray-600">Chờ duyệt</CardTitle>
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Clock className="h-4 w-4 text-orange-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-800">{counts?.pending ?? '—'}</div>
-              <p className="text-xs text-gray-500 mt-1">Đề thi đang chờ xét duyệt</p>
-            </CardContent>
-          </Card>
+	if (!allowed || !currUser) return null;
 
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1.5 bg-primary" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-              <CardTitle className="text-sm font-medium text-gray-600">Đã xuất bản</CardTitle>
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-800">{counts?.approved ?? '—'}</div>
-              <p className="text-xs text-gray-500 mt-1">Đề thi đang hoạt động</p>
-            </CardContent>
-          </Card>
+	const links: QuickLink[] = [
+		{ href: '/exam-creation', label: 'Tạo đề thi', description: 'Soạn đề mới với phần thi và câu hỏi', icon: FilePlus },
+		{ href: '/exam-management', label: 'Quản lý đề thi', description: 'Theo dõi trạng thái và chỉnh sửa đề', icon: ClipboardList },
+		...(canApproveExams
+			? [{ href: '/exam-approval', label: 'Duyệt đề thi', description: 'Xuất bản hoặc trả đề về cho tác giả', icon: ClipboardCheck, badge: stats.pending }]
+			: []),
+		{ href: '/blog-management', label: 'Quản lý bài viết', description: 'Viết và sửa bài trên blog', icon: Newspaper },
+		...(isHeadStaff ? [{ href: '/user-management', label: 'Quản lý người dùng', description: 'Vai trò và khóa tài khoản', icon: Users }] : []),
+		...(isHeadStaff || isMod
+			? [{ href: '/report-management', label: 'Quản lý báo cáo', description: 'Xử lý báo cáo từ người dùng', icon: Flag, badge: pendingReports ?? undefined }]
+			: []),
+	];
 
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1.5 bg-destructive" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-              <CardTitle className="text-sm font-medium text-gray-600">Cần chỉnh sửa</CardTitle>
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-800">{counts?.rejected ?? '—'}</div>
-              <p className="text-xs text-gray-500 mt-1">Đề thi bị trả về</p>
-            </CardContent>
-          </Card>
+	const columns: DataColumn<ManagedExam>[] = [
+		{
+			id: 'title',
+			header: 'Đề thi',
+			cell: (e) => <p className="line-clamp-1 max-w-md font-medium [overflow-wrap:anywhere]">{e.title || 'Chưa đặt tên'}</p>,
+		},
+		...(isHeadStaff
+			? [
+					{
+						id: 'creator',
+						header: 'Người tạo',
+						className: 'hidden lg:table-cell whitespace-nowrap',
+						cell: (e: ManagedExam) => (
+							<span className="text-muted-foreground">
+								{e.createdBy === currUser.id ? 'Bạn' : (e.createdBy && names[e.createdBy]?.name) || '—'}
+							</span>
+						),
+					},
+				]
+			: []),
+		{ id: 'status', header: 'Trạng thái', cell: (e) => <StatusBadge meta={examStatusMeta(e.status)} /> },
+		{
+			id: 'created',
+			header: 'Ngày tạo',
+			className: 'hidden sm:table-cell whitespace-nowrap',
+			cell: (e) => <span className="tabular-nums text-muted-foreground">{formatDate(e.createdAt)}</span>,
+		},
+	];
 
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1.5 bg-primary" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4">
-              <CardTitle className="text-sm font-medium text-gray-600">Tổng đề thi</CardTitle>
-              <div className="p-2 bg-primary/15 rounded-lg">
-                <FileText className="h-4 w-4 text-primary/80" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-800">{counts?.total ?? '—'}</div>
-              <p className="text-xs text-gray-500 mt-1">Toàn hệ thống</p>
-            </CardContent>
-          </Card>
-        </div>
+	return (
+		<div className="space-y-6">
+			<AdminPageHeader
+				icon={LayoutDashboard}
+				title="Tổng quan quản trị"
+				description={`Xin chào ${currUser.fullName || 'bạn'}. ${isHeadStaff ? 'Số liệu đề thi toàn hệ thống.' : 'Số liệu các đề thi bạn đã tạo.'}`}
+				actions={
+					<Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+						<RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+						Làm mới
+					</Button>
+				}
+			>
+				<AdminStatGrid>
+					<AdminStatCard label="Tổng đề thi" value={stats.total} icon={FileText} loading={loading} hint={`${stats.draft} bản nháp`} />
+					<AdminStatCard label="Chờ duyệt" value={stats.pending} icon={Clock} tone="warning" loading={loading} />
+					<AdminStatCard label="Cần sửa" value={stats.rejected} icon={XCircle} tone="danger" loading={loading} />
+					<AdminStatCard label="Đã xuất bản" value={stats.approved} icon={CheckCircle2} tone="success" loading={loading} />
+				</AdminStatGrid>
+			</AdminPageHeader>
 
-        {/* Bottom Content */}
-        <div className="mb-8">
-          {/* Recent Exams */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary/80" />
-                <CardTitle className="text-base font-semibold text-gray-800">
-                  {isStaff ? 'Đề thi của tôi' : 'Đề thi gần đây'}
-                </CardTitle>
-              </div>
-              <CardDescription>Các đề thi đã tạo gần đây nhất</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                {loading ? (
-                  [...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 animate-pulse">
-                      <div className="flex-1 min-w-0 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
-                        <div className="space-y-1.5 flex-1">
-                          <div className="h-3 w-48 bg-gray-200 rounded" />
-                          <div className="h-2 w-24 bg-gray-100 rounded" />
-                        </div>
-                      </div>
-                      <div className="h-6 w-24 bg-gray-100 rounded-full" />
-                    </div>
-                  ))
-                ) : myExams.slice(0, 5).map((exam) => (
-                  <Link
-                    href={`/exam-creation?id=${exam.id}`}
-                    key={exam.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex-1 min-w-0 flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 text-primary/80 rounded-lg">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold truncate text-gray-800">{exam.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Tạo lúc {exam.createdAt ? new Date(exam.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border w-[110px] ${getStatusConfig(exam.status).color}`}>
-                      {getStatusConfig(exam.status).icon}
-                      {getStatusConfig(exam.status).label}
-                    </span>
-                  </Link>
-                ))}
-                {!loading && myExams.length === 0 && (
-                  <div className="text-center py-10 bg-slate-50/50 rounded-xl border border-dashed border-gray-200">
-                    <FileText className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-500">Chưa có đề thi nào</p>
-                    <p className="text-xs text-gray-400 mt-1">Các đề thi bạn tạo sẽ hiển thị tại đây</p>
-                    <Link href="/exam-creation">
-                      <Button className="mt-4 bg-primary hover:bg-primary/90 border-0" size="sm">
-                        Tạo đề thi đầu tiên
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-                {!loading && myExams.length > 5 && (
-                  <div className="mt-4 text-center">
-                    <Link href="/exam-management">
-                      <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 text-sm">
-                        Xem tất cả đề thi →
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+			<section aria-labelledby="admin-shortcuts" className="space-y-3">
+				<h2 id="admin-shortcuts" className="text-sm font-semibold text-muted-foreground">
+					Lối tắt
+				</h2>
+				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+					{links.map((l) => (
+						<Link
+							key={l.href}
+							href={l.href}
+							className="group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						>
+							<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+								<l.icon className="h-5 w-5" aria-hidden />
+							</span>
+							<span className="min-w-0 flex-1">
+								<span className="flex items-center gap-2 font-medium text-foreground">
+									{l.label}
+									{!!l.badge && (
+										<StatusBadge tone="warning" dot={false}>
+											{l.badge}
+										</StatusBadge>
+									)}
+								</span>
+								<span className="block truncate text-xs text-muted-foreground">{l.description}</span>
+							</span>
+							<ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+						</Link>
+					))}
+				</div>
+			</section>
 
-        {/* Pending Approvals (Head Staff only) */}
-        {isHeadStaff && pendingExamsInList.length > 0 && (
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1 bg-secondary" />
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-gray-800">Đề thi chờ duyệt</CardTitle>
-              <CardDescription>Các đề thi đang chờ bạn xét duyệt</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingExamsInList.slice(0, 5).map((exam) => (
-                  <div key={exam.id} className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{exam.title}</p>
-                      <p className="text-xs text-gray-500">
-                        Tạo lúc <span className="text-orange-600 font-medium">{exam.createdAt ? new Date(exam.createdAt).toLocaleDateString('vi-VN') : 'N/A'}</span>
-                      </p>
-                    </div>
-                    <Link href="/exam-approval">
-                      <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-sm">
-                        Xem xét
-                      </Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-              {pendingExamsInList.length > 5 && (
-                <div className="mt-4 text-center">
-                  <Link href="/exam-approval">
-                    <Button variant="link" className="text-orange-600 hover:text-orange-700">
-                      Xem tất cả đề thi chờ duyệt →
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
-  );
+			{canApproveExams && pendingExams.length > 0 && (
+				<section aria-labelledby="admin-pending" className="space-y-3">
+					<div className="flex items-center justify-between gap-2">
+						<h2 id="admin-pending" className="text-sm font-semibold text-muted-foreground">
+							Đề chờ duyệt lâu nhất
+						</h2>
+						<Button variant="link" size="sm" className="h-auto p-0" asChild>
+							<Link href="/exam-approval">Mở trang duyệt</Link>
+						</Button>
+					</div>
+					<DataTable
+						caption="Đề thi chờ duyệt"
+						columns={columns}
+						rows={pendingExams.slice(0, 5)}
+						rowKey={(e) => e.id}
+						onRowClick={() => router.push('/exam-approval')}
+						empty={{ title: 'Không có đề chờ duyệt' }}
+					/>
+				</section>
+			)}
+
+			<section aria-labelledby="admin-recent" className="space-y-3">
+				<div className="flex items-center justify-between gap-2">
+					<h2 id="admin-recent" className="text-sm font-semibold text-muted-foreground">
+						{isHeadStaff ? 'Đề thi mới tạo' : 'Đề thi của tôi'}
+					</h2>
+					<Button variant="link" size="sm" className="h-auto p-0" asChild>
+						<Link href="/exam-management">Xem tất cả</Link>
+					</Button>
+				</div>
+				<DataTable
+					caption="Đề thi gần đây"
+					columns={columns}
+					rows={recent}
+					rowKey={(e) => e.id}
+					loading={loading}
+					error={error}
+					onRetry={() => void load()}
+					skeletonRows={4}
+					onRowClick={(e) => router.push(`/exam-creation?id=${e.id}`)}
+					empty={{
+						icon: FileText,
+						title: 'Chưa có đề thi nào',
+						description: 'Đề bạn tạo sẽ hiển thị ở đây.',
+						action: (
+							<Button size="sm" asChild>
+								<Link href="/exam-creation">
+									<FilePlus className="mr-1.5 h-4 w-4" />
+									Tạo đề thi
+								</Link>
+							</Button>
+						),
+					}}
+				/>
+			</section>
+		</div>
+	);
 }

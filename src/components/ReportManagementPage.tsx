@@ -1,381 +1,470 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
-import { updateReport, removeReport, setReports } from '@/components/store/reportSlice';
-import { ReportService } from '@/lib/api/services/ReportService';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Report, ReportStatus } from '@/types/client';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/ui/use-toast';
-import { extractApiErrorMessage } from '@/lib/api-response';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
 import {
-	Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from './ui/dialog';
-import {
-	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from './ui/select';
-import {
-	AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-	AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from './ui/alert-dialog';
-import { NavPagination } from './ui/nav-pagination';
-import {
-	Flag, Search, Eye, Clock, CheckCircle, XCircle,
-	AlertTriangle, Bug, FileText, UserX, MessageSquare,
-	Filter, Trash2,
+	CheckCircle2,
+	Clock,
+	ExternalLink,
+	Eye,
+	Flag,
+	Loader2,
+	MessageSquare,
+	Paperclip,
+	RefreshCw,
+	Search,
+	Trash2,
+	X,
+	XCircle,
 } from 'lucide-react';
+import { ReportService, type ReportResponse } from '@/lib/api/services/ReportService';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+import { normalizeApiError } from '@/lib/api-errors';
+import {
+	REPORT_STATUSES,
+	REPORT_TARGETS,
+	REPORT_TYPES,
+	formatDate,
+	matchesSearch,
+	reportStatusMeta,
+	reportTargetUrl,
+} from '@/lib/admin';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
+import {
+	AccessDenied,
+	AdminFilterSelect,
+	AdminPageHeader,
+	AdminPagination,
+	AdminSearchInput,
+	AdminStatCard,
+	AdminStatGrid,
+	AdminToolbar,
+	ConfirmDialog,
+	DataTable,
+	RowActions,
+	StatusBadge,
+	useIdentityNames,
+	type DataColumn,
+} from './admin';
 
-const STATUS_CONFIG: Record<ReportStatus, { label: string; color: string; icon: React.ElementType }> = {
-	[ReportStatus.Pending]: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock },
-	[ReportStatus.Reviewing]: { label: 'Đang xem xét', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Eye },
-	[ReportStatus.Resolved]: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle },
-	[ReportStatus.Rejected]: { label: 'Đã từ chối', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
-};
+const PAGE_SIZE = 20;
+const STATUS_KEYS = Object.keys(REPORT_STATUSES); // pending, reviewing, resolved, rejected
 
-const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
-	bug: { label: 'Lỗi hệ thống', icon: Bug },
-	content: { label: 'Nội dung', icon: FileText },
-	behavior: { label: 'Hành vi', icon: UserX },
-};
-
-function getResourceUrl(targetType?: string, targetId?: string): string | null {
-	if (!targetType || !targetId) return null;
-	switch (targetType) {
-		case 'exam': return `/test/${targetId}`;
-		case 'blog': return `/blog/${targetId}`;
-		case 'flashcard': {
-			const parts = targetId.split('/');
-			const listId = parts[0];
-			return listId ? `/flashcards/${listId}` : null;
-		}
-		case 'flashcard list': return `/flashcards/${targetId}`;
-		default: return null;
-	}
-}
+type Confirm = { kind: 'reject' | 'delete'; report: ReportResponse } | null;
 
 export default function ReportManagementPage() {
 	const router = useRouter();
-	const dispatch = useAppDispatch();
-	const { currUser, isHeadStaff } = useAuth();
+	const { currUser, isHeadStaff, isMod } = useAuth();
 	const { toast } = useToast();
-	const reports = useAppSelector((state) => state.reports.list);
-	const users = useAppSelector((state) => state.users.list);
+	// Updating/deleting reports is open to moderators and admins (REPORT_STAFF_ROLES).
+	const allowed = Boolean(currUser) && (isHeadStaff || isMod);
 
-	const [searchQuery, setSearchQuery] = useState('');
-	const [filterStatus, setFilterStatus] = useState<ReportStatus | 'all'>('all');
-	const [filterCategory, setFilterCategory] = useState<string>('all');
-	const [page, setPage] = useState(1);
+	const [reports, setReports] = useState<ReportResponse[]>([]);
 	const [totalCount, setTotalCount] = useState(0);
-	const limit = 20;
-	const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-	const [responseText, setResponseText] = useState('');
-	const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
+	const [statusCounts, setStatusCounts] = useState<Record<string, number> | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState<string[]>([]);
+	const [page, setPage] = useState(1);
+	const [status, setStatus] = useState('all');
+	const [type, setType] = useState('all');
+	const [search, setSearch] = useState('');
+	const [detail, setDetail] = useState<ReportResponse | null>(null);
+	const [confirm, setConfirm] = useState<Confirm>(null);
 
-	const getUserName = (userId: string) => users.find((u) => u.id === userId)?.fullName || 'Không rõ';
+	useEffect(() => setPage(1), [status, type]);
 
-	const fetchReports = useCallback(async (pageNum: number) => {
+	const fetchReports = useCallback(async () => {
+		if (!allowed) return;
+		setLoading(true);
+		setLoadError([]);
 		try {
-			const res = await ReportService.listReports(undefined, undefined, undefined, undefined, undefined, pageNum, limit);
-			const data = (res as any)?.data ?? res;
-			const reportsData = data?.reports ?? [];
-			if (reportsData.length > 0 || data?.totalCount === 0) {
-				dispatch(setReports(reportsData.map((r: any) => ({
-					id: r.id,
-					reportedBy: r.reportedBy,
-					type: r.type,
-					title: r.title,
-					description: r.description,
-					targetType: r.targetType,
-					targetId: r.targetId,
-					status: (r.status as ReportStatus) || ReportStatus.Pending,
-					adminResponse: r.adminResponse,
-					resolvedBy: r.resolvedBy,
-					fileIds: r.fileIds ?? [],
-					createdAt: new Date(r.createdAt).getTime(),
-					updatedAt: r.updatedAt ? new Date(r.updatedAt).getTime() : undefined,
-				}))));
-				setTotalCount(data.totalCount ?? reportsData.length);
-			} else {
-				dispatch(setReports([]));
-				setTotalCount(0);
-			}
+			const res = (await ReportService.listReports(
+				undefined,
+				type === 'all' ? undefined : type,
+				status === 'all' ? undefined : status,
+				undefined,
+				undefined,
+				page,
+				PAGE_SIZE,
+			)) as unknown as { data?: { reports?: ReportResponse[]; totalCount?: number } };
+			// ResponseEntity envelope; older gateways answered the bare list.
+			const data = res.data ?? (res as { reports?: ReportResponse[]; totalCount?: number });
+			const list = data.reports ?? [];
+			setReports(list);
+			setTotalCount(data.totalCount ?? list.length);
 		} catch (err) {
-			console.error('[ReportManagementPage] fetch error:', err);
-			toast({ title: 'Tải danh sách báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+			setReports([]);
+			setLoadError(normalizeApiError(err, { fallback: 'Không thể tải danh sách báo cáo' }).messages);
+		} finally {
+			setLoading(false);
 		}
-	}, [dispatch]);
+	}, [allowed, page, status, type]);
 
-	useEffect(() => { fetchReports(page); }, [fetchReports, page]);
-
-	const filteredReports = useMemo(() => {
-		let filtered = [...reports];
-		if (filterStatus !== 'all') filtered = filtered.filter((r) => r.status === filterStatus);
-		if (filterCategory !== 'all') filtered = filtered.filter((r) => r.type === filterCategory);
-		if (searchQuery) {
-			const q = searchQuery.toLowerCase();
-			filtered = filtered.filter((r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
-		}
-		return filtered.sort((a, b) => b.createdAt - a.createdAt);
-	}, [reports, filterStatus, filterCategory, searchQuery]);
-
-	const statusCounts = useMemo(() => ({
-		all: reports.length,
-		[ReportStatus.Pending]: reports.filter((r) => r.status === ReportStatus.Pending).length,
-		[ReportStatus.Reviewing]: reports.filter((r) => r.status === ReportStatus.Reviewing).length,
-		[ReportStatus.Resolved]: reports.filter((r) => r.status === ReportStatus.Resolved).length,
-		[ReportStatus.Rejected]: reports.filter((r) => r.status === ReportStatus.Rejected).length,
-	}), [reports]);
-
-	const handleStatusChange = async (report: Report, newStatus: ReportStatus) => {
+	// Per-status totals for the stat cards (the list itself is paginated on the server).
+	const fetchCounts = useCallback(async () => {
+		if (!allowed) return;
 		try {
-			await ReportService.updateReport(report.id, {
-				status: newStatus,
-				resolvedBy: currUser?.id,
-			});
-			dispatch(updateReport({
-				...report,
-				status: newStatus,
-				resolvedBy: currUser?.id,
-				updatedAt: Date.now(),
-			}));
+			const totals = await Promise.all(
+				STATUS_KEYS.map(async (s) => {
+					const res = (await ReportService.listReports(undefined, undefined, s, undefined, undefined, 1, 1)) as unknown as {
+						data?: { totalCount?: number };
+					};
+					return [s, (res.data ?? (res as { totalCount?: number })).totalCount ?? 0] as const;
+				}),
+			);
+			setStatusCounts(Object.fromEntries(totals));
 		} catch (err) {
-			console.error('[ReportManagementPage] status change error:', err);
-			toast({ title: 'Cập nhật trạng thái thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+			console.warn('ReportManagement: counts failed', err);
+		}
+	}, [allowed]);
+
+	useEffect(() => {
+		void fetchReports();
+	}, [fetchReports]);
+	useEffect(() => {
+		void fetchCounts();
+	}, [fetchCounts]);
+
+	const names = useIdentityNames(reports.flatMap((r) => [r.reportedBy, r.resolvedBy]));
+	const nameOf = (id?: string) => (id ? names[id]?.name ?? 'Người dùng' : '—');
+
+	const visible = useMemo(
+		() => reports.filter((r) => matchesSearch(search, r.title, r.description, r.reportedBy && names[r.reportedBy]?.name)),
+		[reports, search, names],
+	);
+
+	if (!allowed) return <AccessDenied description="Chỉ điều hành viên và quản trị viên xử lý được báo cáo." />;
+
+	const refresh = () => {
+		void fetchReports();
+		void fetchCounts();
+	};
+
+	const update = async (report: ReportResponse, patch: { status: string; adminResponse?: string }) => {
+		await ReportService.updateReport(report.id, patch);
+		const next = { ...report, ...patch, resolvedBy: currUser?.id, updatedAt: new Date().toISOString() };
+		setReports((prev) => prev.map((r) => (r.id === report.id ? next : r)));
+		setDetail((d) => (d?.id === report.id ? next : d));
+		void fetchCounts();
+	};
+
+	const quickStatus = async (report: ReportResponse, next: string) => {
+		try {
+			await update(report, { status: next });
+			toast({ title: `Đã chuyển sang "${reportStatusMeta(next).label}"` });
+		} catch (err) {
+			toast({ title: 'Cập nhật thất bại', description: normalizeApiError(err).messages.join('\n'), variant: 'destructive' });
 		}
 	};
 
-	const handleRespond = async () => {
-		if (!selectedReport || !responseText.trim()) return;
-		try {
-			await ReportService.updateReport(selectedReport.id, {
-				status: ReportStatus.Resolved,
-				adminResponse: responseText.trim(),
-				resolvedBy: currUser?.id,
-			});
-			dispatch(updateReport({
-				...selectedReport,
-				status: ReportStatus.Resolved,
-				adminResponse: responseText.trim(),
-				resolvedBy: currUser?.id,
-				updatedAt: Date.now(),
-			}));
-			setSelectedReport(null);
-			setResponseText('');
-		} catch (err) {
-			console.error('[ReportManagementPage] respond error:', err);
-			toast({ title: 'Phản hồi báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
-		}
+	const remove = async (report: ReportResponse) => {
+		await ReportService.deleteReport(report.id);
+		setDetail((d) => (d?.id === report.id ? null : d));
+		toast({ title: 'Đã xóa báo cáo' });
+		refresh();
 	};
 
-	const handleDelete = async () => {
-		if (!deleteReportId) return;
-		try {
-			await ReportService.deleteReport(deleteReportId);
-			dispatch(removeReport(deleteReportId));
-			setDeleteReportId(null);
-		} catch (err) {
-			console.error('[ReportManagementPage] delete error:', err);
-			toast({ title: 'Xóa báo cáo thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
-		}
-	};
+	const toggleStatus = (s: string) => setStatus((cur) => (cur === s ? 'all' : s));
+	const hasFilters = status !== 'all' || type !== 'all' || Boolean(search);
+	const countsLoading = statusCounts === null;
+	const totalAll = statusCounts ? Object.values(statusCounts).reduce((a, b) => a + b, 0) : 0;
 
-	const formatDate = (ts: number) => new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+	const columns: DataColumn<ReportResponse>[] = [
+		{
+			id: 'report',
+			header: 'Báo cáo',
+			cell: (r) => (
+				<div className="min-w-0 max-w-lg">
+					<p className="line-clamp-1 font-medium text-foreground [overflow-wrap:anywhere]">{r.title}</p>
+					<p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{r.description}</p>
+				</div>
+			),
+		},
+		{
+			id: 'type',
+			header: 'Loại',
+			className: 'hidden lg:table-cell whitespace-nowrap',
+			cell: (r) => (
+				<span className="text-muted-foreground">
+					{REPORT_TYPES[r.type] ?? r.type}
+					{r.targetType && <span className="block text-xs">{REPORT_TARGETS[r.targetType] ?? r.targetType}</span>}
+				</span>
+			),
+		},
+		{ id: 'reporter', header: 'Người gửi', className: 'whitespace-nowrap', cell: (r) => <span className="text-muted-foreground">{nameOf(r.reportedBy)}</span> },
+		{ id: 'status', header: 'Trạng thái', cell: (r) => <StatusBadge meta={reportStatusMeta(r.status)} /> },
+		{
+			id: 'created',
+			header: 'Gửi lúc',
+			className: 'hidden md:table-cell whitespace-nowrap',
+			cell: (r) => <span className="tabular-nums text-muted-foreground">{formatDate(r.createdAt, true)}</span>,
+		},
+	];
 
-	if (!currUser || !isHeadStaff) {
-		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<Card className="w-96"><CardHeader><CardTitle className="text-red-600">Không có quyền truy cập</CardTitle></CardHeader></Card>
-			</div>
-		);
-	}
+	const open = (r: ReportResponse) => r.status === 'pending' || r.status === 'reviewing';
 
 	return (
-		<div className="min-h-screen bg-background pb-20">
-			{/* Hero Header */}
-			<div className="relative overflow-hidden bg-primary text-white">
-				<div className="absolute inset-0 bg-black/10" />
-				<div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-				<div className="relative container mx-auto px-6 py-10">
-					<div className="flex items-center gap-3 mb-2">
-						<Flag className="h-7 w-7" />
-						<h1 className="text-3xl font-bold">Quản lý Báo cáo</h1>
-					</div>
-					<p className="text-white/80">Xem xét và xử lý các báo cáo từ người dùng</p>
+		<div className="space-y-5">
+			<AdminPageHeader
+				icon={Flag}
+				title="Quản lý báo cáo"
+				description="Báo cáo lỗi và vi phạm từ người dùng: xem xét, phản hồi, giải quyết hoặc từ chối."
+				actions={
+					<Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+						<RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+						Làm mới
+					</Button>
+				}
+			>
+				<AdminStatGrid className="lg:grid-cols-5">
+					<AdminStatCard label="Tất cả" value={totalAll} icon={Flag} loading={countsLoading} active={status === 'all'} onClick={() => setStatus('all')} />
+					<AdminStatCard label="Chờ xử lý" value={statusCounts?.pending ?? 0} icon={Clock} tone="warning" loading={countsLoading} active={status === 'pending'} onClick={() => toggleStatus('pending')} />
+					<AdminStatCard label="Đang xem xét" value={statusCounts?.reviewing ?? 0} icon={Eye} tone="info" loading={countsLoading} active={status === 'reviewing'} onClick={() => toggleStatus('reviewing')} />
+					<AdminStatCard label="Đã giải quyết" value={statusCounts?.resolved ?? 0} icon={CheckCircle2} tone="success" loading={countsLoading} active={status === 'resolved'} onClick={() => toggleStatus('resolved')} />
+					<AdminStatCard label="Đã từ chối" value={statusCounts?.rejected ?? 0} icon={XCircle} tone="danger" loading={countsLoading} active={status === 'rejected'} onClick={() => toggleStatus('rejected')} />
+				</AdminStatGrid>
+			</AdminPageHeader>
 
-					{/* Stats */}
-					<div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
-						{([['all', 'Tất cả', AlertTriangle] as const, ...Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label, v.icon] as const)]).map(([key, label, Icon]) => (
-							<button
-								key={key}
-								onClick={() => setFilterStatus(key as any)}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${filterStatus === key ? 'bg-white text-primary shadow-lg' : 'bg-white/15 text-white hover:bg-white/25'}`}
-							>
-								<Icon className="h-4 w-4" />
-								<span className="font-semibold text-sm">{label}</span>
-								<span className="ml-auto font-bold">{statusCounts[key as keyof typeof statusCounts]}</span>
-							</button>
-						))}
-					</div>
-				</div>
-			</div>
-
-			<div className="container mx-auto px-6 mt-8">
-				{/* Filters */}
-				<div className="flex flex-col sm:flex-row gap-3 mb-6">
-					<div className="relative flex-1">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-						<Input
-							placeholder="Tìm kiếm báo cáo..."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-10 rounded-xl"
-						/>
-					</div>
-					<Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as any)}>
-						<SelectTrigger className="w-[200px] rounded-xl">
-							<Filter className="h-4 w-4 mr-2" />
-							<SelectValue placeholder="Danh mục" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">Tất cả danh mục</SelectItem>
-							{Object.entries(CATEGORY_CONFIG).map(([k, v]) => (
-								<SelectItem key={k} value={k}>{v.label}</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				{/* Report List */}
-				{filteredReports.length === 0 ? (
-			<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
-				<Flag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-				<h3 className="text-lg font-bold text-gray-800">Không có báo cáo nào</h3>
-				<p className="text-gray-500 mt-1">{totalCount === 0 ? 'Hiện chưa có report nào' : 'Chưa có báo cáo nào phù hợp với bộ lọc'}</p>
-			</div>
-				) : (
-					<div className="space-y-4">
-						{filteredReports.map((report) => {
-							const statusConf = STATUS_CONFIG[report.status] ?? { label: report.status || 'Không rõ', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: Clock };
-							const catConf = CATEGORY_CONFIG[report.type] ?? { label: report.type, icon: FileText };
-							const StatusIcon = statusConf.icon;
-							const CatIcon = catConf.icon;
-							return (
-								<Card key={report.id} className="hover:shadow-lg transition-shadow border-0 shadow-sm">
-									<CardContent className="p-5">
-										<div className="flex flex-col lg:flex-row lg:items-start gap-4">
-											<div className="flex-1 min-w-0">
-												<div className="flex flex-wrap items-center gap-2 mb-2">
-													<Badge className={`${statusConf.color} border text-xs`}>
-														<StatusIcon className="h-3 w-3 mr-1" />{statusConf.label}
-													</Badge>
-													<Badge variant="outline" className="text-xs">
-														<CatIcon className="h-3 w-3 mr-1" />{catConf.label}
-													</Badge>
-													{report.targetType && report.targetId && (
-														<Badge
-															variant="outline"
-															className="text-xs text-blue-600 border-blue-200 cursor-pointer hover:bg-blue-50 transition-colors"
-															onClick={() => {
-																const url = getResourceUrl(report.targetType, report.targetId);
-																if (url) router.push(url);
-															}}
-														>
-															{report.targetType === 'exam' ? 'Đề thi' : report.targetType === 'blog' ? 'Blog' : report.targetType === 'flashcard' ? 'Flashcard' : report.targetType === 'flashcard list' ? 'Bộ sưu tập' : 'Khác'}
-														</Badge>
-													)}
-												</div>
-												<h3 className="font-bold text-gray-900 text-lg mb-1">{report.title}</h3>
-												<p className="text-gray-600 text-sm line-clamp-2 mb-3">{report.description}</p>
-												<div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-													<span>Người gửi: <strong className="text-gray-700">{getUserName(report.reportedBy)}</strong></span>
-													<span>{formatDate(report.createdAt)}</span>
-													{report.resolvedBy && <span>Xử lý bởi: <strong className="text-gray-700">{getUserName(report.resolvedBy)}</strong></span>}
-												</div>
-												{report.adminResponse && (
-													<div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3">
-														<p className="text-xs font-semibold text-green-700 mb-1 flex items-center gap-1">
-															<MessageSquare className="h-3 w-3" /> Phản hồi Admin
-														</p>
-														<p className="text-sm text-green-800">{report.adminResponse}</p>
-													</div>
-												)}
-											</div>
-											<div className="flex lg:flex-col gap-2 shrink-0">
-												{report.status === ReportStatus.Pending && (
-													<Button size="sm" className="rounded-xl" onClick={() => handleStatusChange(report, ReportStatus.Reviewing)}>
-														<Eye className="h-4 w-4 mr-1" /> Xem xét
-													</Button>
-												)}
-												{(report.status === ReportStatus.Pending || report.status === ReportStatus.Reviewing) && (
-													<Button size="sm" variant="outline" className="rounded-xl" onClick={() => { setSelectedReport(report); setResponseText(report.adminResponse || ''); }}>
-														<MessageSquare className="h-4 w-4 mr-1" /> Phản hồi
-													</Button>
-												)}
-												{report.status === ReportStatus.Reviewing && (
-													<Button size="sm" variant="outline" className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatusChange(report, ReportStatus.Rejected)}>
-														<XCircle className="h-4 w-4 mr-1" /> Từ chối
-													</Button>
-												)}
-												<Button size="sm" variant="ghost" className="rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteReportId(report.id)}>
-													<Trash2 className="h-4 w-4" />
-												</Button>
-											</div>
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})}
-					</div>
+			<AdminToolbar summary={!loading && `${totalCount} báo cáo`}>
+				<AdminSearchInput value={search} onChange={setSearch} placeholder="Lọc trang này theo tiêu đề, nội dung…" />
+				<AdminFilterSelect
+					label="Trạng thái"
+					value={status}
+					onChange={setStatus}
+					options={[{ value: 'all', label: 'Mọi trạng thái' }, ...STATUS_KEYS.map((s) => ({ value: s, label: REPORT_STATUSES[s].label }))]}
+				/>
+				<AdminFilterSelect
+					label="Loại báo cáo"
+					value={type}
+					onChange={setType}
+					options={[{ value: 'all', label: 'Mọi loại' }, ...Object.entries(REPORT_TYPES).map(([value, label]) => ({ value: value, label: label }))]}
+				/>
+				{hasFilters && (
+					<Button variant="ghost" size="sm" onClick={() => { setStatus('all'); setType('all'); setSearch(''); }}>
+						<X className="mr-1 h-4 w-4" />
+						Xóa lọc
+					</Button>
 				)}
-				<NavPagination page={page} totalPages={Math.ceil(totalCount / limit)} onPageChange={setPage} />
-			</div>
+			</AdminToolbar>
 
-			{/* Respond Dialog */}
-			<Dialog open={!!selectedReport} onOpenChange={(open) => { if (!open) setSelectedReport(null); }}>
-				<DialogContent className="sm:max-w-lg">
-					<DialogHeader>
-						<DialogTitle>Phản hồi báo cáo</DialogTitle>
-					</DialogHeader>
-					{selectedReport && (
-						<div className="space-y-4">
-							<div className="bg-gray-50 rounded-lg p-3">
-								<p className="font-semibold text-sm">{selectedReport.title}</p>
-								<p className="text-sm text-gray-600 mt-1">{selectedReport.description}</p>
-							</div>
-							<Textarea
-								placeholder="Nhập phản hồi cho người báo cáo..."
-								value={responseText}
-								onChange={(e) => setResponseText(e.target.value)}
-								rows={4}
-							/>
-						</div>
-					)}
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setSelectedReport(null)}>Hủy</Button>
-						<Button onClick={handleRespond} disabled={!responseText.trim()}>Gửi phản hồi & Đánh dấu đã giải quyết</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<DataTable
+				caption="Danh sách báo cáo"
+				columns={columns}
+				rows={visible}
+				rowKey={(r) => r.id}
+				loading={loading}
+				error={loadError}
+				onRetry={() => void fetchReports()}
+				onRowClick={setDetail}
+				empty={
+					search && reports.length > 0
+						? { icon: Search, title: 'Không có báo cáo phù hợp trong trang này', description: 'Thử từ khóa khác hoặc sang trang khác.' }
+						: hasFilters
+							? { icon: Flag, title: 'Không có báo cáo phù hợp', description: 'Thử đổi trạng thái hoặc loại báo cáo.' }
+							: { icon: CheckCircle2, title: 'Chưa có báo cáo nào', description: 'Báo cáo người dùng gửi sẽ xuất hiện ở đây.' }
+				}
+				rowActions={(r) => (
+					<RowActions
+						label={r.title}
+						actions={[
+							{ label: 'Xem và phản hồi', icon: MessageSquare, onSelect: () => setDetail(r) },
+							{ label: 'Bắt đầu xem xét', icon: Eye, hidden: r.status !== 'pending', onSelect: () => void quickStatus(r, 'reviewing') },
+							{
+								label: 'Mở nội dung bị báo cáo',
+								icon: ExternalLink,
+								hidden: !reportTargetUrl(r.targetType, r.targetId),
+								onSelect: () => router.push(reportTargetUrl(r.targetType, r.targetId)!),
+							},
+							{ label: 'Từ chối báo cáo', icon: XCircle, destructive: true, hidden: !open(r), onSelect: () => setConfirm({ kind: 'reject', report: r }) },
+							{ label: 'Xóa báo cáo', icon: Trash2, destructive: true, onSelect: () => setConfirm({ kind: 'delete', report: r }) },
+						]}
+					/>
+				)}
+			/>
 
-			{/* Delete Confirmation */}
-			<AlertDialog open={!!deleteReportId} onOpenChange={(open) => { if (!open) setDeleteReportId(null); }}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Xóa báo cáo?</AlertDialogTitle>
-						<AlertDialogDescription>Hành động này không thể hoàn tác.</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Hủy</AlertDialogCancel>
-						<AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+			<AdminPagination page={page} pageSize={PAGE_SIZE} total={totalCount} onPageChange={setPage} itemLabel="báo cáo" />
+
+			<ReportDetailDialog
+				report={detail}
+				reporter={nameOf(detail?.reportedBy)}
+				resolver={detail?.resolvedBy ? nameOf(detail.resolvedBy) : undefined}
+				onClose={() => setDetail(null)}
+				onUpdate={update}
+				onReject={(r) => setConfirm({ kind: 'reject', report: r })}
+				onOpenTarget={(url) => router.push(url)}
+			/>
+
+			<ConfirmDialog
+				open={confirm?.kind === 'reject'}
+				onOpenChange={(o) => !o && setConfirm(null)}
+				destructive
+				title="Từ chối báo cáo?"
+				description={confirm ? `"${confirm.report.title}" sẽ được đánh dấu là không vi phạm / không phải lỗi.` : undefined}
+				confirmLabel="Từ chối"
+				onConfirm={async () => {
+					if (!confirm) return;
+					await update(confirm.report, { status: 'rejected' });
+					toast({ title: 'Đã từ chối báo cáo' });
+				}}
+			/>
+			<ConfirmDialog
+				open={confirm?.kind === 'delete'}
+				onOpenChange={(o) => !o && setConfirm(null)}
+				destructive
+				title="Xóa báo cáo?"
+				description={confirm ? `"${confirm.report.title}" sẽ bị xóa vĩnh viễn. Không thể hoàn tác.` : undefined}
+				confirmLabel="Xóa báo cáo"
+				onConfirm={() => (confirm ? remove(confirm.report) : undefined)}
+			/>
 		</div>
+	);
+}
+
+function ReportDetailDialog({
+	report,
+	reporter,
+	resolver,
+	onClose,
+	onUpdate,
+	onReject,
+	onOpenTarget,
+}: {
+	report: ReportResponse | null;
+	reporter: string;
+	resolver?: string;
+	onClose: () => void;
+	onUpdate: (report: ReportResponse, patch: { status: string; adminResponse?: string }) => Promise<void>;
+	onReject: (report: ReportResponse) => void;
+	onOpenTarget: (url: string) => void;
+}) {
+	const [response, setResponse] = useState('');
+	const [responseError, setResponseError] = useState('');
+	const [errors, setErrors] = useState<string[]>([]);
+	const [saving, setSaving] = useState<string | null>(null);
+
+	useEffect(() => {
+		setResponse(report?.adminResponse ?? '');
+		setResponseError('');
+		setErrors([]);
+	}, [report?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	if (!report) return <Dialog open={false} />;
+	const isOpen = report.status === 'pending' || report.status === 'reviewing';
+	const targetUrl = reportTargetUrl(report.targetType, report.targetId);
+
+	const run = async (key: string, patch: { status: string; adminResponse?: string }) => {
+		setSaving(key);
+		setErrors([]);
+		try {
+			await onUpdate(report, patch);
+			if (key === 'resolve') onClose();
+		} catch (err) {
+			const res = normalizeApiError(err, { fields: { adminResponse: 'response' } });
+			setResponseError(res.fieldErrors.response ?? '');
+			setErrors(res.messages);
+		} finally {
+			setSaving(null);
+		}
+	};
+
+	const resolve = () => {
+		if (!response.trim()) {
+			setResponseError('Nhập phản hồi cho người báo cáo trước khi đánh dấu đã giải quyết');
+			return;
+		}
+		void run('resolve', { status: 'resolved', adminResponse: response.trim() });
+	};
+
+	return (
+		<Dialog open onOpenChange={(o) => !o && !saving && onClose()}>
+			<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+				<DialogHeader>
+					<DialogTitle className="pr-6 [overflow-wrap:anywhere]">{report.title}</DialogTitle>
+					<DialogDescription>
+						{reporter} · {formatDate(report.createdAt, true)}
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-4">
+					<div className="flex flex-wrap items-center gap-2">
+						<StatusBadge meta={reportStatusMeta(report.status)} />
+						<StatusBadge dot={false}>{REPORT_TYPES[report.type] ?? report.type}</StatusBadge>
+						{report.targetType && (
+							<StatusBadge tone="info" dot={false}>
+								{REPORT_TARGETS[report.targetType] ?? report.targetType}
+							</StatusBadge>
+						)}
+						{report.fileIds?.length > 0 && (
+							<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+								<Paperclip className="h-3.5 w-3.5" />
+								{report.fileIds.length} tệp đính kèm
+							</span>
+						)}
+					</div>
+
+					<p className="whitespace-pre-line rounded-lg bg-muted/50 p-3 text-sm [overflow-wrap:anywhere]">{report.description}</p>
+
+					{targetUrl && (
+						<Button variant="outline" size="sm" onClick={() => onOpenTarget(targetUrl)}>
+							<ExternalLink className="mr-1.5 h-4 w-4" />
+							Mở nội dung bị báo cáo
+						</Button>
+					)}
+
+					{isOpen ? (
+						<div className="space-y-2">
+							<Label htmlFor="report-response">Phản hồi cho người báo cáo</Label>
+							<Textarea
+								{...fieldA11y('report-response', responseError)}
+								rows={4}
+								value={response}
+								onChange={(e) => {
+									setResponse(e.target.value);
+									if (responseError) setResponseError('');
+								}}
+								placeholder="Ví dụ: Cảm ơn bạn, chúng tôi đã sửa câu hỏi bị lỗi."
+							/>
+							<FieldError id="report-response" message={responseError} className="-mt-2" />
+						</div>
+					) : (
+						report.adminResponse && (
+							<section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950">
+								<p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+									<MessageSquare className="h-3.5 w-3.5" />
+									Phản hồi{resolver ? ` của ${resolver}` : ''}
+								</p>
+								<p className="whitespace-pre-line text-emerald-900 [overflow-wrap:anywhere] dark:text-emerald-100">{report.adminResponse}</p>
+							</section>
+						)
+					)}
+
+					<FormErrorSummary messages={errors} />
+				</div>
+
+				{isOpen && (
+					<DialogFooter className="gap-2">
+						<Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => onReject(report)} disabled={!!saving}>
+							<XCircle className="mr-1.5 h-4 w-4" />
+							Từ chối
+						</Button>
+						{report.status === 'pending' && (
+							<Button variant="outline" onClick={() => void run('review', { status: 'reviewing' })} disabled={!!saving}>
+								{saving === 'review' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eye className="mr-1.5 h-4 w-4" />}
+								Bắt đầu xem xét
+							</Button>
+						)}
+						<Button onClick={resolve} disabled={!!saving}>
+							{saving === 'resolve' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+							Gửi phản hồi và giải quyết
+						</Button>
+					</DialogFooter>
+				)}
+			</DialogContent>
+		</Dialog>
 	);
 }

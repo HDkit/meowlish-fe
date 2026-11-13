@@ -1,615 +1,474 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Lock, Phone, RefreshCw, ShieldCheck, Unlock, UserCog, Users, X } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AuthService } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
-import { extractApiErrorMessage } from '@/lib/api-response';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { normalizeApiError } from '@/lib/api-errors';
+import { asQueryArray, initials, roleLabel, roleTone } from '@/lib/admin';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FormErrorSummary } from '@/components/ui/form-feedback';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Edit, Search, UserCheck, AlertCircle, Lock, Unlock, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const ROLE_LABELS: Record<string, string> = {
-  learner: 'Học viên',
-  mod: 'Quản trị viên',
-  staff: 'Nhân viên',
-  head_staff: 'Trưởng phòng',
-};
+	AccessDenied,
+	AdminFilterSelect,
+	AdminPageHeader,
+	AdminPagination,
+	AdminSearchInput,
+	AdminToolbar,
+	ConfirmDialog,
+	DataTable,
+	RowActions,
+	StatusBadge,
+	type DataColumn,
+} from './admin';
 
 const PAGE_SIZE = 20;
 
 type IdentityUser = {
-  id: string;
-  username: string;
-  fullName: string;
-  avatarUrl?: string;
-  bio?: string;
-  roles: string[];
-  permissions: string[];
-  isLocked?: boolean;
+	id: string;
+	username: string;
+	fullName?: string;
+	phoneNumber?: string;
+	/** Role names ("admin", "mod", …). */
+	roles: string[];
+	permissions: string[];
+	isLocked?: boolean;
 };
 
-type RoleInfo = {
-  id: string;
-  name: string;
-  permissions: string[];
-};
+type RoleInfo = { id: string; name: string; permissions: string[] };
+
+type SearchMode = 'name' | 'phone';
+
+type Confirm =
+	| { kind: 'lock'; user: IdentityUser }
+	| { kind: 'remove-role'; user: IdentityUser; role: string }
+	| null;
 
 export default function UserManagementPage() {
-  const { currUser, isMod, isHeadStaff } = useAuth();
-  const { toast } = useToast();
+	const { currUser, isHeadStaff } = useAuth();
+	const { toast } = useToast();
+	// GET /auth/identities and /auth/roles are admin-only (Role.Admin == the "head staff" UI role).
+	const allowed = Boolean(currUser) && isHeadStaff;
 
-  // Data from API
-  const [users, setUsers] = useState<IdentityUser[]>([]);
-  const [roles, setRoles] = useState<RoleInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+	const [roles, setRoles] = useState<RoleInfo[]>([]);
+	const [users, setUsers] = useState<IdentityUser[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState<string[]>([]);
 
-  // UI State
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<IdentityUser | null>(null);
-  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [phoneSearch, setPhoneSearch] = useState('');
-  const [lockConfirmUser, setLockConfirmUser] = useState<IdentityUser | null>(null);
-  const [page, setPage] = useState(0);
+	const [searchMode, setSearchMode] = useState<SearchMode>('name');
+	const [searchInput, setSearchInput] = useState('');
+	const [query, setQuery] = useState('');
+	const [roleFilter, setRoleFilter] = useState('all');
+	// Cursor stack: cursors[i] loads page i (undefined = first page).
+	const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
+	const [nextCursor, setNextCursor] = useState<string | undefined>();
 
-  // Fetch users and roles on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch identities with roles and permissions
-        const identitiesRes = await AuthService.authGatewayControllerFindIdentitiesV1(
-          undefined, undefined, undefined, undefined, PAGE_SIZE
-        );
-        if (identitiesRes.data?.identities) {
-          setUsers(identitiesRes.data.identities);
-        }
+	const [roleDialogUser, setRoleDialogUser] = useState<IdentityUser | null>(null);
+	const [confirm, setConfirm] = useState<Confirm>(null);
 
-        // Fetch roles list
-        const rolesRes = await AuthService.authGatewayControllerGetRoleListV1();
-        if (rolesRes.data?.roles) {
-          const rolesArray = Array.isArray(rolesRes.data.roles)
-            ? rolesRes.data.roles
-            : [rolesRes.data.roles];
-          setRoles(rolesArray);
-        }
-      } catch (err: any) {
-        console.error('Failed to fetch users:', err);
-        toast({
-          title: 'Lỗi tải dữ liệu',
-          description: extractApiErrorMessage(err, 'Không thể tải danh sách người dùng'),
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+	const page = cursors.length - 1;
 
-    fetchData();
-  }, [toast]);
+	// Debounce the name search; the phone search runs on Enter (it needs a full-ish number).
+	useEffect(() => {
+		if (searchMode !== 'name') return;
+		const t = setTimeout(() => setQuery(searchInput.trim()), 350);
+		return () => clearTimeout(t);
+	}, [searchInput, searchMode]);
 
-  // Access check
-  if (!currUser || (!isHeadStaff && !isMod)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Card className="w-96 shadow-lg border-red-100">
-          <CardHeader className="bg-red-50 text-red-700 rounded-t-xl mb-4">
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              Truy cập bị từ chối
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription className="text-gray-600 text-base">
-              Bạn không có quyền quản lý người dùng trên hệ thống.
-            </CardDescription>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+	// A new query or filter starts from the first page.
+	useEffect(() => {
+		setCursors([undefined]);
+	}, [query, roleFilter, searchMode]);
 
-  // Filter users
-  const filteredUsers = users.filter((user) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      user.username?.toLowerCase().includes(q) ||
-      user.fullName?.toLowerCase().includes(q);
-    const matchesRole = roleFilter === 'all' || user.roles?.includes(roleFilter);
-    return matchesSearch && matchesRole;
-  });
+	useEffect(() => {
+		if (!allowed) return;
+		AuthService.authGatewayControllerGetRoleListV1()
+			.then((res: any) => {
+				const list = res?.data?.roles;
+				setRoles(Array.isArray(list) ? list : list ? [list] : []);
+			})
+			.catch((err) => console.warn('UserManagement: roles failed', err));
+	}, [allowed]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages - 1);
-  const pagedUsers = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+	const cursor = cursors[cursors.length - 1];
+	const fetchUsers = useCallback(async () => {
+		if (!allowed) return;
+		setLoading(true);
+		setLoadError([]);
+		try {
+			const res: any =
+				searchMode === 'phone' && query
+					? await AuthService.authGatewayControllerFindIdentitiesByPhoneV1(query, cursor, PAGE_SIZE)
+					: await AuthService.authGatewayControllerFindIdentitiesV1(
+							query || undefined,
+							undefined,
+							roleFilter === 'all' ? undefined : asQueryArray([roleFilter]),
+							cursor,
+							PAGE_SIZE,
+						);
+			const list: IdentityUser[] = res?.data?.identities ?? [];
+			setUsers(list);
+			// The backend always returns a next cursor; a short page means there is no next page.
+			setNextCursor(list.length === PAGE_SIZE ? res?.data?.nextCursor || undefined : undefined);
+		} catch (err) {
+			setUsers([]);
+			setLoadError(normalizeApiError(err, { fallback: 'Không thể tải danh sách người dùng' }).messages);
+		} finally {
+			setLoading(false);
+		}
+	}, [allowed, searchMode, query, roleFilter, cursor]);
 
-  // Assign role to user
-  const handleAssignRole = async () => {
-    if (!selectedUser || !selectedRoleId) return;
+	useEffect(() => {
+		void fetchUsers();
+	}, [fetchUsers]);
 
-    setIsLoading(true);
-    try {
-      await AuthService.authGatewayControllerAssignRoleToV1(selectedUser.id, {
-        roleId: selectedRoleId,
-      });
+	const roleIdByName = useMemo(() => new Map(roles.map((r) => [r.name, r.id])), [roles]);
 
-      // Update local state
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === selectedUser.id
-            ? { ...u, roles: [...(u.roles || []), selectedRoleId] }
-            : u
-        )
-      );
+	const patchUser = (id: string, patch: (u: IdentityUser) => IdentityUser) => {
+		setUsers((prev) => prev.map((u) => (u.id === id ? patch(u) : u)));
+		setRoleDialogUser((u) => (u && u.id === id ? patch(u) : u));
+	};
 
-      toast({
-        title: 'Thành công',
-        description: `Đã gán vai trò cho ${selectedUser.username}`,
-      });
-      setIsRoleDialogOpen(false);
-      setSelectedUser(null);
-      setSelectedRoleId('');
-    } catch (err: any) {
-      console.error('Failed to assign role:', err);
-      toast({
-        title: 'Lỗi',
-        description: extractApiErrorMessage(err, 'Không thể gán vai trò'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+	const assignRole = async (user: IdentityUser, roleName: string) => {
+		const roleId = roleIdByName.get(roleName);
+		if (!roleId) throw new Error('Không tìm thấy vai trò này');
+		await AuthService.authGatewayControllerAssignRoleToV1(user.id, { roleId: roleId });
+		patchUser(user.id, (u) => ({ ...u, roles: [...u.roles, roleName] }));
+		toast({ title: 'Đã gán vai trò', description: `${roleLabel(roleName)} cho ${user.username}. Người dùng cần đăng nhập lại.` });
+	};
 
-  // Remove role from user
-  const handleRemoveRole = async (userId: string, roleId: string) => {
-    setIsLoading(true);
-    try {
-      await AuthService.authGatewayControllerRemoveRoleFromV1(userId, {
-        roleId: roleId,
-      });
+	// Identities list role NAMES, but the endpoint takes the role ID.
+	const removeRole = async (user: IdentityUser, roleName: string) => {
+		const roleId = roleIdByName.get(roleName);
+		if (!roleId) throw new Error('Không tìm thấy vai trò này');
+		await AuthService.authGatewayControllerRemoveRoleFromV1(user.id, { roleId: roleId });
+		patchUser(user.id, (u) => ({ ...u, roles: u.roles.filter((r) => r !== roleName) }));
+		toast({ title: 'Đã gỡ vai trò', description: `${roleLabel(roleName)} khỏi ${user.username}.` });
+	};
 
-      // Update local state
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? { ...u, roles: (u.roles || []).filter((r) => r !== roleId) }
-            : u
-        )
-      );
+	const toggleLock = async (user: IdentityUser) => {
+		if (user.isLocked) await AuthService.authGatewayControllerUnlockIdentityV1(user.id);
+		else await AuthService.authGatewayControllerLockIdentityV1(user.id);
+		patchUser(user.id, (u) => ({ ...u, isLocked: !u.isLocked }));
+		toast({ title: user.isLocked ? `Đã mở khóa ${user.username}` : `Đã khóa ${user.username}` });
+	};
 
-      toast({
-        title: 'Thành công',
-        description: 'Đã xóa vai trò',
-      });
-    } catch (err: any) {
-      console.error('Failed to remove role:', err);
-      toast({
-        title: 'Lỗi',
-        description: extractApiErrorMessage(err, 'Không thể xóa vai trò'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+	if (!allowed) {
+		return <AccessDenied description="Chỉ quản trị viên mới quản lý được người dùng và vai trò." />;
+	}
 
-  // Lock/unlock user account
-  const handleToggleLock = async (user: IdentityUser) => {
-    setIsLoading(true);
-    try {
-      if (user.isLocked) {
-        await AuthService.authGatewayControllerUnlockIdentityV1(user.id);
-      } else {
-        await AuthService.authGatewayControllerLockIdentityV1(user.id);
-      }
+	const isSelf = (u: IdentityUser) => u.id === currUser?.id;
 
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === user.id ? { ...u, isLocked: !u.isLocked } : u
-        )
-      );
+	const columns: DataColumn<IdentityUser>[] = [
+		{
+			id: 'user',
+			header: 'Người dùng',
+			cell: (u) => (
+				<div className="flex min-w-0 items-center gap-3">
+					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+						{initials(u.fullName || u.username)}
+					</span>
+					<div className="min-w-0">
+						<p className="truncate font-medium text-foreground">
+							{u.fullName || u.username}
+							{isSelf(u) && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(bạn)</span>}
+						</p>
+						<p className="truncate text-xs text-muted-foreground">@{u.username}</p>
+					</div>
+				</div>
+			),
+		},
+		{
+			id: 'roles',
+			header: 'Vai trò',
+			cell: (u) =>
+				u.roles.length === 0 ? (
+					<span className="text-muted-foreground">—</span>
+				) : (
+					<div className="flex flex-wrap gap-1">
+						{u.roles.map((r) => (
+							<StatusBadge key={r} tone={roleTone(r)} dot={false}>
+								{roleLabel(r)}
+							</StatusBadge>
+						))}
+					</div>
+				),
+		},
+		{
+			id: 'phone',
+			header: 'Số điện thoại',
+			className: 'hidden lg:table-cell',
+			cell: (u) => <span className="tabular-nums text-muted-foreground">{u.phoneNumber || '—'}</span>,
+		},
+		{
+			id: 'permissions',
+			header: 'Quyền',
+			className: 'hidden xl:table-cell',
+			cell: (u) => <span className="text-muted-foreground">{u.permissions?.length ?? 0} quyền</span>,
+		},
+		{
+			id: 'status',
+			header: 'Trạng thái',
+			cell: (u) =>
+				u.isLocked ? <StatusBadge tone="danger">Đã khóa</StatusBadge> : <StatusBadge tone="success">Hoạt động</StatusBadge>,
+		},
+	];
 
-      toast({
-        title: 'Thành công',
-        description: user.isLocked
-          ? `Đã mở khóa tài khoản ${user.username}`
-          : `Đã khóa tài khoản ${user.username}`,
-      });
-      setLockConfirmUser(null);
-    } catch (err: any) {
-      console.error('Failed to toggle lock:', err);
-      toast({
-        title: 'Lỗi',
-        description: extractApiErrorMessage(err, 'Không thể thay đổi trạng thái khóa'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+	const searchLabel = searchMode === 'phone' ? 'Số điện thoại (nhấn Enter)' : 'Tên đăng nhập, email hoặc ID';
+	const filtered = Boolean(query) || roleFilter !== 'all';
 
-  // Search by phone number
-  const handlePhoneSearch = async () => {
-    if (!phoneSearch.trim()) return;
-    setIsLoading(true);
-    try {
-      const res = await AuthService.authGatewayControllerFindIdentitiesByPhoneV1(
-        phoneSearch.trim(), undefined, 100
-      );
-      if (res.data?.identities) {
-        setUsers(res.data.identities);
-      }
-      toast({
-        title: 'Tìm kiếm',
-        description: `Tìm thấy ${res.data?.identities?.length || 0} người dùng`,
-      });
-    } catch (err: any) {
-      console.error('Phone search failed:', err);
-      toast({
-        title: 'Lỗi',
-        description: extractApiErrorMessage(err, 'Không thể tìm kiếm theo số điện thoại'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+	return (
+		<div className="space-y-5">
+			<AdminPageHeader
+				icon={Users}
+				title="Quản lý người dùng"
+				description="Tìm tài khoản, gán hoặc gỡ vai trò và khóa tài khoản vi phạm."
+				actions={
+					<Button variant="outline" size="sm" onClick={() => void fetchUsers()} disabled={loading}>
+						<RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+						Làm mới
+					</Button>
+				}
+			/>
 
-  const openRoleDialog = (user: IdentityUser) => {
-    setSelectedUser(user);
-    setSelectedRoleId('');
-    setIsRoleDialogOpen(true);
-  };
+			<AdminToolbar
+				summary={!loading && loadError.length === 0 ? `Trang ${page + 1} · ${users.length} người dùng` : undefined}
+			>
+				<AdminFilterSelect
+					label="Tìm theo"
+					value={searchMode}
+					onChange={(v) => {
+						setSearchMode(v as SearchMode);
+						setSearchInput('');
+						setQuery('');
+					}}
+					options={[
+						{ value: 'name', label: 'Tìm theo tên / email' },
+						{ value: 'phone', label: 'Tìm theo số điện thoại' },
+					]}
+				/>
+				<AdminSearchInput
+					value={searchInput}
+					onChange={(v) => {
+						setSearchInput(v);
+						if (searchMode === 'phone' && !v) setQuery('');
+					}}
+					onSubmit={() => setQuery(searchInput.trim())}
+					placeholder={searchLabel}
+				/>
+				{searchMode === 'name' && (
+					<AdminFilterSelect
+						label="Vai trò"
+						value={roleFilter}
+						onChange={setRoleFilter}
+						options={[{ value: 'all', label: 'Mọi vai trò' }, ...roles.map((r) => ({ value: r.name, label: roleLabel(r.name) }))]}
+					/>
+				)}
+				{filtered && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => {
+							setSearchInput('');
+							setQuery('');
+							setRoleFilter('all');
+						}}
+					>
+						<X className="mr-1 h-4 w-4" />
+						Xóa lọc
+					</Button>
+				)}
+			</AdminToolbar>
 
-  const getRoleName = (roleId: string) => {
-    const role = roles.find((r) => r.id === roleId);
-    const name = role?.name || roleId;
-    return ROLE_LABELS[name] || name;
-  };
+			<DataTable
+				caption="Danh sách người dùng"
+				columns={columns}
+				rows={users}
+				rowKey={(u) => u.id}
+				loading={loading}
+				error={loadError}
+				onRetry={() => void fetchUsers()}
+				empty={{
+					icon: searchMode === 'phone' ? Phone : Users,
+					title: filtered ? 'Không có người dùng phù hợp' : 'Chưa có người dùng',
+					description: filtered ? 'Thử từ khóa khác hoặc bỏ bộ lọc vai trò.' : undefined,
+				}}
+				rowActions={(u) => (
+					<RowActions
+						label={u.username}
+						actions={[
+							{ label: 'Quản lý vai trò', icon: UserCog, onSelect: () => setRoleDialogUser(u), disabled: isSelf(u) },
+							{
+								label: u.isLocked ? 'Mở khóa tài khoản' : 'Khóa tài khoản',
+								icon: u.isLocked ? Unlock : Lock,
+								destructive: !u.isLocked,
+								disabled: isSelf(u),
+								onSelect: () => setConfirm({ kind: 'lock', user: u }),
+							},
+						]}
+					/>
+				)}
+			/>
 
-  const getRoleBadgeColor = (roleId: string) => {
-    if (roleId.includes('admin') || roleId.includes('head')) return 'bg-purple-100 text-purple-700';
-    if (roleId.includes('staff')) return 'bg-blue-100 text-blue-700';
-    return 'bg-gray-100 text-gray-700';
-  };
+			<AdminPagination
+				hasPrev={page > 0}
+				hasNext={Boolean(nextCursor)}
+				disabled={loading}
+				label={`Trang ${page + 1}`}
+				onPrev={() => setCursors((c) => (c.length > 1 ? c.slice(0, -1) : c))}
+				onNext={() => nextCursor && setCursors((c) => [...c, nextCursor])}
+			/>
 
-  const userCount = users.length;
+			<RoleDialog
+				user={roleDialogUser}
+				roles={roles}
+				onClose={() => setRoleDialogUser(null)}
+				onAssign={assignRole}
+				onRequestRemove={(user, role) => setConfirm({ kind: 'remove-role', user: user, role: role })}
+			/>
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-primary text-white">
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="relative px-6 py-8">
-          <div className="flex items-center justify-between max-w-5xl mx-auto">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <UserCheck className="h-6 w-6" />
-                Quản lý người dùng
-              </h1>
-              <p className="text-primary-foreground/80 mt-1">
-                Quản lý vai trò và phân quyền hệ thống
-              </p>
-            </div>
-          </div>
+			<ConfirmDialog
+				open={confirm?.kind === 'lock'}
+				onOpenChange={(o) => !o && setConfirm(null)}
+				destructive={confirm?.kind === 'lock' && !confirm.user.isLocked}
+				title={confirm?.kind === 'lock' && confirm.user.isLocked ? 'Mở khóa tài khoản?' : 'Khóa tài khoản?'}
+				description={
+					confirm?.kind === 'lock'
+						? confirm.user.isLocked
+							? `"${confirm.user.username}" sẽ đăng nhập lại được.`
+							: `"${confirm.user.username}" sẽ bị đăng xuất và không đăng nhập được cho tới khi được mở khóa.`
+						: undefined
+				}
+				confirmLabel={confirm?.kind === 'lock' && confirm.user.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
+				onConfirm={() => (confirm?.kind === 'lock' ? toggleLock(confirm.user) : undefined)}
+			/>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 max-w-5xl mx-auto gap-3 mt-6">
-            {[
-              { label: 'Tổng người dùng', value: userCount, color: 'bg-blue-400/30' },
-              { label: 'Vai trò', value: roles.length, color: 'bg-purple-400/30' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
-                <div className="text-2xl font-bold">{value}</div>
-                <div className="text-xs text-primary-foreground/80 mt-0.5">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+			<ConfirmDialog
+				open={confirm?.kind === 'remove-role'}
+				onOpenChange={(o) => !o && setConfirm(null)}
+				destructive
+				title="Gỡ vai trò?"
+				description={
+					confirm?.kind === 'remove-role'
+						? `Gỡ "${roleLabel(confirm.role)}" khỏi ${confirm.user.username}. Người dùng sẽ bị đăng xuất để áp dụng thay đổi.`
+						: undefined
+				}
+				confirmLabel="Gỡ vai trò"
+				onConfirm={() => (confirm?.kind === 'remove-role' ? removeRole(confirm.user, confirm.role) : undefined)}
+			/>
+		</div>
+	);
+}
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* Filter Bar */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5 flex gap-3 items-center flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Tìm kiếm theo tên hoặc email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-gray-50 border-gray-200"
-              />
-            </div>
-            <div className="relative flex items-center gap-1 min-w-[180px]">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Tìm theo SĐT..."
-                value={phoneSearch}
-                onChange={(e) => setPhoneSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handlePhoneSearch()}
-                className="pl-9 bg-gray-50 border-gray-200"
-              />
-              <Button size="sm" variant="outline" onClick={handlePhoneSearch} disabled={isLoading || !phoneSearch.trim()}>
-                <Search className="h-3 w-3" />
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-40 bg-gray-50 border-gray-200">
-                  <SelectValue placeholder="Chọn vai trò" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
-                  <SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả vai trò</SelectItem>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.name} className="text-gray-900 hover:bg-gray-100 cursor-pointer">
-                      {ROLE_LABELS[role.name] || role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <span className="text-sm text-gray-400">{filteredUsers.length} người dùng</span>
-          </div>
+function RoleDialog({
+	user,
+	roles,
+	onClose,
+	onAssign,
+	onRequestRemove,
+}: {
+	user: IdentityUser | null;
+	roles: RoleInfo[];
+	onClose: () => void;
+	onAssign: (user: IdentityUser, roleName: string) => Promise<void>;
+	onRequestRemove: (user: IdentityUser, roleName: string) => void;
+}) {
+	const [selected, setSelected] = useState('');
+	const [pending, setPending] = useState(false);
+	const [errors, setErrors] = useState<string[]>([]);
 
-          {/* Users Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đăng nhập</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Vai trò</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Quyền hạn</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
-                  <th className="text-right px-5 py-3 font-semibold text-gray-600 w-[180px]">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-16">
-                      <UserCheck className="h-12 w-12 text-gray-200 mx-auto mb-4" />
-                      <p className="text-gray-500 font-medium">
-                        {isLoading ? 'Đang tải...' : 'Không tìm thấy người dùng nào'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  pagedUsers.map((user) => (
-                    <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">
-                          {user.fullName || user.username}
-                        </p>
-                        {user.fullName && (
-                          <p className="text-xs text-gray-400 mt-0.5">{user.username}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {(user.roles || []).map((roleId) => (
-                            <span
-                              key={roleId}
-                              className={`text-xs px-2 py-1 rounded inline-flex items-center font-medium ${getRoleBadgeColor(roleId)}`}
-                            >
-                              {getRoleName(roleId)}
-                              <button
-                                onClick={() => handleRemoveRole(user.id, roleId)}
-                                className="ml-1 hover:text-red-500"
-                                disabled={isLoading}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                          {(user.roles || []).length === 0 && (
-                            <span className="text-gray-400 text-sm">Chưa có vai trò</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-gray-500 text-sm">
-                          {(user.permissions || []).length} quyền
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        {user.isLocked ? (
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium">
-                            <Lock className="h-3 w-3" /> Đã khóa
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-green-100 text-green-700 font-medium">
-                            <Unlock className="h-3 w-3" /> Hoạt động
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-white border-gray-200 text-gray-700 hover:bg-primary/10 hover:text-primary gap-1.5 px-3"
-                            onClick={() => openRoleDialog(user)}
-                            disabled={user.id === currUser?.id || isLoading}
-                          >
-                            <Edit className="h-4 w-4" />
-                            Vai trò
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className={user.isLocked
-                              ? "bg-white border-green-200 text-green-700 hover:bg-green-50 gap-1.5 px-3"
-                              : "bg-white border-red-200 text-red-700 hover:bg-red-50 gap-1.5 px-3"}
-                            onClick={() => setLockConfirmUser(user)}
-                            disabled={user.id === currUser?.id || isLoading}
-                          >
-                            {user.isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                            {user.isLocked ? 'Mở khóa' : 'Khóa'}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+	useEffect(() => {
+		setSelected('');
+		setErrors([]);
+	}, [user?.id]);
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3">
-              <span className="text-sm text-gray-500">
-                Hiển thị {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredUsers.length)} / {filteredUsers.length}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm" variant="outline"
-                  disabled={safePage === 0}
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm text-gray-700 font-medium px-2">
-                  {safePage + 1} / {totalPages}
-                </span>
-                <Button
-                  size="sm" variant="outline"
-                  disabled={safePage >= totalPages - 1}
-                  onClick={() => setPage(p => p + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+	const available = roles.filter((r) => !user?.roles.includes(r.name));
 
-          {/* Assign Role Dialog */}
-          <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-            <DialogContent className="sm:max-w-md bg-white">
-              <DialogHeader>
-                <DialogTitle>Quản lý vai trò</DialogTitle>
-                <DialogDescription>
-                  Gán vai trò mới cho <strong>{selectedUser?.username}</strong>
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-1">
-                  <Label>Vai trò hiện tại</Label>
-                  <div className="flex flex-wrap gap-1 p-2 bg-gray-50 rounded">
-                    {(selectedUser?.roles || []).length === 0 ? (
-                      <span className="text-gray-400 text-sm">Chưa có vai trò</span>
-                    ) : (
-                      selectedUser?.roles?.map((roleId) => (
-                        <span
-                          key={roleId}
-                          className={`text-xs px-2 py-1 rounded inline-flex items-center font-medium ${getRoleBadgeColor(roleId)}`}
-                        >
-                          {getRoleName(roleId)}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="assign-role">Thêm vai trò mới</Label>
-                  <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                    <SelectTrigger id="assign-role" className="bg-gray-100 border-gray-200">
-                      <SelectValue placeholder="Chọn vai trò để gán" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-gray-200 shadow-lg z-[300]">
-                      {roles
-                        .filter((role) => !selectedUser?.roles?.includes(role.id))
-                        .map((role) => (
-                          <SelectItem
-                            key={role.id}
-                            value={role.id}
-                            className="text-gray-900 hover:bg-gray-100 cursor-pointer"
-                          >
-                            {role.name}
-                          </SelectItem>
-                        ))}
-                      {roles.filter((role) => !selectedUser?.roles?.includes(role.id)).length === 0 && (
-                        <SelectItem value="" disabled>
-                          Không còn vai trò nào để gán
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isLoading}>
-                  Đóng
-                </Button>
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-white"
-                  onClick={handleAssignRole}
-                  disabled={!selectedRoleId || isLoading}
-                >
-                  {isLoading ? 'Đang xử lý...' : 'Gán vai trò'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+	const assign = async () => {
+		if (!user || !selected) return;
+		setPending(true);
+		setErrors([]);
+		try {
+			await onAssign(user, selected);
+			setSelected('');
+		} catch (err) {
+			setErrors(normalizeApiError(err, { fallback: 'Không thể gán vai trò' }).messages);
+		} finally {
+			setPending(false);
+		}
+	};
 
-          {/* Lock/Unlock Confirmation */}
-          <AlertDialog open={!!lockConfirmUser} onOpenChange={() => setLockConfirmUser(null)}>
-            <AlertDialogContent className="bg-white">
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {lockConfirmUser?.isLocked ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {lockConfirmUser?.isLocked
-                    ? `Bạn có chắc muốn mở khóa tài khoản "${lockConfirmUser?.username}"? Người dùng sẽ có thể đăng nhập lại.`
-                    : `Bạn có chắc muốn khóa tài khoản "${lockConfirmUser?.username}"? Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.`}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction
-                  className={lockConfirmUser?.isLocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-                  onClick={() => lockConfirmUser && handleToggleLock(lockConfirmUser)}
-                >
-                  {lockConfirmUser?.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-    </div>
-  );
+	return (
+		<Dialog open={Boolean(user)} onOpenChange={(o) => !o && !pending && onClose()}>
+			<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<ShieldCheck className="h-5 w-5 text-primary" />
+						Vai trò của {user?.fullName || user?.username}
+					</DialogTitle>
+					<DialogDescription>
+						Thay đổi vai trò sẽ đăng xuất người dùng để quyền mới có hiệu lực ngay.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-2">
+					<Label>Vai trò hiện tại</Label>
+					{user && user.roles.length > 0 ? (
+						<ul className="divide-y rounded-lg border">
+							{user.roles.map((r) => (
+								<li key={r} className="flex items-center justify-between gap-2 px-3 py-2">
+									<StatusBadge tone={roleTone(r)} dot={false}>
+										{roleLabel(r)}
+									</StatusBadge>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+										onClick={() => onRequestRemove(user, r)}
+									>
+										Gỡ
+									</Button>
+								</li>
+							))}
+						</ul>
+					) : (
+						<p className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">Chưa có vai trò nào.</p>
+					)}
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="assign-role">Thêm vai trò</Label>
+					<div className="flex gap-2">
+						<Select value={selected} onValueChange={setSelected} disabled={available.length === 0}>
+							<SelectTrigger id="assign-role" className="flex-1">
+								<SelectValue placeholder={available.length ? 'Chọn vai trò' : 'Đã có mọi vai trò'} />
+							</SelectTrigger>
+							<SelectContent>
+								{available.map((r) => (
+									<SelectItem key={r.id} value={r.name}>
+										{roleLabel(r.name)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<Button onClick={() => void assign()} disabled={!selected || pending}>
+							{pending ? 'Đang gán…' : 'Gán'}
+						</Button>
+					</div>
+				</div>
+
+				<FormErrorSummary messages={errors} />
+
+				<DialogFooter>
+					<Button variant="outline" onClick={onClose} disabled={pending}>
+						Đóng
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
 }
