@@ -475,14 +475,6 @@ export function ExamDetailPage() {
 							</div>
 						</div>
 
-						{activeTab === 'fulltest' && (
-							<div className='bg-white/10 border-l-4 border-primary/60 backdrop-blur-md rounded-r-xl p-4 flex gap-3 text-primary-foreground/80 text-sm mt-4 shadow-sm'>
-								<Info className='shrink-0 h-5 w-5 mt-0.5 text-primary/60' />
-								<p className="font-medium text-[15px]">
-									Chế độ <strong>Bài thi đầy đủ</strong> sẽ mô phỏng kỳ thi thực tế. Hệ thống sẽ căn cứ vào đây để tính <strong>Điểm quy đổi</strong> (điểm chuẩn) cho bạn (VD: Band 9.0 IELTS hoặc 990 TOEIC).
-								</p>
-							</div>
-						)}
 					</div>
 				</div>
 			</div>
@@ -809,14 +801,14 @@ export function ExamDetailPage() {
 
 					{/* Full Test Mode */}
 					{activeTab === 'fulltest' && (
-						<div className='space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4'>
+						<div className='space-y-6 animate-in fade-in duration-200'>
 							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-card rounded-2xl overflow-hidden relative'>
 								<div className="absolute top-0 right-0 w-64 h-64 bg-primary/60 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
 								<div className="h-1.5 w-full bg-primary"></div>
 
 								<CardContent className='p-8 relative z-10'>
 									<div className='flex flex-col md:flex-row items-center md:items-start gap-8'>
-										<div className='bg-white shadow-md border border-primary/20 rounded-3xl p-6 flex-shrink-0 animate-bounce-slow'>
+										<div className='bg-white shadow-md border border-primary/20 rounded-3xl p-6 flex-shrink-0'>
 											<FileText className='h-12 w-12 text-primary' strokeWidth={1.5} />
 										</div>
 										<div className='flex-1 text-center md:text-left'>
@@ -824,6 +816,14 @@ export function ExamDetailPage() {
 											<p className='text-slate-600 mb-8 font-medium text-lg leading-relaxed'>
 												Chuẩn bị tâm lý vững vàng nhất. Hệ thống sẽ khóa trình duyệt và đếm ngược thời gian nghiêm ngặt.
 											</p>
+											{/* lives with the full-test card: in the page header it appeared on this tab only and
+											    pushed everything below it down */}
+											<div className='mb-6 flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left text-sm text-slate-700'>
+												<Info className='mt-0.5 h-5 w-5 shrink-0 text-primary' />
+												<p className='min-w-0 break-words leading-relaxed'>
+													Kết quả bài thi đầy đủ được dùng để tính <strong>điểm quy đổi</strong> (điểm chuẩn) của bạn, ví dụ Band 9.0 IELTS hoặc 990 TOEIC.
+												</p>
+											</div>
 											<div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Tổng số phần thi</span>
