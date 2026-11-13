@@ -1,5 +1,6 @@
 'use client';
 
+import { AuthorFilter, type AuthorSelection } from './admin/AuthorFilter';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, ExternalLink, Loader2, Newspaper, Plus, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
@@ -57,14 +58,15 @@ export default function BlogManagementPage() {
 	const [search, setSearch] = useState('');
 	const [tagFilter, setTagFilter] = useState('all');
 	const [knownTags, setKnownTags] = useState<string[]>([]);
-	// Only admins may edit other people's posts, so everyone else manages their own.
-	const [scope, setScope] = useState<'all' | 'mine'>('all');
-	const onlyMine = !isHeadStaff || scope === 'mine';
+	// Only admins may edit other people's posts, so everyone else manages their own; admins can
+	// narrow the list to one author (server-side, across all pages).
+	const [author, setAuthor] = useState<AuthorSelection>(null);
+	const authorId = !isHeadStaff ? currUser?.id : author?.id;
 
 	const [viewMode, setViewMode] = useState<ViewMode>({ type: 'list' });
 	const [toDelete, setToDelete] = useState<BlogResponse | null>(null);
 
-	useEffect(() => setPage(1), [tagFilter, scope]);
+	useEffect(() => setPage(1), [tagFilter, author]);
 
 	const fetchBlogs = useCallback(async () => {
 		if (!allowed || !currUser) return;
@@ -72,7 +74,7 @@ export default function BlogManagementPage() {
 		setLoadError([]);
 		try {
 			const res = await BlogService.listBlogs(
-				onlyMine ? currUser.id : undefined,
+				authorId,
 				page,
 				PAGE_SIZE,
 				tagFilter === 'all' ? undefined : [tagFilter],
@@ -88,7 +90,7 @@ export default function BlogManagementPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [allowed, currUser, onlyMine, page, tagFilter]);
+	}, [allowed, currUser, authorId, page, tagFilter]);
 
 	useEffect(() => {
 		void fetchBlogs();
@@ -120,7 +122,7 @@ export default function BlogManagementPage() {
 	};
 
 	const canModify = (b: BlogResponse) => isHeadStaff || b.authorId === currUser?.id;
-	const hasFilters = Boolean(search) || tagFilter !== 'all';
+	const hasFilters = Boolean(search) || tagFilter !== 'all' || Boolean(author);
 
 	const columns: DataColumn<BlogResponse>[] = [
 		{
@@ -198,19 +200,15 @@ export default function BlogManagementPage() {
 						...[...new Set([...knownTags, ...(tagFilter === 'all' ? [] : [tagFilter])])].map((t) => ({ value: t, label: t })),
 					]}
 				/>
-				{isHeadStaff && (
-					<AdminFilterSelect
-						label="Tác giả"
-						value={scope}
-						onChange={(v) => setScope(v as 'all' | 'mine')}
-						options={[
-							{ value: 'all', label: 'Mọi tác giả' },
-							{ value: 'mine', label: 'Bài của tôi' },
-						]}
+				{isHeadStaff && currUser && (
+					<AuthorFilter
+						value={author}
+						onChange={setAuthor}
+						currentUser={{ id: currUser.id, name: currUser.fullName || 'Bạn' }}
 					/>
 				)}
 				{hasFilters && (
-					<Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTagFilter('all'); }}>
+					<Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTagFilter('all'); setAuthor(null); }}>
 						<X className="mr-1 h-4 w-4" />
 						Xóa lọc
 					</Button>
