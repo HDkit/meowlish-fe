@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function ListSkeleton({ rows = 4, label = 'Đang tải' }: { rows?: number; label?: string }) {
   return (
-    <div role="status" aria-label={label} className="space-y-3">
+    <div role="status" aria-busy="true" aria-live="polite" aria-label={label} className="space-y-3">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4">
           <Skeleton className="size-10 shrink-0 rounded-full bg-slate-100" />

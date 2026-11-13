@@ -733,7 +733,8 @@ export function TestInterface() {
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse">
+      <div role="status" aria-busy="true" aria-live="polite" className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse motion-reduce:animate-none">
+        <span className="sr-only">Đang tải bài thi…</span>
         {/* Left panel skeleton */}
         <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           {/* Header tabs */}

@@ -19,7 +19,7 @@ export default async function AppLayout({
   const sidebarOpen = (await cookies()).get('sidebar_state')?.value !== 'false';
 
   return (
-    <RehydrationGate>
+    <RehydrationGate sidebarOpen={sidebarOpen}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar />
         {/* app-pattern: the drifting study-themed background (globals.css) */}

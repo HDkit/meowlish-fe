@@ -1,6 +1,7 @@
 export default function TestLoading() {
   return (
-    <div className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse">
+    <div role="status" aria-busy="true" aria-live="polite" className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse motion-reduce:animate-none">
+        <span className="sr-only">Đang tải bài thi…</span>
       <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
           <div className="h-7 w-20 rounded-md bg-slate-200" />
