@@ -105,7 +105,9 @@ export type { update_section_req_dto_UpdateSectionDto } from './models/update_se
 export type { update_tag_dto_UpdateTagDto } from './models/update_tag_dto_UpdateTagDto';
 export type { UpdateChoiceDto } from './models/UpdateChoiceDto';
 export type { UserBadgeDto } from './models/UserBadgeDto';
+export type { ActivityDayDto, UserActivityDto } from './models/UserActivityDto';
 export type { UserCalendarDto } from './models/UserCalendarDto';
+export type { SkillScorePointDto, SkillStatsDto, TagAccuracyDto, UserSkillStatsDto } from './models/UserSkillStatsDto';
 export type { UserStatsDto } from './models/UserStatsDto';
 
 export { AchievementsService } from './services/AchievementsService';
