@@ -31,8 +31,9 @@ import {
 } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { ReportDialog } from './ReportDialog';
-import { Flag, Loader2, Search } from 'lucide-react';
+import { Copy, Flag, Loader2, Search } from 'lucide-react';
 import { TagInput } from './TagInput';
+import { ForkListButton } from './flashcards/ForkListButton';
 
 import { useRouter } from 'next/navigation';
 
@@ -224,6 +225,10 @@ export function FlashcardPage() {
 					isPublic: l.isPublic,
 					tags: l.tags ?? [],
 					createdAt: new Date(l.createdAt).getTime(),
+					forkedFromId: l.forkedFromId,
+					forkedFromName: l.forkedFromName,
+					forkedFromAuthorId: l.forkedFromAuthorId,
+					forkCount: l.forkCount ?? 0,
 				}));
 				dispatch(setFlashcardLists(apiLists));
 				setMineTotalCount(data.totalCount ?? apiLists.length);
@@ -266,6 +271,7 @@ export function FlashcardPage() {
 						isPublic: l.isPublic,
 						tags: l.tags ?? [],
 						createdAt: new Date(l.createdAt).getTime(),
+						forkCount: l.forkCount ?? 0,
 					}));
 				setDiscoverLists(publicLists);
 				setDiscoverTotalCount(data.totalCount ?? 0);
@@ -475,6 +481,11 @@ export function FlashcardPage() {
 																		Công khai
 																	</div>
 																)}
+																{list.forkedFromName && (
+																	<div title={`Sao chép từ “${list.forkedFromName}”`} className="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-bold border border-sky-200/60">
+																		<Copy className="w-3.5 h-3.5" /> Bản sao
+																	</div>
+																)}
 															</div>
 														</div>
 													</div>
@@ -621,6 +632,11 @@ export function FlashcardPage() {
 																		Của bạn
 																	</span>
 																)}
+																{(list.forkCount ?? 0) > 0 && (
+																	<span title="Số lượt lưu bản sao" className="inline-flex items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-500">
+																		<Copy className="w-3.5 h-3.5" /> {list.forkCount}
+																	</span>
+																)}
 															</div>
 														</div>
 													</div>
@@ -650,12 +666,17 @@ export function FlashcardPage() {
 													</div>
 												)}
 
-												<Button
-													className="w-full mt-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
-													onClick={() => router.push(`/flashcards/${list.id}`)}
-												>
-													Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
-												</Button>
+												<div className="mt-auto space-y-2">
+													{list.authorId !== currentUser?.id && (
+														<ForkListButton listId={list.id} className="w-full h-11" />
+													)}
+													<Button
+														className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
+														onClick={() => router.push(`/flashcards/${list.id}`)}
+													>
+														Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
+													</Button>
+												</div>
 											</CardContent>
 										</Card>
 									))}

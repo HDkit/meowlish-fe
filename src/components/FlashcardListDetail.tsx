@@ -5,7 +5,8 @@ import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/
 import { FlashCard } from '../types/client';
 import { TagInput } from './TagInput';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
-import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import { FlashcardListService, type FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
+import { FlashcardForkPanel } from './flashcards/FlashcardForkPanel';
 import { ReportDialog } from './ReportDialog';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
@@ -370,6 +371,10 @@ export function FlashcardListDetail() {
 
 	const [cards, setCards] = useState<FlashCard[]>([]);
 	const [loading, setLoading] = useState(true);
+	/** The list as fetched (lineage, fork count, proposals), for the copy/proposal panel. */
+	const [listMeta, setListMeta] = useState<FlashCardListDetailResponse | null>(null);
+	/** Bumped to reload the cards (after pulling from the original). */
+	const [reloadKey, setReloadKey] = useState(0);
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -391,6 +396,7 @@ export function FlashcardListDetail() {
 		])
 			.then(([listRes, cardsRes]) => {
 				const listData = (listRes as any)?.data ?? listRes;
+				setListMeta(listData);
 				if (!lists.find((l) => l.id === listId) && listData.id) {
 					dispatch(addFlashcardList({
 						id: listData.id,
@@ -411,7 +417,7 @@ export function FlashcardListDetail() {
 				toast({ title: 'Tải danh sách thẻ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			})
 			.finally(() => setLoading(false));
-	}, [listId, cardPage]);
+	}, [listId, cardPage, reloadKey]);
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
@@ -620,6 +626,10 @@ export function FlashcardListDetail() {
 			</div>
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+				{listMeta && (
+					<FlashcardForkPanel list={listMeta} isOwnList={isOwnList} onPulled={() => setReloadKey((k) => k + 1)} />
+				)}
+
 				{/* Search and Filter */}
 				<div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
 					<div className="flex-1 w-full relative">
