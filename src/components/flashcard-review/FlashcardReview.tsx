@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Brain, Loader2 } from 'lucide-react';
+import { ArrowLeft, Brain } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import {
@@ -16,6 +16,7 @@ import { clearSession, loadSession, saveSession } from '@/lib/flashcard-review/s
 import type { ReviewCard, ReviewSettings } from '@/lib/flashcard-review/types';
 import { ReviewPlay } from './ReviewPlay';
 import { ReviewSetup } from './ReviewSetup';
+import { ReviewPageSkeleton } from './ReviewPageSkeleton';
 import { ReviewSummary } from './ReviewSummary';
 
 type View = 'boot' | 'setup' | 'session';
@@ -99,11 +100,7 @@ export function FlashcardReview() {
 	};
 
 	if (!isHydrated || !currentUser || !userId || view === 'boot') {
-		return (
-			<div className="flex min-h-[50vh] items-center justify-center text-slate-500" role="status">
-				<Loader2 className="mr-2 h-5 w-5 motion-safe:animate-spin" aria-hidden /> Đang tải…
-			</div>
-		);
+		return <ReviewPageSkeleton />;
 	}
 
 	const playing = view === 'session' && session && session.phase !== 'summary';

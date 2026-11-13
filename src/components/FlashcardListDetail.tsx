@@ -13,6 +13,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage, normalizeApiError } from '@/lib/api-errors';
 import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { Card, CardContent } from './ui/card';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -64,6 +66,52 @@ function mapFlashCard(fc: any, listId: string): FlashCard {
 		createdAt: new Date(fc.createdAt).getTime(),
 		updatedAt: fc.updatedAt ? new Date(fc.updatedAt).getTime() : undefined,
 	};
+}
+
+// Header + toolbar + card grid placeholder, shaped like the loaded page below
+function FlashcardListDetailSkeleton() {
+	return (
+		<LoadingRegion label="Đang tải bộ flashcard…" className="min-h-screen bg-slate-50/50 pb-20">
+			<div className="bg-white border-b border-gray-200 mb-8 pt-6 pb-12">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="mb-6 flex items-center justify-between">
+						<Skeleton className="h-9 w-64 max-w-[60%]" />
+						<Skeleton className="h-9 w-24" />
+					</div>
+					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
+						<div className="flex items-center gap-5">
+							<Skeleton className="size-16 shrink-0 rounded-2xl" />
+							<div className="space-y-3">
+								<Skeleton className="h-9 w-72 max-w-[60vw]" />
+								<Skeleton className="h-7 w-32 rounded-full" />
+							</div>
+						</div>
+						<Skeleton className="h-14 w-48 rounded-xl" />
+					</div>
+				</div>
+			</div>
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+				<div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row">
+					<Skeleton className="h-12 flex-1 rounded-xl" />
+					<Skeleton className="h-12 w-full rounded-xl sm:w-56" />
+				</div>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+					{Array.from({ length: 6 }, (_, i) => (
+						<div key={i} className="flex min-h-[18rem] flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/50">
+							<div className="flex gap-1.5">
+								<Skeleton className="h-5 w-16 rounded-full" />
+								<Skeleton className="h-5 w-12 rounded-full" />
+							</div>
+							<div className="flex flex-1 flex-col items-center justify-center gap-3">
+								<Skeleton className="h-8 w-1/2" />
+								<Skeleton className="h-4 w-1/3" />
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</LoadingRegion>
+	);
 }
 
 function FlashcardCard({
@@ -519,16 +567,9 @@ export function FlashcardListDetail() {
 		return null;
 	}
 
-	if (loading) {
-		return (
-			<div className="max-w-7xl mx-auto p-6">
-				<Card>
-					<CardContent className="py-12 text-center">
-						<p className="text-gray-500">Đang tải...</p>
-					</CardContent>
-				</Card>
-			</div>
-		);
+	// first load of this list: skeleton; later page changes/reloads keep the page and dim the grid
+	if (loading && listMeta?.id !== listId) {
+		return <FlashcardListDetailSkeleton />;
 	}
 
 	if (!currentList) {
@@ -713,7 +754,10 @@ export function FlashcardListDetail() {
 					</div>
               ) : (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                    <div
+                      className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+                      aria-busy={loading}
+                    >
                       {filteredFlashcards.map((flashcard) => (
 						<FlashcardCard
 							key={flashcard.id}

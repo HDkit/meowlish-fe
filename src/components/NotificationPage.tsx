@@ -15,6 +15,8 @@ import {
 	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 import { NavPagination } from './ui/nav-pagination';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
 	report: { label: 'Phản hồi báo cáo', icon: Flag, color: 'text-orange-600 bg-orange-100' },
@@ -42,6 +44,8 @@ export default function NotificationPage() {
 	const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
 	const [page, setPage] = useState(1);
 	const [loading, setLoading] = useState(false);
+	// false until the first fetch settles, so the empty state doesn't flash before the list arrives
+	const [loaded, setLoaded] = useState(false);
 	const [notifications, setNotifications] = useState<(NotificationResponse & { createdAt: number })[]>([]);
 	const [totalCount, setTotalCount] = useState(0);
 	const limit = 20;
@@ -68,6 +72,7 @@ export default function NotificationPage() {
 			setTotalCount(0);
 		} finally {
 			setLoading(false);
+			setLoaded(true);
 		}
 	}, [currUser?.id, filterType, filterRead, page]);
 
@@ -129,8 +134,22 @@ export default function NotificationPage() {
 					</Select>
 				</div>
 
-				{loading ? (
-					<div className="text-center py-16 text-muted-foreground">Đang tải...</div>
+				{!loaded || (loading && notifications.length === 0) ? (
+					<LoadingRegion label="Đang tải thông báo…" className="space-y-3">
+						{Array.from({ length: 6 }, (_, i) => (
+							<div key={i} className="flex items-start gap-4 rounded-xl bg-card p-4 shadow-sm">
+								<Skeleton className="size-10 shrink-0 rounded-full" />
+								<div className="flex-1 space-y-2">
+									<div className="flex items-center gap-2">
+										<Skeleton className={`h-4 ${i % 2 ? 'w-1/3' : 'w-1/2'}`} />
+										<Skeleton className="ml-auto h-5 w-20 rounded-full" />
+									</div>
+									<Skeleton className="h-4 w-4/5" />
+									<Skeleton className="h-3 w-24" />
+								</div>
+							</div>
+						))}
+					</LoadingRegion>
 				) : notifications.length === 0 ? (
 					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
 						<Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -138,7 +157,10 @@ export default function NotificationPage() {
 						<p className="text-gray-500 mt-1">Chưa có thông báo nào phù hợp với bộ lọc</p>
 					</div>
 				) : (
-					<div className="space-y-3">
+					<div
+						className={`space-y-3 transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+						aria-busy={loading}
+					>
 						{notifications.map((notif) => {
 							const conf = TYPE_CONFIG[notif.type] ?? DEFAULT_TYPE_CONFIG;
 							const Icon = conf.icon;

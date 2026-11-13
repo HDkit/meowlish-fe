@@ -36,6 +36,35 @@ import { TagInput } from './TagInput';
 import { ForkListButton } from './flashcards/ForkListButton';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
+
+// Placeholder grid shaped like the list cards below, shown until the first fetch lands
+function ListCardsSkeleton({ count = 6, label }: { count?: number; label: string }) {
+	return (
+		<LoadingRegion label={label} className="space-y-6">
+			<Skeleton className="h-8 w-64 max-w-full" />
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+				{Array.from({ length: count }, (_, i) => (
+					<div key={i} className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/50">
+						<div className="mb-5 flex items-start gap-4">
+							<Skeleton className="size-12 shrink-0 rounded-2xl" />
+							<div className="flex-1 space-y-2 pt-0.5">
+								<Skeleton className="h-6 w-3/4" />
+								<Skeleton className="h-6 w-24 rounded-lg" />
+							</div>
+						</div>
+						<div className="mb-2 min-h-[40px] space-y-2">
+							<Skeleton className="h-3.5 w-full" />
+							<Skeleton className="h-3.5 w-2/3" />
+						</div>
+						<Skeleton className="mt-4 h-12 w-full rounded-xl" />
+					</div>
+				))}
+			</div>
+		</LoadingRegion>
+	);
+}
 
 // Dialog để tạo/sửa list
 function ListDialog({
@@ -221,6 +250,8 @@ export function FlashcardPage() {
 	const setDiscoverTags = (tags: string[]) => updateQuery({ tag: tags, dpage: null });
 	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
 	const [discoverLoading, setDiscoverLoading] = useState(false);
+	// false until the first fetch of my lists settles, so a new user doesn't see the empty state flash first
+	const [mineLoaded, setMineLoaded] = useState(false);
 	const [mineTotalCount, setMineTotalCount] = useState(0);
 	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
 	const [discoverSearch, setDiscoverSearch] = useState(discoverQuery);
@@ -257,7 +288,8 @@ export function FlashcardPage() {
 				dispatch(setFlashcardLists(apiLists));
 				setMineTotalCount(data.totalCount ?? apiLists.length);
 			})
-			.catch(err => console.error('[FlashcardPage] fetch lists error:', err));
+			.catch(err => console.error('[FlashcardPage] fetch lists error:', err))
+			.finally(() => setMineLoaded(true));
 	}, [currentUser, minePage, dispatch]);
 
 	const myLists = useMemo(
@@ -445,7 +477,9 @@ export function FlashcardPage() {
 
 				{activeTab === 'mine' && (
 					<>
-						{myLists.length === 0 ? (
+						{myLists.length === 0 && !mineLoaded ? (
+							<ListCardsSkeleton label="Đang tải danh sách flashcard…" />
+						) : myLists.length === 0 ? (
 							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
 								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
 									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
@@ -475,7 +509,7 @@ export function FlashcardPage() {
 								</div>
 
 								{/* List Cards Grid */}
-								<div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${discoverLoading ? 'pointer-events-none opacity-60' : ''}`} aria-busy={discoverLoading}>
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 									{myLists.map((list) => (
 										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
 											<div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
@@ -600,9 +634,7 @@ export function FlashcardPage() {
 						</div>
 						{/* only the first load shows a loading text; later searches keep the cards (dimmed) */}
 						{discoverLoading && discoverLists.length === 0 ? (
-							<div className="text-center py-12">
-								<p className="text-slate-500 font-medium">Đang tải...</p>
-							</div>
+							<ListCardsSkeleton label="Đang tải bộ sưu tập công khai…" />
 						) : discoverLists.length === 0 ? (
 							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
 								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
@@ -626,7 +658,7 @@ export function FlashcardPage() {
 									</h2>
 								</div>
 
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+								<div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${discoverLoading ? 'pointer-events-none opacity-60' : ''}`} aria-busy={discoverLoading}>
 									{discoverLists.map((list) => (
 										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
 											<div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>

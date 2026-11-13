@@ -11,6 +11,8 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { ChatRoom, ChatMessage, User } from '@/types/client';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -568,6 +570,12 @@ export default function ChatPage() {
 	const [roomLoading, setRoomLoading] = useState(false);
 	/** First load of the room list (skeleton instead of a flash of "Chưa có phòng chat"). */
 	const [roomsLoaded, setRoomsLoaded] = useState(false);
+	// set only while the user pages the list, so the 30 s background refresh doesn't dim it
+	const [paging, setPaging] = useState(false);
+	const pageRooms = (cursor?: string) => {
+		setPaging(true);
+		void fetchRooms(cursor).finally(() => setPaging(false));
+	};
 	/** Sender names of the previews are being fetched: show a placeholder, not "Ẩn danh". */
 	const [namesLoading, setNamesLoading] = useState(false);
 	const currentCursorRef = useRef<string | undefined>(undefined);
@@ -770,18 +778,19 @@ export default function ChatPage() {
 				</div>
 
 				{/* Room List */}
-				{!roomsLoaded ? (
-					<div className="space-y-3" aria-busy="true" aria-label="Đang tải phòng chat">
+				{!roomsLoaded && rooms.length === 0 ? (
+					<LoadingRegion label="Đang tải phòng chat…" className="space-y-3">
 						{[0, 1, 2, 3].map((i) => (
 							<div key={i} className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-sm">
-								<div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-100" />
+								<Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
 								<div className="flex-1 space-y-2">
-									<div className="h-4 w-1/3 animate-pulse rounded bg-slate-100" />
-									<div className="h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+									<Skeleton className="h-4 w-1/3" />
+									<Skeleton className="h-3 w-2/3" />
 								</div>
+								<Skeleton className="h-3 w-10 shrink-0" />
 							</div>
 						))}
-					</div>
+					</LoadingRegion>
 				) : filteredRooms.length === 0 ? (
 					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
 						<MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -797,8 +806,10 @@ export default function ChatPage() {
 					</div>
 				) : (
 					<>
-					{roomLoading && <div className="text-center py-4 text-muted-foreground">Đang tải...</div>}
-					<div className="space-y-3">
+					<div
+						className={`space-y-3 transition-opacity duration-200 ${paging || !roomsLoaded ? 'pointer-events-none opacity-60' : ''}`}
+						aria-busy={paging || !roomsLoaded}
+					>
 						{filteredRooms.map((room) => {
 							const lastMsg = getLastMessage(room.id);
 							return (
@@ -822,7 +833,7 @@ export default function ChatPage() {
 													<>
 														{users.some((u) => u.id === lastMsg.uid) || !namesLoading ?
 															<span className="font-medium text-gray-700">{getUserName(lastMsg.uid)}</span>
-														:	<span className="inline-block h-3 w-16 animate-pulse rounded bg-slate-200 align-middle" aria-label="Đang tải tên" />}
+														:	<span className="inline-block h-3 w-16 animate-pulse motion-reduce:animate-none rounded bg-muted align-middle" role="img" aria-label="Đang tải tên" />}
 														{': '}
 														{lastMsg.message}
 													</>
@@ -847,10 +858,10 @@ export default function ChatPage() {
 					</div>
 					{(roomPrevCursor || roomNextCursor) && (
 						<div className="flex items-center justify-center gap-4 mt-4">
-							<Button variant="outline" size="sm" disabled={!roomPrevCursor || roomLoading} onClick={() => fetchRooms(roomPrevCursor)}>
+							<Button variant="outline" size="sm" disabled={!roomPrevCursor || roomLoading} onClick={() => pageRooms(roomPrevCursor)}>
 								Trước
 							</Button>
-							<Button variant="outline" size="sm" disabled={!roomNextCursor || roomLoading} onClick={() => fetchRooms(roomNextCursor)}>
+							<Button variant="outline" size="sm" disabled={!roomNextCursor || roomLoading} onClick={() => pageRooms(roomNextCursor)}>
 								Sau
 							</Button>
 						</div>

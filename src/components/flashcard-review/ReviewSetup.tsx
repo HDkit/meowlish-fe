@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, BookOpen, Loader2, Play, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
+import { Skeleton } from '../ui/skeleton';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
@@ -16,6 +17,7 @@ import {
 	type ReviewSettings,
 } from '@/lib/flashcard-review/types';
 import { useReviewLists, type ListDetail, type ReviewListInfo } from './useReviewLists';
+import { ReviewListRowsSkeleton } from './ReviewPageSkeleton';
 
 const MODE_HINTS: Record<PromptMode, string> = {
 	'word-to-definition': 'Hiện từ tiếng Anh, bạn gõ nghĩa',
@@ -26,9 +28,9 @@ const MODE_HINTS: Record<PromptMode, string> = {
 function CardCount({ detail, onRetry }: { detail?: ListDetail; onRetry: () => void }) {
 	if (!detail || detail.status === 'loading') {
 		return (
-			<span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
-				<Loader2 className="h-3 w-3 motion-safe:animate-spin" aria-hidden />
-				<span className="sr-only">Đang đếm thẻ</span>…
+			<span className="inline-flex shrink-0" role="status">
+				<Skeleton className="h-5 w-12 rounded-full" />
+				<span className="sr-only">Đang đếm thẻ…</span>
 			</span>
 		);
 	}
@@ -125,10 +127,15 @@ function ListGroup({
 						Thử lại
 					</Button>
 				</div>
-			) : lists.length === 0 && !loading ? (
+			) : lists.length === 0 && loading ? (
+				<div role="status" aria-busy="true">
+					<span className="sr-only">Đang tải bộ thẻ…</span>
+					<ReviewListRowsSkeleton />
+				</div>
+			) : lists.length === 0 ? (
 				<p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-500">{empty}</p>
 			) : (
-				<ul className="space-y-2">
+				<ul className={cn('space-y-2 transition-opacity motion-reduce:transition-none', loading && 'opacity-60')} aria-busy={loading}>
 					{lists.map(list => (
 						<ListRow
 							key={list.id}
