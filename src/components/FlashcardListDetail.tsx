@@ -590,6 +590,17 @@ export function FlashcardListDetail() {
 								</div>
 							</div>
 						</div>
+						<div className="flex flex-wrap items-center justify-center gap-3">
+						{cardTotalCount > 0 && (
+							<Button
+								variant="outline"
+								onClick={() => router.push(`/flashcards/review?list=${encodeURIComponent(listId)}`)}
+								className="rounded-xl px-6 py-6 h-auto font-bold text-base border-primary/40 text-primary hover:bg-primary/10 flex-shrink-0"
+							>
+								<BookOpen className="h-5 w-5 mr-2" />
+								Ôn tập bộ này
+							</Button>
+						)}
 						{isOwnList && (
 							<Button
 								onClick={() => {
@@ -602,6 +613,7 @@ export function FlashcardListDetail() {
 								Thêm Flashcard
 							</Button>
 						)}
+						</div>
 					</div>
 				</div>
 			</div>

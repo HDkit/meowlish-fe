@@ -369,6 +369,12 @@ export function FlashcardPage() {
 						</p>
 					</div>
 					<div className="flex-shrink-0">
+						<Button
+							onClick={() => router.push('/flashcards/review')}
+							className="mr-3 bg-white/15 hover:bg-white/25 text-white border-2 border-white/40 rounded-2xl px-6 py-7 font-bold text-lg"
+						>
+							<BookOpen className="h-5 w-5 mr-2" /> Ôn tập
+						</Button>
 						{currentUser && (
 							<Button
 								variant="outline"
