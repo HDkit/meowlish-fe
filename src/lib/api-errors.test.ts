@@ -65,6 +65,17 @@ describe('translateApiMessage', () => {
 		expect(translateApiMessage('Access denied. Allowed role(s): admin')).toBe(HTTP_STATUS_MESSAGES[403]);
 	});
 
+	it('translates flash card copy and proposal errors', () => {
+		expect(translateApiMessage('Original list not found')).toBe('Không tìm thấy bộ thẻ gốc');
+		expect(translateApiMessage('Proposal not found')).toBe('Không tìm thấy đề xuất');
+		expect(translateApiMessage('There are no changes to propose')).toBe(
+			'Bộ của bạn chưa có thay đổi nào so với bản gốc',
+		);
+		expect(translateApiMessage('Only the list owner can accept this proposal')).toBe(
+			'Chỉ chủ bộ thẻ mới được duyệt đề xuất này',
+		);
+	});
+
 	it('keeps unknown messages as they are', () => {
 		expect(translateApiMessage('Tên đã được sử dụng')).toBe('Tên đã được sử dụng');
 	});

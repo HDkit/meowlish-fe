@@ -12,11 +12,22 @@ export interface FlashCardListResponse {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  /** On a saved copy: the original list (absent once the original is deleted). */
+  forkedFromId?: string;
+  /** On a saved copy: the original's name and author when it was copied. */
+  forkedFromName?: string;
+  forkedFromAuthorId?: string;
+  /** How many copies were saved of this list. */
+  forkCount?: number;
 }
 
 export interface FlashCardListDetailResponse extends FlashCardListResponse {
   flashCards: FlashCardResponse[];
   totalCards: number;
+  /** Open change proposals on this list (counted for its owner and admins, else 0). */
+  openProposalCount?: number;
+  /** A copy whose original still exists and is visible to the user. */
+  upstreamAvailable?: boolean;
 }
 
 export interface ListFlashCardListsResponse {

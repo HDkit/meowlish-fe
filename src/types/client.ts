@@ -240,6 +240,13 @@ export interface FlashcardList extends MockDbType {
 	tags: string[];
 	createdAt: number;
 	updatedAt?: number;
+	/** On a saved copy: the original list (absent once the original is deleted). */
+	forkedFromId?: string;
+	/** On a saved copy: the original's name and author when it was copied. */
+	forkedFromName?: string;
+	forkedFromAuthorId?: string;
+	/** How many copies were saved of this list. */
+	forkCount?: number;
 }
 
 export interface FlashCard extends MockDbType {
