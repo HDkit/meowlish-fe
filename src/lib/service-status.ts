@@ -5,8 +5,14 @@
  */
 export const AI_SERVICE_OPERATIONAL = process.env.NEXT_PUBLIC_AI_SERVICE_OPERATIONAL === 'true';
 
+/**
+ * Site-wide AI notice (top banner and the box on /changelog). Off: only Speaking grading is
+ * unavailable, and that page explains it itself. Set to true to bring the notice back.
+ */
+export const SHOW_AI_NOTICE = false;
+
 export const AI_SERVICE_NOTICE = {
-	title: 'Một số tính năng AI đang tạm ngưng',
-	message: 'Chấm điểm Speaking, giải thích đáp án và dịch nhanh bằng AI đang tạm ngưng. Bài Writing đã được AI chấm thật, mỗi bài mất khoảng 1–2 phút. Các tính năng khác vẫn dùng bình thường.',
-	english: 'Some AI features are temporarily unavailable. Writing is graded by AI.',
+	title: 'Chấm điểm Speaking bằng AI đang tạm ngưng',
+	message: 'Luyện Nói (Speaking) tạm thời chưa chấm điểm được. Bài Writing đã được AI chấm thật, mỗi bài mất khoảng 1–2 phút. Các tính năng khác vẫn dùng bình thường.',
+	english: 'Speaking grading is temporarily unavailable. Writing is graded by AI.',
 };

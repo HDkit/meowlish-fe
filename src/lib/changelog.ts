@@ -42,7 +42,7 @@ export const RELEASES: Release[] = [
 		changes: [
 			{
 				type: 'notice',
-				text: 'Bài Writing nay được AI chấm thật theo bốn tiêu chí của IELTS, kèm nhận xét chi tiết. Mỗi bài mất khoảng 1–2 phút; khi nhiều người nộp cùng lúc, bạn có thể phải chờ lâu hơn một chút. Chấm Speaking, giải thích đáp án và dịch nhanh trong bài thi bằng AI vẫn đang tạm ngưng.',
+				text: 'Bài Writing nay được AI chấm thật theo bốn tiêu chí của IELTS, kèm nhận xét chi tiết. Mỗi bài mất khoảng 1–2 phút; khi nhiều người nộp cùng lúc, bạn có thể phải chờ lâu hơn một chút. Riêng chấm điểm Speaking vẫn đang tạm ngưng.',
 			},
 			{ type: 'new', text: 'Nhận thông báo khi có người bình luận bài blog của bạn, trả lời bình luận của bạn hoặc trả lời chủ đề bạn mở trên diễn đàn. Bật hoặc tắt từng loại trong trang Cài đặt.' },
 			{ type: 'new', text: 'Nút "Dịch nghĩa" khi tạo flashcard (kể cả khi bôi đen chữ trong bài thi): nghĩa tiếng Việt được thêm vào sau phần bạn đã viết, không ghi đè.' },

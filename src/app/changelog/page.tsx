@@ -3,7 +3,7 @@ import { TriangleAlert } from 'lucide-react';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { ReleaseChanges, ReleaseHeader } from '@/components/changelog/ReleaseNotes';
 import { CURRENT_VERSION, RELEASES } from '@/lib/changelog';
-import { AI_SERVICE_NOTICE, AI_SERVICE_OPERATIONAL } from '@/lib/service-status';
+import { AI_SERVICE_NOTICE, AI_SERVICE_OPERATIONAL, SHOW_AI_NOTICE } from '@/lib/service-status';
 
 export const metadata: Metadata = {
 	title: 'Có gì mới',
@@ -24,7 +24,7 @@ export default function ChangelogPage() {
 					</p>
 				</header>
 
-				{!AI_SERVICE_OPERATIONAL && (
+				{SHOW_AI_NOTICE && !AI_SERVICE_OPERATIONAL && (
 					<section
 						aria-labelledby='ai-status-title'
 						className='mb-10 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950'
