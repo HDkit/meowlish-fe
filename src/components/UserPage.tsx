@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -24,7 +24,6 @@ import {
 	Edit,
 	Award,
 	BarChart3,
-	Lock,
 	User,
 	Key,
 	Eye,
@@ -44,6 +43,8 @@ import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
 import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
 import { getOwnIdentity, invalidateOwnIdentity } from '@/lib/own-identity';
+import { buildBadgeViews, type BadgeProgress } from '@/lib/badges';
+import { BadgeCollection } from './badges/BadgeCollection';
 import { attemptHref, isAttemptFinished } from '@/lib/attempt-href';
 import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
 import { type LoginMethod, loginMethodActions } from '@/lib/login-methods';
@@ -88,6 +89,8 @@ export function UserPage() {
 
 	// State for badges
 	const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
+	const [allBadges, setAllBadges] = useState<{ name: string; displayName?: string; description?: string }[]>([]);
+	const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
 
 	// Profile update state
 	const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -128,6 +131,10 @@ export function UserPage() {
 	const currUser = useAppSelector((state) => state.currUser.current);
 	const isDemo = currUser?.isDemo === true;
 	const methodActions = loginMethodActions(credentials, isDemo);
+	const badgeViews = useMemo(
+		() => buildBadgeViews(allBadges, earnedBadges, badgeProgress),
+		[allBadges, earnedBadges, badgeProgress],
+	);
 
 	const fetchGoal = useCallback(async () => {
 		try {
@@ -177,11 +184,20 @@ export function UserPage() {
 					if (Array.isArray(creds)) setCredentials(creds);
 					else if (creds?.credentials) setCredentials(creds.credentials);
 				})().finally(() => markLoaded('creds'));
-				const badgesTask = AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100)
-					.then((badgesRes) => {
+				// earned badges, the whole catalogue and the progress counters (for locked badges)
+				const badgesTask = Promise.allSettled([
+					AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100).then((badgesRes) => {
 						if (badgesRes.data?.badges) setEarnedBadges(badgesRes.data.badges);
-					})
-					.finally(() => markLoaded('badges'));
+					}),
+					AchievementsService.achievementGatewayControllerGetAllBadgesV1().then((res) => {
+						const list = (res as any)?.data?.badges;
+						if (Array.isArray(list)) setAllBadges(list);
+					}),
+					AchievementsService.achievementGatewayControllerGetMyProgressV1().then((res) => {
+						const data = (res as any)?.data;
+						if (data) setBadgeProgress(data as BadgeProgress);
+					}),
+				]).finally(() => markLoaded('badges'));
 				const statsTask = ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1().then((statsRes) => {
 					if (statsRes.data) setUserStats(statsRes.data as unknown as UserStatsDto);
 				});
@@ -818,7 +834,7 @@ export function UserPage() {
 							<CardHeader className='bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between'>
 								<div>
 									<CardTitle className='text-xl font-bold text-gray-800'>Kho danh hiệu của bạn</CardTitle>
-									<CardDescription>Hoàn thành các mốc quan trọng để nhận danh hiệu vinh danh</CardDescription>
+									<CardDescription>Luyện đề, đạt điểm cao và học đều mỗi ngày để mở khóa huy chương</CardDescription>
 								</div>
 								<div className='bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center'>
 									<Trophy className='w-5 h-5 mr-2 text-emerald-600' />
@@ -839,56 +855,7 @@ export function UserPage() {
 											</div>
 										))}
 									</LoadingRegion>
-								: earnedBadges.length === 0 ?
-									<div className='text-center py-16'>
-										<div className='w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6'>
-											<Lock className='w-10 h-10 text-gray-300' />
-										</div>
-										<h3 className='text-xl font-bold text-gray-800 mb-2'>Chưa có danh hiệu nào</h3>
-										<p className='text-gray-500 mb-6'>Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
-										<Button
-											className='bg-primary hover:bg-primary/90 text-white'
-											onClick={() => router.push('/test-selection')}
-										>
-											Luyện tập ngay
-										</Button>
-									</div>
-								:	<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'>
-										{earnedBadges.map((badge: any, index: number) => {
-											const colorClass =
-												index % 3 === 0 ? 'bg-amber-400'
-												: index % 3 === 1 ? 'bg-secondary'
-												: 'bg-emerald-500';
-
-											return (
-												<div
-													key={badge.id || index}
-													className='flex flex-col items-center text-center group cursor-pointer'
-												>
-													<div
-														className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}
-													>
-														<Award className='w-12 h-12 text-white drop-shadow-sm' />
-														<div className='absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-															✨
-														</div>
-														<div className='absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75'>
-															✨
-														</div>
-													</div>
-													<h4 className='font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight mb-1'>
-														{badge.displayName || badge.name}
-													</h4>
-													<p className='text-xs text-gray-500 line-clamp-2'>{badge.description}</p>
-													{badge.date && (
-														<p className='text-[10px] text-gray-400 mt-2'>
-															Đạt được: {formatDate(new Date(badge.date))}
-														</p>
-													)}
-												</div>
-											);
-										})}
-									</div>
+								:	<BadgeCollection badges={badgeViews} />
 								}
 							</CardContent>
 						</Card>
