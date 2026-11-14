@@ -159,4 +159,9 @@ describe('passwordPolicyError', () => {
 		expect(passwordPolicyError('Abcdef12')).toBe(PASSWORD_POLICY_MESSAGE);
 		expect(passwordPolicyError('Ab1!')).toBe(PASSWORD_POLICY_MESSAGE);
 	});
+	it('translates the per-type goal target rule', () => {
+		expect(translateApiMessage('A IELTS target must be between 0 and 9 in steps of 0.5')).toBe(
+			'Điểm IELTS phải từ 0 đến 9 và là bội số của 0.5',
+		);
+	});
 });

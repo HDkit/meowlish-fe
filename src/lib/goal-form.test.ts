@@ -16,6 +16,15 @@ describe('validateGoalForm', () => {
 		);
 	});
 
+	it('enforces each scale step (TOEIC by 5, TOEFL whole numbers)', () => {
+		expect(validateGoalForm({ type: 'TOEIC', target: 752, date: '2026-12-01' }).target).toBe(
+			'Điểm TOEIC phải là bội số của 5',
+		);
+		expect(validateGoalForm({ type: 'TOEFL', target: 90.5, date: '2026-12-01' }).target).toBe(
+			'Điểm TOEFL phải là bội số của 1',
+		);
+	});
+
 	it('enforces half-band steps', () => {
 		expect(validateGoalForm({ type: 'IELTS', target: 6.3, date: '2026-12-01' }).target).toBe(
 			'Điểm IELTS phải là bội số của 0.5',

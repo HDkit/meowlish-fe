@@ -67,7 +67,7 @@ function parseWritingFeedback(additionalData: string | null | undefined): Writin
 	let raw: unknown;
 	try {
 		raw = JSON.parse(additionalData);
-		// BE sometimes double-encodes: the stored string is itself a JSON string
+		// encoded once; responses from before the backend fix were a JSON string inside JSON
 		if (typeof raw === 'string') {
 			raw = JSON.parse(raw);
 		}

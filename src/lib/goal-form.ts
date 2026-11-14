@@ -1,8 +1,8 @@
 /** Score scales for the goal dialogs (Add/Edit goal). */
 export const GOAL_SCALES: Record<string, { min: number; max: number; step?: number }> = {
 	IELTS: { min: 1, max: 9, step: 0.5 },
-	TOEIC: { min: 10, max: 990 },
-	TOEFL: { min: 1, max: 120 },
+	TOEIC: { min: 10, max: 990, step: 5 },
+	TOEFL: { min: 1, max: 120, step: 1 },
 	VSTEP: { min: 1, max: 10, step: 0.5 },
 };
 

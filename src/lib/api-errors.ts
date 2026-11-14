@@ -208,6 +208,10 @@ const MESSAGES: Array<[RegExp, string | ((...m: string[]) => string)]> = [
 	[/^(attempt already submitted|exam result has already been submitted)$/i, 'Bài làm đã được nộp'],
 	[/^exam submission time has expired$/i, 'Đã hết thời gian làm bài'],
 	[/^must at least answer one question before submitting$/i, 'Cần trả lời ít nhất một câu trước khi nộp bài'],
+	[
+		/^an? (\w+) target must be between ([\d.]+) and ([\d.]+) in steps of ([\d.]+)$/i,
+		(_m, type, min, max, step) => `Điểm ${type} phải từ ${min} đến ${max} và là bội số của ${step}`,
+	],
 	[/^duration must be a positive whole number of seconds$/i, 'Thời lượng phải là số nguyên dương'],
 	[/^this type of question only allows one correct choice$/i, 'Loại câu hỏi này chỉ cho phép một đáp án đúng'],
 	[/^(cross-site request refused|origin not allowed)$/i, 'Yêu cầu bị từ chối vì không xuất phát từ trang hợp lệ'],

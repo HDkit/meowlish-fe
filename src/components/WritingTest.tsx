@@ -60,7 +60,7 @@ function findFirstQuestionId(sections: SectionDataDto[]): string | null {
 function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 	try {
 		let parsed: unknown = JSON.parse(additionalData);
-		// the backend stores the scorer's result as a JSON string inside JSON: decode both layers
+		// encoded once; responses from before the backend fix were a JSON string inside JSON
 		if (typeof parsed === 'string') parsed = JSON.parse(parsed);
 		if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
 		// the backend stores a scorer failure as { status: 'error', error_code, ... }
