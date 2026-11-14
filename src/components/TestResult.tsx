@@ -22,6 +22,7 @@ import type { AttemptReviewDto } from '@/lib/api/models/AttemptReviewDto';
 import type { QuestionDetailDto } from '@/lib/api/models/QuestionDetailDto';
 import type { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
 import type { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
+import { ExamHtml } from './ExamHtml';
 import { useAppSelector } from '@/lib/store/hooks';
 
 import { Button } from './ui/button';
@@ -933,9 +934,10 @@ function WritingFeedbackSection({
 								{item.q.content && (
 									<div>
 										<h4 className='text-sm font-bold text-slate-500 uppercase tracking-wider mb-2'>Đề bài</h4>
-										<div className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap'>
-											{item.q.content}
-										</div>
+										<ExamHtml
+											html={item.q.content}
+											className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700'
+										/>
 									</div>
 								)}
 
@@ -1279,9 +1281,10 @@ function DetailedAnalysis({
 												{item.q.content && (
 													<div>
 														<h5 className='text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Đề bài</h5>
-														<div className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 leading-relaxed whitespace-pre-wrap'>
-															{item.q.content}
-														</div>
+														<ExamHtml
+															html={item.q.content}
+															className='bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700'
+														/>
 													</div>
 												)}
 
@@ -1416,7 +1419,7 @@ function DetailedAnalysis({
 														<>
 															{detail.sectionContext?.map((ctx, i) => (
 																<div key={i} className='space-y-3'>
-																	{ctx.content && <p className='text-slate-700 leading-relaxed'>{ctx.content}</p>}
+																	{ctx.content && <ExamHtml html={ctx.content} className='text-slate-700' />}
 																	{ctx.fileUrls?.map((url) => {
 																		const formatted = formatMediaUrl(url);
 																		if (isAudioUrl(url)) {
@@ -1448,7 +1451,7 @@ function DetailedAnalysis({
 																</div>
 															))}
 
-															{detail.content && <div className='text-slate-800 font-medium'>{detail.content}</div>}
+															{detail.content && <ExamHtml html={detail.content} className='text-slate-800 font-medium' />}
 
 															{item.q.choices?.length > 0 && (
 																<div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>

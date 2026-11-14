@@ -1,5 +1,6 @@
 'use client';
 
+import { ExamHtml } from './ExamHtml';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
@@ -294,7 +295,7 @@ export function TestResultDetail() {
 									</div>
 								)}
 
-								{q.content && <div className="text-slate-900 font-semibold mb-3">{q.content}</div>}
+								{q.content && <ExamHtml html={q.content} className="text-slate-900 font-semibold mb-3" />}
 
 								{q.choices?.length > 0 && (
 									<div className="space-y-2">
