@@ -1,5 +1,6 @@
 'use client';
 
+import { showSlugInAddress } from '@/lib/canonical-url';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Clock, Flag, Newspaper } from 'lucide-react';
@@ -44,7 +45,11 @@ export function BlogDetail({ blogId }: { blogId: string }) {
   const load = useCallback(() => {
     setError(null);
     BlogService.getBlog(blogId)
-      .then(res => setBlog(unwrap<BlogResponse>(res)))
+      .then(res => {
+        const post = unwrap<BlogResponse>(res);
+        setBlog(post);
+        showSlugInAddress(blogId, post?.slug);
+      })
       .catch(err => {
         if ((err as { status?: number })?.status === 404) setNotFound(true);
         else setError(communityErrorMessage(err, 'Không tải được bài viết.'));

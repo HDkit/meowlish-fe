@@ -100,7 +100,7 @@ export function ForumCategoryView({ categoryId }: { categoryId: string }) {
       const res = await ForumService.createThread(categoryId, value);
       setCreating(false);
       toast({ title: 'Đã đăng chủ đề' });
-      if (res.data) router.push(`/forum/thread/${encodeURIComponent(res.data.id)}`);
+      if (res.data) router.push(`/forum/thread/${encodeURIComponent(res.data.slug ?? res.data.id)}`);
     } catch (err) {
       toast({ title: 'Không đăng được chủ đề', description: communityErrorMessage(err), variant: 'destructive' });
     }
@@ -196,7 +196,7 @@ export function ForumCategoryView({ categoryId }: { categoryId: string }) {
                         {thread.isPinned && <Pin className="mt-1 size-4 shrink-0 text-amber-500" aria-label="Đã ghim" />}
                         {thread.isLocked && <Lock className="mt-1 size-4 shrink-0 text-slate-400" aria-label="Đã khóa" />}
                         <Link
-                          href={`/forum/thread/${encodeURIComponent(thread.id)}`}
+                          href={`/forum/thread/${encodeURIComponent(thread.slug ?? thread.id)}`}
                           className="text-[15px] font-semibold leading-snug text-slate-900 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         >
                           {thread.title}

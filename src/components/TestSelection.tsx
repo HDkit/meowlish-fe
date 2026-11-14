@@ -28,6 +28,8 @@ import { TestType, ExamStatus } from '../types/client';
 
 type FormattedExam = {
 	id: string;
+	/** Readable URL key, when the exam has one. */
+	slug?: string;
 	title: string;
 	description?: string;
 	duration?: number;
@@ -186,6 +188,7 @@ export function TestSelection() {
 					const lowerTags = rawTags.map((t: string) => t.toLowerCase());
 					return {
 						id: e.id,
+						slug: e.slug,
 						title: e.name,
 						description: e.description,
 						duration: e.duration,
@@ -302,7 +305,7 @@ export function TestSelection() {
 						onClick={() => {
 							// remember this list (tab, search, tags) for the exam page's back button
 							const here = `${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`;
-							router.push(`/test/${exam.id}?from=${encodeURIComponent(here)}`);
+							router.push(`/test/${encodeURIComponent(exam.slug ?? exam.id)}?from=${encodeURIComponent(here)}`);
 						}}
 					>
 						Vào thi ngay

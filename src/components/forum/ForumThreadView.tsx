@@ -1,5 +1,6 @@
 'use client';
 
+import { showSlugInAddress } from '@/lib/canonical-url';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -98,7 +99,10 @@ export function ForumThreadView({ threadId }: { threadId: string }) {
   const loadThread = useCallback(() => {
     setThreadError(null);
     ForumService.getThread(threadId)
-      .then(res => setThread(res.data))
+      .then(res => {
+        setThread(res.data);
+        showSlugInAddress(threadId, res.data?.slug);
+      })
       .catch(err => {
         if ((err as { status?: number })?.status === 404) setNotFound(true);
         else setThreadError(communityErrorMessage(err, 'Không tải được chủ đề.'));

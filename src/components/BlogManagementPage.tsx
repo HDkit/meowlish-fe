@@ -226,7 +226,7 @@ export default function BlogManagementPage() {
 				loading={loading}
 				error={loadError}
 				onRetry={() => void fetchBlogs()}
-				onRowClick={(b) => (canModify(b) ? setViewMode({ type: 'edit', blog: b }) : router.push(`/blog/${b.id}`))}
+				onRowClick={(b) => (canModify(b) ? setViewMode({ type: 'edit', blog: b }) : router.push(`/blog/${encodeURIComponent(b.slug ?? b.id)}`))}
 				empty={
 					search && blogs.length > 0
 						? { icon: Search, title: 'Không có bài viết phù hợp trong trang này' }
@@ -248,7 +248,7 @@ export default function BlogManagementPage() {
 					<RowActions
 						label={b.title}
 						actions={[
-							{ label: 'Xem trên blog', icon: ExternalLink, onSelect: () => router.push(`/blog/${b.id}`) },
+							{ label: 'Xem trên blog', icon: ExternalLink, onSelect: () => router.push(`/blog/${encodeURIComponent(b.slug ?? b.id)}`) },
 							{ label: 'Chỉnh sửa', icon: Edit, hidden: !canModify(b), onSelect: () => setViewMode({ type: 'edit', blog: b }) },
 							{ label: 'Xóa bài viết', icon: Trash2, destructive: true, hidden: !canModify(b), onSelect: () => setToDelete(b) },
 						]}

@@ -249,7 +249,7 @@ export function ExamManagementPage() {
 							e.status === 'APPROVED'
 								? { label: 'Xem trong trình soạn', icon: Eye, onSelect: () => edit(e) }
 								: { label: 'Chỉnh sửa', icon: FileEdit, onSelect: () => edit(e) },
-							{ label: 'Làm thử', icon: Play, hidden: e.status !== 'APPROVED', onSelect: () => router.push(`/test/${e.id}`) },
+							{ label: 'Làm thử', icon: Play, hidden: e.status !== 'APPROVED', onSelect: () => router.push(`/test/${encodeURIComponent(e.slug ?? e.id)}`) },
 							{ label: 'Xóa đề thi', icon: Trash2, destructive: true, onSelect: () => setToDelete(e) },
 						]}
 					/>

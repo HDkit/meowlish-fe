@@ -6,6 +6,8 @@ export type ExamDto = {
     createdAt: string;
     createdBy: string;
     id: string;
+    /** Readable URL key (`/test/<slug>`); lookups accept it in place of the id. */
+    slug?: string;
     status: string;
     title: string;
     updatedAt: string;

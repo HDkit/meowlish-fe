@@ -4,6 +4,8 @@ import { request as __request } from '../core/request';
 
 export interface BlogResponse {
   id: string;
+  /** Readable URL key (`/blog/<slug>`); reads accept it in place of the id. */
+  slug?: string;
   title: string;
   content: string;
   authorId: string;

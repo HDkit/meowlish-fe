@@ -31,7 +31,7 @@ function Cover({ blog, className }: { blog: BlogResponse; className: string }) {
 }
 
 export function BlogCard({ blog, author, variant = 'default' }: BlogCardProps) {
-  const href = `/blog/${encodeURIComponent(blog.id)}`;
+  const href = `/blog/${encodeURIComponent(blog.slug ?? blog.id)}`;
   const minutes = readingMinutes(blog.content);
   const tag = blog.tags?.[0];
 

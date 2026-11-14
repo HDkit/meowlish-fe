@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Section, TestType, Skill } from '../types/client';
 import { ReportDialog } from './ReportDialog';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
@@ -95,7 +95,9 @@ export function ExamDetailPage() {
 	const { toast } = useToast();
 	if (!id) return <div>ID bài thi không hợp lệ</div>;
 
-	const examId = id as string;
+	// the URL holds the exam's slug (or, in older links, its id); the API calls below use the id
+	const urlKey = id as string;
+	const [examId, setExamId] = useState<string | undefined>(undefined);
 
 	const [examData, setExamData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
@@ -118,12 +120,17 @@ export function ExamDetailPage() {
 			try {
 				setLoading(true);
 				setLoadError(null);
-				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1(examId);
+				const response = await ExamPracticeService.examPracticeGatewayControllerGetExamDetailsV1(urlKey);
 				const payload = extractEntityData<any>(response);
 				if (!payload) {
 					throw new Error('API không trả về dữ liệu đề thi.');
 				}
 				setExamData(payload);
+				setExamId(payload.id);
+				// show the readable address (keeps ?from= and the hash), without a new history entry
+				if (payload.slug && payload.slug !== urlKey) {
+					window.history.replaceState(window.history.state, '', `/test/${encodeURIComponent(payload.slug)}${window.location.search}${window.location.hash}`);
+				}
 			} catch (error) {
 				console.error('Failed to fetch exam data:', error);
 				setLoadError(extractApiErrorMessage(error, 'Không thể tải dữ liệu đề thi từ backend.'));
@@ -132,56 +139,59 @@ export function ExamDetailPage() {
 			}
 		};
 
-		const fetchMyAttemptsForExam = async (reset: boolean, nextCursor?: string) => {
+		if (urlKey) fetchExamData();
+	}, [urlKey]);
+
+	const fetchMyAttemptsForExam = useCallback(async (reset: boolean, nextCursor?: string) => {
+		if (!examId) return;
+		if (reset) {
+			setMyAttemptsLoading(true);
+			setOngoingAttempt(null);
+		} else {
+			setMyAttemptsLoadingMore(true);
+		}
+		setMyAttemptsError(null);
+		try {
+			const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+				examId,
+				nextCursor,
+				EXAM_MY_HISTORY_LIMIT,
+				EXAM_MY_HISTORY_SORT,
+			);
+			if (!res.success || !res.data) {
+				throw new Error((res.error as any)?.message ?? 'Không tải được lịch sử làm bài');
+			}
+			const data = res.data as unknown as AttemptsHistoryDto;
+			const newAttempts = data.attempts ?? [];
+			setMyAttemptsForExam((prev) => (reset ? newAttempts : [...prev, ...newAttempts]));
+			const next = data.nextCursor || undefined;
+			setMyAttemptsCursor(next);
+			setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
+
 			if (reset) {
-				setMyAttemptsLoading(true);
-				setOngoingAttempt(null);
-			} else {
-				setMyAttemptsLoadingMore(true);
+				const inProgress = newAttempts.find((a) => !a.endedAt);
+				if (inProgress) {
+					setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
+				}
 			}
-			setMyAttemptsError(null);
-			try {
-				const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-					examId,
-					nextCursor,
-					EXAM_MY_HISTORY_LIMIT,
-					EXAM_MY_HISTORY_SORT,
-				);
-				if (!res.success || !res.data) {
-					throw new Error((res.error as any)?.message ?? 'Không tải được lịch sử làm bài');
-				}
-				const data = res.data as unknown as AttemptsHistoryDto;
-				const newAttempts = data.attempts ?? [];
-				setMyAttemptsForExam((prev) => (reset ? newAttempts : [...prev, ...newAttempts]));
-				const next = data.nextCursor || undefined;
-				setMyAttemptsCursor(next);
-				setMyAttemptsHasMore(newAttempts.length >= EXAM_MY_HISTORY_LIMIT && !!next);
-
-				if (reset) {
-					const inProgress = newAttempts.find((a) => !a.endedAt);
-					if (inProgress) {
-						setOngoingAttempt({ id: inProgress.id, startedAt: inProgress.startedAt });
-					}
-				}
-			} catch (e) {
-				console.warn('Could not fetch attempt history for this exam:', e);
-				setMyAttemptsError(extractApiErrorMessage(e, 'Không tải được lịch sử làm bài.'));
-				if (reset) {
-					setMyAttemptsForExam([]);
-					setMyAttemptsCursor(undefined);
-					setMyAttemptsHasMore(false);
-				}
-			} finally {
-				if (reset) setMyAttemptsLoading(false);
-				else setMyAttemptsLoadingMore(false);
+		} catch (e) {
+			console.warn('Could not fetch attempt history for this exam:', e);
+			setMyAttemptsError(extractApiErrorMessage(e, 'Không tải được lịch sử làm bài.'));
+			if (reset) {
+				setMyAttemptsForExam([]);
+				setMyAttemptsCursor(undefined);
+				setMyAttemptsHasMore(false);
 			}
-		};
-
-		if (examId) {
-			fetchExamData();
-			fetchMyAttemptsForExam(true);
+		} finally {
+			if (reset) setMyAttemptsLoading(false);
+			else setMyAttemptsLoadingMore(false);
 		}
 	}, [examId]);
+
+	// the attempt history filters by the exam's id, known once the details are loaded
+	useEffect(() => {
+		void fetchMyAttemptsForExam(true);
+	}, [fetchMyAttemptsForExam]);
 
 	// --- State quản lý UI ---
 	const [activeTab, setActiveTab] = useState<'practice' | 'fulltest'>('practice');
@@ -257,7 +267,7 @@ export function ExamDetailPage() {
 			const timerValue = activeTab === 'fulltest' ? examData.duration : timer ? parseInt(timer) * 60 : undefined;
 
 			const res = await ExamPracticeService.examPracticeGatewayControllerAttemptV1(
-				examId,
+				examData.id,
 				{
 					options: {
 						duration: timerValue,
@@ -276,8 +286,9 @@ export function ExamDetailPage() {
 			const status = error?.status ?? error?.body?.statusCode;
 			const errorMsg: string = error?.body?.error ?? '';
 
-			// Backend trả 499: có attempt cũ chưa nộp (fallback nếu history chưa fetch kịp)
-			if (status === 499 && errorMsg.toLowerCase().includes('previous attempt')) {
+			// an unfinished attempt exists (fallback when the history isn't loaded yet): 409, or 499
+			// from older backends
+			if ((status === 409 || status === 499) && errorMsg.toLowerCase().includes('previous attempt')) {
 				const existingAttemptId: string | null = error?.body?.data?.id ?? null;
 				setPendingAttemptDialog({ open: true, attemptId: existingAttemptId });
 			} else {

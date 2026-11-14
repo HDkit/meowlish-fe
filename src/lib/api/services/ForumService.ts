@@ -8,6 +8,8 @@ export interface Envelope<T> {
 }
 
 export interface ForumThreadSummary {
+  /** Readable URL key (`/forum/thread/<slug>`); reads accept it in place of the id. */
+  slug?: string;
   id: string;
   categoryId: string;
   authorId: string;

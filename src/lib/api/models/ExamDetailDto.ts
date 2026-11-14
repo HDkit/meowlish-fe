@@ -8,6 +8,8 @@ export type ExamDetailDto = {
     description?: string;
     duration: number;
     id: string;
+    /** Readable URL key (`/test/<slug>`); lookups accept it in place of the id. */
+    slug?: string;
     name: string;
     sections: Array<SectionDto>;
     tags: Array<string>;

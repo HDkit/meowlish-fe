@@ -7,6 +7,8 @@ export type MinimalExamInfoDto = {
     description?: string;
     duration: number;
     id: string;
+    /** Readable URL key (`/test/<slug>`); lookups accept it in place of the id. */
+    slug?: string;
     name: string;
     tags: Array<string>;
     updatedAt: string;

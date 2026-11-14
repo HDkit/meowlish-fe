@@ -5,6 +5,8 @@ import { extractEntityData } from '@/lib/api-response';
 /** A row of GET /exams/management/exams. */
 export type ManagedExam = {
 	id: string;
+	/** Readable URL key, when the exam has one. */
+	slug?: string;
 	title: string;
 	status: string;
 	createdBy?: string;

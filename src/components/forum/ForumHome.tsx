@@ -135,7 +135,7 @@ export function ForumHome() {
 												/>
 												<div className='min-w-0 text-sm'>
 													<Link
-														href={`/forum/thread/${encodeURIComponent(latest.id)}`}
+														href={`/forum/thread/${encodeURIComponent(latest.slug ?? latest.id)}`}
 														className='flex items-center gap-1 font-medium text-slate-800 hover:text-primary'
 													>
 														{latest.isPinned && <Pin className='size-3 shrink-0 text-amber-500' aria-label='Đã ghim' />}
