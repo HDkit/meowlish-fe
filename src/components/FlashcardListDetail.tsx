@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashCard } from '../types/client';
 import { TagInput } from './TagInput';
+import { TranslateButton } from './flashcards/TranslateButton';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService, type FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
 import { FlashcardForkPanel } from './flashcards/FlashcardForkPanel';
@@ -338,11 +339,15 @@ Lưu ý: ...`);
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
 							<Label htmlFor="definition" className="text-slate-700 font-bold">Định nghĩa <span className="text-red-500">*</span></Label>
-							{!flashcard && !definition && (
-								<button type="button" onClick={() => applyTemplate('definition')} className="text-xs text-primary hover:underline font-medium">
-									Dùng mẫu
-								</button>
-							)}
+							<span className="flex items-center gap-1">
+								{/* adds the translation of the word to what is written here */}
+								<TranslateButton source={word} definition={definition} onChange={setDefinition} />
+								{!flashcard && !definition && (
+									<button type="button" onClick={() => applyTemplate('definition')} className="text-xs text-primary hover:underline font-medium">
+										Dùng mẫu
+									</button>
+								)}
+							</span>
 						</div>
 						<Textarea
 							{...fieldA11y('definition', fieldErrors.definition)}

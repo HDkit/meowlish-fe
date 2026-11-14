@@ -1,3 +1,4 @@
+import { TranslateButton } from './flashcards/TranslateButton';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
@@ -312,7 +313,12 @@ const FlashcardFormModal = ({
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-sm font-bold text-gray-800">Định nghĩa</label>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">nghĩa</span>
+              {/* adds the translation of the word to what is written here */}
+              <TranslateButton
+                source={formData.word}
+                definition={formData.definition}
+                onChange={(next) => setFormData(prev => ({ ...prev, definition: next }))}
+              />
             </div>
             <textarea
               value={formData.definition}
