@@ -579,6 +579,10 @@ export default function ChatPage() {
 	/** Sender names of the previews are being fetched: show a placeholder, not "Ẩn danh". */
 	const [namesLoading, setNamesLoading] = useState(false);
 	const currentCursorRef = useRef<string | undefined>(undefined);
+	/** Name search sent to the server (debounced copy of the search box). */
+	const searchNameRef = useRef('');
+	/** Only the newest list request may update the list (typing fires several). */
+	const roomRequestRef = useRef(0);
 
 	/** One request for every preview sender we don't know yet. */
 	const loadSenderNames = useCallback(
@@ -612,8 +616,10 @@ export default function ChatPage() {
 	const fetchRooms = useCallback(async (cursor?: string) => {
 		if (!currUser) return null;
 		setRoomLoading(true);
+		const request = ++roomRequestRef.current;
 		try {
-			const res = await ChatRoomService.listRooms(cursor, 20);
+			const res = await ChatRoomService.listRooms(cursor, 20, searchNameRef.current.trim());
+			if (request !== roomRequestRef.current) return null;
 			const data = (res as any).data ?? res;
 			const apiRooms: ChatRoom[] = (data.rooms ?? []).map((r: any) => ({
 				id: r.id,
@@ -664,6 +670,21 @@ export default function ChatPage() {
 		fetchRooms();
 	}, [currUser, fetchRooms]);
 
+	// search on the server (debounced): back to the first page of the matching rooms
+	const searchMounted = useRef(false);
+	useEffect(() => {
+		if (!searchMounted.current) {
+			searchMounted.current = true;
+			return;
+		}
+		const t = setTimeout(() => {
+			searchNameRef.current = searchQuery;
+			pageRooms(undefined);
+		}, 300);
+		return () => clearTimeout(t);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchQuery]);
+
 	// keep previews fresh while the list is open (same page), every 30 s
 	useEffect(() => {
 		if (!currUser || selectedRoom) return;
@@ -688,11 +709,9 @@ export default function ChatPage() {
 			const lastB = getLastMessage(b.id)?.createdAt ?? 0;
 			return lastB - lastA;
 		});
-		if (!searchQuery) return sorted;
-		const q = searchQuery.toLowerCase();
-		return sorted.filter((r) => r.name.toLowerCase().includes(q));
+		return sorted;
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [rooms, searchQuery, allMessages]);
+	}, [rooms, allMessages]);
 
 	const handleCreateRoom = async (name: string, liveUrl?: string, liveDate?: number) => {
 		if (!currUser) return;

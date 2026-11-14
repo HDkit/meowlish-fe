@@ -32,11 +32,13 @@ export class ChatRoomService {
   public static listRooms(
     cursor?: string,
     limit?: number,
+    /** Case-insensitive part of the room name; the cursors keep it, so paging stays in the search. */
+    name?: string,
   ): CancelablePromise<ListChatRoomsResponse> {
     return __request(OpenAPI, {
       method: 'GET',
       url: '/api/v1/chat/rooms',
-      query: { cursor, limit },
+      query: { cursor, limit, name: name || undefined },
     });
   }
 
