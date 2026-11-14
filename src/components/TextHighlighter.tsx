@@ -144,7 +144,7 @@ const FlashcardFormModal = ({
     if (!isOpen || !currentUser?.id) return;
     let cancelled = false;
     setLoadingLists(true);
-    FlashcardListService.listFlashCardLists(currentUser.id, undefined, 1, 200)
+    FlashcardListService.listFlashCardLists(currentUser.id, undefined, 1, 100)
       .then((res: any) => {
         if (cancelled) return;
         const data = res?.data ?? res;
