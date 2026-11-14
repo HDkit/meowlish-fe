@@ -53,13 +53,14 @@ function MiniStat({
 	label: string;
 }) {
 	return (
-		<div className="flex items-center gap-3 rounded-2xl bg-muted/40 border border-border/50 p-3">
+		<div className="flex h-full items-center gap-3 rounded-2xl bg-muted/40 border border-border/50 p-3">
 			<div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', iconClass)}>
 				<Icon className="h-[18px] w-[18px]" />
 			</div>
 			<div className="min-w-0">
-				<p className="text-lg font-bold leading-tight tabular-nums">{value}</p>
-				<p className="text-xs text-muted-foreground truncate">{label}</p>
+				<p className="text-lg font-bold leading-tight tabular-nums break-words">{value}</p>
+				{/* wraps instead of truncating: the tiles get narrow next to the weekly plan */}
+				<p className="text-xs leading-snug text-muted-foreground break-words">{label}</p>
 			</div>
 		</div>
 	);
@@ -163,7 +164,7 @@ export function ActivityHeatmapCard({
 				) : loading || !activity || !heatmap || !summary ? (
 					<div className="space-y-4" role="status" aria-busy="true">
 						<span className="sr-only">Đang tải…</span>
-						<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+						<div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
 							{[0, 1, 2, 3].map(i => (
 								<Skeleton key={i} className="h-[62px] rounded-2xl" />
 							))}
@@ -172,7 +173,7 @@ export function ActivityHeatmapCard({
 					</div>
 				) : (
 					<>
-						<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+						<div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
 							<MiniStat
 								icon={Flame}
 								iconClass="bg-secondary/15 text-secondary"
