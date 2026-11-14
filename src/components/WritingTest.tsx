@@ -185,9 +185,9 @@ export function WritingTest() {
 			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
 
 			// Step 5: Poll for review (scoring may be async)
-			setEvaluationStep('Đang chờ AI chấm bài...');
+			setEvaluationStep('Đang chờ AI chấm bài (thường mất 1–2 phút)...');
 			let reviewResult: WritingEvaluationResult | null = null;
-			const maxRetries = 60; // 60 attempts × 5s = 5 min max wait (the mock scorer takes 1-3 min)
+			const maxRetries = 60; // 60 attempts × 5s = 5 min max wait (the AI scorer takes 1-2 min per essay on CPU)
 
 			for (let i = 0; i < maxRetries; i++) {
 				await sleep(i === 0 ? 2000 : 5000); // first wait 2s, then 5s intervals
