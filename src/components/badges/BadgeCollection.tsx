@@ -2,9 +2,21 @@
 
 import { useMemo } from 'react';
 import { Sparkles, Trophy } from 'lucide-react';
-import { FAMILY_LABELS, FAMILY_ORDER, nextBadge, type BadgeView } from '@/lib/badges';
+import { FAMILY_LABELS, FAMILY_ORDER, nextBadge, type BadgeFamily, type BadgeView } from '@/lib/badges';
 import { BadgeMedal, TIER_LABELS } from './BadgeMedal';
 import { cn } from '../ui/utils';
+
+/**
+ * Target reached but not awarded yet: the achievement service checks badges when the matching event
+ * happens, so the badge arrives with the next one of those.
+ */
+const DUE_HINT: Record<BadgeFamily, string> = {
+	attempts: 'Nhận khi nộp bài tiếp theo',
+	goodScore: 'Nhận ở lần đạt điểm tốt tiếp theo',
+	perfectScore: 'Nhận ở lần đạt điểm tuyệt đối tiếp theo',
+	loginDays: 'Nhận ở lần đăng nhập tiếp theo',
+	loginStreak: 'Nhận ở lần đăng nhập tiếp theo',
+};
 
 const formatDate = (iso: string) =>
 	new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -38,7 +50,7 @@ function BadgeTile({ badge }: { badge: BadgeView }) {
 							<div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
 						</div>
 						<p className="mt-1 text-[11px] tabular-nums text-slate-500">
-							{badge.current >= badge.target ? 'Đang trao danh hiệu…' : `${badge.current}/${badge.target}`}
+							{badge.current >= badge.target ? DUE_HINT[badge.family] : `${badge.current}/${badge.target}`}
 						</p>
 					</>
 				}

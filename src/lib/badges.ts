@@ -119,7 +119,8 @@ export function buildBadgeViews(
 
 /**
  * The locked badge you are closest to (by share of its target), to suggest as the next goal.
- * Badges whose target is already reached but not awarded yet (being processed) are skipped.
+ * Badges whose target is already reached but not awarded yet (awarded at the next matching event)
+ * are skipped.
  */
 export const nextBadge = (views: readonly BadgeView[]): BadgeView | undefined =>
 	views
