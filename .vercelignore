@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.local.example
+!.env.vercel.example
 .next
 node_modules
 coverage
