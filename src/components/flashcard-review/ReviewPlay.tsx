@@ -225,7 +225,7 @@ function SavedCard({
 
 /**
  * One card, mounted fresh per question (keyed by the parent). While playing, the answer box takes the
- * whole width; on submit it slides to the left half and the saved card animates in on the right
+ * centre; on submit it slides to the left half and the saved card animates in on the right
  * (below on phones), so what you wrote and what you saved sit side by side.
  */
 function CardStage({
@@ -310,14 +310,18 @@ function CardStage({
 				{shownField === 'word' && card.pronunciation && <p className="mt-1 italic text-slate-500">{card.pronunciation}</p>}
 			</section>
 
-			<div
-				className={cn(
-					'grid gap-4 md:transition-[grid-template-columns] md:duration-500 md:ease-out motion-reduce:transition-none',
-					revealed ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]',
-				)}
-			>
+			{/*
+			 * Two fixed columns (md+). Before the reveal the answer box sits centred (moved right by half
+			 * a column); on reveal it slides back to the left with a transform, so nothing reflows or
+			 * re-wraps mid-animation, and the saved card fades in on the right. Phones stack them.
+			 */}
+			<div className="grid gap-4 md:min-h-[15rem] md:grid-cols-2">
 				<form
-					className="flex min-w-0 flex-col gap-3"
+					id="review-form"
+					className={cn(
+						'flex min-w-0 flex-col gap-3 motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+						!revealed && 'md:translate-x-[calc(50%+0.5rem)]',
+					)}
 					onSubmit={e => {
 						e.preventDefault();
 						submit();
@@ -340,30 +344,18 @@ function CardStage({
 						spellCheck={false}
 						enterKeyHint="done"
 						aria-describedby="review-answer-hint"
-						className={cn(FIELD_CLASS, 'min-h-12 flex-1 resize-y text-lg', revealed && 'bg-slate-50 text-slate-800')}
+						className={cn(FIELD_CLASS, 'min-h-12 flex-1 resize-y text-lg transition-colors duration-300', revealed && 'bg-slate-50 text-slate-800')}
 						placeholder={revealed ? '(không có câu trả lời)' : field === 'word' ? 'Gõ từ tiếng Anh…' : 'Gõ nghĩa…'}
 					/>
-					{!revealed && (
-						<>
-							<p id="review-answer-hint" className="hidden text-xs text-slate-400 sm:block">
-								Enter để xem thẻ đã lưu · Shift+Enter xuống dòng
-							</p>
-							<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-								<Button type="button" variant="outline" onClick={() => dispatch({ type: 'skip' })} className="h-11 rounded-xl font-semibold">
-									<SkipForward className="h-4 w-4" aria-hidden /> Bỏ qua
-								</Button>
-								<Button type="submit" disabled={!answer.trim()} className="h-11 rounded-xl px-6 font-bold">
-									Xem thẻ đã lưu
-								</Button>
-							</div>
-						</>
-					)}
+					{/* kept in place after the reveal (invisible) so the box doesn't change height */}
+					<p id="review-answer-hint" className={cn('hidden text-xs text-slate-400 sm:block', revealed && 'invisible')}>
+						Enter để xem thẻ đã lưu · Shift+Enter xuống dòng
+					</p>
 				</form>
 
-				{/* the column grows from 0 on reveal (md+); the card slides in from the right, from below on phones */}
-				<div className="min-w-0 overflow-hidden">
+				<div className="min-w-0">
 					{revealed && (
-						<div className="h-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 md:motion-safe:slide-in-from-bottom-0 md:motion-safe:slide-in-from-right-10 motion-safe:duration-500 motion-safe:fill-mode-both md:motion-safe:delay-150">
+						<div className="h-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 md:motion-safe:slide-in-from-bottom-0 md:motion-safe:slide-in-from-right-6 motion-safe:duration-500 motion-safe:ease-out motion-safe:fill-mode-both md:motion-safe:delay-150">
 							<SavedCard
 								question={question}
 								card={card}
@@ -381,24 +373,35 @@ function CardStage({
 				</div>
 			</div>
 
-			{revealed && (
-				<div className="mt-5 flex items-center justify-between gap-3">
-					<p className="text-sm text-slate-500" role="status" aria-live="polite">
-						So sánh điều bạn nhớ với nội dung đã lưu.
-					</p>
-					<Button
-						ref={nextRef}
-						onClick={() => dispatch({ type: 'next' })}
-						// a held Enter (from submitting) must not skip past the reveal
-						onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
-						disabled={editing}
-						className="h-11 shrink-0 rounded-xl px-6 font-bold"
-					>
-						{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
-						<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
-					</Button>
-				</div>
-			)}
+			{/* one footer row in both states: only its content changes, so the page doesn't jump */}
+			<div className="mt-5 flex min-h-11 flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+				{revealed ?
+					<>
+						<p className="text-sm text-slate-500 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300" role="status" aria-live="polite">
+							So sánh điều bạn nhớ với nội dung đã lưu.
+						</p>
+						<Button
+							ref={nextRef}
+							onClick={() => dispatch({ type: 'next' })}
+							// a held Enter (from submitting) must not skip past the reveal
+							onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
+							disabled={editing}
+							className="h-11 shrink-0 rounded-xl px-6 font-bold motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+						>
+							{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
+							<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
+						</Button>
+					</>
+				:	<div className="flex flex-col-reverse gap-2 sm:ml-auto sm:flex-row">
+						<Button type="button" variant="outline" onClick={() => dispatch({ type: 'skip' })} className="h-11 rounded-xl font-semibold">
+							<SkipForward className="h-4 w-4" aria-hidden /> Bỏ qua
+						</Button>
+						<Button type="submit" form="review-form" disabled={!answer.trim()} className="h-11 rounded-xl px-6 font-bold">
+							Xem thẻ đã lưu
+						</Button>
+					</div>
+				}
+			</div>
 		</div>
 	);
 }
