@@ -1,5 +1,6 @@
 'use client';
 
+import { parseExamples, partOfSpeechOptions } from '@/lib/flashcard-fields';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashCard } from '../types/client';
@@ -192,6 +193,14 @@ function FlashcardCard({
 								<p className="text-lg font-medium text-white whitespace-pre-wrap leading-relaxed">
 									{flashcard.definition}
 								</p>
+								{flashcard.examples.length > 0 && (
+									<>
+										<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60 mt-4">Ví dụ</p>
+										<ul className="space-y-1 text-sm italic text-white/90">
+											{flashcard.examples.map((ex, i) => <li key={i}>{ex}</li>)}
+										</ul>
+									</>
+								)}
 								{flashcard.notes && (
 									<>
 										<p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60 mt-4">Ghi chú</p>
@@ -206,8 +215,16 @@ function FlashcardCard({
 								<p className="text-3xl font-extrabold text-slate-800 tracking-tight">
 									{flashcard.word}
 								</p>
-								{flashcard.pronunciation && (
-									<p className="text-sm text-slate-400 mt-2 italic">{flashcard.pronunciation}</p>
+								{(flashcard.partOfSpeech || flashcard.pronunciation) && (
+									<p className="text-sm text-slate-400 mt-2">
+										{flashcard.partOfSpeech && <span className="font-semibold text-primary/80">({flashcard.partOfSpeech})</span>}
+										{flashcard.partOfSpeech && flashcard.pronunciation && ' '}
+										{flashcard.pronunciation && <span className="italic">{flashcard.pronunciation}</span>}
+									</p>
+								)}
+								{flashcard.image && /^https?:\/\//.test(flashcard.image) && (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img src={flashcard.image} alt="" className="mx-auto mt-3 max-h-24 rounded-lg object-contain" />
 								)}
 							</div>
 						)}
@@ -224,6 +241,18 @@ function FlashcardCard({
 	);
 }
 
+interface FlashcardFormData {
+	word: string;
+	definition: string;
+	notes: string;
+	pronunciation: string;
+	partOfSpeech: string;
+	examples: string[];
+	image: string;
+	tags: string[];
+}
+
+
 function FlashcardDialog({
 	open,
 	onOpenChange,
@@ -235,13 +264,18 @@ function FlashcardDialog({
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
 	/** Rejects on failure: the dialog then shows the error and stays open. */
-	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => Promise<void>;
+	onSave: (data: FlashcardFormData) => Promise<void>;
 	/** Tags already used in this list, offered next to the exam tags. */
 	tagSuggestions?: string[];
 }) {
 	const [word, setWord] = useState('');
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
+	const [pronunciation, setPronunciation] = useState('');
+	const [partOfSpeech, setPartOfSpeech] = useState('');
+	/** One example per line. */
+	const [examples, setExamples] = useState('');
+	const [image, setImage] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [formErrors, setFormErrors] = useState<string[]>([]);
@@ -253,11 +287,19 @@ function FlashcardDialog({
 			setWord(flashcard.word);
 			setDefinition(flashcard.definition);
 			setNotes(flashcard.notes || '');
+			setPronunciation(flashcard.pronunciation || '');
+			setPartOfSpeech(flashcard.partOfSpeech || '');
+			setExamples((flashcard.examples ?? []).join('\n'));
+			setImage(flashcard.image || '');
 			setSelectedTagIds(flashcard.tags ?? []);
 		} else {
 			setWord('');
 			setDefinition('');
 			setNotes('');
+			setPronunciation('');
+			setPartOfSpeech('');
+			setExamples('');
+			setImage('');
 			setSelectedTagIds([]);
 		}
 		setFieldErrors({});
@@ -293,7 +335,16 @@ Lưu ý: ...`);
 		if (Object.keys(missing).length > 0) return;
 		setSaving(true);
 		try {
-			await onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
+			await onSave({
+				word: word.trim(),
+				definition: definition.trim(),
+				notes: notes.trim(),
+				pronunciation: pronunciation.trim(),
+				partOfSpeech: partOfSpeech.trim(),
+				examples: parseExamples(examples),
+				image: image.trim(),
+				tags: selectedTagIds,
+			});
 			onOpenChange(false);
 		} catch (err) {
 			const res = normalizeApiError(err, {
@@ -335,6 +386,32 @@ Lưu ý: ...`);
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 aria-[invalid=true]:border-destructive"
 						/>
 						<FieldError id="word" message={fieldErrors.word} className="-mt-2" />
+					</div>
+					<div className="grid gap-4 sm:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="pronunciation" className="text-slate-700 font-bold">Phát âm</Label>
+							<Input
+								id="pronunciation"
+								placeholder="VD: /ˈmɪt.ɪ.ɡeɪt/"
+								value={pronunciation}
+								onChange={(e) => setPronunciation(e.target.value)}
+								className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="part-of-speech" className="text-slate-700 font-bold">Từ loại</Label>
+							<select
+								id="part-of-speech"
+								value={partOfSpeech}
+								onChange={(e) => setPartOfSpeech(e.target.value)}
+								className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+							>
+								<option value="">Không chọn</option>
+								{partOfSpeechOptions(partOfSpeech).map((p) => (
+									<option key={p.value} value={p.value}>{p.label}</option>
+								))}
+							</select>
+						</div>
 					</div>
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
@@ -383,6 +460,32 @@ Lưu ý: ...`);
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
 						/>
 						<FieldError id="notes" message={fieldErrors.notes} className="-mt-2" />
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="examples" className="text-slate-700 font-bold">Câu ví dụ</Label>
+						<Textarea
+							id="examples"
+							placeholder={'Mỗi dòng một câu ví dụ, VD:\nPlanting trees can mitigate the effects of pollution.'}
+							value={examples}
+							onChange={(e) => setExamples(e.target.value)}
+							rows={3}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="image" className="text-slate-700 font-bold">Ảnh minh hoạ (đường dẫn)</Label>
+						<Input
+							id="image"
+							type="url"
+							placeholder="https://…"
+							value={image}
+							onChange={(e) => setImage(e.target.value)}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+						/>
+						{/^https?:\/\//.test(image.trim()) && (
+							// eslint-disable-next-line @next/next/no-img-element
+							<img src={image.trim()} alt="" className="h-24 rounded-lg border border-slate-200 object-contain" />
+						)}
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="card-tags" className="text-slate-700 font-bold">Tags</Label>
@@ -508,12 +611,7 @@ export function FlashcardListDetail() {
 		[cards],
 	);
 
-	const handleAddFlashcard = async (data: {
-		word: string;
-		definition: string;
-		notes: string;
-		tags: string[];
-	}) => {
+	const handleAddFlashcard = async (data: FlashcardFormData) => {
 		if (!currentUser) return;
 
 		try {
@@ -522,6 +620,10 @@ export function FlashcardListDetail() {
 					word: data.word,
 					definition: data.definition,
 					notes: data.notes,
+					pronunciation: data.pronunciation,
+					partOfSpeech: data.partOfSpeech,
+					examples: data.examples,
+					image: data.image,
 					tags: data.tags,
 				});
 				const fc = (res as any)?.data ?? res;
@@ -531,6 +633,10 @@ export function FlashcardListDetail() {
 					word: data.word,
 					definition: data.definition,
 					notes: data.notes,
+					pronunciation: data.pronunciation || undefined,
+					partOfSpeech: data.partOfSpeech || undefined,
+					examples: data.examples,
+					image: data.image || undefined,
 					listId,
 					tags: data.tags,
 				});

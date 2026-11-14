@@ -1,4 +1,5 @@
 import { TranslateButton } from './flashcards/TranslateButton';
+import { parseExamples, partOfSpeechOptions } from '@/lib/flashcard-fields';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
@@ -37,6 +38,10 @@ type FlashcardFormData = {
   word: string;
   definition: string;
   notes: string;
+  pronunciation: string;
+  partOfSpeech: string;
+  /** One example per line. */
+  examples: string;
   listTitle: string;
   listDescription: string;
   selectedListId: string;
@@ -103,6 +108,9 @@ const FlashcardFormModal = ({
     word: '',
     definition: '',
     notes: '',
+    pronunciation: '',
+    partOfSpeech: '',
+    examples: '',
     listTitle: '',
     listDescription: '',
     selectedListId: '',
@@ -158,7 +166,7 @@ const FlashcardFormModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { word, definition, notes, listTitle, listDescription, selectedListId, createNewList } = formData;
+    const { word, definition, notes, pronunciation, partOfSpeech, examples, listTitle, listDescription, selectedListId, createNewList } = formData;
 
     if (!currentUser || !word.trim()) {
       toast({ title: 'Vui lòng nhập từ mới!', variant: 'destructive' });
@@ -195,7 +203,9 @@ const FlashcardFormModal = ({
         word: word.trim(),
         definition: definition.trim(),
         notes: notes.trim() || undefined,
-        examples: [],
+        pronunciation: pronunciation.trim() || undefined,
+        partOfSpeech: partOfSpeech || undefined,
+        examples: parseExamples(examples),
         tags: selectedTags,
         listId,
       });
@@ -205,6 +215,9 @@ const FlashcardFormModal = ({
         word: '',
         definition: '',
         notes: '',
+        pronunciation: '',
+        partOfSpeech: '',
+        examples: '',
         listTitle: '',
         listDescription: '',
         selectedListId: listId,
@@ -309,6 +322,35 @@ const FlashcardFormModal = ({
             />
           </div>
 
+          {/* Phát âm, từ loại */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="hl-pronunciation" className="mb-1 block text-sm font-bold text-gray-800">Phát âm</label>
+              <input
+                id="hl-pronunciation"
+                type="text"
+                value={formData.pronunciation}
+                onChange={(e) => setFormData(prev => ({ ...prev, pronunciation: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none text-gray-900 shadow-sm"
+                placeholder="VD: /ˈmɪt.ɪ.ɡeɪt/"
+              />
+            </div>
+            <div>
+              <label htmlFor="hl-pos" className="mb-1 block text-sm font-bold text-gray-800">Từ loại</label>
+              <select
+                id="hl-pos"
+                value={formData.partOfSpeech}
+                onChange={(e) => setFormData(prev => ({ ...prev, partOfSpeech: e.target.value }))}
+                className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none text-gray-900 shadow-sm bg-white"
+              >
+                <option value="">Không chọn</option>
+                {partOfSpeechOptions(formData.partOfSpeech).map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* 3. Định nghĩa */}
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -325,6 +367,19 @@ const FlashcardFormModal = ({
               onChange={(e) => setFormData(prev => ({ ...prev, definition: e.target.value }))}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none min-h-[100px] resize-y text-base shadow-sm"
               placeholder="Nhập định nghĩa"
+            ></textarea>
+          </div>
+
+          {/* Câu ví dụ */}
+          <div>
+            <label htmlFor="hl-examples" className="mb-1 block text-sm font-bold text-gray-800">Câu ví dụ</label>
+            <textarea
+              id="hl-examples"
+              value={formData.examples}
+              onChange={(e) => setFormData(prev => ({ ...prev, examples: e.target.value }))}
+              rows={2}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-y text-base shadow-sm"
+              placeholder="Mỗi dòng một câu ví dụ"
             ></textarea>
           </div>
 
