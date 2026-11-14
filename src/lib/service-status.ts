@@ -6,7 +6,7 @@
 export const AI_SERVICE_OPERATIONAL = process.env.NEXT_PUBLIC_AI_SERVICE_OPERATIONAL === 'true';
 
 export const AI_SERVICE_NOTICE = {
-	title: 'Dịch vụ AI tạm thời không hoạt động',
+	title: 'Một số tính năng AI đang tạm ngưng',
 	message: 'Chấm điểm Speaking, giải thích đáp án và dịch nhanh bằng AI đang tạm ngưng. Bài Writing đã được AI chấm thật, mỗi bài mất khoảng 1–2 phút. Các tính năng khác vẫn dùng bình thường.',
-	english: 'AI features are temporarily unavailable.',
+	english: 'Some AI features are temporarily unavailable. Writing is graded by AI.',
 };

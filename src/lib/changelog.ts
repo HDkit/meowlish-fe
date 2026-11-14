@@ -35,6 +35,30 @@ export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
 
 export const RELEASES: Release[] = [
 	{
+		version: '0.11.0',
+		date: '2026-11-14',
+		title: 'AI chấm Writing & thông báo khi có người trả lời bạn',
+		summary: 'Bài Writing nay được AI chấm thật. Bạn cũng nhận được thông báo khi có người bình luận hoặc trả lời mình, cùng nhiều cải thiện nhỏ.',
+		changes: [
+			{
+				type: 'notice',
+				text: 'Bài Writing nay được AI chấm thật theo bốn tiêu chí của IELTS, kèm nhận xét chi tiết. Mỗi bài mất khoảng 1–2 phút; khi nhiều người nộp cùng lúc, bạn có thể phải chờ lâu hơn một chút. Chấm Speaking, giải thích đáp án và dịch nhanh trong bài thi bằng AI vẫn đang tạm ngưng.',
+			},
+			{ type: 'new', text: 'Nhận thông báo khi có người bình luận bài blog của bạn, trả lời bình luận của bạn hoặc trả lời chủ đề bạn mở trên diễn đàn. Bật hoặc tắt từng loại trong trang Cài đặt.' },
+			{ type: 'new', text: 'Nút "Dịch nghĩa" khi tạo flashcard (kể cả khi bôi đen chữ trong bài thi): nghĩa tiếng Việt được thêm vào sau phần bạn đã viết, không ghi đè.' },
+			{ type: 'new', text: 'Bộ sưu tập danh hiệu trên trang cá nhân: huy chương đồng, bạc, vàng và kim cương, kèm tiến độ tới danh hiệu tiếp theo.' },
+			{ type: 'improved', text: 'Ôn tập flashcard: khi xem thẻ đã lưu, ô trả lời trượt sang trái và thẻ hiện ra bên phải một cách mượt mà.' },
+			{ type: 'improved', text: 'Bản đồ hoạt động dễ nhìn hơn: ngày chưa luyện tập có màu xám nhạt, ngày có luyện tập màu xanh rõ hơn.' },
+			{ type: 'improved', text: 'Bộ lọc chủ đề trong Blog hiện đủ mọi chủ đề ngay từ đầu, không còn thay đổi khi chuyển trang.' },
+			{ type: 'improved', text: 'Danh sách đề thi và bộ flashcard có số trang, và giữ đúng trang khi bạn quay lại.' },
+			{ type: 'improved', text: 'Thêm nhiều bài blog, bộ flashcard công khai và phòng chat để khám phá.' },
+			{ type: 'fixed', text: 'Tìm phòng chat theo tên nay tìm trong tất cả các phòng, và nút trang trước/sau giữ nguyên kết quả tìm kiếm.' },
+			{ type: 'fixed', text: 'Danh hiệu "Nhà khám phá" và "Chú ong chăm chỉ" (14 ngày) nay được trao đúng. Nếu bạn đã đủ điều kiện, bạn sẽ nhận ở lần đăng nhập tiếp theo.' },
+			{ type: 'fixed', text: 'Ôn tập flashcard không còn giữ lại câu trả lời của thẻ trước khi sang thẻ mới.' },
+			{ type: 'fixed', text: 'Thanh bên khi thu gọn nay cuộn được trên màn hình thấp.' },
+		],
+	},
+	{
 		version: '0.10.0',
 		date: '2026-11-14',
 		title: 'Diễn đàn, ôn tập flashcard & trang Tiến độ mới',
