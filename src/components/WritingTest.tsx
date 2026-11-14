@@ -23,6 +23,8 @@ import type { SectionDataDto } from '@/lib/api/models/SectionDataDto';
 /* ─────────────────────── Types ─────────────────────── */
 
 interface WritingEvaluationResult {
+	/** The AI scorer could not grade the essay. */
+	failed?: boolean;
 	overall_score: number;
 	sub_scores?: Record<string, number>;
 	detailed_feedback?: string;
@@ -61,6 +63,15 @@ function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 		// the backend stores the scorer's result as a JSON string inside JSON: decode both layers
 		if (typeof parsed === 'string') parsed = JSON.parse(parsed);
 		if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+		// the backend stores a scorer failure as { status: 'error', error_code, ... }
+		if ('status' in parsed && parsed.status === 'error') {
+			return {
+				overall_score: 0,
+				failed: true,
+				detailed_feedback: 'AI chưa chấm được bài viết này. Bài viết chưa được tính điểm; bạn có thể nộp lại sau.',
+				additionalData,
+			};
+		}
 		return { ...(parsed as WritingEvaluationResult), additionalData };
 	} catch {
 		return {
@@ -211,7 +222,8 @@ export function WritingTest() {
 
 			if (reviewResult) {
 				setResults(reviewResult);
-				toast.success('Chấm bài thành công!');
+				if (reviewResult.failed) toast.warning('AI chưa chấm được bài viết này.');
+				else toast.success('Chấm bài thành công!');
 			} else {
 				toast.warning('Bài đã được nộp nhưng chưa nhận được kết quả. Vui lòng kiểm tra lại trong Lịch sử.');
 				setResults({
@@ -379,7 +391,7 @@ export function WritingTest() {
 							<CardHeader className="bg-primary/10">
 								<div className="flex items-center justify-between">
 									<CardTitle className="text-xl">Điểm & nhận xét chung</CardTitle>
-									{results.overall_score > 0 && (
+									{results.additionalData && !results.failed && (
 										<div className="px-4 py-2 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md">
 											{results.overall_score}
 										</div>

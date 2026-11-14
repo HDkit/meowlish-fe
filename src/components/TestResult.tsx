@@ -33,11 +33,23 @@ type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
 /** Canonical writing-feedback shape used throughout this file */
 type WritingFeedback = {
 	overall_score: number;
+	/** The AI scorer could not grade this essay (the backend stored its failure). */
+	failed?: boolean;
 	sub_scores?: Record<string, number>;
 	detailed_feedback?: string;
 	corrected_version?: string;
 	corrections?: Array<{ type: string; original: string; corrected: string; explanation: string }>;
 };
+
+/** Plain-language note for an essay the AI could not grade (codes from the scorer). */
+function scoringFailureMessage(code: unknown): string {
+	const reason =
+		code === 'LLM_TIMEOUT' ? 'hệ thống chấm bài phản hồi quá chậm'
+		: code === 'LLM_PARSE_ERROR' ? 'AI không đưa ra được điểm rõ ràng'
+		: code === 'VALIDATION_ERROR' ? 'bài làm không hợp lệ để chấm'
+		: 'đã có lỗi khi chấm';
+	return `AI chưa chấm được bài viết này (${reason}). Bài viết chưa được tính điểm; bạn có thể làm lại đề sau.`;
+}
 
 /**
  * Parse `additionalData` from the BE and normalise it to `WritingFeedback`.
@@ -71,7 +83,8 @@ function parseWritingFeedback(additionalData: string | null | undefined): Writin
 			// Grading completed with a failure — surface error message, stop polling
 			return {
 				overall_score: 0,
-				detailed_feedback: `Chấm bài thất bại: ${obj.error_message ?? obj.error_code ?? 'Lỗi không xác định'}`,
+				failed: true,
+				detailed_feedback: scoringFailureMessage(obj.error_code),
 			};
 		}
 		if (obj.status === 'success' && obj.data && typeof obj.data === 'object') {
@@ -414,7 +427,7 @@ export function TestResult() {
 		for (const { q } of flatQuestions) {
 			const res = reviewData.responses?.find((r) => r.questionId === q.id);
 			const fb = parseWritingFeedback(res?.additionalData);
-			if (fb && fb.overall_score > 0) {
+			if (fb && !fb.failed) {
 				totalScore += fb.overall_score;
 				count++;
 			}
@@ -882,9 +895,10 @@ function WritingFeedbackSection({
 								<div className='font-bold text-slate-800 text-lg'>
 									{item.sectionName || item.q.content || `Task ${idx + 1}`}
 								</div>
-								{fb && fb.overall_score > 0 && (
+								{fb && !fb.failed && (
 									<div className='text-sm text-emerald-600 font-bold mt-0.5'>Band {fb.overall_score.toFixed(1)}</div>
 								)}
+								{fb?.failed && <div className='text-sm text-amber-700 font-bold mt-0.5'>Chưa chấm được</div>}
 							</div>
 							<ChevronDown
 								className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -894,7 +908,7 @@ function WritingFeedbackSection({
 						{isExpanded && (
 							<div className='px-6 pb-6 space-y-6 border-t border-slate-100 pt-5'>
 								{/* Score overview */}
-								{fb && fb.overall_score > 0 && (
+								{fb && !fb.failed && (
 									<div className='flex flex-wrap gap-3'>
 										<div className='px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200'>
 											<div className='text-xs font-bold text-emerald-600 uppercase tracking-wider'>Điểm tổng</div>
@@ -1255,7 +1269,7 @@ function DetailedAnalysis({
 													<h4 className='font-bold text-slate-800'>
 														{item.sectionName || 'Writing'}
 													</h4>
-													{fb && fb.overall_score > 0 && (
+													{fb && !fb.failed && (
 														<span className='ml-auto text-sm font-bold text-emerald-600'>
 															Band {fb.overall_score.toFixed(1)}
 														</span>
@@ -1280,7 +1294,7 @@ function DetailedAnalysis({
 													</div>
 												)}
 
-												{fb && fb.overall_score > 0 && (
+												{fb && !fb.failed && (
 													<div className='flex flex-wrap gap-3'>
 														<div className='px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200'>
 															<div className='text-xs font-bold text-emerald-600 uppercase tracking-wider'>Điểm tổng</div>
