@@ -1,362 +1,272 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-	FilePlus, Search, FileEdit, Trash2, Clock, CheckCircle,
-	AlertCircle, FileText, Filter, Eye, RefreshCw,
+	CheckCircle2,
+	ClipboardList,
+	Clock,
+	Eye,
+	FileEdit,
+	FilePlus,
+	FileText,
+	Play,
+	RefreshCw,
+	Trash2,
+	X,
+	XCircle,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from './ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { ExamManagementService, SortOptionsDto, getAccessToken, getRefreshToken } from '@/lib/api-client';
+import { ExamManagementService } from '@/lib/api-client';
+import { normalizeApiError } from '@/lib/api-errors';
+import { EXAM_STATUSES, examStatusMeta, formatDate, matchesSearch, paginate } from '@/lib/admin';
+import {
+	AccessDenied,
+	AdminFilterSelect,
+	AdminPageHeader,
+	AdminPagination,
+	AdminSearchInput,
+	AdminStatCard,
+	AdminStatGrid,
+	AdminToolbar,
+	ConfirmDialog,
+	DataTable,
+	RowActions,
+	StatusBadge,
+	useIdentityNames,
+	type DataColumn,
+	IdentityNameText,
+} from './admin';
+import { loadManagedExams, type ManagedExam } from './admin/exams';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-	EMPTY: {
-		label: 'Bản nháp',
-		color: 'bg-gray-100 text-gray-600 border-gray-200',
-		icon: <FileText className="h-3 w-3" />,
-	},
-	PENDING: {
-		label: 'Chờ duyệt',
-		color: 'bg-orange-100 text-orange-700 border-orange-200',
-		icon: <Clock className="h-3 w-3" />,
-	},
-	REJECTED: {
-		label: 'Cần sửa',
-		color: 'bg-red-100 text-red-700 border-red-200',
-		icon: <AlertCircle className="h-3 w-3" />,
-	},
-	APPROVED: {
-		label: 'Đã xuất bản',
-		color: 'bg-green-100 text-green-700 border-green-200',
-		icon: <CheckCircle className="h-3 w-3" />,
-	},
-};
+const PAGE_SIZE = 20;
 
-interface ExamItem {
-	id: string;
-	title: string;
-	description?: string;
-	status: string;
-	testType?: string;
-	skill?: string;
-	difficulty?: string;
-	duration?: number;
-	createdAt?: string;
-	createdBy?: string;
-	rejectionReason?: string;
-}
+const STATUS_OPTIONS = [
+	{ value: 'all', label: 'Mọi trạng thái' },
+	...Object.entries(EXAM_STATUSES).map(([value, m]) => ({ value: value, label: m.label })),
+];
 
 export function ExamManagementPage() {
 	const router = useRouter();
 	const { toast } = useToast();
 	const { currUser, isMod, isStaff, isHeadStaff } = useAuth();
+	const allowed = Boolean(currUser) && (isMod || isStaff || isHeadStaff);
 
-	const [allExams, setAllExams] = useState<ExamItem[]>([]);
+	const [exams, setExams] = useState<ManagedExam[]>([]);
+	const [complete, setComplete] = useState(true);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState<string[]>([]);
 	const [search, setSearch] = useState('');
-	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const [status, setStatus] = useState('all');
+	// Admins see every exam; mods/staff only theirs (an admin can narrow to theirs too).
+	const [scope, setScope] = useState<'all' | 'mine'>('all');
+	const [page, setPage] = useState(1);
+	const [toDelete, setToDelete] = useState<ManagedExam | null>(null);
 
-	const hasApiSession = () => Boolean(getAccessToken() || getRefreshToken());
+	const onlyMine = !isHeadStaff || scope === 'mine';
+	// Only the first load shows placeholders; a refetch keeps the current numbers on screen.
+	const firstLoad = loading && exams.length === 0;
 
 	const fetchExams = useCallback(async () => {
-		if (!hasApiSession()) {
-			setAllExams([]);
-			setLoading(false);
-			toast({
-				title: 'Thiếu phiên backend',
-				description: 'Hãy đăng xuất rồi đăng nhập lại để lấy token backend trước khi quản lý đề thi.',
-				variant: 'destructive',
-			});
-			return;
-		}
-
+		if (!allowed || !currUser) return;
 		setLoading(true);
+		setLoadError([]);
 		try {
-			const res = await ExamManagementService.examManagementGatewayControllerFindExamsV1(
-				undefined,
-				undefined,
-				100,
-				{ key: SortOptionsDto.key.CREATED_AT, direction: SortOptionsDto.direction.DESC },
-			);
-			setAllExams(res.data?.exams ?? []);
+			const res = await loadManagedExams(onlyMine ? { createdBy: currUser.id } : {});
+			setExams(res.items);
+			setComplete(res.complete);
 		} catch (err) {
-			console.warn('ExamManagement: failed to load exams', err);
-			toast({ title: 'Lỗi tải dữ liệu', description: 'Không thể tải danh sách đề thi.', variant: 'destructive' });
+			setLoadError(normalizeApiError(err, { fallback: 'Không thể tải danh sách đề thi' }).messages);
 		} finally {
 			setLoading(false);
 		}
-	}, [toast]);
+	}, [allowed, currUser, onlyMine]);
 
 	useEffect(() => {
-		if (currUser) fetchExams();
-	}, [currUser, fetchExams]);
+		void fetchExams();
+	}, [fetchExams]);
 
-	// head_staff sees all exams; staff/mod only their own
-	const staffExams = (isStaff || isMod) && !isHeadStaff
-		? allExams.filter(e => e.createdBy === currUser?.id)
-		: allExams;
+	useEffect(() => setPage(1), [search, status, scope]);
 
-	const filtered = staffExams.filter(e => {
-		const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase()) ||
-			e.description?.toLowerCase().includes(search.toLowerCase());
-		const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
-		return matchesSearch && matchesStatus;
-	});
+	const names = useIdentityNames(isHeadStaff ? exams.map((e) => e.createdBy) : []);
 
-	const stats = {
-		total: staffExams.length,
-		draft: staffExams.filter(e => e.status === 'EMPTY').length,
-		pending: staffExams.filter(e => e.status === 'PENDING').length,
-		needsRevision: staffExams.filter(e => e.status === 'REJECTED').length,
-		published: staffExams.filter(e => e.status === 'APPROVED').length,
+	const counts = useMemo(() => {
+		const by = (s: string) => exams.filter((e) => e.status === s).length;
+		return { total: exams.length, PENDING: by('PENDING'), REJECTED: by('REJECTED'), APPROVED: by('APPROVED') };
+	}, [exams]);
+
+	const filtered = useMemo(
+		() =>
+			exams.filter(
+				(e) =>
+					(status === 'all' || e.status === status) &&
+					matchesSearch(search, e.title, e.id, e.createdBy && names[e.createdBy]?.name),
+			),
+		[exams, status, search, names],
+	);
+	const paged = paginate(filtered, page, PAGE_SIZE);
+
+	if (!allowed) return <AccessDenied description="Trang này dành cho người soạn đề và quản trị viên." />;
+
+	const edit = (e: ManagedExam) => router.push(`/exam-creation?id=${e.id}`);
+	const remove = async (e: ManagedExam) => {
+		await ExamManagementService.examManagementGatewayControllerDeleteExamV1(e.id);
+		setExams((prev) => prev.filter((x) => x.id !== e.id));
+		toast({ title: 'Đã xóa đề thi', description: e.title });
 	};
 
-	const handleEdit = (exam: ExamItem) => {
-		router.push(`/exam-creation?id=${exam.id}`);
-	};
+	const toggleStatus = (s: string) => setStatus((cur) => (cur === s ? 'all' : s));
+	const hasFilters = Boolean(search) || status !== 'all';
 
-	const handleDelete = async (examId: string) => {
-		if (!hasApiSession()) {
-			toast({ title: 'Thiếu phiên backend', description: 'Hãy đăng nhập lại trước khi xóa đề thi.', variant: 'destructive' });
-			return;
-		}
-		try {
-			await ExamManagementService.examManagementGatewayControllerDeleteExamV1(examId);
-			setAllExams(prev => prev.filter(e => e.id !== examId));
-			toast({ title: 'Đã xóa đề thi', description: 'Đề thi đã được xóa thành công.' });
-		} catch (err) {
-			console.error('Failed to delete exam', err);
-			toast({ title: 'Xóa thất bại', description: 'Không thể xóa đề thi này.', variant: 'destructive' });
-		}
-	};
+	const columns: DataColumn<ManagedExam>[] = [
+		{
+			id: 'title',
+			header: 'Đề thi',
+			cell: (e) => (
+				<div className="min-w-0 max-w-md">
+					<p className="line-clamp-2 font-medium text-foreground [overflow-wrap:anywhere]">{e.title || 'Chưa đặt tên'}</p>
+					<p className="mt-0.5 font-mono text-xs text-muted-foreground">#{e.id.slice(0, 8)}</p>
+				</div>
+			),
+		},
+		...(isHeadStaff
+			? [
+					{
+						id: 'creator',
+						header: 'Người tạo',
+						className: 'hidden lg:table-cell',
+						cell: (e: ManagedExam) =>
+							e.createdBy === currUser?.id ? (
+								<span className="text-muted-foreground">Bạn</span>
+							) : (
+								<span className="text-muted-foreground"><IdentityNameText id={e.createdBy} names={names} /></span>
+							),
+					},
+				]
+			: []),
+		{ id: 'status', header: 'Trạng thái', cell: (e) => <StatusBadge meta={examStatusMeta(e.status)} /> },
+		{
+			id: 'created',
+			header: 'Ngày tạo',
+			className: 'hidden md:table-cell whitespace-nowrap',
+			cell: (e) => <span className="tabular-nums text-muted-foreground">{formatDate(e.createdAt)}</span>,
+		},
+		{
+			id: 'updated',
+			header: 'Cập nhật',
+			className: 'hidden xl:table-cell whitespace-nowrap',
+			cell: (e) => <span className="tabular-nums text-muted-foreground">{formatDate(e.updatedAt, true)}</span>,
+		},
+	];
 
 	return (
-		<div className="min-h-screen bg-background">
-
-			{/* ── Hero Header ── */}
-			<div className="relative overflow-hidden bg-primary text-white">
-				<div className="absolute inset-0 bg-black/10" />
-				<div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-				<div className="relative px-6 py-8">
-					<div className="flex items-center justify-between">
-						<div>
-							<h1 className="text-2xl font-bold">Quản lý đề thi</h1>
-							<p className="text-primary-foreground/80 mt-1 text-sm">Tạo, chỉnh sửa và theo dõi trạng thái phê duyệt đề thi</p>
-						</div>
-						<div className="flex items-center gap-2">
-							<Button
-								onClick={fetchExams}
-								variant="ghost"
-								className="text-white hover:bg-white/20 border-0"
-								size="sm"
-								disabled={loading}
-							>
-								<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-							</Button>
-							<Button
-								onClick={() => router.push('/exam-creation')}
-								className="bg-white text-primary hover:bg-primary/10 font-semibold shadow border-0"
-							>
-								<FilePlus className="h-4 w-4 mr-2" />
-								Tạo đề mới
-							</Button>
-						</div>
-					</div>
-
-					{/* Stats row */}
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-						{[
-							{ label: 'Tổng đề', value: stats.total, color: 'bg-white/20' },
-							{ label: 'Chờ duyệt', value: stats.pending, color: 'bg-orange-400/30' },
-							{ label: 'Cần sửa', value: stats.needsRevision, color: 'bg-red-400/30' },
-							{ label: 'Đã xuất bản', value: stats.published, color: 'bg-green-400/30' },
-						].map(({ label, value, color }) => (
-							<div key={label} className={`${color} backdrop-blur-sm rounded-xl px-4 py-3 text-center`}>
-								<div className="text-2xl font-bold">{value}</div>
-								<div className="text-xs text-primary-foreground/80 mt-0.5">{label}</div>
-							</div>
-						))}
-					</div>
-				</div>
-			</div>
-
-			{/* ── Content ── */}
-			<div className="px-6 py-6 max-w-6xl mx-auto">
-
-				{/* Filter Bar */}
-				<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5 flex gap-3 items-center flex-wrap">
-					<div className="relative flex-1 min-w-[200px]">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-						<Input
-							value={search}
-							onChange={e => setSearch(e.target.value)}
-							placeholder="Tìm kiếm đề thi..."
-							className="pl-9 bg-gray-50 border-gray-200"
-						/>
-					</div>
-					<div className="flex items-center gap-2">
-						<Filter className="h-4 w-4 text-gray-400" />
-						<Select value={statusFilter} onValueChange={setStatusFilter}>
-							<SelectTrigger className="w-40 bg-gray-50 border-gray-200">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent className="bg-white border border-gray-200 shadow-lg z-[200]">
-								<SelectItem value="all" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Tất cả trạng thái</SelectItem>
-								<SelectItem value="EMPTY" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Bản nháp</SelectItem>
-								<SelectItem value="PENDING" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Chờ duyệt</SelectItem>
-								<SelectItem value="REJECTED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Cần sửa</SelectItem>
-								<SelectItem value="APPROVED" className="text-gray-900 hover:bg-gray-100 cursor-pointer">Đã xuất bản</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-					<span className="text-sm text-gray-400">{filtered.length} đề thi</span>
-				</div>
-
-				{/* Exam Table */}
-				{loading ? (
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
-						<RefreshCw className="h-8 w-8 text-primary/80 mx-auto mb-4 animate-spin" />
-						<p className="text-gray-500 font-medium">Đang tải danh sách đề thi...</p>
-					</div>
-				) : filtered.length === 0 ? (
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
-						<FileText className="h-12 w-12 text-gray-200 mx-auto mb-4" />
-						<p className="text-gray-500 font-medium">Chưa có đề thi nào</p>
-						<p className="text-gray-400 text-sm mt-1">Nhấn "Tạo đề mới" để bắt đầu</p>
-						<Button
-							onClick={() => router.push('/exam-creation')}
-							className="mt-4 bg-primary text-white border-0"
-						>
-							<FilePlus className="h-4 w-4 mr-2" />
-							Tạo đề thi đầu tiên
+		<div className="space-y-5">
+			<AdminPageHeader
+				icon={ClipboardList}
+				title="Quản lý đề thi"
+				description={
+					isHeadStaff
+						? 'Mọi đề thi trên hệ thống: soạn, theo dõi trạng thái duyệt và xóa đề.'
+						: 'Đề thi bạn đã tạo: soạn tiếp, gửi duyệt và theo dõi trạng thái.'
+				}
+				actions={
+					<>
+						<Button variant="outline" size="sm" onClick={() => void fetchExams()} disabled={loading}>
+							<RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+							Làm mới
 						</Button>
-					</div>
-				) : (
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-						<table className="w-full text-sm">
-							<thead>
-								<tr className="border-b border-gray-100 bg-gray-50">
-									<th className="text-left px-5 py-3 font-semibold text-gray-600">Tên đề thi</th>
-									<th className="text-left px-4 py-3 font-semibold text-gray-600">Trạng thái</th>
-									<th className="text-right px-5 py-3 font-semibold text-gray-600">Thao tác</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-gray-50">
-								{filtered.map(exam => {
-									const statusCfg = STATUS_CONFIG[exam.status] ?? STATUS_CONFIG['EMPTY'];
-									const canEdit = exam.status !== 'APPROVED';
-									return (
-										<tr
-											key={exam.id}
-											className="hover:bg-primary/5 transition-colors group"
-										>
-											{/* Title */}
-											<td className="px-5 py-4">
-												<button
-													className="text-left w-full"
-													onClick={() => handleEdit(exam)}
-												>
-													<p className="font-semibold text-gray-800 group-hover:text-primary transition-colors flex items-center gap-1.5">
-														{exam.title}
-													</p>
-													{exam.description && (
-														<p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{exam.description}</p>
-													)}
-													{exam.status === 'REJECTED' && exam.rejectionReason && (
-														<p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-															<AlertCircle className="h-3 w-3 shrink-0" />
-															{exam.rejectionReason}
-														</p>
-													)}
-												</button>
-											</td>
+						<Button size="sm" onClick={() => router.push('/exam-creation')}>
+							<FilePlus className="mr-1.5 h-4 w-4" />
+							Tạo đề mới
+						</Button>
+					</>
+				}
+			>
+				<AdminStatGrid>
+					<AdminStatCard label="Tất cả" value={counts.total} icon={FileText} loading={firstLoad} active={status === 'all'} onClick={() => setStatus('all')} />
+					<AdminStatCard label="Chờ duyệt" value={counts.PENDING} icon={Clock} tone="warning" loading={firstLoad} active={status === 'PENDING'} onClick={() => toggleStatus('PENDING')} />
+					<AdminStatCard label="Cần sửa" value={counts.REJECTED} icon={XCircle} tone="danger" loading={firstLoad} active={status === 'REJECTED'} onClick={() => toggleStatus('REJECTED')} />
+					<AdminStatCard label="Đã xuất bản" value={counts.APPROVED} icon={CheckCircle2} tone="success" loading={firstLoad} active={status === 'APPROVED'} onClick={() => toggleStatus('APPROVED')} />
+				</AdminStatGrid>
+			</AdminPageHeader>
 
-											{/* Status */}
-											<td className="px-4 py-4 align-middle">
-												<span className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border w-[110px] ${statusCfg.color}`}>
-													{statusCfg.icon}
-													{statusCfg.label}
-												</span>
-											</td>
-
-											{/* Actions */}
-											<td className="px-5 py-4 align-middle">
-												<div className="flex items-center justify-end gap-2">
-													{canEdit ? (
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => handleEdit(exam)}
-															className="w-[100px] justify-center text-primary border-primary/30 hover:bg-primary/10 h-8 px-3"
-														>
-															<FileEdit className="h-3.5 w-3.5 mr-1.5" />
-															Chỉnh sửa
-														</Button>
-													) : (
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => handleEdit(exam)}
-															className="w-[100px] justify-center text-gray-600 border-gray-200 hover:bg-gray-50 h-8 px-3"
-														>
-															<Eye className="h-3.5 w-3.5 mr-1.5" />
-															Xem
-														</Button>
-													)}
-													{exam.status === 'APPROVED' && (
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => router.push(`/test/${exam.id}`)}
-															className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-8 px-3"
-														>
-															<Eye className="h-3.5 w-3.5 mr-1.5" />
-															Xem thử
-														</Button>
-													)}
-													<AlertDialog>
-														<AlertDialogTrigger asChild>
-															<Button
-																size="sm"
-																variant="ghost"
-																className="text-red-400 hover:text-red-600 hover:bg-red-50 h-8 px-2"
-															>
-																<Trash2 className="h-3.5 w-3.5" />
-															</Button>
-														</AlertDialogTrigger>
-														<AlertDialogContent className="bg-white">
-															<AlertDialogHeader>
-																<AlertDialogTitle>Xóa đề thi?</AlertDialogTitle>
-																<AlertDialogDescription>
-																	Đề thi "<strong>{exam.title}</strong>" sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
-																</AlertDialogDescription>
-															</AlertDialogHeader>
-															<AlertDialogFooter>
-																<AlertDialogCancel>Hủy</AlertDialogCancel>
-																<AlertDialogAction
-																	onClick={() => handleDelete(exam.id)}
-																	className="bg-red-500 hover:bg-red-600 text-white"
-																>
-																	Xóa
-																</AlertDialogAction>
-															</AlertDialogFooter>
-														</AlertDialogContent>
-													</AlertDialog>
-												</div>
-											</td>
-										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
+			<AdminToolbar summary={!firstLoad && `${filtered.length} đề thi`}>
+				<AdminSearchInput value={search} onChange={setSearch} placeholder="Tìm theo tên đề, mã đề…" />
+				<AdminFilterSelect label="Trạng thái" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+				{isHeadStaff && (
+					<AdminFilterSelect
+						label="Người tạo"
+						value={scope}
+						onChange={(v) => setScope(v as 'all' | 'mine')}
+						options={[
+							{ value: 'all', label: 'Mọi người tạo' },
+							{ value: 'mine', label: 'Đề của tôi' },
+						]}
+					/>
 				)}
-			</div>
+				{hasFilters && (
+					<Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatus('all'); }}>
+						<X className="mr-1 h-4 w-4" />
+						Xóa lọc
+					</Button>
+				)}
+			</AdminToolbar>
+
+			{!complete && (
+				<p className="text-sm text-muted-foreground">Danh sách quá dài nên chỉ hiển thị một phần; dùng bộ lọc để thu hẹp.</p>
+			)}
+
+			<DataTable
+				caption="Danh sách đề thi"
+				columns={columns}
+				rows={paged.items}
+				rowKey={(e) => e.id}
+				loading={loading}
+				error={loadError}
+				onRetry={() => void fetchExams()}
+				onRowClick={edit}
+				empty={
+					hasFilters
+						? { icon: FileText, title: 'Không có đề thi phù hợp', description: 'Thử từ khóa khác hoặc bỏ bộ lọc.' }
+						: {
+								icon: FileText,
+								title: 'Chưa có đề thi nào',
+								description: 'Tạo đề đầu tiên rồi thêm phần thi và câu hỏi.',
+								action: (
+									<Button size="sm" onClick={() => router.push('/exam-creation')}>
+										<FilePlus className="mr-1.5 h-4 w-4" />
+										Tạo đề mới
+									</Button>
+								),
+							}
+				}
+				rowActions={(e) => (
+					<RowActions
+						label={e.title}
+						actions={[
+							e.status === 'APPROVED'
+								? { label: 'Xem trong trình soạn', icon: Eye, onSelect: () => edit(e) }
+								: { label: 'Chỉnh sửa', icon: FileEdit, onSelect: () => edit(e) },
+							{ label: 'Làm thử', icon: Play, hidden: e.status !== 'APPROVED', onSelect: () => router.push(`/test/${e.id}`) },
+							{ label: 'Xóa đề thi', icon: Trash2, destructive: true, onSelect: () => setToDelete(e) },
+						]}
+					/>
+				)}
+			/>
+
+			<AdminPagination page={paged.page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} itemLabel="đề thi" />
+
+			<ConfirmDialog
+				open={Boolean(toDelete)}
+				onOpenChange={(o) => !o && setToDelete(null)}
+				destructive
+				title="Xóa đề thi?"
+				description={toDelete ? `"${toDelete.title}" cùng mọi phần thi và câu hỏi sẽ bị xóa vĩnh viễn.` : undefined}
+				confirmLabel="Xóa đề thi"
+				onConfirm={() => (toDelete ? remove(toDelete) : undefined)}
+			/>
 		</div>
 	);
 }

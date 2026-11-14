@@ -10,6 +10,8 @@ import type { QuestionReviewDto } from '@/lib/api/models/QuestionReviewDto';
 import type { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
 
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { QuestionCard } from './QuestionCard';
 
 type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
@@ -171,9 +173,37 @@ export function TestResultDetail() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-			</div>
+			<LoadingRegion label="Đang tải đáp án…" className="min-h-screen bg-white">
+				<div className="border-b border-slate-200">
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+						<Skeleton className="h-8 w-56 bg-slate-100" />
+						<div className="flex gap-2">
+							{Array.from({ length: 4 }, (_, i) => (
+								<Skeleton key={i} className="h-9 w-20 rounded-xl bg-slate-100" />
+							))}
+						</div>
+					</div>
+				</div>
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 items-start">
+					<div className="space-y-8">
+						{Array.from({ length: 3 }, (_, i) => (
+							<div key={i} className="space-y-4 border-b border-slate-200 pb-8">
+								<div className="flex items-center gap-3">
+									<Skeleton className="size-9 rounded-full bg-slate-100" />
+									<Skeleton className="h-4 w-16 bg-slate-100" />
+								</div>
+								<Skeleton className="h-4 w-3/4 bg-slate-100" />
+								<div className="space-y-2">
+									{Array.from({ length: 4 }, (_, j) => (
+										<Skeleton key={j} className="h-11 w-full rounded-xl bg-slate-100" />
+									))}
+								</div>
+							</div>
+						))}
+					</div>
+					<Skeleton className="hidden h-72 w-full rounded-2xl bg-slate-100 xl:block" />
+				</div>
+			</LoadingRegion>
 		);
 	}
 

@@ -25,6 +25,8 @@ import type { SectionReviewDto } from '@/lib/api/models/SectionReviewDto';
 import { useAppSelector } from '@/lib/store/hooks';
 
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 
 type QuestionStatus = 'correct' | 'incorrect' | 'skipped' | 'manual';
 
@@ -439,11 +441,11 @@ export function TestResult() {
 		return () => clearInterval(timer);
 	}, [isPendingGrading]);
 
-	// Poll for results every 5 s (max 3 min = 36 attempts)
+	// Poll for results every 5 s (max 5 min = 60 attempts; the mock scorer takes 1-3 min)
 	useEffect(() => {
 		if (!isPendingGrading || !id || pollingTimedOut) return;
 		let count = 0;
-		const MAX_POLLS = 36;
+		const MAX_POLLS = 60;
 
 		const intervalId = setInterval(async () => {
 			count++;
@@ -519,10 +521,34 @@ export function TestResult() {
 
 	if (loading) {
 		return (
-			<div className='flex flex-col items-center justify-center min-h-screen bg-slate-50'>
-				<div className='w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin' />
-				<p className='mt-4 text-slate-600 font-medium'>Đang tải kết quả...</p>
-			</div>
+			<LoadingRegion label='Đang tải kết quả…' className='min-h-screen bg-slate-50 pb-20'>
+				<div className='relative mb-8 overflow-hidden bg-primary pt-6 pb-16'>
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+						<Skeleton className='mb-6 h-9 w-24 bg-white/20' />
+						<div className='flex flex-col items-center justify-between gap-8 md:flex-row md:items-start'>
+							<div className='flex w-full flex-1 flex-col items-center gap-4 md:items-start'>
+								<Skeleton className='h-8 w-40 rounded-full bg-white/20' />
+								<Skeleton className='h-12 w-3/4 bg-white/25' />
+								<Skeleton className='h-6 w-64 max-w-full bg-white/20' />
+							</div>
+							<Skeleton className='h-36 w-56 shrink-0 rounded-3xl bg-white/15' />
+						</div>
+					</div>
+				</div>
+				<div className='relative z-20 mx-auto -mt-10 max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8'>
+					<div className='grid grid-cols-2 gap-4 md:grid-cols-4'>
+						{Array.from({ length: 4 }, (_, i) => (
+							<div key={i} className='flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm'>
+								<Skeleton className='size-12 rounded-full bg-slate-100' />
+								<Skeleton className='h-4 w-16 bg-slate-100' />
+								<Skeleton className='h-7 w-20 bg-slate-100' />
+							</div>
+						))}
+					</div>
+					<Skeleton className='h-64 w-full rounded-2xl bg-white shadow-sm ring-1 ring-slate-200' />
+				</div>
+			</LoadingRegion>
 		);
 	}
 
@@ -730,7 +756,7 @@ export function TestResult() {
 				</div>
 			}
 
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 -mt-10 relative z-20'>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 motion-reduce:animate-none -mt-10 relative z-20'>
 				{/* Stats */}
 				<div className={`grid gap-4 ${isWritingTest ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
 					<div className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1'>
@@ -1009,14 +1035,22 @@ function DetailedAnalysis({
 		[reviewData],
 	);
 
+	/**
+	 * One panel open at a time: opening a question closes the previous one (and clicking the open
+	 * one closes it). Details load once; a slow load never clears another question's spinner.
+	 */
 	const fetchDetail = useCallback(
 		async (qId: string) => {
-			if (detailCache[qId]) {
-				setExpandedQ((prev) => (prev === qId ? null : qId));
-				return;
+			const opening = expandedQ !== qId;
+			setExpandedQ(opening ? qId : null);
+			if (opening) {
+				// the panel above may have just collapsed; keep the opened question in view
+				requestAnimationFrame(() =>
+					document.getElementById(`q-detail-${qId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+				);
 			}
+			if (!opening || detailCache[qId]) return;
 			setDetailLoading(qId);
-			setExpandedQ(qId);
 			try {
 				const res = await ExamPracticeService.examPracticeGatewayControllerGetDetailedQuestionInfoV1(qId);
 				if (res.data) {
@@ -1025,16 +1059,19 @@ function DetailedAnalysis({
 			} catch (err) {
 				console.error('Failed to load question detail:', err);
 			} finally {
-				setDetailLoading(null);
+				setDetailLoading((prev) => (prev === qId ? null : prev));
 			}
 		},
-		[detailCache],
+		[detailCache, expandedQ],
 	);
 
 	const tagAnalysis = useMemo(() => {
 		const filtered = analysisPart === 'overview' ? flatQuestions : flatQuestions.filter((x) => x.part === analysisPart);
 
-		const byTag = new Map<string, { correct: number; incorrect: number; skipped: number; questions: number[] }>();
+		const byTag = new Map<
+			string,
+			{ correct: number; incorrect: number; skipped: number; questions: { n: number; st: string }[] }
+		>();
 
 		for (const item of filtered) {
 			const st = questionStatusById.get(item.q.id) || 'skipped';
@@ -1043,20 +1080,26 @@ function DetailedAnalysis({
 			for (const tag of tags) {
 				if (!byTag.has(tag)) byTag.set(tag, { correct: 0, incorrect: 0, skipped: 0, questions: [] });
 				const entry = byTag.get(tag)!;
-				entry.questions.push(item.globalIndex);
+				entry.questions.push({ n: item.globalIndex, st: st });
 				if (st === 'correct') entry.correct++;
 				else if (st === 'incorrect') entry.incorrect++;
 				else entry.skipped++;
 			}
 		}
 
-		const rows = Array.from(byTag.entries()).map(([tag, data]) => ({
-			tag,
-			...data,
-			total: data.correct + data.incorrect + data.skipped,
-			accuracy:
-				data.correct + data.incorrect > 0 ? ((data.correct / (data.correct + data.incorrect)) * 100).toFixed(2) : '–',
-		}));
+		// Accuracy over every question of the category: a skipped question is not a correct one, so a
+		// fully skipped category reads 0% instead of "–" (which looked like missing data).
+		const rows = Array.from(byTag.entries())
+			.map(([tag, data]) => {
+				const total = data.correct + data.incorrect + data.skipped;
+				return {
+					tag,
+					...data,
+					total,
+					accuracy: total > 0 ? ((data.correct / total) * 100).toFixed(2) : '–',
+				};
+			})
+			.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
 
 		const totals = rows.reduce(
 			(acc, r) => ({
@@ -1066,10 +1109,8 @@ function DetailedAnalysis({
 			}),
 			{ correct: 0, incorrect: 0, skipped: 0 },
 		);
-		const totalAcc =
-			totals.correct + totals.incorrect > 0 ?
-				((totals.correct / (totals.correct + totals.incorrect)) * 100).toFixed(2)
-			:	'–';
+		const totalCount = totals.correct + totals.incorrect + totals.skipped;
+		const totalAcc = totalCount > 0 ? ((totals.correct / totalCount) * 100).toFixed(2) : '–';
 
 		return { rows, totals, totalAcc };
 	}, [flatQuestions, questionStatusById, analysisPart]);
@@ -1147,7 +1188,23 @@ function DetailedAnalysis({
 									>
 										{row.accuracy === '–' ? '–' : `${row.accuracy}%`}
 									</td>
-									<td className='px-4 py-3 text-slate-500 text-xs'>{row.questions.join(' ')}</td>
+									<td className='px-4 py-3 text-xs'>
+										<div className='flex flex-wrap gap-1'>
+											{row.questions.map(({ n, st }) => (
+												<span
+													key={n}
+													title={st === 'correct' ? 'Đúng' : st === 'incorrect' ? 'Sai' : 'Bỏ qua'}
+													className={`inline-flex min-w-[1.75rem] justify-center rounded-md px-1.5 py-0.5 font-bold tabular-nums ${
+														st === 'correct' ? 'bg-green-100 text-green-700'
+														: st === 'incorrect' ? 'bg-red-100 text-red-600'
+														: 'bg-slate-100 text-slate-400'
+													}`}
+												>
+													{n}
+												</span>
+											))}
+										</div>
+									</td>
 								</tr>
 							))}
 							<tr className='bg-slate-50 font-bold'>
@@ -1298,7 +1355,7 @@ function DetailedAnalysis({
 									const isLoading = detailLoading === item.q.id;
 
 									return (
-										<div key={item.q.id}>
+										<div key={item.q.id} id={`q-detail-${item.q.id}`} className='scroll-mt-24'>
 											<div
 												className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors ${
 													isExpanded ? 'bg-primary/5' : 'hover:bg-slate-50'

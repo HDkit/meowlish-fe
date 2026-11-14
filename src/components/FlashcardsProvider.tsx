@@ -21,6 +21,10 @@ function mapList(l: FlashCardListResponse): FlashcardList {
     tags: l.tags ?? [],
     createdAt: new Date(l.createdAt).getTime(),
     updatedAt: l.updatedAt ? new Date(l.updatedAt).getTime() : undefined,
+    forkedFromId: l.forkedFromId,
+    forkedFromName: l.forkedFromName,
+    forkedFromAuthorId: l.forkedFromAuthorId,
+    forkCount: l.forkCount ?? 0,
   };
 }
 

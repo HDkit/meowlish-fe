@@ -11,6 +11,8 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { ChatRoom, ChatMessage, User } from '@/types/client';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -27,10 +29,14 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
+import { refreshSession } from '@/lib/api/auth-session';
 import { toast } from './ui/use-toast';
+import { extractApiErrorMessage } from '@/lib/api-response';
+import { canCreateRoom, canManageRoom, latestOf } from '@/lib/chat-permissions';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://meowlish.servebeer.com/api').replace(/\/api\/?$/, '');
-const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/api/v1/chat/ws/socket.io';
+// Same origin: next.config.ts rewrites /socket.io/* to the gateway's socket.io proxy, so the
+// HttpOnly access_token cookie (first-party here) rides along with the handshake.
+const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/socket.io';
 const ALLOWED_LIVE_URL = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|twitch\.tv)\//i;
 
 function isValidLiveUrl(url: string): boolean {
@@ -215,7 +221,8 @@ function getEmbedUrl(url: string): string | null {
 function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) {
 	const dispatch = useAppDispatch();
 	const { currUser, isMod, isAdmin } = useAuth();
-	const canEditRoom = isMod || isAdmin;
+	// schedule edits follow the same owner-or-admin rule as deleting (gateway ResourceAccess)
+	const canEditRoom = canManageRoom({ isMod: isMod, isAdmin: isAdmin, userId: currUser?.id }, room);
 	const users = useAppSelector((state) => state.users.list);
 	const allMessages = useAppSelector((state) => state.chatMessages.list);
 	const [input, setInput] = useState('');
@@ -278,16 +285,29 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 
 	useEffect(() => {
 		joinedRef.current = false;
-		const token = typeof window !== 'undefined'
-			? window.localStorage.getItem('access_token') || document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*=\s*([^;]*).*$)|^.*$/, '$1')
-			: null;
-		const socket = io(API_BASE, {
+		// The live service authenticates the handshake with the HttpOnly access_token cookie,
+		// which JS can't read: send credentials and pass no token.
+		const socket = io({
 			path: SOCKET_PATH,
-			transports: ['websocket'],
-			query: { token: token || '' },
+			// The rewrite target has no trailing slash; avoid Next's /socket.io/ -> /socket.io redirect.
+			addTrailingSlash: false,
+			// Long-polling works through any HTTP proxy; the upgrade to WebSocket needs a proxy that
+			// forwards upgrades (see README), and socket.io keeps polling when it doesn't.
+			transports: ['polling', 'websocket'],
+			withCredentials: true,
 			autoConnect: false,
 		});
 		socketRef.current = socket;
+
+		// The server drops a handshake whose access cookie has expired: refresh once, reconnect.
+		let retriedAuth = false;
+		socket.on('disconnect', (reason) => {
+			if (reason !== 'io server disconnect' || retriedAuth) return;
+			retriedAuth = true;
+			void refreshSession().then((result) => {
+				if (result === 'refreshed' && socketRef.current === socket) socket.connect();
+			});
+		});
 
 		socket.on('connect', () => {
 			socket.emit('join-room', room.id);
@@ -533,7 +553,9 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 export default function ChatPage() {
 	const router = useRouter();
 	const dispatch = useAppDispatch();
-	const { currUser } = useAuth();
+	const { currUser, isMod, isAdmin } = useAuth();
+	const who = { isMod: isMod, isAdmin: isAdmin, userId: currUser?.id };
+	const mayCreateRoom = canCreateRoom(who);
 	const isHydrated = useIsStoreHydrated();
 	const rooms = useAppSelector((state) => state.chatRooms.list);
 	const allMessages = useAppSelector((state) => state.chatMessages.list);
@@ -546,18 +568,73 @@ export default function ChatPage() {
 	const [roomNextCursor, setRoomNextCursor] = useState<string | undefined>(undefined);
 	const [roomPrevCursor, setRoomPrevCursor] = useState<string | undefined>(undefined);
 	const [roomLoading, setRoomLoading] = useState(false);
+	/** First load of the room list (skeleton instead of a flash of "Chưa có phòng chat"). */
+	const [roomsLoaded, setRoomsLoaded] = useState(false);
+	// set only while the user pages the list, so the 30 s background refresh doesn't dim it
+	const [paging, setPaging] = useState(false);
+	const pageRooms = (cursor?: string) => {
+		setPaging(true);
+		void fetchRooms(cursor).finally(() => setPaging(false));
+	};
+	/** Sender names of the previews are being fetched: show a placeholder, not "Ẩn danh". */
+	const [namesLoading, setNamesLoading] = useState(false);
+	const currentCursorRef = useRef<string | undefined>(undefined);
+	/** Name search sent to the server (debounced copy of the search box). */
+	const searchNameRef = useRef('');
+	/** Only the newest list request may update the list (typing fires several). */
+	const roomRequestRef = useRef(0);
+
+	/** One request for every preview sender we don't know yet. */
+	const loadSenderNames = useCallback(
+		async (uids: string[]) => {
+			const known = new Set(users.map((u) => u.id));
+			const missing = [...new Set(uids)].filter((id) => id && !known.has(id));
+			if (missing.length === 0) return;
+			setNamesLoading(true);
+			try {
+				const res = await fetch(`/api/v1/auth/hydrate-many?${missing.map((id) => `ids=${encodeURIComponent(id)}`).join('&')}`);
+				const body = await res.json();
+				const identities = body?.data?.identities ?? body?.data ?? [];
+				(Array.isArray(identities) ? identities : []).forEach((i: any) => {
+					if (!i?.id) return;
+					dispatch(addUser({
+						id: i.id, email: '', password: '',
+						fullName: i.fullName || i.username || 'Người dùng',
+						username: i.username ?? '',
+						roleId: '', status: 'active', createdAt: Date.now(),
+					}));
+				});
+			} catch (err) {
+				console.error('[ChatPage] load sender names error:', err);
+			} finally {
+				setNamesLoading(false);
+			}
+		},
+		[dispatch, users],
+	);
 
 	const fetchRooms = useCallback(async (cursor?: string) => {
 		if (!currUser) return null;
 		setRoomLoading(true);
+		const request = ++roomRequestRef.current;
 		try {
-			const res = await ChatRoomService.listRooms(cursor, 20);
+			const res = await ChatRoomService.listRooms(cursor, 20, searchNameRef.current.trim());
+			if (request !== roomRequestRef.current) return null;
 			const data = (res as any).data ?? res;
 			const apiRooms: ChatRoom[] = (data.rooms ?? []).map((r: any) => ({
 				id: r.id,
 				name: r.name,
 				scheduledLiveUrl: r.scheduledLiveUrl,
 				scheduledDate: r.scheduledDate ? new Date(r.scheduledDate).getTime() : undefined,
+				createdBy: r.createdBy ?? undefined,
+				lastMessage: r.lastMessage ?
+					{
+						id: r.lastMessage.id,
+						uid: r.lastMessage.uid,
+						message: r.lastMessage.message,
+						createdAt: new Date(r.lastMessage.createdAt).getTime(),
+					}
+				:	undefined,
 			}));
 
 			if (cursor && apiRooms.length === 0) {
@@ -569,6 +646,8 @@ export default function ChatPage() {
 			}
 
 			dispatch(setChatRooms(apiRooms));
+			currentCursorRef.current = cursor;
+			void loadSenderNames(apiRooms.flatMap((r) => (r.lastMessage ? [r.lastMessage.uid] : [])));
 			setRoomNextCursor(data.nextCursor ?? undefined);
 			setRoomPrevCursor(data.prevCursor ?? undefined);
 			return apiRooms;
@@ -577,7 +656,9 @@ export default function ChatPage() {
 			return null;
 		} finally {
 			setRoomLoading(false);
+			setRoomsLoaded(true);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [currUser, dispatch]);
 
 	useEffect(() => {
@@ -589,12 +670,37 @@ export default function ChatPage() {
 		fetchRooms();
 	}, [currUser, fetchRooms]);
 
+	// search on the server (debounced): back to the first page of the matching rooms
+	const searchMounted = useRef(false);
+	useEffect(() => {
+		if (!searchMounted.current) {
+			searchMounted.current = true;
+			return;
+		}
+		const t = setTimeout(() => {
+			searchNameRef.current = searchQuery;
+			pageRooms(undefined);
+		}, 300);
+		return () => clearTimeout(t);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchQuery]);
+
+	// keep previews fresh while the list is open (same page), every 30 s
+	useEffect(() => {
+		if (!currUser || selectedRoom) return;
+		const t = setInterval(() => void fetchRooms(currentCursorRef.current), 30_000);
+		return () => clearInterval(t);
+	}, [currUser, selectedRoom, fetchRooms]);
+
  	const getUserName = (uid: string) => { const u = users.find((u) => u.id === uid); return u?.fullName || u?.username || 'Ẩn danh'; };
 
+ 	/** The room's newest message: the server preview, or a newer one seen live in this session. */
  	const getLastMessage = (roomId: string) => {
-		const msgs = allMessages.filter((m) => m.roomId === roomId);
-		if (msgs.length === 0) return null;
-		return msgs.sort((a, b) => b.createdAt - a.createdAt)[0];
+		const room = rooms.find((r) => r.id === roomId);
+		const live = allMessages
+			.filter((m) => m.roomId === roomId)
+			.reduce<ChatMessage | null>((a, m) => (!a || m.createdAt > a.createdAt ? m : a), null);
+		return latestOf(room?.lastMessage ?? null, live);
 	};
 
 	const filteredRooms = useMemo(() => {
@@ -603,13 +709,16 @@ export default function ChatPage() {
 			const lastB = getLastMessage(b.id)?.createdAt ?? 0;
 			return lastB - lastA;
 		});
-		if (!searchQuery) return sorted;
-		const q = searchQuery.toLowerCase();
-		return sorted.filter((r) => r.name.toLowerCase().includes(q));
-	}, [rooms, searchQuery, allMessages]);
+		return sorted;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [rooms, allMessages]);
 
 	const handleCreateRoom = async (name: string, liveUrl?: string, liveDate?: number) => {
 		if (!currUser) return;
+		if (!mayCreateRoom) {
+			toast({ title: 'Bạn không có quyền tạo phòng', description: 'Chỉ điều hành viên và quản trị viên mới tạo được phòng chat.', variant: 'destructive' });
+			return;
+		}
 		try {
 			await ChatRoomService.createRoom({ name });
 			const roomsAfterCreate = await fetchRooms();
@@ -621,8 +730,10 @@ export default function ChatPage() {
 				});
 				await fetchRooms();
 			}
+			toast({ title: 'Đã tạo phòng chat' });
 		} catch (err) {
 			console.error('Failed to create room:', err);
+			toast({ title: 'Không tạo được phòng', description: extractApiErrorMessage(err, 'Vui lòng thử lại.'), variant: 'destructive' });
 		}
 	};
 
@@ -632,8 +743,11 @@ export default function ChatPage() {
 			await ChatRoomService.deleteRoom(deleteRoomId);
 			dispatch(removeChatRoom(deleteRoomId));
 			setDeleteRoomId(null);
+			toast({ title: 'Đã xóa phòng chat' });
 		} catch (err) {
 			console.error('Failed to delete room:', err);
+			setDeleteRoomId(null);
+			toast({ title: 'Không xóa được phòng', description: extractApiErrorMessage(err, 'Bạn không có quyền xóa phòng này.'), variant: 'destructive' });
 		}
 	};
 
@@ -666,9 +780,11 @@ export default function ChatPage() {
 							</div>
 							<p className="text-white/80">Trao đổi và học tập cùng cộng đồng</p>
 						</div>
-						<Button onClick={() => setCreateDialogOpen(true)} className="bg-white text-primary hover:bg-gray-100 rounded-xl px-6 py-6 font-bold shadow-lg">
-							<Plus className="h-5 w-5 mr-2" /> Tạo phòng
-						</Button>
+						{mayCreateRoom && (
+							<Button onClick={() => setCreateDialogOpen(true)} className="bg-white text-primary hover:bg-gray-100 rounded-xl px-6 py-6 font-bold shadow-lg">
+								<Plus className="h-5 w-5 mr-2" /> Tạo phòng
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>
@@ -681,19 +797,38 @@ export default function ChatPage() {
 				</div>
 
 				{/* Room List */}
-				{filteredRooms.length === 0 ? (
+				{!roomsLoaded && rooms.length === 0 ? (
+					<LoadingRegion label="Đang tải phòng chat…" className="space-y-3">
+						{[0, 1, 2, 3].map((i) => (
+							<div key={i} className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-sm">
+								<Skeleton className="h-12 w-12 shrink-0 rounded-2xl" />
+								<div className="flex-1 space-y-2">
+									<Skeleton className="h-4 w-1/3" />
+									<Skeleton className="h-3 w-2/3" />
+								</div>
+								<Skeleton className="h-3 w-10 shrink-0" />
+							</div>
+						))}
+					</LoadingRegion>
+				) : filteredRooms.length === 0 ? (
 					<div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
 						<MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-						<h3 className="text-lg font-bold text-gray-800">Chưa có phòng chat</h3>
-						<p className="text-gray-500 mt-1">Tạo phòng mới để bắt đầu trò chuyện</p>
-						<Button className="mt-4 rounded-xl" onClick={() => setCreateDialogOpen(true)}>
-							<Plus className="h-4 w-4 mr-1" /> Tạo phòng đầu tiên
-						</Button>
+						<h3 className="text-lg font-bold text-gray-800">{searchQuery ? 'Không tìm thấy phòng phù hợp' : 'Chưa có phòng chat'}</h3>
+						<p className="text-gray-500 mt-1">
+							{mayCreateRoom ? 'Tạo phòng mới để bắt đầu trò chuyện' : 'Các phòng do điều hành viên tạo sẽ xuất hiện ở đây.'}
+						</p>
+						{mayCreateRoom && !searchQuery && (
+							<Button className="mt-4 rounded-xl" onClick={() => setCreateDialogOpen(true)}>
+								<Plus className="h-4 w-4 mr-1" /> Tạo phòng đầu tiên
+							</Button>
+						)}
 					</div>
 				) : (
 					<>
-					{roomLoading && <div className="text-center py-4 text-muted-foreground">Đang tải...</div>}
-					<div className="space-y-3">
+					<div
+						className={`space-y-3 transition-opacity duration-200 ${paging || !roomsLoaded ? 'pointer-events-none opacity-60' : ''}`}
+						aria-busy={paging || !roomsLoaded}
+					>
 						{filteredRooms.map((room) => {
 							const lastMsg = getLastMessage(room.id);
 							return (
@@ -712,17 +847,28 @@ export default function ChatPage() {
 												)}
 											</div>
 											<p className="text-sm text-gray-500 truncate">
-												{lastMsg ? `${getUserName(lastMsg.uid)}: ${lastMsg.message}` : 'Chưa có tin nhắn'}
+												{!lastMsg ? 'Chưa có tin nhắn'
+												: (
+													<>
+														{users.some((u) => u.id === lastMsg.uid) || !namesLoading ?
+															<span className="font-medium text-gray-700">{getUserName(lastMsg.uid)}</span>
+														:	<span className="inline-block h-3 w-16 animate-pulse motion-reduce:animate-none rounded bg-muted align-middle" role="img" aria-label="Đang tải tên" />}
+														{': '}
+														{lastMsg.message}
+													</>
+												)}
 											</p>
 										</div>
 										<div className="text-right shrink-0 flex items-center gap-2">
 											<div>
 												<p className="text-xs text-gray-400">{lastMsg ? formatRelativeTime(lastMsg.createdAt) : ''}</p>
 											</div>
-											<Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50"
-												onClick={(e) => { e.stopPropagation(); setDeleteRoomId(room.id); }}>
-												<Trash2 className="h-4 w-4" />
-											</Button>
+											{canManageRoom(who, room) && (
+												<Button size="icon" variant="ghost" aria-label={`Xóa phòng ${room.name}`} className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-red-400 hover:text-red-600 hover:bg-red-50"
+													onClick={(e) => { e.stopPropagation(); setDeleteRoomId(room.id); }}>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											)}
 										</div>
 									</CardContent>
 								</Card>
@@ -731,10 +877,10 @@ export default function ChatPage() {
 					</div>
 					{(roomPrevCursor || roomNextCursor) && (
 						<div className="flex items-center justify-center gap-4 mt-4">
-							<Button variant="outline" size="sm" disabled={!roomPrevCursor || roomLoading} onClick={() => fetchRooms(roomPrevCursor)}>
+							<Button variant="outline" size="sm" disabled={!roomPrevCursor || roomLoading} onClick={() => pageRooms(roomPrevCursor)}>
 								Trước
 							</Button>
-							<Button variant="outline" size="sm" disabled={!roomNextCursor || roomLoading} onClick={() => fetchRooms(roomNextCursor)}>
+							<Button variant="outline" size="sm" disabled={!roomNextCursor || roomLoading} onClick={() => pageRooms(roomNextCursor)}>
 								Sau
 							</Button>
 						</div>

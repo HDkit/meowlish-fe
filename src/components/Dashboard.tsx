@@ -1,49 +1,17 @@
 'use client';
 
-import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Target, BookOpen, TrendingUp, PlayCircle, Calendar, Flame, ChevronDown, X } from 'lucide-react';
+import { Target, BookOpen, TrendingUp, PlayCircle, Flame } from 'lucide-react';
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ExamPracticeService } from '@/lib/api-client';
-
-type DateRangeOption = {
-	label: string;
-	days: number;
-};
-
-const DATE_RANGES: DateRangeOption[] = [
-	{ label: '1 tuần', days: 7 },
-	{ label: '1 tháng', days: 30 },
-	{ label: '3 tháng', days: 90 },
-	{ label: '6 tháng', days: 180 },
-	{ label: '1 năm', days: 365 },
-];
-
-function computeStreak(dateMap: Map<string, number>): number {
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	let streak = 0;
-	const check = new Date(today);
-	if (!dateMap.get(formatDateKey(check))) {
-		check.setDate(check.getDate() - 1);
-	}
-	while (true) {
-		const key = formatDateKey(check);
-		if ((dateMap.get(key) || 0) > 0) {
-			streak++;
-			check.setDate(check.getDate() - 1);
-		} else {
-			break;
-		}
-	}
-	return streak;
-}
-
-function formatDateKey(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
+import { practiceSuggestion } from '@/lib/skill-stats';
+import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
+import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion, StatTilesSkeleton } from './skeletons';
 
 export function Dashboard() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
@@ -52,27 +20,15 @@ export function Dashboard() {
 
 	const [loading, setLoading] = useState(true);
 	const [stats, setStats] = useState<any>(null);
-	const [calendarHistory, setCalendarHistory] = useState<Record<string, number>>({});
-	const [rangeDays, setRangeDays] = useState(180);
-	const [completedCount, setCompletedCount] = useState<number | null>(null);
-	const [rangeOpen, setRangeOpen] = useState(false);
-	const [customFrom, setCustomFrom] = useState('');
-	const [customTo, setCustomTo] = useState('');
-	const [showCustomPicker, setShowCustomPicker] = useState(false);
-
-	const fetchCalendar = useCallback(async (from: string, to: string) => {
-		try {
-			const summaryRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-				from,
-				to
-			});
-			if (summaryRes.data?.history) {
-				setCalendarHistory(summaryRes.data.history);
-			}
-		} catch {
-			console.warn("Failed to load calendar history");
-		}
-	}, []);
+	const [heatWeeks, setHeatWeeks] = useState(26);
+	const signedIn = isHydrated && !!currentUser;
+	// the full year once: switching 3/6/12 months is then client-side (no refetch, no skeleton flash)
+	const activity = usePracticeActivity(MAX_ACTIVITY_DAYS, signedIn);
+	const skills = useSkillStats(signedIn);
+	const suggestion = useMemo(
+		() => (skills.data ? practiceSuggestion(skills.data.skills, skills.data.tags) : null),
+		[skills.data],
+	);
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -80,117 +36,36 @@ export function Dashboard() {
 			router.push('/auth');
 			return;
 		}
+		setLoading(true);
+		ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1()
+			.then(res => setStats(res.data))
+			.catch(() => console.warn('Failed to load practice stats'))
+			.finally(() => setLoading(false));
+	}, [isHydrated, currentUser, router]);
 
-		const fetchDashboardData = async () => {
-			setLoading(true);
-			try {
-				const end = new Date();
-				const start = new Date();
-				start.setDate(end.getDate() - rangeDays);
-				await Promise.all([
-					ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1()
-						.then(res => setStats(res.data))
-						.catch(() => {}),
-					fetchCalendar(start.toISOString(), end.toISOString()),
-					(async () => {
-						try {
-							let total = 0;
-							let cursor: string | undefined;
-							while (true) {
-								const res: any = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-									undefined, cursor, 200, undefined
-								);
-								const data = res?.data as { attempts?: Array<{ endedAt?: string }>; nextCursor?: string } | undefined;
-								if (!data?.attempts?.length) break;
-								total += data.attempts.filter(a => a.endedAt != null).length;
-								if (!data.nextCursor) break;
-								cursor = data.nextCursor;
-							}
-							setCompletedCount(total);
-						} catch {
-							console.warn("Failed to fetch completed attempt count");
-						}
-					})(),
-				]);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchDashboardData();
-	}, [isHydrated, currentUser, router, fetchCalendar, rangeDays]);
-
-	const dateMap = useMemo(() => {
-		const map = new Map<string, number>();
-		for (const [epochStr, count] of Object.entries(calendarHistory)) {
-			const date = new Date(Number(epochStr) * 1000);
-			const key = formatDateKey(date);
-			map.set(key, (map.get(key) || 0) + count);
-		}
-		return map;
-	}, [calendarHistory]);
-
-	const heatmapWeeks = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-
-		const weeksToShow = Math.min(Math.ceil(rangeDays / 7), 52);
-		const start = new Date(today);
-		start.setDate(start.getDate() - (weeksToShow * 7 + today.getDay()));
-
-		const grid: { date: Date; count: number }[][] = [];
-		let week: { date: Date; count: number }[] = [];
-
-		const current = new Date(start);
-		while (current <= today) {
-			const key = formatDateKey(current);
-			const count = dateMap.get(key) || 0;
-			week.push({ date: new Date(current), count });
-
-			if (week.length === 7) {
-				grid.push(week);
-				week = [];
-			}
-			current.setDate(current.getDate() + 1);
-		}
-		if (week.length > 0) grid.push(week);
-
-		return grid;
-	}, [dateMap, rangeDays]);
-
-	const maxCount = useMemo(() => {
-		let max = 0;
-		for (const week of heatmapWeeks) {
-			for (const day of week) {
-				if (day.count > max) max = day.count;
-			}
-		}
-		return max;
-	}, [heatmapWeeks]);
-
-	const streak = useMemo(() => computeStreak(dateMap), [dateMap]);
-
-	if (!isHydrated || loading) {
-		return <div className="min-h-screen bg-background flex items-center justify-center">
-			<div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-		</div>;
+	if (!isHydrated || !currentUser) {
+		// Shaped like the hero + cards below, so nothing jumps once the user is known.
+		return (
+			<LoadingRegion className='min-h-screen bg-background pb-10'>
+				<div className="bg-primary">
+					<div className="px-6 py-10 max-w-6xl mx-auto">
+						<Skeleton className="h-9 w-80 max-w-full bg-white/25" />
+						<Skeleton className="h-6 w-[28rem] max-w-full mt-3 bg-white/20" />
+						<StatTilesSkeleton className="mt-8" tileClassName="bg-white/20 border-white/20 [&_[data-slot=skeleton]]:bg-white/25" />
+					</div>
+				</div>
+				<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
+					<Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+					<Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+				</div>
+			</LoadingRegion>
+		);
 	}
 
-	if (!currentUser) return null;
-
-	const completedAttemptsCount = completedCount ?? stats?.attemptCounts ?? 0;
+	const completedAttemptsCount = activity.data?.totalAttempts ?? stats?.attemptCounts ?? 0;
+	const streak = activity.data?.currentStreak ?? 0;
 	const averageScore = stats?.averageScoreInPercentage ? Math.round(stats.averageScoreInPercentage) : 0;
 	const topicCount = stats?.tagInfos?.length || 0;
-
-	const getCellColor = (count: number) => {
-		if (count === 0) return 'bg-slate-100';
-		if (maxCount === 0) return 'bg-slate-100';
-		const ratio = count / maxCount;
-		if (ratio <= 0.25) return 'bg-green-200';
-		if (ratio <= 0.5) return 'bg-green-300';
-		if (ratio <= 0.75) return 'bg-green-400';
-		return 'bg-green-600';
-	};
 
 	const displayName = currentUser.fullName && currentUser.fullName !== 'User'
 		? currentUser.fullName
@@ -199,8 +74,6 @@ export function Dashboard() {
 		&& currentUser.fullName
 		&& currentUser.fullName !== 'User'
 		&& currentUser.fullName !== currentUser.username;
-
-	const selectedRange = DATE_RANGES.find(r => r.days === rangeDays) || DATE_RANGES[3];
 
 	return (
 		<div className='min-h-screen bg-background pb-10'>
@@ -230,14 +103,14 @@ export function Dashboard() {
 					</div>
 
 					{/* Stats */}
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8" aria-busy={loading}>
 						<div className="bg-white/20 rounded-2xl p-4 border border-white/20">
 							<div className="flex items-center gap-3">
 								<div className="p-2 bg-primary/30 rounded-lg">
 									<BookOpen className="h-5 w-5 text-primary-foreground/80" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{completedAttemptsCount}</div>
+									<div className="text-2xl font-bold">{loading && !activity.data ? <StatValueSkeleton /> : completedAttemptsCount}</div>
 									<div className="text-xs text-primary-foreground/60">Đề đã làm</div>
 								</div>
 							</div>
@@ -248,7 +121,7 @@ export function Dashboard() {
 									<Target className="h-5 w-5 text-emerald-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{averageScore}%</div>
+									<div className="text-2xl font-bold">{loading ? <StatValueSkeleton /> : <>{averageScore}%</>}</div>
 									<div className="text-xs text-primary-foreground/60">Điểm trung bình</div>
 								</div>
 							</div>
@@ -259,7 +132,7 @@ export function Dashboard() {
 									<Flame className="h-5 w-5 text-orange-100" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{streak}</div>
+									<div className="text-2xl font-bold">{activity.loading && !activity.data ? <StatValueSkeleton /> : streak}</div>
 									<div className="text-xs text-primary-foreground/60">Ngày liên tiếp</div>
 								</div>
 							</div>
@@ -270,7 +143,7 @@ export function Dashboard() {
 									<TrendingUp className="h-5 w-5 text-secondary-foreground" />
 								</div>
 								<div>
-									<div className="text-2xl font-bold">{topicCount}</div>
+									<div className="text-2xl font-bold">{loading ? <StatValueSkeleton /> : <>{topicCount}</>}</div>
 									<div className="text-xs text-primary-foreground/60">Chủ đề đã ôn</div>
 								</div>
 							</div>
@@ -279,134 +152,27 @@ export function Dashboard() {
 				</div>
 			</div>
 
-			<div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-				{/* Activity Heatmap */}
-				<Card className="border-0 shadow-md rounded-xl hover:shadow-lg transition-all">
-					<CardContent className="pt-6 pb-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
-								<Calendar className="w-5 h-5 text-primary" />
-								Hoạt động luyện tập
-							</h2>
-							<div className="relative">
-								{showCustomPicker ? (
-									<div className="flex items-center gap-2">
-										<input
-											type="date"
-											value={customFrom}
-											onChange={(e) => setCustomFrom(e.target.value)}
-											className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
-										/>
-										<span className="text-xs text-muted-foreground">→</span>
-										<input
-											type="date"
-											value={customTo}
-											onChange={(e) => setCustomTo(e.target.value)}
-											className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
-										/>
-										<Button
-											size="sm"
-											variant="default"
-											disabled={!customFrom || !customTo}
-											onClick={() => {
-												if (customFrom && customTo) {
-													fetchCalendar(new Date(customFrom).toISOString(), new Date(customTo).toISOString());
-												}
-											}}
-										>
-											Xem
-										</Button>
-										<Button size="sm" variant="ghost" onClick={() => setShowCustomPicker(false)}>
-											<X className="h-4 w-4" />
-										</Button>
-									</div>
-								) : (
-									<>
-										<Button
-											variant="outline"
-											size="sm"
-											className="text-sm gap-1"
-											onClick={() => setRangeOpen(!rangeOpen)}
-										>
-											{selectedRange.label}
-											<ChevronDown className="h-3.5 w-3.5" />
-										</Button>
-										{rangeOpen && (
-											<div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[160px]">
-												{DATE_RANGES.map(range => (
-													<button
-														key={range.days}
-														className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === rangeDays && !showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
-														onClick={() => {
-															setRangeDays(range.days);
-															setShowCustomPicker(false);
-															setRangeOpen(false);
-															const end = new Date();
-															const start = new Date();
-															start.setDate(end.getDate() - range.days);
-															fetchCalendar(start.toISOString(), end.toISOString());
-														}}
-													>
-														{range.label}
-													</button>
-												))}
-												<hr className="my-1 border-slate-100" />
-												<button
-													className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
-													onClick={() => {
-														setShowCustomPicker(true);
-														setRangeOpen(false);
-													}}
-												>
-													Tùy chỉnh
-												</button>
-											</div>
-										)}
-									</>
-								)}
-							</div>
-						</div>
-						<div className="flex gap-[3px] overflow-x-auto pb-2">
-							<div className="flex flex-col gap-[3px] mr-1 shrink-0">
-								{['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, i) => (
-									<div key={i} className="h-[13px] text-[10px] text-muted-foreground flex items-center leading-none">
-										{i % 2 === 1 ? d : ''}
-									</div>
-								))}
-							</div>
-							{heatmapWeeks.map((week, wi) => (
-								<div key={wi} className="flex flex-col gap-[3px]">
-									{week.map((day, di) => (
-										<div key={di} className="relative group/cell">
-											<div
-												className={`w-[13px] h-[13px] rounded-[3px] ${getCellColor(day.count)} transition-colors`}
-											/>
-											<div className={`absolute ${di < 2 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg`}>
-												{day.date.toLocaleDateString('vi-VN')}: {day.count} bài đã làm
-												{di < 2 ? (
-													<div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800" />
-												) : (
-													<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-												)}
-											</div>
-										</div>
-									))}
-								</div>
-							))}
-						</div>
-						<div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground justify-end">
-							<span>Ít</span>
-							<div className="flex gap-[3px]">
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-200" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-300" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-400" />
-								<div className="w-[13px] h-[13px] rounded-[3px] bg-green-600" />
-							</div>
-							<span>Nhiều</span>
-						</div>
-					</CardContent>
-				</Card>
+			<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+				{/* This week + activity heatmap */}
+				<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+					<WeeklyPlanCard
+						className="lg:col-span-2"
+						activity={activity.data}
+						loading={activity.loading}
+						error={activity.error}
+						onRetry={activity.reload}
+						suggestion={suggestion}
+					/>
+					<ActivityHeatmapCard
+						className="lg:col-span-3 min-w-0"
+						activity={activity.data}
+						loading={activity.loading}
+						error={activity.error}
+						onRetry={activity.reload}
+						weeks={heatWeeks}
+						onWeeksChange={setHeatWeeks}
+					/>
+				</div>
 
 				{/* Quick Actions */}
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -443,6 +209,16 @@ export function Dashboard() {
 					))}
 				</div>
 			</div>
+		</div>
+	);
+}
+
+/** Placeholder the height of a stat number, so the tiles keep their size. */
+function StatValueSkeleton() {
+	return (
+		<div className="py-1">
+			<Skeleton className="h-6 w-10 bg-white/25" />
+			<span className="sr-only">Đang tải…</span>
 		</div>
 	);
 }

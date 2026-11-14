@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
-import { AiStatusBanner } from './AiStatusBanner';
+import { AiStatusBanner, AiStatusToggle } from './AiStatusBanner';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export function LandingNavbar() {
@@ -30,6 +30,7 @@ export function LandingNavbar() {
         </button>
 
         <div className="flex items-center gap-3 ml-auto">
+          <AiStatusToggle />
           <Link
             href="/changelog"
             className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"

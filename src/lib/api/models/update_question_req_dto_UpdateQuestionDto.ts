@@ -12,7 +12,13 @@ export type update_question_req_dto_UpdateQuestionDto = {
     explanation?: string;
     points?: number;
     type?: string;
+    /**
+     * Ids of tags (not names)
+     */
     addTags: Array<string>;
+    /**
+     * Ids of tags (not names)
+     */
     removeTags: Array<string>;
     addFiles: Array<string>;
     removeFiles: Array<string>;

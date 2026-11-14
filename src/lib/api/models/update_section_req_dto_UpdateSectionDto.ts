@@ -7,7 +7,13 @@ export type update_section_req_dto_UpdateSectionDto = {
     directive?: string;
     name?: string;
     setNameNull?: boolean;
+    /**
+     * Ids of tags (not names)
+     */
     addTags: Array<string>;
+    /**
+     * Ids of tags (not names)
+     */
     removeTags: Array<string>;
     addFiles: Array<string>;
     removeFiles: Array<string>;

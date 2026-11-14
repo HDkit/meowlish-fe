@@ -6,12 +6,16 @@ import {
   ExamManagementService,
   FilesService,
   TagsService,
-  getAccessToken,
-  getRefreshToken,
 } from '@/lib/api-client';
+import { buildTagIdMap, diffTagIds, type TagRef, UnknownTagsError } from '@/lib/tag-ids';
 import { extractApiErrorMessage, extractEntityData, parseCommaSeparatedValues } from '@/lib/api-response';
+import { normalizeApiError } from '@/lib/api-errors';
+import { minutesInputToSeconds, secondsToMinutesInput } from '@/lib/exam-duration';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AdminTagManager } from '@/components/admin/AdminTagManager';
+import { LoadingRegion } from '@/components/skeletons';
+import { Skeleton } from './ui/skeleton';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -435,12 +439,17 @@ export function ExamCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { isMod, isHeadStaff, isStaff } = useAuth();
+  const { currUser, isMod, isHeadStaff, isStaff } = useAuth();
 
   const queryExamId = searchParams.get('id');
 
-  const [loading, setLoading] = useState(false);
+  // Opening an existing exam (?id=) starts in the loading state so the editor shows placeholders
+  // instead of an empty "new exam" form that fills in a moment later.
+  const [loading, setLoading] = useState(Boolean(queryExamId));
   const [savingExam, setSavingExam] = useState(false);
+  // Errors of the exam info form (overview panel).
+  const [examErrors, setExamErrors] = useState<{ title?: string; duration?: string; description?: string; tags?: string }>({});
+  const [examFormErrors, setExamFormErrors] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>({ type: 'overview' });
   const [examId, setExamId] = useState<string | null>(queryExamId);
@@ -453,15 +462,18 @@ export function ExamCreationPage() {
     setMounted(true);
     TagsService.tagGatewayControllerGetTagListV1()
       .then((res: any) => {
-        const list = res?.data?.list ?? [];
-        setAllTagNames(list.map((t: any) => t.name));
+        const list: TagRef[] = (res?.data?.list ?? []).map((t: any) => ({ id: String(t.id), name: String(t.name) }));
+        setAllTags(list);
       })
       .catch(() => {});
   }, []);
 
   const [exam, setExam] = useState<ExamDetails | null>(null);
   const [examDraft, setExamDraft] = useState({ title: '', description: '', duration: '60', tagsInput: '' });
-  const [allTagNames, setAllTagNames] = useState<string[]>([]);
+  // Tag edits send IDs; details list names. Keep both to translate.
+  const [allTags, setAllTags] = useState<TagRef[]>([]);
+  const allTagNames = useMemo(() => allTags.map((t) => t.name), [allTags]);
+  const tagIdByName = useMemo(() => buildTagIdMap(allTags), [allTags]);
   const [tagQuery, setTagQuery] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [sectionTagQuery, setSectionTagQuery] = useState('');
@@ -479,8 +491,9 @@ export function ExamCreationPage() {
   const [questionMoveState, setQuestionMoveState] = useState<Record<string, QuestionMoveState>>({});
   const [reviewStatus, setReviewStatus] = useState('InDraft');
 
+  // The session lives in HttpOnly cookies; the signed-in user is what JS can see of it.
   const ensureApiSession = (action = 'thực hiện thao tác') => {
-    if (getAccessToken() || getRefreshToken()) return true;
+    if (currUser) return true;
     toast({ title: 'Chưa đăng nhập backend', description: `Đăng xuất rồi đăng nhập lại để ${action}.`, variant: 'destructive' });
     return false;
   };
@@ -565,7 +578,7 @@ export function ExamCreationPage() {
       setExamDraft({
         title: examPayload.title ?? '',
         description: examPayload.description ?? '',
-        duration: String(examPayload.duration ?? 60),
+        duration: secondsToMinutesInput(examPayload.duration),
         tagsInput: (examPayload.tags ?? []).join(', '),
       });
       setSections(nextSections);
@@ -622,11 +635,19 @@ export function ExamCreationPage() {
 
   const saveExam = async () => {
     if (!ensureApiSession('lưu đề thi')) return;
-    const durationNum = Number(examDraft.duration);
-    const duration = Number.isFinite(durationNum) ? Math.floor(Math.max(0, durationNum)) : 0;
+    // The API takes seconds; the input is in minutes.
+    const duration = minutesInputToSeconds(examDraft.duration, exam?.duration);
 
-    if (!examDraft.title.trim()) { toast({ title: 'Thiếu tên đề', variant: 'destructive' }); return; }
-    if (duration <= 0) { toast({ title: 'Thời lượng không hợp lệ (phải > 0)', variant: 'destructive' }); return; }
+    const localErrors: typeof examErrors = {};
+    if (!examDraft.title.trim()) localErrors.title = 'Vui lòng nhập tên đề thi';
+    if (duration === null) localErrors.duration = 'Thời lượng phải là số phút nguyên, lớn hơn 0';
+    setExamErrors(localErrors);
+    setExamFormErrors([]);
+    if (Object.keys(localErrors).length > 0) {
+      // The fields live in the overview panel; show it so the messages are visible.
+      setSelectedNode({ type: 'overview' });
+      return;
+    }
 
     setSavingExam(true);
     try {
@@ -634,9 +655,8 @@ export function ExamCreationPage() {
         const requestBody = {
           title: String(examDraft.title.trim()),
           description: String(examDraft.description?.trim() ?? ''),
-          duration: Math.floor(duration),
+          duration: duration!,
         };
-        console.log('Creating exam with body:', requestBody);
         const res = await ExamManagementService.examManagementGatewayControllerCreateExamV1(requestBody);
         const created = extractEntityData<{ id?: string }>(res);
         if (!created?.id) throw new Error('API không trả về id đề thi.');
@@ -647,21 +667,33 @@ export function ExamCreationPage() {
       }
       const currentTags = exam?.tags ?? [];
       const nextTags = parseCommaSeparatedValues(examDraft.tagsInput);
+      const examTagIds = diffTagIds(currentTags, nextTags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateExamV1(
         examId,
         {
           title: String(examDraft.title.trim()),
           description: examDraft.description?.trim() || undefined,
           setDescriptionNull: !examDraft.description?.trim(),
-          duration: Math.floor(duration),
-          addTags: nextTags.filter((t) => !currentTags.includes(t)),
-          removeTags: currentTags.filter((t) => !nextTags.includes(t)),
+          duration: duration!,
+          ...examTagIds,
         }
       );
       toast({ title: 'Đã lưu đề thi' });
       await loadEditorData(examId);
     } catch (error) {
-      toast({ title: 'Lưu thất bại', description: extractApiErrorMessage(error), variant: 'destructive' });
+      if (error instanceof UnknownTagsError) {
+        setExamErrors({ tags: error.message });
+        setSelectedNode({ type: 'overview' });
+        return;
+      }
+      const { messages, fieldErrors } = normalizeApiError(error, {
+        fallback: 'Không thể lưu đề thi',
+        fields: { title: 'title', duration: 'duration', description: 'description', addTags: 'tags', removeTags: 'tags' },
+      });
+      setExamErrors(fieldErrors);
+      setExamFormErrors(messages);
+      setSelectedNode({ type: 'overview' });
+      toast({ title: 'Lưu thất bại', description: 'Xem chi tiết lỗi trong phần Thông tin đề thi.', variant: 'destructive' });
     } finally {
       setSavingExam(false);
     }
@@ -716,6 +748,7 @@ export function ExamCreationPage() {
     const snap = sectionSnapshots[section.id] ?? section;
     setActionLoading(`save-section-${section.id}`);
     try {
+      const sectionTagIds = diffTagIds(snap.tags ?? [], section.tags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateSectionV1(
         section.id,
         {
@@ -723,8 +756,7 @@ export function ExamCreationPage() {
           setNameNull: !section.name?.trim(),
           directive: section.directive,
           contentType: section.contentType,
-          addTags: section.tags.filter((t) => !(snap.tags ?? []).includes(t)),
-          removeTags: (snap.tags ?? []).filter((t) => !section.tags.includes(t)),
+          ...sectionTagIds,
           addFiles: section.files.map((f) => f.id).filter((id) => !(snap.files ?? []).some((f) => f.id === id)),
           removeFiles: (snap.files ?? []).map((f) => f.id).filter((id) => !section.files.some((f) => f.id === id)),
         }
@@ -780,6 +812,7 @@ export function ExamCreationPage() {
     const nextChoices = question.choices ?? [];
     setActionLoading(`save-question-${question.id}`);
     try {
+      const questionTagIds = diffTagIds(snap.tags ?? [], question.tags, tagIdByName);
       await ExamManagementService.examManagementGatewayControllerUpdateQuestionV1(
         question.id,
         {
@@ -793,8 +826,7 @@ export function ExamCreationPage() {
             return { id: c.id!, key: c.key, content: c.content || undefined, setContentNull: !c.content, isCorrect: c.isCorrect, ...(prev ?? {}) };
           }),
           deleteChoicesIds: oldChoices.filter((c) => c.id && !nextChoices.some((x) => x.id === c.id)).map((c) => c.id as string),
-          addTags: question.tags.filter((t) => !(snap.tags ?? []).includes(t)),
-          removeTags: (snap.tags ?? []).filter((t) => !question.tags.includes(t)),
+          ...questionTagIds,
           addFiles: question.files.map((f) => f.id).filter((id) => !(snap.files ?? []).some((f) => f.id === id)),
           removeFiles: (snap.files ?? []).map((f) => f.id).filter((id) => !question.files.some((f) => f.id === id)),
         }
@@ -839,31 +871,38 @@ export function ExamCreationPage() {
     }
   };
 
+  // First load of an existing exam: nothing to show yet.
+  const awaitingExam = Boolean(examId) && !exam && loading;
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="mx-auto max-w-7xl px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-gray-900">
-              {examDraft.title || 'Đề thi mới'}
-            </span>
+      <div className="bg-white border-b border-gray-200 sticky top-16 z-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-14 py-2 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <BookOpen className="h-5 w-5 shrink-0 text-primary" />
+            {awaitingExam ? (
+              <Skeleton className="h-5 w-48" />
+            ) : (
+              <span className="min-w-0 truncate font-semibold text-gray-900" title={examDraft.title || undefined}>
+                {examDraft.title || 'Đề thi mới'}
+              </span>
+            )}
             {exam?.status && (
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium border ${STATUS_COLORS[exam.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                 {REVIEW_STATUSES.find((s) => s.value === exam.status)?.label ?? exam.status}
               </span>
             )}
             {examId && (
-              <span className="text-xs text-gray-400 font-mono">#{shortId(examId)}</span>
+              <span className="hidden shrink-0 text-xs text-gray-400 font-mono sm:inline">#{shortId(examId)}</span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {examId && (
-              <Button variant="ghost" size="sm" onClick={() => void loadEditorData(examId)} disabled={loading}>
+              <Button variant="ghost" size="sm" aria-label="Tải lại" onClick={() => void loadEditorData(examId)} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             )}
@@ -892,7 +931,7 @@ export function ExamCreationPage() {
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <Clock className="h-3.5 w-3.5" />
-                  <span>{formatDuration(examDraft.duration)}</span>
+                  <span>{formatDuration(Number(examDraft.duration) * 60)}</span>
                 </div>
               </div>
 
@@ -910,7 +949,16 @@ export function ExamCreationPage() {
 
               {/* Section tree với scroll, chiếm hết chiều cao còn lại */}
               <div className="pt-1 flex-1 min-h-0 overflow-y-auto pr-1">
-                {rootSectionIds.length === 0 ? (
+                {awaitingExam ? (
+                  <LoadingRegion label="Đang tải các section…" className="space-y-1.5 px-2 py-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <div key={i} className="flex items-center gap-2 py-1" style={{ paddingLeft: `${(i % 2) * 16}px` }}>
+                        <Skeleton className="size-3.5 shrink-0" />
+                        <Skeleton className={i % 2 ? 'h-4 w-28' : 'h-4 w-40'} />
+                      </div>
+                    ))}
+                  </LoadingRegion>
+                ) : rootSectionIds.length === 0 ? (
                   <p className="px-2 py-3 text-xs text-gray-400 text-center">
                     {examId ? 'Chưa có section nào' : 'Tạo đề trước để thêm section'}
                   </p>
@@ -954,7 +1002,34 @@ export function ExamCreationPage() {
             <TabsContent value="editor" className="space-y-4 mt-0">
 
               {/* Overview panel */}
-              {selectedNode.type === 'overview' && (
+              {selectedNode.type === 'overview' && awaitingExam && (
+                <Card className="border border-gray-200 shadow-none">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-base">Thông tin đề thi</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <LoadingRegion label="Đang tải đề thi…" className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-40 w-full" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                    </LoadingRegion>
+                  </CardContent>
+                </Card>
+              )}
+              {selectedNode.type === 'overview' && !awaitingExam && (
                 <Card className="border border-gray-200 shadow-none">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-base">Thông tin đề thi</CardTitle>
@@ -962,39 +1037,52 @@ export function ExamCreationPage() {
                   <CardContent className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-sm">Tên đề thi <span className="text-red-500">*</span></Label>
+                        <Label htmlFor="exam-title" className="text-sm">Tên đề thi <span className="text-red-500">*</span></Label>
                         <Input
+                          {...fieldA11y('exam-title', examErrors.title)}
                           value={examDraft.title}
-                          onChange={(e) => setExamDraft((p) => ({ ...p, title: e.target.value }))}
+                          onChange={(e) => {
+                            setExamDraft((p) => ({ ...p, title: e.target.value }));
+                            if (examErrors.title) setExamErrors(({ title: _, ...rest }) => rest);
+                          }}
                           placeholder="VD: TOEIC Full Test Simulation 1"
                         />
+                        <FieldError id="exam-title" message={examErrors.title} />
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-sm">Mô tả</Label>
+                        <Label htmlFor="exam-description" className="text-sm">Mô tả</Label>
                         <Textarea
+                          {...fieldA11y('exam-description', examErrors.description)}
                           rows={3}
                           value={examDraft.description}
                           onChange={(e) => setExamDraft((p) => ({ ...p, description: e.target.value }))}
                           placeholder="Mô tả ngắn về nội dung và mục tiêu của đề thi..."
                         />
+                        <FieldError id="exam-description" message={examErrors.description} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Thời lượng (phút)</Label>
+                        <Label htmlFor="exam-duration" className="text-sm">Thời lượng (phút)</Label>
                         <div className="relative">
                           <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
+                            {...fieldA11y('exam-duration', examErrors.duration)}
                             className="pl-9"
                             value={examDraft.duration}
-                            onChange={(e) => setExamDraft((p) => ({ ...p, duration: e.target.value }))}
+                            onChange={(e) => {
+                              setExamDraft((p) => ({ ...p, duration: e.target.value }));
+                              if (examErrors.duration) setExamErrors(({ duration: _, ...rest }) => rest);
+                            }}
                             type="number" min="1"
                           />
                         </div>
+                        <FieldError id="exam-duration" message={examErrors.duration} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
+                        <Label htmlFor="exam-tags" className="text-sm">Nhãn (phân cách bằng dấu phẩy)</Label>
                         <div className="relative">
                           <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <Input
+                            {...fieldA11y('exam-tags', examErrors.tags)}
                             className="pl-9"
                             value={examDraft.tagsInput}
                             onChange={(e) => {
@@ -1038,6 +1126,7 @@ export function ExamCreationPage() {
                             </div>
                           )}
                         </div>
+                        <FieldError id="exam-tags" message={examErrors.tags} />
                       </div>
                     </div>
 
@@ -1095,6 +1184,8 @@ export function ExamCreationPage() {
                         </Button>
                       </div>
                     )}
+
+                    <FormErrorSummary messages={examFormErrors} title="Không thể lưu đề thi" />
 
                     <div className="flex justify-end">
                       <Button onClick={() => void saveExam()} disabled={savingExam}>

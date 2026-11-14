@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -24,7 +24,6 @@ import {
 	Edit,
 	Award,
 	BarChart3,
-	Lock,
 	User,
 	Key,
 	Eye,
@@ -42,13 +41,26 @@ import { EditGoalButton } from './EditGoalBtn';
 import { AddGoalButton } from './AddGoalBtn';
 import { useAppSelector, useAppDispatch } from './store/main/hook';
 import { useRouter } from 'next/navigation';
-import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService } from '@/lib/api-client';
-import { setUser } from './store/currUserSlice';
+import { ExamPracticeService, AchievementsService, AuthService, FilesService, GoalsService, logoutSession, startGoogleLink } from '@/lib/api-client';
+import { getOwnIdentity, invalidateOwnIdentity } from '@/lib/own-identity';
+import { buildBadgeViews, type BadgeProgress } from '@/lib/badges';
+import { BadgeCollection } from './badges/BadgeCollection';
+import { attemptHref, isAttemptFinished } from '@/lib/attempt-href';
+import { findMailCredentialId, isCredentialType, submitPasswordChange } from '@/lib/change-password';
+import { type LoginMethod, loginMethodActions } from '@/lib/login-methods';
+import { DEMO_READ_ONLY_NOTICE } from '@/lib/demo-account';
+import { clearUser, setUser } from './store/currUserSlice';
 import { useToast } from '@/components/ui/use-toast';
 import { extractApiErrorMessage } from '@/lib/api-response';
+import { normalizeApiError, passwordPolicyError } from '@/lib/api-errors';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import type { GoalResDto } from '@/lib/api/models/GoalResDto';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
+import { Skeleton } from './ui/skeleton';
+import { ListRowsSkeleton, LoadingRegion } from './skeletons';
+
+type ProfilePart = 'creds' | 'badges' | 'goal' | 'history';
 
 function formatElapsed(startedAt: string, endedAt?: string): string {
 	const start = new Date(startedAt).getTime();
@@ -77,6 +89,8 @@ export function UserPage() {
 
 	// State for badges
 	const [earnedBadges, setEarnedBadges] = useState<any[]>([]);
+	const [allBadges, setAllBadges] = useState<{ name: string; displayName?: string; description?: string }[]>([]);
+	const [badgeProgress, setBadgeProgress] = useState<BadgeProgress | null>(null);
 
 	// Profile update state
 	const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -93,14 +107,34 @@ export function UserPage() {
 	});
 	const [showPassword, setShowPassword] = useState(false);
 	const [uploadingAvatar, setUploadingAvatar] = useState(false);
-	const [credentials, setCredentials] = useState<any[]>([]);
+	const [credentials, setCredentials] = useState<LoginMethod[]>([]);
 	const [isCredDialogOpen, setIsCredDialogOpen] = useState(false);
 	const [addMailForm, setAddMailForm] = useState({ email: '', password: '' });
+	// Errors of the open dialog (only one is open at a time); cleared whenever a dialog opens or closes.
+	const [dialogError, setDialogError] = useState<{ messages: string[]; fields: Record<string, string> }>({
+		messages: [],
+		fields: {},
+	});
+	const clearDialogError = () => setDialogError({ messages: [], fields: {} });
+	useEffect(() => {
+		clearDialogError();
+	}, [isProfileDialogOpen, isPasswordDialogOpen, isCredDialogOpen]);
 	const avatarInputRef = React.useRef<HTMLInputElement>(null);
+	// Which parts of the profile have been fetched, so each section shows a skeleton
+	// (not an empty state or a 0) until its own data is in.
+	const [loadedParts, setLoadedParts] = useState<ReadonlySet<ProfilePart>>(() => new Set());
+	const markLoaded = (...parts: ProfilePart[]) => setLoadedParts((prev) => new Set([...prev, ...parts]));
+	const isLoaded = (part: ProfilePart) => loadedParts.has(part);
 	// Auth data from Redux
 	const dispatch = useAppDispatch();
 	const { toast } = useToast();
 	const currUser = useAppSelector((state) => state.currUser.current);
+	const isDemo = currUser?.isDemo === true;
+	const methodActions = loginMethodActions(credentials, isDemo);
+	const badgeViews = useMemo(
+		() => buildBadgeViews(allBadges, earnedBadges, badgeProgress),
+		[allBadges, earnedBadges, badgeProgress],
+	);
 
 	const fetchGoal = useCallback(async () => {
 		try {
@@ -123,80 +157,79 @@ export function UserPage() {
 
 	useEffect(() => {
 		if (currUser) {
+			// The sections are independent: load them in parallel, each filling in (and ending its
+			// skeleton) as soon as its own request settles; one failing doesn't block the others.
 			const fetchProfileData = async () => {
-				try {
-					// Hydrate real profile from API
-					try {
-						const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
-						const identity = (identityRes as any).data ?? identityRes;
-						if (identity && identity.id) {
-							dispatch(
-								setUser({
-									...currUser,
-									id: identity.id ?? currUser.id,
-									email: identity.mail ?? identity.email ?? currUser.email,
-									fullName: identity.fullName ?? identity.username ?? currUser.fullName,
-									username: identity.username ?? currUser.username,
-									avatarUrl: identity.avatarUrl || currUser.avatarUrl,
-									createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
-									roleId: identity.roleId ?? currUser.roleId,
-								}),
-							);
-						}
-					} catch {
-						// ignore identity fetch failure
+				const identityTask = (async () => {
+					const identity = await getOwnIdentity();
+					if (identity && identity.id) {
+						dispatch(
+							setUser({
+								...currUser,
+								id: identity.id ?? currUser.id,
+								email: identity.mail ?? identity.email ?? currUser.email,
+								fullName: identity.fullName ?? identity.username ?? currUser.fullName,
+								username: identity.username ?? currUser.username,
+								avatarUrl: identity.avatarUrl || currUser.avatarUrl,
+								createdAt: identity.createdAt ? new Date(identity.createdAt).getTime() : currUser.createdAt,
+								roleId: identity.roleId ?? currUser.roleId,
+								isDemo: identity.isDemo === true,
+							}),
+						);
 					}
-
-					try {
-						const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
-						const creds = (credsRes as any).data ?? credsRes;
-						if (Array.isArray(creds)) {
-							setCredentials(creds);
-						} else if (creds?.credentials) {
-							setCredentials(creds.credentials);
-						}
-					} catch {
-						// ignore credentials fetch failure
-					}
-
-					const badgesRes = await AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100);
-					if (badgesRes.data?.badges) {
-						setEarnedBadges(badgesRes.data.badges);
-					}
-
-					const statsRes = await ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1();
-					if (statsRes.data) {
-						setUserStats(statsRes.data as unknown as UserStatsDto);
-					}
-
-					// Fetch goal
-					await fetchGoal();
-
-					// Fetch recent attempt history
-					const historyRes = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
-						undefined,
-						undefined,
-						20,
-					);
-					if (historyRes.data) {
-						const data = historyRes.data as any;
-						setAttemptHistory(data.attempts ?? []);
-					}
-				} catch (e) {
-					console.error('Failed to load profile data:', e);
-				}
+				})();
+				const credsTask = (async () => {
+					const credsRes = await AuthService.authGatewayControllerGetCredentialsV1();
+					const creds = (credsRes as any).data ?? credsRes;
+					if (Array.isArray(creds)) setCredentials(creds);
+					else if (creds?.credentials) setCredentials(creds.credentials);
+				})().finally(() => markLoaded('creds'));
+				// earned badges, the whole catalogue and the progress counters (for locked badges)
+				const badgesTask = Promise.allSettled([
+					AchievementsService.achievementGatewayControllerGetMyBadgesV1(undefined, 100).then((badgesRes) => {
+						if (badgesRes.data?.badges) setEarnedBadges(badgesRes.data.badges);
+					}),
+					AchievementsService.achievementGatewayControllerGetAllBadgesV1().then((res) => {
+						const list = (res as any)?.data?.badges;
+						if (Array.isArray(list)) setAllBadges(list);
+					}),
+					AchievementsService.achievementGatewayControllerGetMyProgressV1().then((res) => {
+						const data = (res as any)?.data;
+						if (data) setBadgeProgress(data as BadgeProgress);
+					}),
+				]).finally(() => markLoaded('badges'));
+				const statsTask = ExamPracticeService.examPracticeGatewayControllerGetUsesStatsV1().then((statsRes) => {
+					if (statsRes.data) setUserStats(statsRes.data as unknown as UserStatsDto);
+				});
+				const goalTask = fetchGoal().finally(() => markLoaded('goal'));
+				const historyTask = ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptHistoryV1(
+					undefined,
+					undefined,
+					20,
+				)
+					.then((historyRes) => {
+						if (historyRes.data) setAttemptHistory((historyRes.data as any).attempts ?? []);
+					})
+					.finally(() => markLoaded('history'));
+				const results = await Promise.allSettled([identityTask, credsTask, badgesTask, statsTask, goalTask, historyTask]);
+				for (const r of results) if (r.status === 'rejected') console.error('Failed to load profile data:', r.reason);
 			};
 			fetchProfileData();
 		}
-	}, [currUser]); // eslint-disable-line react-hooks/exhaustive-deps
+		// Once per signed-in user. Depending on the whole `currUser` re-ran this after its own
+		// setUser() below, an endless loop of 6 requests that hit the rate limit and kept reloading
+		// the (freshly signed) avatar.
+	}, [currUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Handle profile update
 	const handleUpdateProfile = async () => {
 		if (!currUser) return;
 		setIsLoading(true);
 		try {
+			invalidateOwnIdentity();
 			await AuthService.authGatewayControllerUpdateIdentityV1({
-				username: profileForm.username || undefined,
+				// The demo account's username is read-only (the backend refuses a change).
+				username: isDemo ? undefined : profileForm.username || undefined,
 				fullName: profileForm.fullName || undefined,
 			});
 			dispatch(
@@ -209,11 +242,11 @@ export function UserPage() {
 			setIsProfileDialogOpen(false);
 		} catch (err: any) {
 			console.error('Failed to update profile:', err);
-			toast({
-				title: 'Cập nhật thất bại',
-				description: extractApiErrorMessage(err, 'Không thể cập nhật hồ sơ.'),
-				variant: 'destructive',
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: 'Không thể cập nhật hồ sơ.',
+				fields: { username: 'username', fullName: 'fullName' },
 			});
+			setDialogError({ messages: messages, fields: fieldErrors });
 		} finally {
 			setIsLoading(false);
 		}
@@ -222,34 +255,23 @@ export function UserPage() {
 	// Handle password change
 	const handleChangePassword = async () => {
 		if (!currUser) return;
-		if (!passwordForm.newPassword) {
-			toast({ title: 'Vui lòng nhập mật khẩu mới', variant: 'destructive' });
-			return;
-		}
-		if (passwordForm.newPassword.length < 6) {
-			toast({ title: 'Mật khẩu mới phải có ít nhất 6 ký tự', variant: 'destructive' });
-			return;
-		}
-		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-			toast({ title: 'Mật khẩu xác nhận không khớp', variant: 'destructive' });
-			return;
-		}
 		setIsLoading(true);
+		clearDialogError();
 		try {
-			await AuthService.authGatewayControllerUpdateMailPasswordV1({
-				id: currUser.id,
-				password: passwordForm.newPassword,
-			});
-			toast({ title: 'Đổi mật khẩu thành công' });
+			const result = await submitPasswordChange(passwordForm, findMailCredentialId(credentials), (body) =>
+				AuthService.authGatewayControllerUpdateMailPasswordV1(body),
+			);
+			if (!result.ok) {
+				setDialogError({ messages: [result.message], fields: {} });
+				return;
+			}
 			setIsPasswordDialogOpen(false);
 			setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-		} catch (err: any) {
-			console.error('Failed to change password:', err);
-			toast({
-				title: 'Đổi mật khẩu thất bại',
-				description: extractApiErrorMessage(err, 'Không thể đổi mật khẩu.'),
-				variant: 'destructive',
-			});
+			// The backend revokes every session on a password change: sign in again.
+			toast({ title: 'Đổi mật khẩu thành công', description: 'Vui lòng đăng nhập lại bằng mật khẩu mới.' });
+			await logoutSession();
+			dispatch(clearUser());
+			router.push('/auth?mode=login');
 		} finally {
 			setIsLoading(false);
 		}
@@ -287,9 +309,9 @@ export function UserPage() {
 				await fetch(ensuredUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
 			}
 
+			invalidateOwnIdentity();
 			await AuthService.authGatewayControllerUpdateIdentityV1({ avatarId: fileId });
-			const identityRes = await AuthService.authGatewayControllerGetOwnIdentityV1();
-			const identity = (identityRes as any).data ?? identityRes;
+			const identity = await getOwnIdentity({ fresh: true });
 			if (identity?.avatarUrl) {
 				dispatch(setUser({ ...currUser, avatarUrl: identity.avatarUrl }));
 			}
@@ -330,14 +352,16 @@ export function UserPage() {
 	};
 
 	const handleAddMailCredential = async () => {
-		if (!addMailForm.email || !addMailForm.password) {
-			toast({ title: 'Vui lòng nhập đầy đủ email và mật khẩu', variant: 'destructive' });
-			return;
+		const fields: Record<string, string> = {};
+		if (!addMailForm.email.trim()) fields.credEmail = 'Vui lòng nhập email';
+		else if (!/\S+@\S+\.\S+/.test(addMailForm.email)) fields.credEmail = 'Email không hợp lệ';
+		if (!addMailForm.password) fields.credPassword = 'Vui lòng nhập mật khẩu';
+		else {
+			const weak = passwordPolicyError(addMailForm.password);
+			if (weak) fields.credPassword = weak;
 		}
-		if (addMailForm.password.length < 6) {
-			toast({ title: 'Mật khẩu phải có ít nhất 6 ký tự', variant: 'destructive' });
-			return;
-		}
+		setDialogError({ messages: [], fields: fields });
+		if (Object.keys(fields).length > 0) return;
 		setIsLoading(true);
 		try {
 			await AuthService.authGatewayControllerAddMailCredentialV1({
@@ -351,27 +375,25 @@ export function UserPage() {
 			setIsCredDialogOpen(false);
 			setAddMailForm({ email: '', password: '' });
 		} catch (err: any) {
-			toast({
-				title: 'Thêm thất bại',
-				description: extractApiErrorMessage(err, 'Không thể thêm phương thức đăng nhập.'),
-				variant: 'destructive',
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: 'Không thể thêm phương thức đăng nhập.',
+				fields: { mail: 'credEmail', password: 'credPassword' },
 			});
+			setDialogError({ messages: messages, fields: fieldErrors });
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	const handleAddGoogleCredential = async () => {
-		try {
-			await AuthService.authGatewayControllerAddGoogleCredV1();
-			toast({ title: 'Đang chuyển hướng đến Google...' });
-		} catch (err: any) {
-			toast({
-				title: 'Thêm thất bại',
-				description: extractApiErrorMessage(err, 'Không thể liên kết Google.'),
-				variant: 'destructive',
-			});
+		// Refreshes the (15 min) access cookie, then navigates to the gateway's Google link route.
+		if ((await startGoogleLink()) === 'expired') {
+			toast({ title: 'Phiên đăng nhập đã hết hạn', description: 'Vui lòng đăng nhập lại.', variant: 'destructive' });
+			dispatch(clearUser());
+			router.push('/auth?mode=login');
+			return;
 		}
+		toast({ title: 'Đang chuyển hướng đến Google...' });
 	};
 
 	const formatDate = (date: Date | number | string) => {
@@ -392,15 +414,19 @@ export function UserPage() {
 
 				<div className='relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8'>
 					<div className='relative group cursor-pointer' onClick={() => avatarInputRef.current?.click()}>
-						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl'>
+						<Avatar className='h-32 w-32 border-4 border-white/30 shadow-2xl bg-white/20'>
 							<AvatarImage
 								key={currUser?.avatarUrl}
 								src={
-									(currUser?.avatarUrl ? `https://${currUser.avatarUrl}` : undefined) ||
+									// the API returns absolute URLs; only add a scheme to a bare host/path
+									(currUser?.avatarUrl ?
+										/^https?:\/\//i.test(currUser.avatarUrl) ? currUser.avatarUrl : `https://${currUser.avatarUrl}`
+									:	undefined) ||
 									`https://api.dicebear.com/7.x/initials/svg?seed=${currUser?.fullName || 'User'}`
 								}
 							/>
-							<AvatarFallback className='bg-primary text-white text-4xl font-bold'>
+							{/* delayMs: show the initials only if the image is slow or fails, not for a flash before it loads */}
+							<AvatarFallback delayMs={600} className='bg-primary text-white text-4xl font-bold'>
 								{(currUser?.fullName || 'User')
 									.split(' ')
 									.map((n) => n[0])
@@ -453,12 +479,6 @@ export function UserPage() {
 						>
 							<BarChart3 className='h-4 w-4 mr-2' /> Phân tích học tập
 						</Button>
-						<Button
-							className='bg-white/10 hover:bg-white/20 text-primary-foreground/80 border-0 backdrop-blur-md w-full md:w-auto justify-start'
-							onClick={() => setIsPasswordDialogOpen(true)}
-						>
-							<Key className='h-4 w-4 mr-2' /> Đổi mật khẩu
-						</Button>
 					</div>
 				</div>
 			</div>
@@ -470,16 +490,33 @@ export function UserPage() {
 						<h2 className='text-xl font-bold text-gray-900 flex items-center gap-2'>
 							<Shield className='h-5 w-5 text-primary' /> Phương thức đăng nhập
 						</h2>
+						{/* one method per type: offer only the ones the account doesn't have */}
 						<div className='flex gap-2'>
-							<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
-								<Plus className='h-4 w-4 mr-1' /> Thêm Email
-							</Button>
-							<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
-								<Plus className='h-4 w-4 mr-1' /> Liên kết Google
-							</Button>
+							{isLoaded('creds') && methodActions.canAddMail && (
+								<Button size='sm' variant='outline' onClick={() => setIsCredDialogOpen(true)}>
+									<Plus className='h-4 w-4 mr-1' /> Thêm Email
+								</Button>
+							)}
+							{isLoaded('creds') && methodActions.canLinkGoogle && (
+								<Button size='sm' variant='outline' onClick={handleAddGoogleCredential}>
+									<Plus className='h-4 w-4 mr-1' /> Liên kết Google
+								</Button>
+							)}
 						</div>
 					</div>
-					{credentials.length === 0 ?
+					{isDemo && (
+						<p
+							className='mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800'
+							data-testid='demo-notice'
+						>
+							{DEMO_READ_ONLY_NOTICE}
+						</p>
+					)}
+					{!isLoaded('creds') ?
+						<LoadingRegion label='Đang tải phương thức đăng nhập…'>
+							<ListRowsSkeleton rows={1} trailing={false} rowClassName='bg-gray-50 border-gray-100 px-4 py-3' />
+						</LoadingRegion>
+					: credentials.length === 0 ?
 						<p className='text-gray-400 text-sm'>Chưa tải được thông tin phương thức đăng nhập.</p>
 					:	<div className='space-y-3'>
 							{credentials.map((cred) => (
@@ -489,9 +526,9 @@ export function UserPage() {
 								>
 									<div className='flex items-center gap-3'>
 										<div
-											className={`p-2 rounded-lg ${cred.type === 'google' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}
+											className={`p-2 rounded-lg ${isCredentialType(cred.type, 'GOOGLE') ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}
 										>
-											{cred.type === 'google' ?
+											{isCredentialType(cred.type, 'GOOGLE') ?
 												<svg className='h-4 w-4' viewBox='0 0 24 24' fill='currentColor'>
 													<path d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z' />
 													<path d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' />
@@ -502,20 +539,40 @@ export function UserPage() {
 										</div>
 										<div>
 											<p className='font-medium text-gray-800 text-sm'>
-												{cred.type === 'google' ? 'Google' : 'Email/Mật khẩu'}
+												{isCredentialType(cred.type, 'GOOGLE') ? 'Google' : 'Email/Mật khẩu'}
 											</p>
-											<p className='text-xs text-gray-500'>{cred.mail || cred.email || cred.identifier || ''}</p>
+											<p className='text-xs text-gray-500'>
+												{isCredentialType(cred.type, 'GOOGLE') ? 'Đăng nhập bằng tài khoản Google' : cred.mail || ''}
+											</p>
 										</div>
 									</div>
-									<Button
-										size='sm'
-										variant='ghost'
-										className='text-red-500 hover:text-red-700 hover:bg-red-50'
-										onClick={() => handleDeleteCredential(cred.id)}
-										disabled={isLoading || credentials.length <= 1}
-									>
-										<Trash2 className='h-4 w-4' />
-									</Button>
+									<div className='flex items-center gap-1'>
+										{methodActions.canChangePassword(cred) && (
+											<Button
+												size='sm'
+												variant='ghost'
+												onClick={() => setIsPasswordDialogOpen(true)}
+												disabled={isLoading}
+											>
+												<Key className='h-4 w-4 mr-1' /> Đổi mật khẩu
+											</Button>
+										)}
+										<Button
+											size='sm'
+											variant='ghost'
+											className='text-red-500 hover:text-red-700 hover:bg-red-50'
+											onClick={() => handleDeleteCredential(cred.id)}
+											disabled={isLoading || !methodActions.canRemove}
+											title={
+												isDemo ? DEMO_READ_ONLY_NOTICE
+												: !methodActions.canRemove ?
+													'Bạn phải có ít nhất một phương thức đăng nhập.'
+												:	undefined
+											}
+										>
+											<Trash2 className='h-4 w-4' />
+										</Button>
+									</div>
 								</div>
 							))}
 						</div>
@@ -528,10 +585,14 @@ export function UserPage() {
 						<h2 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
 							<Target className='h-6 w-6 text-primary' /> Mục tiêu của bạn
 						</h2>
-						{!goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
+						{isLoaded('goal') && !goal && <AddGoalButton onGoalUpdated={fetchGoal} />}
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-						{goal ?
+						{!isLoaded('goal') ?
+							<LoadingRegion label='Đang tải mục tiêu…'>
+								<Skeleton className='h-[150px] rounded-xl' />
+							</LoadingRegion>
+						: goal ?
 							<Card className='border-0 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all rounded-xl bg-card'>
 								<CardHeader className='pb-3 bg-primary/5 rounded-t-xl'>
 									<div className='flex items-center justify-between'>
@@ -576,7 +637,7 @@ export function UserPage() {
 								value='achievements'
 								className='rounded-full px-8 py-2.5 text-base font-semibold text-gray-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all'
 							>
-								<Award className='h-4 w-4 mr-2 inline' /> Danh hiệu ({earnedBadges.length})
+								<Award className='h-4 w-4 mr-2 inline' /> Danh hiệu{isLoaded('badges') && ` (${earnedBadges.length})`}
 							</TabsTrigger>
 							<TabsTrigger
 								value='history'
@@ -625,7 +686,7 @@ export function UserPage() {
 								</Card>
 							)}
 
-							{!goal && (
+							{isLoaded('goal') && !goal && (
 								<Card className='border-0 shadow-md bg-white/80 backdrop-blur-sm rounded-xl overflow-hidden'>
 									<CardContent className='py-12 text-center'>
 										<Target className='h-12 w-12 mx-auto mb-4 text-gray-300' />
@@ -650,12 +711,12 @@ export function UserPage() {
 							<div className='p-6 border-b bg-slate-50'>
 								<h3 className='font-bold text-gray-800 text-lg flex items-center gap-2'>
 									<Calendar className='w-5 h-5 text-primary' />
-									Lịch sử làm bài gần đây ({attemptHistory.length})
+									Lịch sử làm bài gần đây{isLoaded('history') && ` (${attemptHistory.length})`}
 								</h3>
 							</div>
 							<div className='divide-y border-t-0'>
 								{attemptHistory.map((attempt) => {
-									const isPending = !attempt.endedAt;
+									const isPending = !isAttemptFinished(attempt);
 									const scorePct = getScorePercent(attempt);
 
 									return (
@@ -664,7 +725,7 @@ export function UserPage() {
 												<h3 className='text-base font-semibold text-foreground leading-tight'>
 													{attempt.examId ?
 														<a
-															href={isPending ? `/test/${attempt.examId}` : `/results/${attempt.id}`}
+															href={attemptHref(attempt)}
 															className='hover:text-primary hover:underline transition-colors'
 														>
 															{attempt.examName || 'Đề thi không có tên'}
@@ -735,18 +796,21 @@ export function UserPage() {
 														</span>
 													</div>
 
-													{attempt.endedAt && (
-														<Button variant='outline' size='sm' onClick={() => router.push(`/results/${attempt.id}`)}>
-															Xem chi tiết
-														</Button>
-													)}
+													<Button variant='outline' size='sm' onClick={() => router.push(attemptHref(attempt))}>
+														{isPending ? 'Tiếp tục' : 'Xem chi tiết'}
+													</Button>
 												</div>
 											</div>
 										</div>
 									);
 								})}
 
-								{attemptHistory.length === 0 && (
+								{!isLoaded('history') && (
+									<LoadingRegion label='Đang tải lịch sử làm bài…' className='p-4'>
+										<ListRowsSkeleton rows={4} rowClassName='border-0' />
+									</LoadingRegion>
+								)}
+								{isLoaded('history') && attemptHistory.length === 0 && (
 									<div className='text-center py-12'>
 										<Calendar className='h-12 w-12 mx-auto mb-3 opacity-30' />
 										<p className='text-gray-500'>Bạn chưa có bài kiểm tra nào.</p>
@@ -770,64 +834,28 @@ export function UserPage() {
 							<CardHeader className='bg-slate-50 border-b border-gray-100 flex flex-row items-center justify-between'>
 								<div>
 									<CardTitle className='text-xl font-bold text-gray-800'>Kho danh hiệu của bạn</CardTitle>
-									<CardDescription>Hoàn thành các mốc quan trọng để nhận danh hiệu vinh danh</CardDescription>
+									<CardDescription>Luyện đề, đạt điểm cao và học đều mỗi ngày để mở khóa huy chương</CardDescription>
 								</div>
 								<div className='bg-emerald-100 text-emerald-800 font-bold px-4 py-2 rounded-lg flex items-center'>
 									<Trophy className='w-5 h-5 mr-2 text-emerald-600' />
-									{earnedBadges.length} Danh hiệu
+									{isLoaded('badges') ? earnedBadges.length : '–'} Danh hiệu
 								</div>
 							</CardHeader>
 							<CardContent className='pt-8 pb-8'>
-								{earnedBadges.length === 0 ?
-									<div className='text-center py-16'>
-										<div className='w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6'>
-											<Lock className='w-10 h-10 text-gray-300' />
-										</div>
-										<h3 className='text-xl font-bold text-gray-800 mb-2'>Chưa có danh hiệu nào</h3>
-										<p className='text-gray-500 mb-6'>Hãy chăm chỉ luyện tập để mở khóa các danh hiệu đầu tiên nhé!</p>
-										<Button
-											className='bg-primary hover:bg-primary/90 text-white'
-											onClick={() => router.push('/test-selection')}
-										>
-											Luyện tập ngay
-										</Button>
-									</div>
-								:	<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'>
-										{earnedBadges.map((badge: any, index: number) => {
-											const colorClass =
-												index % 3 === 0 ? 'bg-amber-400'
-												: index % 3 === 1 ? 'bg-secondary'
-												: 'bg-emerald-500';
-
-											return (
-												<div
-													key={badge.id || index}
-													className='flex flex-col items-center text-center group cursor-pointer'
-												>
-													<div
-														className={`w-28 h-28 mb-4 border-4 border-white shadow-lg rounded-full flex items-center justify-center ${colorClass} group-hover:scale-110 transition-transform duration-300 relative`}
-													>
-														<Award className='w-12 h-12 text-white drop-shadow-sm' />
-														<div className='absolute -top-2 -right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-															✨
-														</div>
-														<div className='absolute -bottom-1 -left-1 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-75'>
-															✨
-														</div>
-													</div>
-													<h4 className='font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight mb-1'>
-														{badge.displayName || badge.name}
-													</h4>
-													<p className='text-xs text-gray-500 line-clamp-2'>{badge.description}</p>
-													{badge.date && (
-														<p className='text-[10px] text-gray-400 mt-2'>
-															Đạt được: {formatDate(new Date(badge.date))}
-														</p>
-													)}
-												</div>
-											);
-										})}
-									</div>
+								{!isLoaded('badges') ?
+									<LoadingRegion
+										label='Đang tải danh hiệu…'
+										className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'
+									>
+										{Array.from({ length: 5 }, (_, i) => (
+											<div key={i} className='flex flex-col items-center gap-2'>
+												<Skeleton className='w-28 h-28 mb-2 rounded-full' />
+												<Skeleton className='h-4 w-24' />
+												<Skeleton className='h-3 w-20' />
+											</div>
+										))}
+									</LoadingRegion>
+								:	<BadgeCollection badges={badgeViews} />
 								}
 							</CardContent>
 						</Card>
@@ -849,21 +877,25 @@ export function UserPage() {
 						<div className='grid gap-2'>
 							<Label htmlFor='username'>Tên đăng nhập</Label>
 							<Input
-								id='username'
+								{...fieldA11y('username', dialogError.fields.username)}
+								disabled={isDemo}
 								value={profileForm.username}
 								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
 								placeholder='Nhập tên đăng nhập'
 							/>
+							<FieldError id='username' message={dialogError.fields.username} className='-mt-2' />
 						</div>
 						<div className='grid gap-2'>
 							<Label htmlFor='fullName'>Họ và tên</Label>
 							<Input
-								id='fullName'
+								{...fieldA11y('fullName', dialogError.fields.fullName)}
 								value={profileForm.fullName}
 								onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
 								placeholder='Nhập họ và tên'
 							/>
+							<FieldError id='fullName' message={dialogError.fields.fullName} className='-mt-2' />
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsProfileDialogOpen(false)} disabled={isLoading}>
@@ -891,11 +923,23 @@ export function UserPage() {
 					</DialogHeader>
 					<div className='grid gap-4 py-4'>
 						<div className='grid gap-2'>
+							<Label htmlFor='currentPassword'>Mật khẩu hiện tại</Label>
+							<Input
+								id='currentPassword'
+								type={showPassword ? 'text' : 'password'}
+								autoComplete='current-password'
+								value={passwordForm.currentPassword}
+								onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+								placeholder='Nhập mật khẩu hiện tại'
+							/>
+						</div>
+						<div className='grid gap-2'>
 							<Label htmlFor='newPassword'>Mật khẩu mới</Label>
 							<div className='relative'>
 								<Input
 									id='newPassword'
 									type={showPassword ? 'text' : 'password'}
+									autoComplete='new-password'
 									value={passwordForm.newPassword}
 									onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
 									placeholder='Nhập mật khẩu mới'
@@ -905,6 +949,7 @@ export function UserPage() {
 									variant='ghost'
 									size='sm'
 									className='absolute right-0 top-0 h-full px-3'
+									aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
 									onClick={() => setShowPassword(!showPassword)}
 								>
 									{showPassword ?
@@ -923,6 +968,7 @@ export function UserPage() {
 								placeholder='Nhập lại mật khẩu mới'
 							/>
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsPasswordDialogOpen(false)} disabled={isLoading}>
@@ -952,23 +998,27 @@ export function UserPage() {
 						<div className='grid gap-2'>
 							<Label htmlFor='credEmail'>Email</Label>
 							<Input
-								id='credEmail'
+								{...fieldA11y('credEmail', dialogError.fields.credEmail)}
 								type='email'
 								value={addMailForm.email}
 								onChange={(e) => setAddMailForm({ ...addMailForm, email: e.target.value })}
 								placeholder='Nhập email'
 							/>
+							<FieldError id='credEmail' message={dialogError.fields.credEmail} className='-mt-2' />
 						</div>
 						<div className='grid gap-2'>
 							<Label htmlFor='credPassword'>Mật khẩu</Label>
 							<Input
-								id='credPassword'
+								{...fieldA11y('credPassword', dialogError.fields.credPassword)}
 								type='password'
+								autoComplete='new-password'
 								value={addMailForm.password}
 								onChange={(e) => setAddMailForm({ ...addMailForm, password: e.target.value })}
-								placeholder='Nhập mật khẩu (tối thiểu 6 ký tự)'
+								placeholder='Ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'
 							/>
+							<FieldError id='credPassword' message={dialogError.fields.credPassword} className='-mt-2' />
 						</div>
+						<FormErrorSummary messages={dialogError.messages} />
 					</div>
 					<DialogFooter>
 						<Button variant='outline' onClick={() => setIsCredDialogOpen(false)} disabled={isLoading}>

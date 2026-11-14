@@ -8,6 +8,7 @@ import { Calendar, Clock, Target, Award, CheckCircle2, Circle, Filter, Loader2, 
 import { ExamPracticeService } from '@/lib/api/services/ExamPracticeService';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
 import type { AttemptsHistoryDto } from '@/lib/api/models/AttemptsHistoryDto';
+import { attemptHref, isAttemptFinished } from '@/lib/attempt-href';
 import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
 
 const { key: SortKey, direction: SortDir } = get_users_attempt_history_req_dto_SortOptionsDto;
@@ -245,7 +246,7 @@ export function History() {
 					) : (
 						<div className='space-y-3'>
 							{attempts.map(attempt => {
-								const isPending = !attempt.endedAt;
+								const isPending = !isAttemptFinished(attempt);
 								const scorePct = getScorePercent(attempt);
 
 								return (
@@ -329,9 +330,9 @@ export function History() {
 												<Button
 													variant='outline'
 													size='sm'
-													onClick={() => (window.location.href = `/results/${attempt.id}`)}
+													onClick={() => (window.location.href = attemptHref(attempt))}
 												>
-													Xem chi tiết
+													{isPending ? 'Tiếp tục' : 'Xem chi tiết'}
 												</Button>
 											</div>
 										</div>

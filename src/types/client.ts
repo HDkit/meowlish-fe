@@ -22,6 +22,8 @@ export interface User extends MockDbType {
 	roleId: string; // Role.id
 	status: 'active' | 'suspended' | 'banned';
 	avatarUrl?: string;
+	/** Shared public demo account: credentials and username are read-only. */
+	isDemo?: boolean;
 	createdAt: number;
 	lastLoginAt?: number;
 }
@@ -186,6 +188,14 @@ export enum NotificationType {
 	Report = 'report',
 	Achievement = 'achievement',
 	System = 'system',
+	/** Flash card list proposals (received, accepted, rejected). */
+	Flashcard = 'flashcard',
+	/** Someone commented on your blog post. */
+	BlogComment = 'blog_comment',
+	/** Someone replied to your blog comment or quoted your forum reply. */
+	CommentReply = 'comment_reply',
+	/** Someone replied in your forum thread. */
+	ForumReply = 'forum_reply',
 }
 
 export interface Notification extends MockDbType {
@@ -196,6 +206,8 @@ export interface Notification extends MockDbType {
 	isRead: boolean;
 	linkType?: 'blog' | 'report';
 	linkId?: string;
+	/** In-app path to open on click (`data.action` from the backend), e.g. "/report-management". */
+	action?: string;
 	createdAt: number;
 }
 
@@ -204,6 +216,10 @@ export interface ChatRoom extends MockDbType {
 	name: string;
 	scheduledLiveUrl?: string;
 	scheduledDate?: number;
+	/** Room owner; undefined for rooms created before owners were recorded (admin-only). */
+	createdBy?: string;
+	/** Newest message, for the room list preview. */
+	lastMessage?: { id: string; uid: string; message: string; createdAt: number };
 }
 
 export interface ChatMessage extends MockDbType {
@@ -232,6 +248,13 @@ export interface FlashcardList extends MockDbType {
 	tags: string[];
 	createdAt: number;
 	updatedAt?: number;
+	/** On a saved copy: the original list (absent once the original is deleted). */
+	forkedFromId?: string;
+	/** On a saved copy: the original's name and author when it was copied. */
+	forkedFromName?: string;
+	forkedFromAuthorId?: string;
+	/** How many copies were saved of this list. */
+	forkCount?: number;
 }
 
 export interface FlashCard extends MockDbType {

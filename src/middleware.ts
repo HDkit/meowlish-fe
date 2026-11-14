@@ -12,6 +12,7 @@ const protectedRoutes = [
 	'/user-management',
 	'/flashcards',
 	'/blog',
+	'/forum',
 	'/speaking-writing',
 	'/speaking',
 	'/writing',
@@ -19,6 +20,7 @@ const protectedRoutes = [
 	'/exam-creation',
 	'/exam-management',
 	'/blog-management',
+	'/report-management',
 ];
 
 // Define public routes
@@ -36,8 +38,9 @@ export function middleware(request: NextRequest) {
 		pathname.startsWith(route)
 	);
 
-	// Check if user is authenticated (from Redux persist in localStorage)
-	// This is a basic check - in production, use proper session/JWT validation
+	// Routing hint only: `user_authenticated` is a non-secret cookie set by the client once
+	// GET /auth/my/identity succeeds and cleared on logout or a failed refresh. The real
+	// session is the gateway's HttpOnly access/refresh cookies, which the API checks itself.
 	const isAuthenticated = request.cookies.get('user_authenticated');
 
 	// Redirect to auth if trying to access protected route without authentication
@@ -67,6 +70,6 @@ export const config = {
 		 * - _next/image (image optimization files)
 		 * - favicon.ico (favicon file)
 		 */
-		'/((?!api|_next/static|_next/image|favicon.ico).*)',
+		'/((?!api|socket.io|_next/static|_next/image|favicon.ico).*)',
 	],
 };

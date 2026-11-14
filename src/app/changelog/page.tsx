@@ -16,9 +16,9 @@ export default function ChangelogPage() {
 			<LandingNavbar />
 			<main className='container mx-auto max-w-3xl px-4 py-10 md:py-14'>
 				<header className='mb-8'>
-					<p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Changelog</p>
+					<p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Nhật ký cập nhật</p>
 					<h1 className='mt-2 text-3xl font-bold text-foreground md:text-4xl'>Có gì mới ở Lingriser</h1>
-					<p className='mt-3 text-muted-foreground'>
+					<p className='mt-3 text-sm text-muted-foreground md:text-base'>
 						Phiên bản hiện tại: <span className='font-semibold text-foreground'>v{CURRENT_VERSION}</span> ·{' '}
 						{RELEASES.length} bản phát hành
 					</p>

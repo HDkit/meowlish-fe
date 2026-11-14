@@ -7,7 +7,13 @@ export type update_exam_req_dto_UpdateExamDto = {
     duration?: number;
     setDescriptionNull?: boolean;
     title?: string;
+    /**
+     * Ids of tags (not names)
+     */
     addTags: Array<string>;
+    /**
+     * Ids of tags (not names)
+     */
     removeTags: Array<string>;
 };
 

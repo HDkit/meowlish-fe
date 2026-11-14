@@ -2,14 +2,20 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
-import { FlashCard, TagType } from '../types/client';
+import { FlashCard } from '../types/client';
+import { TagInput } from './TagInput';
+import { TranslateButton } from './flashcards/TranslateButton';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
-import { FlashcardListService } from '@/lib/api/services/FlashcardListService';
+import { FlashcardListService, type FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
+import { FlashcardForkPanel } from './flashcards/FlashcardForkPanel';
 import { ReportDialog } from './ReportDialog';
 import { addFlashcardList } from './store/flashcardListSlice';
 import { useToast } from '@/components/ui/use-toast';
-import { extractApiErrorMessage } from '@/lib/api-response';
+import { extractApiErrorMessage, normalizeApiError } from '@/lib/api-errors';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
 import { Card, CardContent } from './ui/card';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -41,6 +47,7 @@ import {
 	Folder,
 	ArrowLeft,
 	Flag,
+	Loader2,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -60,6 +67,52 @@ function mapFlashCard(fc: any, listId: string): FlashCard {
 		createdAt: new Date(fc.createdAt).getTime(),
 		updatedAt: fc.updatedAt ? new Date(fc.updatedAt).getTime() : undefined,
 	};
+}
+
+// Header + toolbar + card grid placeholder, shaped like the loaded page below
+function FlashcardListDetailSkeleton() {
+	return (
+		<LoadingRegion label="Đang tải bộ flashcard…" className="min-h-screen bg-slate-50/50 pb-20">
+			<div className="bg-white border-b border-gray-200 mb-8 pt-6 pb-12">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="mb-6 flex items-center justify-between">
+						<Skeleton className="h-9 w-64 max-w-[60%]" />
+						<Skeleton className="h-9 w-24" />
+					</div>
+					<div className="flex flex-col md:flex-row items-center justify-between gap-6">
+						<div className="flex items-center gap-5">
+							<Skeleton className="size-16 shrink-0 rounded-2xl" />
+							<div className="space-y-3">
+								<Skeleton className="h-9 w-72 max-w-[60vw]" />
+								<Skeleton className="h-7 w-32 rounded-full" />
+							</div>
+						</div>
+						<Skeleton className="h-14 w-48 rounded-xl" />
+					</div>
+				</div>
+			</div>
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+				<div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row">
+					<Skeleton className="h-12 flex-1 rounded-xl" />
+					<Skeleton className="h-12 w-full rounded-xl sm:w-56" />
+				</div>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+					{Array.from({ length: 6 }, (_, i) => (
+						<div key={i} className="flex min-h-[18rem] flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/50">
+							<div className="flex gap-1.5">
+								<Skeleton className="h-5 w-16 rounded-full" />
+								<Skeleton className="h-5 w-12 rounded-full" />
+							</div>
+							<div className="flex flex-1 flex-col items-center justify-center gap-3">
+								<Skeleton className="h-8 w-1/2" />
+								<Skeleton className="h-4 w-1/3" />
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</LoadingRegion>
+	);
 }
 
 function FlashcardCard({
@@ -176,31 +229,24 @@ function FlashcardDialog({
 	onOpenChange,
 	flashcard,
 	onSave,
+	tagSuggestions,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	flashcard?: FlashCard;
-	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => void;
+	/** Rejects on failure: the dialog then shows the error and stays open. */
+	onSave: (data: { word: string; definition: string; notes: string; tags: string[] }) => Promise<void>;
+	/** Tags already used in this list, offered next to the exam tags. */
+	tagSuggestions?: string[];
 }) {
 	const [word, setWord] = useState('');
 	const [definition, setDefinition] = useState('');
 	const [notes, setNotes] = useState('');
-	const { toast } = useToast();
+	const [saving, setSaving] = useState(false);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	const [formErrors, setFormErrors] = useState<string[]>([]);
+	// tag NAMES (the resource service stores free-text tags)
 	const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-	const [tagInput, setTagInput] = useState('');
-	const [tagSearch, setTagSearch] = useState('');
-	const tags = useAppSelector((state) => state.tags.list);
-	const flashcardTags = tags.filter((t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question);
-	const isSelectedTag = (tagId: string, tagName: string) =>
-		selectedTagIds.some((value) => value === tagId || value === tagName);
-	const suggestedTags = flashcardTags
-		.filter((tag) => {
-			const q = tagSearch.trim().toLowerCase();
-			if (!q) return true;
-			return tag.name.toLowerCase().includes(q);
-		})
-		.filter((tag) => !isSelectedTag(tag.id, tag.name))
-		.slice(0, 8);
 
 	useEffect(() => {
 		if (flashcard) {
@@ -214,9 +260,16 @@ function FlashcardDialog({
 			setNotes('');
 			setSelectedTagIds([]);
 		}
-		setTagInput('');
-		setTagSearch('');
+		setFieldErrors({});
+		setFormErrors([]);
 	}, [flashcard, open]);
+
+	const clearFieldError = (field: string) =>
+		setFieldErrors((prev) => {
+			if (!prev[field]) return prev;
+			const { [field]: _, ...rest } = prev;
+			return rest;
+		});
 
 	const applyTemplate = (field: 'definition' | 'notes') => {
 		if (field === 'definition') {
@@ -231,24 +284,32 @@ Lưu ý: ...`);
 		}
 	};
 
-	const handleSave = () => {
-		if (!word.trim() || !definition.trim()) {
-			toast({ title: 'Vui lòng điền đầy đủ từ và định nghĩa', variant: 'destructive' });
-			return;
+	const handleSave = async () => {
+		const missing: Record<string, string> = {};
+		if (!word.trim()) missing.word = 'Vui lòng nhập từ hoặc cụm từ';
+		if (!definition.trim()) missing.definition = 'Vui lòng nhập định nghĩa';
+		setFieldErrors(missing);
+		setFormErrors([]);
+		if (Object.keys(missing).length > 0) return;
+		setSaving(true);
+		try {
+			await onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
+			onOpenChange(false);
+		} catch (err) {
+			const res = normalizeApiError(err, {
+				fallback: 'Không thể lưu thẻ ghi nhớ',
+				fields: { word: 'word', definition: 'definition', notes: 'notes' },
+			});
+			setFieldErrors(res.fieldErrors);
+			setFormErrors(res.messages);
+		} finally {
+			setSaving(false);
 		}
-		onSave({ word: word.trim(), definition: definition.trim(), notes: notes.trim(), tags: selectedTagIds });
-		setWord('');
-		setDefinition('');
-		setNotes('');
-		setSelectedTagIds([]);
-		setTagInput('');
-		setTagSearch('');
-		onOpenChange(false);
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-lg p-0 max-h-[90vh] flex flex-col">
+		<Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-lg p-0 max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col">
 				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
@@ -264,30 +325,42 @@ Lưu ý: ...`);
 					<div className="space-y-2">
 						<Label htmlFor="word" className="text-slate-700 font-bold">Từ / Cụm từ (Mặt trước) <span className="text-red-500">*</span></Label>
 						<Input
-							id="word"
+							{...fieldA11y('word', fieldErrors.word)}
 							placeholder="VD: Aberration, Present Perfect..."
 							value={word}
-							onChange={(e) => setWord(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+							onChange={(e) => {
+								setWord(e.target.value);
+								clearFieldError('word');
+							}}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="word" message={fieldErrors.word} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
 							<Label htmlFor="definition" className="text-slate-700 font-bold">Định nghĩa <span className="text-red-500">*</span></Label>
-							{!flashcard && !definition && (
-								<button type="button" onClick={() => applyTemplate('definition')} className="text-xs text-primary hover:underline font-medium">
-									Dùng mẫu
-								</button>
-							)}
+							<span className="flex items-center gap-1">
+								{/* adds the translation of the word to what is written here */}
+								<TranslateButton source={word} definition={definition} onChange={setDefinition} />
+								{!flashcard && !definition && (
+									<button type="button" onClick={() => applyTemplate('definition')} className="text-xs text-primary hover:underline font-medium">
+										Dùng mẫu
+									</button>
+								)}
+							</span>
 						</div>
 						<Textarea
-							id="definition"
+							{...fieldA11y('definition', fieldErrors.definition)}
 							placeholder="Nghĩa của từ hoặc cụm từ..."
 							value={definition}
-							onChange={(e) => setDefinition(e.target.value)}
+							onChange={(e) => {
+								setDefinition(e.target.value);
+								clearFieldError('definition');
+							}}
 							rows={3}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="definition" message={fieldErrors.definition} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 					<div className="flex items-center justify-between">
@@ -299,85 +372,36 @@ Lưu ý: ...`);
 							)}
 						</div>
 						<Textarea
-							id="notes"
+							{...fieldA11y('notes', fieldErrors.notes)}
 							placeholder="Ví dụ minh hoạ, ghi chú thêm..."
 							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
+							onChange={(e) => {
+								setNotes(e.target.value);
+								clearFieldError('notes');
+							}}
 							rows={3}
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl resize-none"
 						/>
+						<FieldError id="notes" message={fieldErrors.notes} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
-						<Label className="text-slate-700 font-bold">Tags</Label>
-						<div className="space-y-2">
-							<div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
-						{selectedTagIds.map((tagId) => {
-							const tagName = tags.find((t) => t.id === tagId)?.name ?? tagId;
-							return (
-										<Badge key={tagId} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
-											{tagName}
-											<button type="button" onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))} className="ml-0.5 hover:text-red-500">
-											<X className="h-3 w-3" />
-										</button>
-										</Badge>
-									);
-								})}
-								<Input
-									value={tagInput}
-									onChange={(e) => {
-										setTagInput(e.target.value);
-										setTagSearch(e.target.value);
-									}}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault();
-											const value = tagInput.trim();
-											if (value && !selectedTagIds.some((id) => tags.find((t) => t.id === id)?.name.toLowerCase() === value.toLowerCase())) {
-												setSelectedTagIds((prev) => [...prev, value]);
-											}
-											setTagInput('');
-											setTagSearch('');
-										}
-										if (e.key === 'Backspace' && !tagInput && selectedTagIds.length > 0) {
-											setSelectedTagIds((prev) => prev.slice(0, -1));
-										}
-									}}
-									placeholder={selectedTagIds.length > 0 ? '' : 'Nhập tag rồi chọn gợi ý...'}
-									className="min-w-[160px] flex-1 border-0 p-0 shadow-none focus-visible:ring-0"
-								/>
-							</div>
-							<div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-								<div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">Gợi ý tag</div>
-								<div className="max-h-40 overflow-y-auto">
-								{suggestedTags.length === 0 ? (
-									<div className="px-3 py-3 text-sm text-slate-500">Không có tag phù hợp</div>
-								) : (
-									suggestedTags.map((tag) => (
-										<button
-											key={tag.id}
-											type="button"
-											onClick={() => {
-												setSelectedTagIds((prev) => [...prev, tag.id]);
-												setTagInput('');
-												setTagSearch('');
-											}}
-											className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5 transition-colors flex items-center justify-between"
-										>
-												<span className="font-medium text-slate-800">{tag.name}</span>
-												<span className="text-[11px] text-slate-400">{tag.tagType}</span>
-											</button>
-										))
-									)}
-								</div>
-							</div>
-						</div>
+						<Label htmlFor="card-tags" className="text-slate-700 font-bold">Tags</Label>
+						<TagInput
+							id="card-tags"
+							value={selectedTagIds}
+							onChange={setSelectedTagIds}
+							suggestions={tagSuggestions}
+							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
+						/>
 					</div>
+					<FormErrorSummary messages={formErrors} />
 				</div>
 				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
-					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
+						{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{flashcard ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
@@ -400,6 +424,10 @@ export function FlashcardListDetail() {
 
 	const [cards, setCards] = useState<FlashCard[]>([]);
 	const [loading, setLoading] = useState(true);
+	/** The list as fetched (lineage, fork count, proposals), for the copy/proposal panel. */
+	const [listMeta, setListMeta] = useState<FlashCardListDetailResponse | null>(null);
+	/** Bumped to reload the cards (after pulling from the original). */
+	const [reloadKey, setReloadKey] = useState(0);
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -421,6 +449,7 @@ export function FlashcardListDetail() {
 		])
 			.then(([listRes, cardsRes]) => {
 				const listData = (listRes as any)?.data ?? listRes;
+				setListMeta(listData);
 				if (!lists.find((l) => l.id === listId) && listData.id) {
 					dispatch(addFlashcardList({
 						id: listData.id,
@@ -441,7 +470,7 @@ export function FlashcardListDetail() {
 				toast({ title: 'Tải danh sách thẻ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			})
 			.finally(() => setLoading(false));
-	}, [listId, cardPage]);
+	}, [listId, cardPage, reloadKey]);
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTagId, setSelectedTagId] = useState<string>('__all__');
@@ -473,8 +502,10 @@ export function FlashcardListDetail() {
 		return filtered;
 	}, [cards, searchQuery, selectedTagId]);
 
-	const flashcardTags = tags.filter(
-		(t) => t.tagType === TagType.Flashcard || t.tagType === TagType.Question
+	/** The tags used on this list's cards (free-text names), for the filter and suggestions. */
+	const cardTagNames = useMemo(
+		() => [...new Set(cards.flatMap((c) => c.tags ?? []))].sort((a, b) => a.localeCompare(b)),
+		[cards],
 	);
 
 	const handleAddFlashcard = async (data: {
@@ -506,11 +537,12 @@ export function FlashcardListDetail() {
 				const fc = (res as any)?.data ?? res;
 				setCards((prev) => [...prev, mapFlashCard(fc, listId)]);
 			}
+			setEditingFlashcard(undefined);
 		} catch (err) {
 			console.error('[FlashcardListDetail] save error:', err);
-			toast({ title: 'Lưu thẻ ghi nhớ thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
+			// FlashcardDialog shows the error and stays open.
+			throw err;
 		}
-		setEditingFlashcard(undefined);
 	};
 
 	const handleEditFlashcard = (flashcard: FlashCard) => {
@@ -540,16 +572,9 @@ export function FlashcardListDetail() {
 		return null;
 	}
 
-	if (loading) {
-		return (
-			<div className="max-w-7xl mx-auto p-6">
-				<Card>
-					<CardContent className="py-12 text-center">
-						<p className="text-gray-500">Đang tải...</p>
-					</CardContent>
-				</Card>
-			</div>
-		);
+	// first load of this list: skeleton; later page changes/reloads keep the page and dim the grid
+	if (loading && listMeta?.id !== listId) {
+		return <FlashcardListDetailSkeleton />;
 	}
 
 	if (!currentList) {
@@ -577,7 +602,11 @@ export function FlashcardListDetail() {
 					<div className="flex items-center justify-between mb-6">
 						<Button
 							variant="ghost"
-							onClick={() => router.push('/flashcards')}
+							onClick={() => {
+								// back to the list view it was opened from (tab, page, search kept in ?from=)
+								const from = new URLSearchParams(window.location.search).get('from');
+								router.push(from && from.startsWith('/flashcards') && !from.startsWith('//') ? from : '/flashcards');
+							}}
 							className="flex items-center gap-2 -ml-2 text-slate-500 hover:text-primary font-semibold"
 						>
 							<ArrowLeft className="h-4 w-4" />
@@ -617,6 +646,18 @@ export function FlashcardListDetail() {
 								</div>
 							</div>
 						</div>
+						<div className="flex flex-wrap items-center justify-center gap-3">
+						{/* review mode only takes the player's own lists */}
+						{isOwnList && cardTotalCount > 0 && (
+							<Button
+								variant="outline"
+								onClick={() => router.push(`/flashcards/review?list=${encodeURIComponent(listId)}`)}
+								className="rounded-xl px-6 py-6 h-auto font-bold text-base border-primary/40 text-primary hover:bg-primary/10 flex-shrink-0"
+							>
+								<BookOpen className="h-5 w-5 mr-2" />
+								Ôn tập bộ này
+							</Button>
+						)}
 						{isOwnList && (
 							<Button
 								onClick={() => {
@@ -629,11 +670,16 @@ export function FlashcardListDetail() {
 								Thêm Flashcard
 							</Button>
 						)}
+						</div>
 					</div>
 				</div>
 			</div>
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+				{listMeta && (
+					<FlashcardForkPanel list={listMeta} isOwnList={isOwnList} onPulled={() => setReloadKey((k) => k + 1)} />
+				)}
+
 				{/* Search and Filter */}
 				<div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
 					<div className="flex-1 w-full relative">
@@ -655,9 +701,9 @@ export function FlashcardListDetail() {
 							</SelectTrigger>
 							<SelectContent className="rounded-xl border-slate-200">
 								<SelectItem value="__all__" className="font-semibold text-primary">Tất cả chủ đề</SelectItem>
-								{flashcardTags.map((tag) => (
-									<SelectItem key={tag.id} value={tag.id} className="font-medium">
-										{tag.name}
+								{cardTagNames.map((tag) => (
+									<SelectItem key={tag} value={tag} className="font-medium">
+										{tag}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -713,7 +759,10 @@ export function FlashcardListDetail() {
 					</div>
               ) : (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                    <div
+                      className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+                      aria-busy={loading}
+                    >
                       {filteredFlashcards.map((flashcard) => (
 						<FlashcardCard
 							key={flashcard.id}
@@ -752,6 +801,7 @@ export function FlashcardListDetail() {
 				onOpenChange={setFlashcardDialogOpen}
 				flashcard={editingFlashcard}
 				onSave={handleAddFlashcard}
+				tagSuggestions={cardTagNames}
 			/>
 
 			{currentUser && (

@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Tabs, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
-import { useToast } from './ui/use-toast';
 import {
 	BookOpen,
 	Headphones,
@@ -16,18 +14,17 @@ import {
 	ChevronLeft,
 	Search,
 	X,
-	Filter,
-	Check,
 	Users,
 } from 'lucide-react';
 
 import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
-import { useRouter } from 'next/navigation';
-import { ExamPracticeService, TagsService } from '@/lib/api-client';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ExamPracticeService } from '@/lib/api-client';
+import { useTagList } from '@/lib/tag-list';
+import { pageWindow } from '@/lib/pagination';
+import { TagChips, TagPicker } from './TagPicker';
 import type { find_exams_req_dto_FilterOptionsDto } from '@/lib/api/models/find_exams_req_dto_FilterOptionsDto';
 import { TestType, ExamStatus } from '../types/client';
-
-type TagNode = { id: string; name: string; parentId?: string };
 
 type FormattedExam = {
 	id: string;
@@ -43,6 +40,11 @@ type FormattedExam = {
 
 const META_TAGS = new Set(['ielts', 'toeic']);
 
+type ExamTypeFilter = 'all' | 'ielts' | 'toeic';
+
+const PAGE_SIZE = 6;
+
+
 function formatDurationShort(seconds: number): string {
 	if (seconds < 60) return `${seconds}s`;
 	const h = Math.floor(seconds / 3600);
@@ -55,21 +57,71 @@ export function TestSelection() {
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
 	const router = useRouter();
-	const { toast } = useToast();
 
-	const [selectedTab, setSelectedTab] = useState<'ielts' | 'toeic'>('ielts');
-	const [searchName, setSearchName] = useState('');
-	const [submittedSearchName, setSubmittedSearchName] = useState('');
-	const [selectedTags, setSelectedTags] = useState<string[]>([]);
+	// Tab, search and tags live in the URL (?type=toeic&q=…&tag=…), so the back button from an
+	// exam page returns to exactly this list.
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	// Exam type filter (?type=ielts|toeic); every exam by default.
+	const typeParam = searchParams.get('type');
+	const selectedTab: ExamTypeFilter = typeParam === 'ielts' || typeParam === 'toeic' ? typeParam : 'all';
+	const submittedSearchName = searchParams.get('q') ?? '';
+	const selectedTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	// page number in the URL too, so coming back from an exam lands on the same page
+	const pageParam = Number(searchParams.get('page'));
+	const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+	const [searchName, setSearchName] = useState(submittedSearchName);
 
-	const [allTags, setAllTags] = useState<TagNode[]>([]);
+	const updateQuery = useCallback(
+		(patch: { type?: ExamTypeFilter; q?: string; tags?: string[]; page?: number }) => {
+			const next = new URLSearchParams(searchParams.toString());
+			// any filter change starts again at page 1; only an explicit page keeps one
+			if (patch.page !== undefined && patch.page > 1) next.set('page', String(patch.page));
+			else next.delete('page');
+			if (patch.type !== undefined) {
+				if (patch.type === 'all') next.delete('type');
+				else next.set('type', patch.type);
+			}
+			if (patch.q !== undefined) {
+				if (patch.q.trim()) next.set('q', patch.q.trim());
+				else next.delete('q');
+			}
+			if (patch.tags !== undefined) {
+				next.delete('tag');
+				for (const t of patch.tags) next.append('tag', t);
+			}
+			const qs = next.toString();
+			router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+		},
+		[pathname, router, searchParams],
+	);
+	const setSelectedTab = (type: ExamTypeFilter) => updateQuery({ type: type });
+	const setSubmittedSearchName = (q: string) => updateQuery({ q: q });
+	const setSelectedTags = (tags: string[]) => updateQuery({ tags: tags });
+
+	const { tags: allTags, loading: loadingTags } = useTagList();
+	/** The chosen exam type's tag as stored (e.g. "TOEIC"), sent as a required tag; none for "all". */
+	const tabTagName = useMemo(
+		() =>
+			selectedTab === 'all' ? null : (
+				(allTags.find((t) => t.name.toLowerCase() === selectedTab)?.name ?? selectedTab.toUpperCase())
+			),
+		[allTags, selectedTab],
+	);
+	/** Tags of the other exam type are hidden from the tag picker once a type is chosen. */
+	const otherTabTags = useMemo(
+		() => (selectedTab === 'all' ? [] : [selectedTab === 'ielts' ? 'toeic' : 'ielts']),
+		[selectedTab],
+	);
 
 	const [exams, setExams] = useState<FormattedExam[]>([]);
 	const [loadingExams, setLoadingExams] = useState(true);
 
-	const [cursor, setCursor] = useState<string | undefined>(undefined);
-	const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
-	const [prevCursor, setPrevCursor] = useState<string | undefined>(undefined);
+	const [totalCount, setTotalCount] = useState(0);
+	const setPage = (p: number) => {
+		updateQuery({ page: p });
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
 
 	useEffect(() => {
 		if (!isHydrated) return;
@@ -77,19 +129,6 @@ export function TestSelection() {
 			router.push('/auth');
 		}
 	}, [isHydrated, currentUser, router]);
-
-	// Fetch tags on mount
-	useEffect(() => {
-		const fetchTags = async () => {
-			try {
-				const res = await TagsService.tagGatewayControllerGetTagListV1();
-				setAllTags((res as any).data?.list || []);
-			} catch (err) {
-				console.error('Failed to load tags:', err);
-			}
-		};
-		fetchTags();
-	}, []);
 
 	const deduceTestType = useCallback((raw: any): TestType => {
 		const lowerTags: string[] = raw?.tags?.map((t: string) => String(t).toLowerCase()) || [];
@@ -101,10 +140,10 @@ export function TestSelection() {
 		return TestType.IELTS;
 	}, []);
 
-	// Reset cursor when filters change
+	// keep the search box in step with the URL (back/forward)
 	useEffect(() => {
-		setCursor(undefined);
-	}, [selectedTab, submittedSearchName, selectedTags]);
+		setSearchName(submittedSearchName);
+	}, [submittedSearchName]);
 
 	// Fetch exams when filters or cursor change
 	useEffect(() => {
@@ -116,16 +155,17 @@ export function TestSelection() {
 			try {
 				const filterTags = selectedTags;
 
-				const filter: find_exams_req_dto_FilterOptionsDto = {};
+				// a chosen exam type is a required tag: only IELTS exams when IELTS is chosen
+				const filter: find_exams_req_dto_FilterOptionsDto = tabTagName ? { requiredTags: [tabTagName] } : {};
 				if (submittedSearchName.trim()) filter.name = submittedSearchName.trim();
 				if (filterTags.length > 0) filter.tags = filterTags;
 
-				const hasFilter = Object.keys(filter).length > 0;
 				const res = await ExamPracticeService.examPracticeGatewayControllerFindExamsV1(
-					hasFilter ? filter : undefined,
+					filter,
 					undefined,
-					cursor,
-					6,
+					undefined,
+					PAGE_SIZE,
+					page,
 				);
 
 				if (cancelled) return;
@@ -133,14 +173,13 @@ export function TestSelection() {
 				const data = (res as any).data;
 				const examsList = data?.exams || [];
 
-				if (examsList.length === 0 && cursor) {
-					toast({ title: 'Không còn kết quả' });
-					if (!cancelled) setLoadingExams(false);
+				const total = Number(data?.totalCount ?? examsList.length);
+				// a stale ?page= past the end (e.g. exams were removed): go to the last page
+				if (examsList.length === 0 && page > 1 && total > 0) {
+					updateQuery({ page: Math.ceil(total / PAGE_SIZE) });
 					return;
 				}
-
-				setNextCursor(data?.nextCursor || undefined);
-				setPrevCursor(data?.prevCursor || undefined);
+				setTotalCount(total);
 
 				const formattedExams: FormattedExam[] = examsList.map((e: any) => {
 					const rawTags: string[] = e.tags || [];
@@ -175,24 +214,13 @@ export function TestSelection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, cursor]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [currentUser, selectedTab, submittedSearchName, selectedTags, deduceTestType, page, tabTagName]);
 
-	// Filterable tags: exclude meta tags (ielts/toeic) since those are handled by tabs
-	const filterableTags = useMemo(() => {
-		return allTags.filter((t) => !META_TAGS.has(t.name.toLowerCase()));
-	}, [allTags]);
-
-	const toggleTag = useCallback((tagName: string) => {
-		setSelectedTags((prev) =>
-			prev.includes(tagName) ? prev.filter((t) => t !== tagName) : [...prev, tagName],
-		);
-	}, []);
-
-	const clearFilters = useCallback(() => {
+	const clearFilters = () => {
 		setSearchName('');
-		setSubmittedSearchName('');
-		setSelectedTags([]);
-	}, []);
+		updateQuery({ q: '', tags: [] });
+	};
 
 	const hasActiveFilters = searchName.trim().length > 0 || selectedTags.length > 0;
 
@@ -272,7 +300,9 @@ export function TestSelection() {
 					<Button
 						className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-11 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)]"
 						onClick={() => {
-							router.push('/test/' + exam.id);
+							// remember this list (tab, search, tags) for the exam page's back button
+							const here = `${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`;
+							router.push(`/test/${exam.id}?from=${encodeURIComponent(here)}`);
 						}}
 					>
 						Vào thi ngay
@@ -283,16 +313,16 @@ export function TestSelection() {
 		);
 	};
 
-	const EmptyState = ({ type }: { type: 'ielts' | 'toeic' }) => {
-		const EmptyIcon = type === 'ielts' ? BookOpen : Headphones;
-		const label = type === 'ielts' ? 'IELTS' : 'TOEIC';
+	const EmptyState = ({ type }: { type: ExamTypeFilter }) => {
+		const EmptyIcon = type === 'toeic' ? Headphones : BookOpen;
+		const label = type === 'all' ? '' : type.toUpperCase();
 		return (
 			<div className="col-span-full py-24 text-center bg-white rounded-3xl border border-dashed border-slate-300">
 				<EmptyIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
 				{hasActiveFilters ? (
 					<>
 						<p className="text-slate-500 font-semibold text-lg">
-							Không tìm thấy đề thi {label} phù hợp
+							Không tìm thấy đề thi{label ? ` ${label}` : ''} phù hợp
 						</p>
 						<p className="text-slate-400 mt-2 text-sm">
 							Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
@@ -304,7 +334,7 @@ export function TestSelection() {
 				) : (
 					<>
 						<p className="text-slate-500 font-semibold text-lg">
-							Hệ thống đang cập nhật đề thi {label}
+							Hệ thống đang cập nhật đề thi{label ? ` ${label}` : ''}
 						</p>
 						<p className="text-slate-400 mt-2 text-sm">Vui lòng quay lại sau nhé!</p>
 					</>
@@ -313,29 +343,44 @@ export function TestSelection() {
 		);
 	};
 
+	const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 	const PaginationControls = () => {
-		if (!prevCursor && !nextCursor) return null;
+		if (pageCount <= 1) return null;
 		return (
-			<div className="flex items-center justify-center gap-4 mt-8">
+			<nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang đề thi">
 				<Button
 					variant="outline"
-					onClick={() => setCursor(prevCursor)}
-					disabled={!prevCursor || loadingExams}
+					onClick={() => setPage(page - 1)}
+					disabled={page <= 1 || loadingExams}
 					className="rounded-xl gap-1.5"
 				>
 					<ChevronLeft className="h-4 w-4" />
-					Trang trước
+					Trước
 				</Button>
+				{pageWindow(page, pageCount).map((p, i) =>
+					p === null ?
+						<span key={`gap-${i}`} className="px-1 text-slate-400">…</span>
+					:	<Button
+							key={p}
+							variant={p === page ? 'default' : 'outline'}
+							onClick={() => setPage(p)}
+							disabled={loadingExams}
+							aria-current={p === page ? 'page' : undefined}
+							className="h-10 w-10 rounded-xl p-0 tabular-nums"
+						>
+							{p}
+						</Button>,
+				)}
 				<Button
 					variant="outline"
-					onClick={() => setCursor(nextCursor)}
-					disabled={!nextCursor || loadingExams}
+					onClick={() => setPage(page + 1)}
+					disabled={page >= pageCount || loadingExams}
 					className="rounded-xl gap-1.5"
 				>
-					Trang sau
+					Sau
 					<ChevronRight className="h-4 w-4" />
 				</Button>
-			</div>
+			</nav>
 		);
 	};
 
@@ -358,16 +403,6 @@ export function TestSelection() {
 			</div>
 
 			<div className="w-full">
-				<Tabs
-					defaultValue="ielts"
-					value={selectedTab}
-					onValueChange={(value: any) => {
-						setSelectedTab(value);
-					}}
-					className="w-full"
-				>
-
-
 					<div className="space-y-4 mb-8">
 			{/* Search input */}
 			<div className="relative max-w-md mx-auto">
@@ -396,97 +431,84 @@ export function TestSelection() {
 				)}
 			</div>
 
-			{/* Tag filter chips */}
-			{filterableTags.length > 0 && (
-				<div className="flex items-center gap-2 max-w-3xl mx-auto">
-					<Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
-					<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
-						{filterableTags.map((tag) => {
-							const isSelected = selectedTags.includes(tag.name);
-							return (
-								<button
-									key={tag.id}
-									onClick={() => toggleTag(tag.name)}
-									className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap flex-shrink-0 ${
-										isSelected
-											? 'bg-primary text-white border-primary shadow-sm ring-1 ring-primary/30'
-											: 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
-									}`}
-								>
-									{isSelected && <Check className="h-3.5 w-3.5" />}
-									{getTagDisplayName(tag.name)}
-								</button>
-							);
-						})}
-						{hasActiveFilters && (
-							<button
-								onClick={clearFilters}
-								className="px-3 py-1.5 rounded-full text-sm font-medium text-red-500 hover:bg-red-50 border border-red-200 transition-all whitespace-nowrap flex-shrink-0"
-							>
-								Xóa bộ lọc
-							</button>
-						)}
-					</div>
+			{/* Tag filter: compact searchable picker over the cached tag tree */}
+			<div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
+				<div role="radiogroup" aria-label="Loại đề" className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+					{(['all', 'ielts', 'toeic'] as const).map((t) => (
+						<button
+							key={t}
+							type="button"
+							role="radio"
+							aria-checked={selectedTab === t}
+							onClick={() => setSelectedTab(t)}
+							className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+								selectedTab === t ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+							}`}
+						>
+							{t === 'all' ? 'Tất cả' : t.toUpperCase()}
+						</button>
+					))}
 				</div>
-			)}
+				<TagPicker
+					tags={allTags}
+					value={selectedTags}
+					onChange={setSelectedTags}
+					exclude={[...META_TAGS].concat(otherTabTags)}
+					label={getTagDisplayName}
+					loading={loadingTags}
+				/>
+				{/* keeps its space when hidden, so the controls never shift */}
+				<button
+					onClick={clearFilters}
+					disabled={!hasActiveFilters}
+					aria-hidden={!hasActiveFilters}
+					tabIndex={hasActiveFilters ? 0 : -1}
+					className={`rounded-full border border-red-200 px-3 py-1.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50 ${
+						hasActiveFilters ? '' : 'invisible'
+					}`}
+				>
+					Xóa bộ lọc
+				</button>
+			</div>
+			<TagChips value={selectedTags} onChange={setSelectedTags} label={getTagDisplayName} />
 		</div>
 
-					<TabsContent
-						value="ielts"
-						className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-					>
-						<div className="text-center space-y-3 mb-10">
-							<h3 className="text-2xl font-bold text-primary">
-								IELTS - International English Language Testing System
-							</h3>
-							<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
-								Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết
-								phục vụ cho du học và định cư.
-							</p>
-						</div>
+					<section className="space-y-8">
+						{selectedTab !== 'all' && (
+							<div className="text-center space-y-3 mb-10">
+								<h3 className={`text-2xl font-bold ${selectedTab === 'ielts' ? 'text-primary' : 'text-secondary'}`}>
+									{selectedTab === 'ielts' ?
+										'IELTS - International English Language Testing System'
+									:	'TOEIC - Test of English for International Communication'}
+								</h3>
+								<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
+									{selectedTab === 'ielts' ?
+										'Bài kiểm tra năng lực tiếng Anh quốc tế toàn diện bốn kỹ năng Nghe, Nói, Đọc, Viết phục vụ cho du học và định cư.'
+									:	'Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên nghiệp.'}
+								</p>
+							</div>
+						)}
 
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-							{loadingExams ? (
+						{/* Keep the current cards while a new filter loads (dimmed): swapping them for a
+						    loading text made the page flash on every tag click. */}
+						<div
+							className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 transition-opacity duration-200 ${
+								loadingExams && exams.length > 0 ? 'pointer-events-none opacity-60' : ''
+							}`}
+							aria-busy={loadingExams}
+						>
+							{loadingExams && exams.length === 0 ? (
 								<div className="col-span-full py-12 text-center text-slate-500">
 									Đang tải danh sách đề thi...
 								</div>
 							) : exams.length > 0 ? (
-								exams.map((exam) => <ExamCard key={exam.id} exam={exam} />)
+								exams.map((exam) => <React.Fragment key={exam.id}>{ExamCard({ exam: exam })}</React.Fragment>)
 							) : (
-								<EmptyState type="ielts" />
+								EmptyState({ type: selectedTab })
 							)}
 						</div>
-						<PaginationControls />
-					</TabsContent>
-
-					<TabsContent
-						value="toeic"
-						className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-					>
-						<div className="text-center space-y-3 mb-10">
-							<h3 className="text-2xl font-bold text-secondary">
-								TOEIC - Test of English for International Communication
-							</h3>
-							<p className="text-slate-600 font-medium max-w-3xl mx-auto text-[15px]">
-								Đo lường năng lực giao tiếp tiếng Anh trong môi trường đa quốc gia và kinh doanh chuyên
-								nghiệp.
-							</p>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-							{loadingExams ? (
-								<div className="col-span-full py-12 text-center text-slate-500">
-									Đang tải danh sách đề thi...
-								</div>
-							) : exams.length > 0 ? (
-								exams.map((exam) => <ExamCard key={exam.id} exam={exam} />)
-							) : (
-								<EmptyState type="toeic" />
-							)}
-						</div>
-						<PaginationControls />
-					</TabsContent>
-				</Tabs>
+						{PaginationControls()}
+					</section>
 			</div>
 		</div>
 	);

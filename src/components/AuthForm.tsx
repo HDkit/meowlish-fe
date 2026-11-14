@@ -1,72 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
-import { extractApiErrorMessage } from '@/lib/api-response';
+import React, { useEffect, useState } from 'react';
+import { DEMO_ACCOUNT } from '@/lib/demo-account';
+import { normalizeApiError, passwordPolicyError } from '@/lib/api-errors';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
-import { Alert, AlertDescription } from './ui/alert';
-import { AlertCircle, Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Target, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { FaGoogle } from 'react-icons/fa';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
-import { v4 as uuidv4 } from 'uuid';
-import { AuthService, setApiTokensState } from '@/lib/api-client';
-import { jwtDecode } from 'jwt-decode';
-import { User } from '@/types/client';
-
-const normalizeRoleIdFromToken = (decoded: any): string => {
-	const rawRole = decoded?.role || decoded?.roleId;
-	const normalizedRoles = Array.isArray(decoded?.roles)
-		? decoded.roles.map((role: unknown) => String(role).toLowerCase())
-		: [];
-	const normalizedPermissions = Array.isArray(decoded?.permissions)
-		? decoded.permissions.map((permission: unknown) => String(permission).toLowerCase())
-		: [];
-	const normalizedRawRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : '';
-
-	if (
-		normalizedRawRole === 'role-head-staff' ||
-		normalizedRawRole === 'head_staff' ||
-		normalizedRawRole === 'head-staff' ||
-		normalizedRawRole === 'admin' ||
-		normalizedRoles.includes('admin') ||
-		normalizedRoles.includes('head_staff') ||
-		normalizedPermissions.includes('exam:approve') ||
-		normalizedPermissions.includes('user:ban')
-	) {
-		return 'role-head-staff';
-	}
-
-	if (
-		normalizedRawRole === 'role-mod' ||
-		normalizedRawRole === 'mod' ||
-		normalizedRoles.includes('mod') ||
-		(normalizedPermissions.includes('exam:review') && normalizedPermissions.includes('user:lock'))
-	) {
-		return 'role-mod';
-	}
-
-	if (
-		normalizedRawRole === 'role-staff' ||
-		normalizedRawRole === 'staff' ||
-		normalizedRoles.includes('staff') ||
-		normalizedPermissions.includes('exam:write') ||
-		normalizedPermissions.includes('exam:review')
-	) {
-		return 'role-staff';
-	}
-
-	if (normalizedRawRole === 'role-learner' || normalizedRawRole === 'learner' || normalizedRoles.includes('learner')) {
-		return 'role-learner';
-	}
-
-	return 'role-learner';
-};
+import { AuthService, GOOGLE_LOGIN_PATH, googleOAuthUrl, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
 
 export function AuthForm() {
 	const router = useRouter();
@@ -85,7 +34,20 @@ export function AuthForm() {
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-	const [error, setError] = useState('');
+	const [errors, setErrors] = useState<string[]>([]);
+
+	type Field = keyof typeof formData;
+	const setField = (field: Field, value: string) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		// The message no longer describes what is typed; drop it until the next submit.
+		if (validationErrors[field]) setValidationErrors(({ [field]: _, ...rest }) => rest);
+	};
+
+	// Messages from the other mode don't apply any more.
+	useEffect(() => {
+		setErrors([]);
+		setValidationErrors({});
+	}, [mode]);
 
 	// Common validation
 	const validate = () => {
@@ -94,7 +56,10 @@ export function AuthForm() {
 		else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email không hợp lệ';
 
 		if (!formData.password) errors.password = 'Mật khẩu là bắt buộc';
-		else if (!isLogin && formData.password.length < 6) errors.password = 'Mật khẩu phải dài hơn 6 ký tự';
+		else if (!isLogin) {
+			const weak = passwordPolicyError(formData.password);
+			if (weak) errors.password = weak;
+		}
 
 		if (!isLogin) {
 			if (!formData.fullName.trim()) errors.fullName = 'Họ tên là bắt buộc';
@@ -106,82 +71,37 @@ export function AuthForm() {
 		return Object.keys(errors).length === 0;
 	};
 
-	// Try to map backend field errors to form fields
-	const applyFieldErrors = (body: any) => {
-		if (!body) return;
-		const fieldErrors: Record<string, string> = {};
-		const src = body.error ?? body;
+	// Backend DTO fields -> this form's fields (register sends the "full name" input as username).
+	const API_FIELDS = { mail: 'email', password: 'password', username: 'fullName' };
 
-		if (Array.isArray(src)) {
-			for (const item of src) {
-				if (item.field && item.message) fieldErrors[item.field] = item.message;
-			}
-		} else if (typeof src === 'object') {
-			for (const [field, msgs] of Object.entries(src)) {
-				if (field === 'message' || field === 'code') continue;
-				const msg = Array.isArray(msgs) ? msgs[0] : msgs;
-				if (typeof msg === 'string' && field !== 'message' && field !== 'code' && field !== 'statusCode') {
-					fieldErrors[field] = msg;
-				}
-			}
+	const showApiError = (err: any, fallback: string) => {
+		const { status, messages, fieldErrors } = normalizeApiError(err, { fallback: fallback, fields: API_FIELDS });
+		setValidationErrors(fieldErrors);
+		if (Object.keys(fieldErrors).length > 0 && messages.length === 0) {
+			setErrors([]);
+			return;
 		}
-		if (Object.keys(fieldErrors).length > 0) setValidationErrors(fieldErrors);
-	};
-
-	const authErrorMessage = (err: any, fallback: string) => {
-		const msg = extractApiErrorMessage(err, fallback);
-		const status = err?.status ?? err?.statusCode;
-		if (msg !== fallback) return msg;
-		if (status === 401) return 'Sai email hoặc mật khẩu';
-		if (status === 403) return 'Tài khoản của bạn đã bị khóa';
-		if (status === 404) return 'Tài khoản không tồn tại';
-		if (status === 409) return 'Email này đã được đăng ký';
-		return msg;
+		// Don't reveal whether the email or the password was wrong.
+		if (isLogin && (status === 401 || status === 404)) setErrors(['Sai email hoặc mật khẩu']);
+		else if (status === 403 && isLogin) setErrors(['Tài khoản của bạn đã bị khóa']);
+		else if (status === 409 && !isLogin) setErrors(['Email hoặc tên đăng nhập này đã được đăng ký']);
+		else setErrors(messages);
 	};
 
 	// Login handler
-	const handleLoginSubmit = async () => {
+	const handleLoginSubmit = async (credentials = { email: formData.email, password: formData.password }) => {
 		setLoading(true);
-		setError('');
+		setErrors([]);
 
 		try {
-			const res = await AuthService.authGatewayControllerLoginMailV1({ mail: formData.email, password: formData.password });
-			
-			const token = res.data?.accessToken;
-			if (!token) throw new Error('Không nhận được token từ server');
-			
-			setApiTokensState(token, res.data?.refreshToken);
-			
-			// Set authentication cookie for middleware
-			document.cookie = `user_authenticated=true; path=/; max-age=2592000`; // 30 days
-			
-			// Decode token to get user info if possible (or just use basic properties)
-			const decoded: any = jwtDecode(token);
-			
-			// For right now, let's inject a realistic user into Redux to keep the app working
-			const user: User = {
-				id: decoded.sub || decoded.id || uuidv4(),
-				email: formData.email,
-				fullName: decoded.name || decoded.fullName || formData.email.split('@')[0],
-				roleId: normalizeRoleIdFromToken(decoded),
-				password: '***',
-				status: 'active',
-				createdAt: Date.now(),
-				lastLoginAt: Date.now(),
-			};
-
+			// The gateway sets the HttpOnly session cookies; the body carries no token.
+			await AuthService.authGatewayControllerLoginMailV1({ mail: credentials.email, password: credentials.password });
+			const user = await loadSessionUser({ email: credentials.email, fullName: credentials.email.split('@')[0] });
 			dispatch(setUser(user));
-			
-			const isAdminRole = user.roleId === 'role-mod' || user.roleId === 'role-staff' || user.roleId === 'role-head-staff' || user.roleId === 'ADMIN';
-			if (isAdminRole) {
-				router.push('/dashboard');
-			} else {
-				router.push('/test-selection');
-			}
+			router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
 		} catch (err: any) {
 			console.error(err);
-			applyFieldErrors(err.body);
-			setError(authErrorMessage(err, 'Đăng nhập thất bại'));
+			showApiError(err, 'Đăng nhập thất bại');
 		} finally {
 			setLoading(false);
 		}
@@ -190,35 +110,15 @@ export function AuthForm() {
 	// Register handler
 	const handleRegisterSubmit = async () => {
 		setLoading(true);
-		setError('');
+		setErrors([]);
 		try {
-			const res = await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
-			
-			const token = res.data?.accessToken;
-			if (!token) throw new Error('Không nhận được token từ server');
-			
-			setApiTokensState(token, res.data?.refreshToken);
-			document.cookie = `user_authenticated=true; path=/; max-age=2592000`;
-
-			const decoded: any = jwtDecode(token);
-
-			const newUser: User = {
-				id: decoded.sub || decoded.id || uuidv4(),
-				email: formData.email,
-				fullName: formData.fullName,
-				password: '***',
-				roleId: normalizeRoleIdFromToken(decoded),
-				status: 'active',
-				createdAt: Date.now(),
-				lastLoginAt: Date.now(),
-			};
-
+			await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
+			const newUser = await loadSessionUser({ email: formData.email, fullName: formData.fullName });
 			dispatch(setUser(newUser));
 			router.push('/test-selection');
 		} catch (err: any) {
 			console.error(err);
-			applyFieldErrors(err.body);
-			setError(authErrorMessage(err, 'Đăng ký thất bại'));
+			showApiError(err, 'Đăng ký thất bại');
 		} finally {
 			setLoading(false);
 		}
@@ -234,9 +134,9 @@ export function AuthForm() {
 
 	// Social login (Google) - Direct redirect to avoid CORS
 	const handleGoogleLogin = () => {
-		// Direct redirect to backend OAuth endpoint
-		// This avoids CORS issues with fetch API
-		window.location.href = '/api/v1/auth/google';
+		// Top-level navigation (not fetch): the gateway redirects to Google. `frontend` tells it to
+		// bring the user back to this frontend.
+		window.location.href = googleOAuthUrl(GOOGLE_LOGIN_PATH);
 	};
 
 	const toggleMode = () => {
@@ -331,54 +231,54 @@ export function AuthForm() {
 					</div>
 
 					<div className='space-y-4'>
-						{error && (
-							<Alert variant='destructive' className='border-red-300 bg-red-50 py-3'>
-								<div className='flex items-start gap-3'>
-									<AlertCircle className='h-5 w-5 text-red-500 mt-0.5 shrink-0' />
-									<AlertDescription className='text-red-700 font-medium text-sm'>{error}</AlertDescription>
-								</div>
-							</Alert>
-						)}
+						<FormErrorSummary messages={errors} />
 
-						<form onSubmit={handleSubmit} className='space-y-4'>
+						<form onSubmit={handleSubmit} noValidate className='space-y-4'>
 							{!isLogin && (
 								<div className='space-y-2'>
-									<Label className='text-gray-700 font-semibold'>Tên đăng nhập</Label>
+									<Label htmlFor='auth-fullName' className='text-gray-700 font-semibold'>Tên đăng nhập</Label>
 									<div className='relative'>
 										<UserIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input
+											{...fieldA11y('auth-fullName', validationErrors.fullName)}
+											autoComplete='username'
 											value={formData.fullName}
-											onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+											onChange={(e) => setField('fullName', e.target.value)}
 											className='pl-10 border-2 focus:border-primary transition-colors h-11'
 											placeholder='Nhập username'
 										/>
 									</div>
-									{validationErrors.fullName && <p className='text-sm text-destructive'>{validationErrors.fullName}</p>}
+									<FieldError id='auth-fullName' message={validationErrors.fullName} />
 								</div>
 							)}
 
 							<div className='space-y-2'>
-								<Label className='text-gray-700 font-semibold'>Email</Label>
+								<Label htmlFor='auth-email' className='text-gray-700 font-semibold'>Email</Label>
 								<div className='relative'>
 									<Mail className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/80' />
 									<Input
+										{...fieldA11y('auth-email', validationErrors.email)}
+										type='email'
+										autoComplete='email'
 										value={formData.email}
-										onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+										onChange={(e) => setField('email', e.target.value)}
 										className='pl-10 border-2 focus:border-primary transition-colors h-11'
 										placeholder='Nhập email của bạn'
 									/>
 								</div>
-								{validationErrors.email && <p className='text-sm text-destructive'>{validationErrors.email}</p>}
+								<FieldError id='auth-email' message={validationErrors.email} />
 							</div>
 
 							<div className='space-y-2'>
-								<Label className='text-gray-700 font-semibold'>Mật khẩu</Label>
+								<Label htmlFor='auth-password' className='text-gray-700 font-semibold'>Mật khẩu</Label>
 								<div className='relative'>
 									<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 									<Input
+										{...fieldA11y('auth-password', validationErrors.password)}
+										autoComplete={isLogin ? 'current-password' : 'new-password'}
 										type={showPassword ? 'text' : 'password'}
 										value={formData.password}
-										onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+										onChange={(e) => setField('password', e.target.value)}
 										className='pl-10 pr-10 border-2 focus:border-secondary transition-colors h-11'
 										placeholder='Nhập mật khẩu'
 									/>
@@ -387,23 +287,26 @@ export function AuthForm() {
 										variant='ghost'
 										size='sm'
 										className='absolute right-0 top-0 h-full px-3'
+										aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
 										onClick={() => setShowPassword(!showPassword)}
 									>
 										{showPassword ? <EyeOff /> : <Eye />}
 									</Button>
 								</div>
-								{validationErrors.password && <p className='text-sm text-destructive'>{validationErrors.password}</p>}
+								<FieldError id='auth-password' message={validationErrors.password} />
 							</div>
 
 							{!isLogin && (
 								<div className='space-y-2'>
-									<Label className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
+									<Label htmlFor='auth-confirmPassword' className='text-gray-700 font-semibold'>Xác nhận mật khẩu</Label>
 									<div className='relative'>
 										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary/80' />
 										<Input
+											{...fieldA11y('auth-confirmPassword', validationErrors.confirmPassword)}
+											autoComplete='new-password'
 											type={showConfirmPassword ? 'text' : 'password'}
 											value={formData.confirmPassword}
-											onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+											onChange={(e) => setField('confirmPassword', e.target.value)}
 											className='pl-10 pr-10 border-2 focus:border-secondary transition-colors h-11'
 											placeholder='Nhập lại mật khẩu'
 										/>
@@ -412,14 +315,13 @@ export function AuthForm() {
 											variant='ghost'
 											size='sm'
 											className='absolute right-0 top-0 h-full px-3'
+											aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
 											onClick={() => setShowConfirmPassword(!showConfirmPassword)}
 										>
 											{showConfirmPassword ? <EyeOff /> : <Eye />}
 										</Button>
 									</div>
-									{validationErrors.confirmPassword && (
-										<p className='text-sm text-destructive'>{validationErrors.confirmPassword}</p>
-									)}
+									<FieldError id='auth-confirmPassword' message={validationErrors.confirmPassword} />
 								</div>
 							)}
 
@@ -437,6 +339,27 @@ export function AuthForm() {
 								<span className='bg-background px-2 text-muted-foreground'>hoặc</span>
 							</div>
 						</div>
+
+						{isLogin && DEMO_ACCOUNT.enabled && (
+							<div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-sm'>
+								<Button
+									type='button'
+									variant='outline'
+									className='w-full rounded-xl font-semibold'
+									disabled={loading}
+									data-testid='demo-login'
+									onClick={() => {
+										setFormData({ ...formData, email: DEMO_ACCOUNT.email, password: DEMO_ACCOUNT.password });
+										void handleLoginSubmit({ email: DEMO_ACCOUNT.email, password: DEMO_ACCOUNT.password });
+									}}
+								>
+									Dùng thử bằng tài khoản demo
+								</Button>
+								<p className='mt-2 text-xs text-muted-foreground'>
+									{DEMO_ACCOUNT.email} / {DEMO_ACCOUNT.password}: tài khoản dùng chung, không đổi được mật khẩu.
+								</p>
+							</div>
+						)}
 
 						<Button variant='outline' className='w-full h-13 py-3 rounded-xl border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-all font-semibold' onClick={handleGoogleLogin} disabled={loading}>
 							<FaGoogle className='w-5 h-5 text-red-500 mr-2' />

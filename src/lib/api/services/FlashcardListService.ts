@@ -12,11 +12,22 @@ export interface FlashCardListResponse {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  /** On a saved copy: the original list (absent once the original is deleted). */
+  forkedFromId?: string;
+  /** On a saved copy: the original's name and author when it was copied. */
+  forkedFromName?: string;
+  forkedFromAuthorId?: string;
+  /** How many copies were saved of this list. */
+  forkCount?: number;
 }
 
 export interface FlashCardListDetailResponse extends FlashCardListResponse {
   flashCards: FlashCardResponse[];
   totalCards: number;
+  /** Open change proposals on this list (counted for its owner and admins, else 0). */
+  openProposalCount?: number;
+  /** A copy whose original still exists and is visible to the user. */
+  upstreamAvailable?: boolean;
 }
 
 export interface ListFlashCardListsResponse {
@@ -50,11 +61,13 @@ export class FlashcardListService {
     page?: number,
     limit?: number,
     tags?: string[],
+    /** case-insensitive substring of the list name */
+    name?: string,
   ): CancelablePromise<ListFlashCardListsResponse> {
     return __request(OpenAPI, {
       method: 'GET',
       url: '/api/v1/resources/flash-card-lists',
-      query: { authorId, isPublic, page, limit, tags },
+      query: { authorId, isPublic, page, limit, tags, name: name?.trim() || undefined },
     });
   }
 
@@ -123,17 +136,6 @@ export class FlashcardListService {
       path: { id },
       body: payload,
       mediaType: 'application/json',
-    });
-  }
-
-  public static removeCardFromList(
-    listId: string,
-    cardId: string,
-  ): CancelablePromise<void> {
-    return __request(OpenAPI, {
-      method: 'DELETE',
-      url: '/api/v1/resources/flash-card-lists/{listId}/cards/{cardId}',
-      path: { listId, cardId },
     });
   }
 }

@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import {
 	Select,
 	SelectContent,
@@ -55,8 +57,11 @@ function findFirstQuestionId(sections: SectionDataDto[]): string | null {
  */
 function parseAdditionalData(additionalData: string): WritingEvaluationResult {
 	try {
-		const parsed = JSON.parse(additionalData);
-		return { ...parsed, additionalData };
+		let parsed: unknown = JSON.parse(additionalData);
+		// the backend stores the scorer's result as a JSON string inside JSON: decode both layers
+		if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+		if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+		return { ...(parsed as WritingEvaluationResult), additionalData };
 	} catch {
 		return {
 			overall_score: 0,
@@ -182,7 +187,7 @@ export function WritingTest() {
 			// Step 5: Poll for review (scoring may be async)
 			setEvaluationStep('Đang chờ AI chấm bài...');
 			let reviewResult: WritingEvaluationResult | null = null;
-			const maxRetries = 12; // 12 attempts × 5s = 60s max wait
+			const maxRetries = 60; // 60 attempts × 5s = 5 min max wait (the mock scorer takes 1-3 min)
 
 			for (let i = 0; i < maxRetries; i++) {
 				await sleep(i === 0 ? 2000 : 5000); // first wait 2s, then 5s intervals
@@ -192,18 +197,10 @@ export function WritingTest() {
 					const reviewData = (reviewRes as any)?.data as AttemptReviewDto | undefined;
 
 					if (reviewData) {
+						// Only the scorer's band/feedback counts. `totalPoints` is the attempt's MAXIMUM points,
+						// set the moment it is submitted, so it must never be shown as the score.
 						reviewResult = extractWritingResultFromReview(reviewData);
 						if (reviewResult) break;
-
-						// If we got review data but no additionalData yet, the scoring might still be processing
-						if (reviewData.totalPoints != null && reviewData.totalPoints > 0) {
-							// Has score but no detailed feedback - use basic info
-							reviewResult = {
-								overall_score: reviewData.totalPoints,
-								detailed_feedback: 'Điểm đã được chấm. Nhận xét chi tiết có thể chưa sẵn sàng.',
-							};
-							break;
-						}
 					}
 				} catch {
 					// Review not ready yet, continue polling
@@ -240,12 +237,28 @@ export function WritingTest() {
 	/* ─── Loading state ─── */
 	if (loadingExams) {
 		return (
-			<div className="w-full flex items-center justify-center py-24">
-				<div className="flex flex-col items-center gap-3 text-muted-foreground">
-					<Loader2 className="h-8 w-8 animate-spin text-primary" />
-					<p className="font-medium">Đang tải danh sách đề Writing...</p>
+			<LoadingRegion label="Đang tải danh sách đề Writing…" className="w-full">
+				<div className="max-w-7xl mx-auto">
+					<div className="-mt-4 overflow-hidden rounded-2xl bg-white/80 shadow-xl shadow-gray-200/50">
+						<div className="h-1.5 w-full bg-secondary" />
+						<div className="space-y-2 border-b border-gray-100 bg-gray-50/50 p-6 pb-4">
+							<Skeleton className="h-8 w-56" />
+							<Skeleton className="h-4 w-full max-w-lg" />
+						</div>
+						<div className="space-y-6 p-6">
+							<div className="space-y-2">
+								<Skeleton className="h-4 w-28" />
+								<Skeleton className="h-9 w-full" />
+							</div>
+							<div className="space-y-2">
+								<Skeleton className="h-4 w-32" />
+								<Skeleton className="h-[350px] w-full" />
+							</div>
+							<Skeleton className="h-10 w-40" />
+						</div>
+					</div>
 				</div>
-			</div>
+			</LoadingRegion>
 		);
 	}
 

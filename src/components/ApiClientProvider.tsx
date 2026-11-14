@@ -1,19 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
 import { setupApiClient } from '@/lib/api-client';
+import { SessionSync } from '@/components/SessionSync';
 
 /**
- * ApiClientProvider – chạy phía client để khởi tạo OpenAPI singleton
- * với token lấy từ localStorage/cookie SAU khi hydration.
+ * ApiClientProvider – configures the OpenAPI singleton on the client (base URL,
+ * cookie credentials) and checks the cookie session once per page load.
  *
- * Đặt component này cao nhất trong cây layout để đảm bảo token
- * luôn được inject trước khi bất kỳ API call nào xảy ra.
+ * Place it high in the layout tree so the client is configured before any API call.
  */
 export function ApiClientProvider({ children }: { children: React.ReactNode }) {
 	if (typeof window !== 'undefined') {
 		setupApiClient();
 	}
 
-	return <>{children}</>;
+	return (
+		<>
+			<SessionSync />
+			{children}
+		</>
+	);
 }

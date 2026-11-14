@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { NotificationDropdown } from './NotificationDropdown';
-import { AiStatusBanner } from './AiStatusBanner';
+import { AiStatusBanner, AiStatusToggle } from './AiStatusBanner';
 import { SidebarTrigger } from './ui/sidebar';
 
 const pageTitles: Record<string, string> = {
@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   '/user-management': 'Quản lý User',
   '/user': 'Thông tin cá nhân',
   '/chat': 'Phòng Chat',
+  '/forum': 'Diễn đàn',
   '/notifications': 'Thông báo',
 };
 
@@ -32,6 +33,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/test/')) return 'Chi tiết đề thi';
   if (pathname.startsWith('/results/')) return 'Kết quả bài thi';
   if (pathname.startsWith('/flashcards/')) return 'Bộ Flashcard';
+  if (pathname.startsWith('/forum/')) return 'Diễn đàn';
+  if (pathname.startsWith('/blog/')) return 'Bài viết';
   return '';
 }
 
@@ -43,9 +46,11 @@ export function AppTopBar() {
     <header className="sticky top-0 z-30 border-b border-border/70 bg-white/82 backdrop-blur-xl">
       <AiStatusBanner />
       <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-3 px-4 md:px-6 lg:px-8 xl:px-10">
-        <SidebarTrigger />
+        {/* Mobile only: opens the slide-out menu. On desktop the sidebar has its own toggle. */}
+        <SidebarTrigger aria-label="Mở menu" className="size-9 md:hidden" />
         <h1 className="truncate text-xl font-semibold text-foreground">{title}</h1>
         <div className="ml-auto flex items-center gap-1">
+          <AiStatusToggle />
           <NotificationDropdown />
         </div>
       </div>

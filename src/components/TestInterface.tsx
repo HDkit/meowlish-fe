@@ -6,7 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ExamPracticeService } from '@/lib/api-client';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { useToast } from '@/components/ui/use-toast';
-import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X } from 'lucide-react';
+import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { AnswerSync, registerAttemptSync, type AnswerKind, type SyncStatus } from '@/lib/answer-sync';
 import { TextHighlighter } from './TextHighlighter';
 
 
@@ -383,6 +384,30 @@ function NoteEditor({
   );
 }
 
+/** Tells the user whether their answers have reached the server. */
+function SaveIndicator({ status }: { status: SyncStatus }) {
+  if (status.state === 'error') {
+    return (
+      <p className="mb-3 flex items-start gap-1.5 text-xs font-semibold text-rose-600" role="alert">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        Chưa lưu được {status.failed.length} câu. Đang thử lại khi bạn nộp bài.
+      </p>
+    );
+  }
+  if (status.state === 'saving') {
+    return (
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-500" aria-live="polite">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang lưu…
+      </p>
+    );
+  }
+  return (
+    <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-600" aria-live="polite">
+      <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu mọi câu trả lời
+    </p>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function TestInterface() {
@@ -440,12 +465,28 @@ export function TestInterface() {
   // Refs
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSubmittingRef = useRef(false);
-  /** Per-answer debounce: key = `${questionId}:${answerValue}` */
-  const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
-  /** Track pending writing saves for emergency flush on beforeunload */
-  const pendingWritingSavesRef = useRef<Set<string>>(new Set());
-  /** Track last saved content to avoid redundant saves */
-  const lastSavedContentRef = useRef<Record<string, string>>({});
+  const [saveStatus, setSaveStatus] = useState<SyncStatus>({ state: 'saved' });
+  /**
+   * Answer saves: one ordered, retried queue per question that sends only the latest value
+   * (lib/answer-sync). Submit and leaving the page wait for it, so no answer is dropped.
+   */
+  const sync = useMemo(
+    () =>
+      new AnswerSync(
+        {
+          answer: (questionId, answer) =>
+            ExamPracticeService.examPracticeGatewayControllerAnswerV1(attemptId, questionId, { answer }),
+          remove: (questionId, answer) =>
+            ExamPracticeService.examPracticeGatewayControllerRemoveAnswerV1(
+              attemptId,
+              questionId,
+              answer === undefined ? {} : { answer },
+            ),
+        },
+        { onStatus: setSaveStatus },
+      ),
+    [attemptId],
+  );
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const activeQuestion = allQuestions.find((q) => q.id === activeQuestionId) ?? null;
@@ -487,17 +528,32 @@ export function TestInterface() {
         const map: Record<string, string[]> = {};
         const flags: Record<string, boolean> = {};
         const notes: Record<string, string> = {};
+        const kindOf = (questionId: string): AnswerKind =>
+          flatQuestions.find((q) => q.id === questionId)?.type === 'MCQ_MULTI' ? 'multi' : 'single';
         (data.responses ?? []).forEach((r: any) => {
           map[r.questionId] = r.answers ?? [];
+          sync.seed(r.questionId, kindOf(r.questionId), r.answers ?? []);
           if (r.isFlagged) flags[r.questionId] = true;
           if (r.note) notes[r.questionId] = r.note;
         });
         setAnswersMap(map);
         setFlagsMap(flags);
         setNotesMap(notes);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load attempt:', err);
-        toast({ title: extractApiErrorMessage(err) || 'Không thể tải bài thi. Vui lòng thử lại.' });
+        const status = err?.status ?? err?.body?.statusCode;
+        if (status === 409) {
+          // finished attempt: show its result instead of an empty test screen
+          toast({ title: 'Bài thi này đã được nộp', description: 'Đang mở kết quả của bạn…' });
+          router.replace(`/results/${attemptId}`);
+          return;
+        }
+        toast({
+          title: extractApiErrorMessage(err) || 'Không thể tải bài thi.',
+          description: 'Đang quay lại lịch sử làm bài…',
+          variant: 'destructive',
+        });
+        setTimeout(() => router.replace('/history'), 2500);
       } finally {
         setLoading(false);
       }
@@ -520,108 +576,50 @@ export function TestInterface() {
     return () => clearInterval(timerIntervalRef.current!);
   }, [serverAttemptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Auto-save for Writing questions ────────────────────────────────────────
-
-  /**
-   * Force immediate save of a writing answer.
-   * Used for emergency saves before page unload.
-   */
-  const forceSaveWriting = useCallback(async (questionId: string, content: string) => {
-    if (!attemptId || isSubmittingRef.current) return;
-    try {
-      await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
-        attemptId, questionId, { answer: content },
-      );
-      lastSavedContentRef.current[questionId] = content;
-      pendingWritingSavesRef.current.delete(questionId);
-    } catch (err) {
-      console.error('Force save failed:', err);
-    }
-  }, [attemptId]);
-
-  /**
-   * Flush all pending writing saves immediately.
-   * Called on beforeunload and visibility change.
-   */
-  const flushPendingSaves = useCallback(async () => {
-    if (!attemptId || isSubmittingRef.current) return;
-
-    const pending = Array.from(pendingWritingSavesRef.current);
-    if (pending.length === 0) return;
-
-    // Clear debounce timers for pending saves
-    for (const questionId of pending) {
-      for (const key of Object.keys(debounceTimersRef.current)) {
-        if (key.startsWith(`${questionId}:`)) {
-          clearTimeout(debounceTimersRef.current[key]);
-          delete debounceTimersRef.current[key];
-        }
-      }
-    }
-
-    // Force save all pending
-    const saves = pending.map(async (questionId) => {
-      const content = answersMap[questionId]?.[0] || '';
-      if (content && content !== lastSavedContentRef.current[questionId]) {
-        return forceSaveWriting(questionId, content);
-      }
-    });
-
-    await Promise.all(saves);
-  }, [attemptId, answersMap, forceSaveWriting]);
-
-  /** Handle beforeunload - warn user and attempt emergency save */
+  // ── Answer saving ─────────────────────────────────────────────────────────
+  /** Send whatever is pending when the tab is hidden, and warn before leaving with unsaved answers. */
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Check if there are pending writing saves
-      if (pendingWritingSavesRef.current.size > 0) {
-        // Attempt synchronous save
-        flushPendingSaves();
-
-        // Show warning
-        e.preventDefault();
-        e.returnValue = 'Bạn có bài viết chưa được lưu. Bạn có chắc muốn rời khỏi?';
-        return e.returnValue;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [flushPendingSaves]);
-
-  /** Handle visibility change - save when user switches tabs */
-  useEffect(() => {
+    const unregister = registerAttemptSync(attemptId, sync);
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        flushPendingSaves();
-      }
+      if (document.visibilityState === 'hidden') void sync.flushAll();
     };
-
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!sync.hasPending || isSubmittingRef.current) return;
+      void sync.flushAll();
+      e.preventDefault();
+      e.returnValue = 'Một số câu trả lời đang được lưu. Bạn có chắc muốn rời khỏi?';
+      return e.returnValue;
+    };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [flushPendingSaves]);
-
-  /** Periodic auto-save every 30 seconds for writing questions */
-  useEffect(() => {
-    if (!attemptId) return;
-
-    const intervalId = setInterval(() => {
-      flushPendingSaves();
-    }, 30000);
-
-    return () => clearInterval(intervalId);
-  }, [attemptId, flushPendingSaves]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Leaving the page inside the app (e.g. back to the exam page): send what is still waiting;
+      // the registry lets that page wait for it before ending the attempt.
+      unregister();
+    };
+  }, [sync, attemptId]);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const performSubmit = useCallback(
     async (isAuto: boolean) => {
       if (isSubmittingRef.current || !attemptId) return;
       isSubmittingRef.current = true;
-      clearInterval(timerIntervalRef.current!);
-      Object.values(debounceTimersRef.current).forEach(clearTimeout);
-      debounceTimersRef.current = {};
       try {
+        // Every answer must reach the server before the attempt is closed.
+        const flushed = await sync.flushAll();
+        if (!flushed.ok && !isAuto) {
+          toast({
+            title: 'Một số câu trả lời chưa được lưu',
+            description: 'Kiểm tra kết nối mạng rồi nộp lại. Bài làm của bạn vẫn còn trên trang này.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        clearInterval(timerIntervalRef.current!);
         await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(attemptId);
+        sync.close();
         router.push(`/results/${attemptId}`);
       } catch (err) {
         console.error('Submit failed:', err);
@@ -631,87 +629,30 @@ export function TestInterface() {
         isSubmittingRef.current = false;
       }
     },
-    [attemptId, router],
+    [attemptId, router, sync, toast],
   );
 
-  // ── Answer API calls ───────────────────────────────────────────────────────
-  /**
-   * Debounced wrapper for POST /answers/{questionId} or DELETE /answers/{questionId}.
-   * Key includes the answer value so concurrent add/remove of different values
-   * don't cancel each other's timers.
-   */
-  const debouncedApi = useCallback(
-    (questionId: string, answer: string, del: boolean) => {
-      const key = `${questionId}:${answer}:${del ? 'd' : 'a'}`;
-      clearTimeout(debounceTimersRef.current[key]);
-      debounceTimersRef.current[key] = setTimeout(async () => {
-        if (!attemptId || isSubmittingRef.current) return;
-        try {
-          if (del) {
-            await ExamPracticeService.examPracticeGatewayControllerRemoveAnswerV1(
-              attemptId, questionId, { answer },
-            );
-          } else {
-            await ExamPracticeService.examPracticeGatewayControllerAnswerV1(
-              attemptId, questionId, { answer },
-            );
-            // Track successful save for writing questions
-            lastSavedContentRef.current[questionId] = answer;
-          }
-          // Clear pending save after successful API call
-          pendingWritingSavesRef.current.delete(questionId);
-        } catch (err: any) {
-          if (err?.status === 403 || err?.body?.statusCode === 403) return;
-          console.error('Answer API error:', err);
-        }
-      }, 800);
-    },
-    [attemptId],
-  );
-
-  /**
-   * For MCQ, Fill, FillAny, Writing — replaces the entire answer array with a single value.
-   * Sends POST { answer: value } once. If old value exists, sends DELETE first.
-   */
+  /** MCQ, Fill, FillAny, Writing: one value per question (empty clears it). */
   const handleSingleAnswer = useCallback(
     (questionId: string, value: string) => {
-      // Check if this is a writing question
-      const question = allQuestions.find(q => q.id === questionId);
-      const isWriting = question?.type === 'Writing';
-
-      setAnswersMap((prev) => {
-        const old = prev[questionId]?.[0];
-        // Debounce DELETE of old value if it changed
-        if (old !== undefined && old !== value && old !== '') {
-          debouncedApi(questionId, old, true);
-        }
-        // Debounce POST of new value
-        if (value !== '') debouncedApi(questionId, value, false);
-        return { ...prev, [questionId]: value !== '' ? [value] : [] };
-      });
-
-      // Track writing questions for auto-save
-      if (isWriting && value !== '') {
-        pendingWritingSavesRef.current.add(questionId);
-      }
+      setAnswersMap((prev) => ({ ...prev, [questionId]: value !== '' ? [value] : [] }));
+      sync.set(questionId, 'single', [value]);
     },
-    [debouncedApi, allQuestions],
+    [sync],
   );
 
-  /**
-   * For MCQ_MULTI — toggles a single key in the answers array.
-   * Sends POST { answer: key } or DELETE { answer: key }.
-   */
+  /** MCQ_MULTI: toggles one key; the sync sends only the added/removed key. */
   const handleMultiAnswer = useCallback(
     (questionId: string, key: string, checked: boolean) => {
       setAnswersMap((prev) => {
         const current = prev[questionId] ?? [];
-        const next = checked ? [...current, key] : current.filter((k) => k !== key);
-        debouncedApi(questionId, key, !checked);
+        const next = checked ? [...new Set([...current, key])] : current.filter((k) => k !== key);
+        // idempotent (sets the desired answers), so a StrictMode double call is harmless
+        sync.set(questionId, 'multi', next);
         return { ...prev, [questionId]: next };
       });
     },
-    [debouncedApi],
+    [sync],
   );
 
   // ── Flag / Note API calls ─────────────────────────────────────────────────
@@ -792,7 +733,8 @@ export function TestInterface() {
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse">
+      <div role="status" aria-busy="true" aria-live="polite" className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden animate-pulse motion-reduce:animate-none">
+        <span className="sr-only">Đang tải bài thi…</span>
         {/* Left panel skeleton */}
         <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           {/* Header tabs */}
@@ -1178,6 +1120,7 @@ export function TestInterface() {
 
           {/* Submit */}
           <div className="bg-white p-5">
+            <SaveIndicator status={saveStatus} />
             <Button
               onClick={() => performSubmit(false)}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-0 bg-primary font-extrabold uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg"

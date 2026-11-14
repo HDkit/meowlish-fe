@@ -159,6 +159,8 @@ export class ExamPracticeService {
         sortBy?: find_exams_req_dto_SortOptionsDto,
         cursor?: string,
         limit?: number,
+        /** 1-based page number: page pagination with `totalCount` (the cursor is ignored) */
+        page?: number,
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -168,6 +170,7 @@ export class ExamPracticeService {
                 'sortBy': sortBy,
                 'cursor': cursor,
                 'limit': limit,
+                'page': page,
             },
         });
     }
@@ -308,6 +311,34 @@ export class ExamPracticeService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/my/stats',
+        });
+    }
+    /**
+     * Get the authenticated user daily practice activity and streaks (UTC days)
+     * @param days How many UTC days back from today (inclusive) to return
+     * @returns any
+     * @throws ApiError
+     */
+    public static examPracticeGatewayControllerGetUserActivityV1(
+        days?: number,
+    ): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/exams/practice/my/activity',
+            query: {
+                'days': days,
+            },
+        });
+    }
+    /**
+     * Get the authenticated user per-skill scores and per-tag accuracy
+     * @returns any
+     * @throws ApiError
+     */
+    public static examPracticeGatewayControllerGetUserSkillStatsV1(): CancelablePromise<ResponseEntity> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/exams/practice/my/skills',
         });
     }
 }

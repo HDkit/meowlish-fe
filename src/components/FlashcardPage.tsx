@@ -19,6 +19,8 @@ import {
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { FieldError, FormErrorSummary, fieldA11y } from './ui/form-feedback';
+import { extractApiErrorMessage, normalizeApiError } from '@/lib/api-errors';
 import {
 	Plus,
 	Edit,
@@ -26,14 +28,43 @@ import {
 	BookOpen,
 	Folder,
 	ChevronRight,
-	X,
 } from 'lucide-react';
-import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { ReportDialog } from './ReportDialog';
-import { Flag } from 'lucide-react';
+import { Copy, Flag, Loader2, Search } from 'lucide-react';
+import { TagInput } from './TagInput';
+import { ForkListButton } from './flashcards/ForkListButton';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
+
+// Placeholder grid shaped like the list cards below, shown until the first fetch lands
+function ListCardsSkeleton({ count = 6, label }: { count?: number; label: string }) {
+	return (
+		<LoadingRegion label={label} className="space-y-6">
+			<Skeleton className="h-8 w-64 max-w-full" />
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+				{Array.from({ length: count }, (_, i) => (
+					<div key={i} className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/50">
+						<div className="mb-5 flex items-start gap-4">
+							<Skeleton className="size-12 shrink-0 rounded-2xl" />
+							<div className="flex-1 space-y-2 pt-0.5">
+								<Skeleton className="h-6 w-3/4" />
+								<Skeleton className="h-6 w-24 rounded-lg" />
+							</div>
+						</div>
+						<div className="mb-2 min-h-[40px] space-y-2">
+							<Skeleton className="h-3.5 w-full" />
+							<Skeleton className="h-3.5 w-2/3" />
+						</div>
+						<Skeleton className="mt-4 h-12 w-full rounded-xl" />
+					</div>
+				))}
+			</div>
+		</LoadingRegion>
+	);
+}
 
 // Dialog để tạo/sửa list
 function ListDialog({
@@ -41,18 +72,23 @@ function ListDialog({
 	onOpenChange,
 	list,
 	onSave,
+	tagSuggestions,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	list?: FlashcardList;
-	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => void;
+	/** Rejects on failure: the dialog then shows the error and stays open. */
+	onSave: (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => Promise<void>;
+	/** Tags already used on the user's lists, offered as suggestions. */
+	tagSuggestions?: string[];
 }) {
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
 	const [isPublic, setIsPublic] = useState(false);
 	const [tags, setTags] = useState<string[]>([]);
-	const [tagInput, setTagInput] = useState('');
-	const { toast } = useToast();
+	const [saving, setSaving] = useState(false);
+	const [nameError, setNameError] = useState('');
+	const [formErrors, setFormErrors] = useState<string[]>([]);
 
 	useEffect(() => {
 		if (list) {
@@ -66,32 +102,36 @@ function ListDialog({
 			setIsPublic(false);
 			setTags([]);
 		}
+		setNameError('');
+		setFormErrors([]);
 	}, [list, open]);
 
-	const addTag = () => {
-		const t = tagInput.trim();
-		if (t && !tags.includes(t)) {
-			setTags([...tags, t]);
-		}
-		setTagInput('');
-	};
-
-	const handleSave = () => {
+	const handleSave = async () => {
 		if (!name.trim()) {
-			toast({ title: 'Vui lòng nhập tên list', variant: 'destructive' });
+			setNameError('Vui lòng nhập tên bộ flashcard');
 			return;
 		}
-		onSave({ name: name.trim(), description: description.trim(), isPublic, tags });
-		setName('');
-		setDescription('');
-		setIsPublic(false);
-		setTags([]);
-		onOpenChange(false);
+		setSaving(true);
+		setFormErrors([]);
+		try {
+			await onSave({ name: name.trim(), description: description.trim(), isPublic, tags });
+			onOpenChange(false);
+		} catch (err) {
+			const { messages, fieldErrors } = normalizeApiError(err, {
+				fallback: list ? 'Không thể lưu bộ flashcard' : 'Không thể tạo bộ flashcard',
+				fields: { name: 'name' },
+				labels: { name: 'Tên bộ flashcard' },
+			});
+			setNameError(fieldErrors.name ?? '');
+			setFormErrors(messages);
+		} finally {
+			setSaving(false);
+		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0">
+		<Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+			<DialogContent hideCloseButton className="bg-white rounded-2xl border-0 shadow-2xl overflow-hidden sm:max-w-md p-0 max-h-[calc(100dvh-2rem)] flex flex-col">
 				<div className="h-2 w-full bg-primary"></div>
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle className="text-xl font-bold text-slate-800">
@@ -103,16 +143,20 @@ function ListDialog({
 							: 'Tổ chức các thẻ ghi nhớ vào một bộ sưu tập mới để tiện ôn luyện.'}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="px-6 py-4 space-y-5">
+				<div className="px-6 py-4 space-y-5 flex-1 min-h-0 overflow-y-auto">
 					<div className="space-y-2">
 						<Label htmlFor="list-name" className="text-slate-700 font-bold">Tên Bộ Flashcard <span className="text-red-500">*</span></Label>
 						<Input
-							id="list-name"
+							{...fieldA11y('list-name', nameError)}
 							placeholder="VD: Từ vựng IELTS, Ngữ pháp cơ bản..."
 							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 transition-all"
+							onChange={(e) => {
+								setName(e.target.value);
+								if (nameError) setNameError('');
+							}}
+							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 transition-all aria-[invalid=true]:border-destructive"
 						/>
+						<FieldError id="list-name" message={nameError} className="-mt-2" />
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="list-description" className="text-slate-700 font-bold">Mô Tả</Label>
@@ -131,38 +175,22 @@ function ListDialog({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="list-tags" className="text-slate-700 font-bold">Tags</Label>
-						<div className="flex gap-2 items-center">
-							<Input
-								id="list-tags"
-								value={tagInput}
-								onChange={(e) => setTagInput(e.target.value)}
-								onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-								placeholder="Nhập tag rồi nhấn Enter..."
-								className="flex-1 bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
-							/>
-							<Button type="button" variant="outline" size="sm" onClick={addTag} className="rounded-xl h-11 border-slate-200">
-								<Plus className="h-3 w-3 mr-1" />Thêm
-							</Button>
-						</div>
-						{tags.length > 0 && (
-							<div className="flex flex-wrap gap-1.5 pt-1">
-								{tags.map((tag) => (
-									<Badge key={tag} variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
-										{tag}
-										<button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="ml-0.5 hover:text-red-500">
-											<X className="h-3 w-3" />
-										</button>
-									</Badge>
-								))}
-							</div>
-						)}
+						<TagInput
+							id="list-tags"
+							value={tags}
+							onChange={setTags}
+							suggestions={tagSuggestions}
+							placeholder="Nhập tag, chọn gợi ý rồi nhấn Enter…"
+						/>
 					</div>
+					<FormErrorSummary messages={formErrors} />
 				</div>
-				<DialogFooter className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
-					<Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
+				<DialogFooter className="shrink-0 px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex gap-2 justify-end">
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-[0_4px_14px_0_rgb(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold px-6">
+						{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{list ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
 				</DialogFooter>
@@ -173,6 +201,7 @@ function ListDialog({
 
 export function FlashcardPage() {
 	const router = useRouter();
+	const { toast } = useToast();
 	const dispatch = useAppDispatch();
 	const currentUser = useAppSelector((state) => state.currUser.current);
 	const isHydrated = useIsStoreHydrated();
@@ -188,13 +217,51 @@ export function FlashcardPage() {
 
 	const [listDialogOpen, setListDialogOpen] = useState(false);
 	const [editingList, setEditingList] = useState<FlashcardList | undefined>();
-	const [activeTab, setActiveTab] = useState<'mine' | 'discover'>('mine');
+	// Tab, pages and the Discover search live in the URL (?tab=discover&page=2&dpage=3&q=…&tag=…), so
+	// coming back from a list (or reloading) shows the same tab and page.
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const readPage = (key: string) => {
+		const n = Number(searchParams.get(key));
+		return Number.isInteger(n) && n > 0 ? n : 1;
+	};
+	const activeTab: 'mine' | 'discover' = searchParams.get('tab') === 'discover' ? 'discover' : 'mine';
+	const minePage = readPage('page');
+	const discoverPage = readPage('dpage');
+	const discoverQuery = searchParams.get('q') ?? '';
+	const discoverTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	const updateQuery = (patch: Record<string, string | string[] | number | null>) => {
+		const next = new URLSearchParams(searchParams.toString());
+		for (const [key, value] of Object.entries(patch)) {
+			next.delete(key);
+			if (Array.isArray(value)) value.forEach((v) => next.append(key, v));
+			else if (value !== null && value !== '' && !(typeof value === 'number' && value <= 1)) next.set(key, String(value));
+		}
+		const qs = next.toString();
+		router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+	};
+	const setActiveTab = (tab: 'mine' | 'discover') => updateQuery({ tab: tab === 'discover' ? 'discover' : null });
+	const setMinePage = (page: number) => updateQuery({ page: page });
+	const setDiscoverPage = (page: number) => updateQuery({ dpage: page });
+	// a new search or tag filter starts at the first page
+	const setDiscoverQuery = (q: string) => {
+		if (q !== discoverQuery) updateQuery({ q: q || null, dpage: null });
+	};
+	const setDiscoverTags = (tags: string[]) => updateQuery({ tag: tags, dpage: null });
 	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
 	const [discoverLoading, setDiscoverLoading] = useState(false);
-	const [minePage, setMinePage] = useState(1);
+	// false until the first fetch of my lists settles, so a new user doesn't see the empty state flash first
+	const [mineLoaded, setMineLoaded] = useState(false);
 	const [mineTotalCount, setMineTotalCount] = useState(0);
-	const [discoverPage, setDiscoverPage] = useState(1);
 	const [discoverTotalCount, setDiscoverTotalCount] = useState(0);
+	const [discoverSearch, setDiscoverSearch] = useState(discoverQuery);
+
+	// search as you type, 350 ms after the last keystroke
+	useEffect(() => {
+		const t = setTimeout(() => setDiscoverQuery(discoverSearch.trim()), 350);
+		return () => clearTimeout(t);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [discoverSearch]);
 	const [reportOpen, setReportOpen] = useState(false);
 	const [reportTargetId, setReportTargetId] = useState<string | null>(null);
 	const limit = 12;
@@ -213,11 +280,16 @@ export function FlashcardPage() {
 					isPublic: l.isPublic,
 					tags: l.tags ?? [],
 					createdAt: new Date(l.createdAt).getTime(),
+					forkedFromId: l.forkedFromId,
+					forkedFromName: l.forkedFromName,
+					forkedFromAuthorId: l.forkedFromAuthorId,
+					forkCount: l.forkCount ?? 0,
 				}));
 				dispatch(setFlashcardLists(apiLists));
 				setMineTotalCount(data.totalCount ?? apiLists.length);
 			})
-			.catch(err => console.error('[FlashcardPage] fetch lists error:', err));
+			.catch(err => console.error('[FlashcardPage] fetch lists error:', err))
+			.finally(() => setMineLoaded(true));
 	}, [currentUser, minePage, dispatch]);
 
 	const myLists = useMemo(
@@ -225,21 +297,23 @@ export function FlashcardPage() {
 		[lists, currentUser]
 	);
 
-	// Fetch public lists for discover tab
-	useEffect(() => {
-		if (activeTab !== 'discover' || !currentUser) return;
-		setDiscoverLoading(true);
-		setDiscoverPage(1);
-	}, [activeTab, currentUser]);
+	// Fetch public lists for discover tab (its page comes from the URL)
 
 	useEffect(() => {
 		if (activeTab !== 'discover' || !currentUser) return;
 		setDiscoverLoading(true);
-		FlashcardListService.listFlashCardLists(undefined, true, discoverPage, limit)
+		// every public list, the user's own included (they are marked "Của bạn")
+		FlashcardListService.listFlashCardLists(
+			undefined,
+			true,
+			discoverPage,
+			limit,
+			discoverTags.length > 0 ? discoverTags : undefined,
+			discoverQuery,
+		)
 			.then((res: any) => {
 				const data = (res as any)?.data ?? res;
 				const publicLists: FlashcardList[] = (data.lists ?? [])
-					.filter((l: any) => l.authorId !== currentUser.id)
 					.map((l: any) => ({
 						id: l.id,
 						authorId: l.authorId,
@@ -248,13 +322,20 @@ export function FlashcardPage() {
 						isPublic: l.isPublic,
 						tags: l.tags ?? [],
 						createdAt: new Date(l.createdAt).getTime(),
+						forkCount: l.forkCount ?? 0,
 					}));
 				setDiscoverLists(publicLists);
 				setDiscoverTotalCount(data.totalCount ?? 0);
 			})
 			.catch((err) => console.error('[FlashcardPage] fetch discover lists error:', err))
 			.finally(() => setDiscoverLoading(false));
-	}, [activeTab, currentUser, discoverPage]);
+	}, [activeTab, currentUser, discoverPage, discoverQuery, discoverTags]);
+
+	/** Tags seen on the user's and the visible public lists: suggestions for forms and search. */
+	const knownListTags = useMemo(
+		() => [...new Set([...lists, ...discoverLists].flatMap((l) => l.tags ?? []))],
+		[lists, discoverLists],
+	);
 
 	const handleAddList = async (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
 		if (!currentUser) return;
@@ -295,10 +376,12 @@ export function FlashcardPage() {
 				};
 				dispatch(addFlashcardList(newList));
 			}
+			setEditingList(undefined);
 		} catch (err) {
 			console.error('[FlashcardPage] save list error:', err);
+			// ListDialog shows the error and stays open.
+			throw err;
 		}
-		setEditingList(undefined);
 	};
 
 	const handleEditList = (list: FlashcardList) => {
@@ -313,6 +396,7 @@ export function FlashcardPage() {
 				dispatch(removeFlashcardList(listId));
 			} catch (err) {
 				console.error('[FlashcardPage] delete list error:', err);
+				toast({ title: 'Xóa bộ flashcard thất bại', description: extractApiErrorMessage(err), variant: 'destructive' });
 			}
 		}
 	};
@@ -342,6 +426,12 @@ export function FlashcardPage() {
 						</p>
 					</div>
 					<div className="flex-shrink-0">
+						<Button
+							onClick={() => router.push('/flashcards/review')}
+							className="mr-3 bg-white/15 hover:bg-white/25 text-white border-2 border-white/40 rounded-2xl px-6 py-7 font-bold text-lg"
+						>
+							<BookOpen className="h-5 w-5 mr-2" /> Ôn tập
+						</Button>
 						{currentUser && (
 							<Button
 								variant="outline"
@@ -359,7 +449,7 @@ export function FlashcardPage() {
 								setEditingList(undefined);
 								setListDialogOpen(true);
 							}}
-							className="bg-white hover:bg-primary/10 text-primary rounded-2xl px-8 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-1 font-bold text-lg border-2 border-white/90"
+							className="bg-white hover:bg-slate-50 text-primary rounded-2xl px-8 py-7 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-1 font-bold text-lg border-2 border-white/90"
 						>
 							<Plus className="h-6 w-6 mr-2" strokeWidth={3} />
 							Tạo Bộ Mới
@@ -387,7 +477,9 @@ export function FlashcardPage() {
 
 				{activeTab === 'mine' && (
 					<>
-						{myLists.length === 0 ? (
+						{myLists.length === 0 && !mineLoaded ? (
+							<ListCardsSkeleton label="Đang tải danh sách flashcard…" />
+						) : myLists.length === 0 ? (
 							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
 								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
 									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
@@ -417,7 +509,7 @@ export function FlashcardPage() {
 								</div>
 
 								{/* List Cards Grid */}
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 									{myLists.map((list) => (
 										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
 											<div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
@@ -440,6 +532,11 @@ export function FlashcardPage() {
 																{list.isPublic && (
 																	<div className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-200/60">
 																		Công khai
+																	</div>
+																)}
+																{list.forkedFromName && (
+																	<div title={`Sao chép từ “${list.forkedFromName}”`} className="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-bold border border-sky-200/60">
+																		<Copy className="w-3.5 h-3.5" /> Bản sao
 																	</div>
 																)}
 															</div>
@@ -489,7 +586,7 @@ export function FlashcardPage() {
 
 												<Button
 													className="w-full mt-auto bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl h-12 transition-all group-hover:shadow-[0_4px_14px_0_rgb(15,23,42,0.39)] gap-2"
-													onClick={() => router.push(`/flashcards/${list.id}`)}
+													onClick={() => router.push(`/flashcards/${list.id}?from=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`)}`)}
 												>
 													Mở Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
 												</Button>
@@ -517,18 +614,39 @@ export function FlashcardPage() {
 
 				{activeTab === 'discover' && (
 					<>
-						{discoverLoading ? (
-							<div className="text-center py-12">
-								<p className="text-slate-500 font-medium">Đang tải...</p>
+						<div className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr]">
+							<div className="relative">
+								<Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+								<Input
+									value={discoverSearch}
+									onChange={(e) => setDiscoverSearch(e.target.value)}
+									placeholder="Tìm bộ flashcard theo tên…"
+									className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10"
+									aria-label="Tìm theo tên"
+								/>
 							</div>
+							<TagInput
+								value={discoverTags}
+								onChange={setDiscoverTags}
+								suggestions={knownListTags}
+								placeholder="Lọc theo tag…"
+							/>
+						</div>
+						{/* only the first load shows a loading text; later searches keep the cards (dimmed) */}
+						{discoverLoading && discoverLists.length === 0 ? (
+							<ListCardsSkeleton label="Đang tải bộ sưu tập công khai…" />
 						) : discoverLists.length === 0 ? (
 							<div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center animate-in fade-in duration-500">
 								<div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
 									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
 								</div>
-								<h3 className="text-xl font-bold text-slate-800 mb-2">Chưa Có Bộ Sưu Tập Công Khai Nào</h3>
+								<h3 className="text-xl font-bold text-slate-800 mb-2">
+									{discoverQuery || discoverTags.length > 0 ? 'Không tìm thấy bộ flashcard phù hợp' : 'Chưa Có Bộ Sưu Tập Công Khai Nào'}
+								</h3>
 								<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
-									Hiện tại chưa có bộ flashcard công khai nào từ người dùng khác.
+									{discoverQuery || discoverTags.length > 0 ?
+										'Thử từ khóa hoặc tag khác.'
+									:	'Hãy là người đầu tiên chia sẻ một bộ flashcard công khai!'}
 								</p>
 							</div>
 						) : (
@@ -536,11 +654,11 @@ export function FlashcardPage() {
 								<div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
 									<h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
 										Bộ sưu tập công khai
-										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{discoverLists.length}</span>
+										<span className="bg-slate-200 text-slate-700 text-sm font-bold px-2.5 py-0.5 rounded-full inline-flex leading-tight items-center justify-center min-w-[28px]">{discoverTotalCount}</span>
 									</h2>
 								</div>
 
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+								<div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${discoverLoading ? 'pointer-events-none opacity-60' : ''}`} aria-busy={discoverLoading}>
 									{discoverLists.map((list) => (
 										<Card key={list.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:-translate-y-1 flex flex-col relative ring-1 ring-slate-200/50">
 											<div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
@@ -555,9 +673,21 @@ export function FlashcardPage() {
 															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-emerald-600 transition-colors">
 																{list.name}
 															</h3>
-															<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
-																<BookOpen className="w-3.5 h-3.5 text-primary/80" />
-																Flashcards
+															<div className="flex flex-wrap items-center gap-1.5">
+																<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
+																	<BookOpen className="w-3.5 h-3.5 text-primary/80" />
+																	Flashcards
+																</div>
+																{list.authorId === currentUser?.id && (
+																	<span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+																		Của bạn
+																	</span>
+																)}
+																{(list.forkCount ?? 0) > 0 && (
+																	<span title="Số lượt lưu bản sao" className="inline-flex items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-500">
+																		<Copy className="w-3.5 h-3.5" /> {list.forkCount}
+																	</span>
+																)}
 															</div>
 														</div>
 													</div>
@@ -587,12 +717,17 @@ export function FlashcardPage() {
 													</div>
 												)}
 
-												<Button
-													className="w-full mt-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
-													onClick={() => router.push(`/flashcards/${list.id}`)}
-												>
-													Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
-												</Button>
+												<div className="mt-auto space-y-2">
+													{list.authorId !== currentUser?.id && (
+														<ForkListButton listId={list.id} className="w-full h-11" />
+													)}
+													<Button
+														className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl h-12 transition-all gap-2"
+														onClick={() => router.push(`/flashcards/${list.id}?from=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams}` : ''}`)}`)}
+													>
+														Xem Bộ Sưu Tập <ChevronRight className="h-4 w-4" />
+													</Button>
+												</div>
 											</CardContent>
 										</Card>
 									))}
@@ -622,6 +757,7 @@ export function FlashcardPage() {
 				onOpenChange={setListDialogOpen}
 				list={editingList}
 				onSave={handleAddList}
+				tagSuggestions={knownListTags}
 			/>
 
 			{currentUser && (

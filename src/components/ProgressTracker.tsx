@@ -4,51 +4,35 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Progress } from './ui/progress';
 import { ExamPracticeService } from '@/lib/api';
 import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
-import type { UserCalendarDto } from '@/lib/api/models/UserCalendarDto';
 import type { AttemptsHistoryDto } from '@/lib/api/models/AttemptsHistoryDto';
 import type { TagInfoDto } from '@/lib/api/models/TagInfoDto';
 import { get_users_attempt_history_req_dto_SortOptionsDto } from '@/lib/api/models/get_users_attempt_history_req_dto_SortOptionsDto';
+import { MAX_ACTIVITY_DAYS, usePracticeActivity, useSkillStats } from '@/lib/hooks/usePracticeStats';
+import { practiceSuggestion } from '@/lib/skill-stats';
+import { attemptHref } from '@/lib/attempt-href';
+import { ActivityHeatmapCard } from './progress/ActivityHeatmapCard';
+import { SkillAnalysis } from './progress/SkillAnalysis';
+import { WeeklyPlanCard } from './progress/WeeklyPlanCard';
+import { Skeleton } from './ui/skeleton';
+import { ListRowsSkeleton, LoadingRegion, StatTilesSkeleton } from './skeletons';
 import {
-  Target,
   Trophy,
-  CalendarDays,
   Clock,
   FileText,
   TrendingUp,
-  Loader2,
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
-  X,
   Flame,
   Zap,
-  Star,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  Award,
   Brain,
   Sparkles,
 } from 'lucide-react';
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  BarChart,
-  Bar,
-  Cell,
-} from 'recharts';
 
 // ─── Helpers ───
 
@@ -56,300 +40,6 @@ function getScoreColor(pct: number) {
   if (pct >= 70) return 'text-green-600';
   if (pct >= 40) return 'text-amber-600';
   return 'text-red-500';
-}
-
-function getIndicatorClass(pct: number) {
-  if (pct >= 70) return '[&_[data-slot=progress-indicator]]:bg-green-500';
-  if (pct >= 40) return '[&_[data-slot=progress-indicator]]:bg-amber-500';
-  return '[&_[data-slot=progress-indicator]]:bg-red-500';
-}
-
-function computeStreak(calendarData: Record<string, number>): { current: number; best: number } {
-  const days = Object.entries(calendarData)
-    .filter(([, count]) => count > 0)
-    .map(([epoch]) => {
-      const d = new Date(Number(epoch) * 1000);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })
-    .sort((a, b) => a - b);
-
-  if (days.length === 0) return { current: 0, best: 0 };
-
-  const ONE_DAY = 86400000;
-  let best = 1;
-  let streak = 1;
-
-  for (let i = 1; i < days.length; i++) {
-    const diff = days[i] - days[i - 1];
-    if (diff === ONE_DAY) {
-      streak++;
-      best = Math.max(best, streak);
-    } else if (diff > ONE_DAY) {
-      streak = 1;
-    }
-  }
-  best = Math.max(best, streak);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const lastDay = days[days.length - 1];
-  const daysSinceLast = (today.getTime() - lastDay) / ONE_DAY;
-  const currentStreak = daysSinceLast <= 1 ? streak : 0;
-
-  return { current: currentStreak, best };
-}
-
-function getBarColor(pct: number) {
-  if (pct >= 70) return '#22c55e';
-  if (pct >= 40) return '#f59e0b';
-  return '#ef4444';
-}
-
-// ─── Activity Heatmap ───
-
-function ActivityHeatmap({ data, rangeDays = 180 }: { data: Record<string, number>; rangeDays?: number }) {
-  const weeks = useMemo(() => {
-    const dateMap = new Map<string, number>();
-    for (const [epochStr, count] of Object.entries(data)) {
-      const date = new Date(Number(epochStr) * 1000);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      dateMap.set(key, (dateMap.get(key) || 0) + count);
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const start = new Date(today);
-    start.setDate(start.getDate() - (Math.ceil(rangeDays / 7) * 7 + today.getDay()));
-
-    const grid: { date: Date; count: number }[][] = [];
-    let week: { date: Date; count: number }[] = [];
-
-    const current = new Date(start);
-    while (current <= today) {
-      const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      const count = dateMap.get(key) || 0;
-      week.push({ date: new Date(current), count });
-
-      if (week.length === 7) {
-        grid.push(week);
-        week = [];
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    if (week.length > 0) grid.push(week);
-
-    return grid;
-  }, [data]);
-
-  const totalPracticed = useMemo(
-    () => Object.values(data).reduce((s, v) => s + v, 0),
-    [data],
-  );
-
-  const getCellColor = (count: number) => {
-    if (count === 0) return 'bg-slate-100';
-    if (count === 1) return 'bg-green-200';
-    if (count === 2) return 'bg-green-400';
-    return 'bg-green-600';
-  };
-
-  const dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{totalPracticed}</span> bài luyện tập
-        </p>
-      </div>
-      <div className="flex gap-[3px] overflow-x-auto pb-2">
-        <div className="flex flex-col gap-[3px] mr-1 shrink-0">
-          {dayLabels.map((d, i) => (
-            <div key={i} className="h-[13px] text-[10px] text-muted-foreground flex items-center leading-none">
-              {i % 2 === 1 ? d : ''}
-            </div>
-          ))}
-        </div>
-        {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-[3px]">
-            {week.map((day, di) => (
-              <div
-                key={di}
-                className={`w-[13px] h-[13px] rounded-[3px] ${getCellColor(day.count)} transition-colors`}
-                title={`${day.date.toLocaleDateString('vi-VN')}: ${day.count} lần`}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground justify-end">
-        <span>Ít</span>
-        <div className="flex gap-[3px]">
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-slate-100" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-200" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-400" />
-          <div className="w-[13px] h-[13px] rounded-[3px] bg-green-600" />
-        </div>
-        <span>Nhiều</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Score Trend Chart ───
-
-// function ScoreTrendChart({ data }: { data: { date: string; score: number; name: string }[] }) {
-//   if (data.length < 2) return null;
-
-//   return (
-//     <ResponsiveContainer width="100%" height={280}>
-//       <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-//         <defs>
-//           <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-//             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-//             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-//           </linearGradient>
-//         </defs>
-//         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-//         <XAxis
-//           dataKey="date"
-//           tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-//           tickLine={false}
-//           axisLine={false}
-//         />
-//         <YAxis
-//           domain={[0, 100]}
-//           tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-//           tickLine={false}
-//           axisLine={false}
-//           tickFormatter={(v) => `${v}%`}
-//         />
-//         <RechartsTooltip
-//           contentStyle={{
-//             borderRadius: '12px',
-//             border: '1px solid hsl(var(--border))',
-//             backgroundColor: 'hsl(var(--card))',
-//             boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-//             padding: '10px 14px',
-//           }}
-//           formatter={(value: number, _: string, props: any) => [
-//             `${value}%`,
-//             props.payload.name,
-//           ]}
-//           labelFormatter={() => ''}
-//         />
-//         <Area
-//           type="monotone"
-//           dataKey="score"
-//           stroke="hsl(var(--primary))"
-//           strokeWidth={2.5}
-//           fill="url(#scoreGradient)"
-//           dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-//           activeDot={{ r: 5, strokeWidth: 2, stroke: 'white' }}
-//         />
-//       </AreaChart>
-//     </ResponsiveContainer>
-//   );
-// }
-
-// ─── Skill Radar ───
-
-function SkillRadarChart({ tags }: { tags: TagInfoDto[] }) {
-  const data = tags.map((t) => ({
-    subject: t.name.length > 12 ? t.name.slice(0, 12) + '…' : t.name,
-    fullName: t.name,
-    score: Math.round(t.correctPercentage),
-  }));
-
-  if (data.length < 3) return null;
-
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-        <PolarGrid stroke="hsl(var(--border))" />
-        <PolarAngleAxis
-          dataKey="subject"
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-        />
-        <PolarRadiusAxis
-          domain={[0, 100]}
-          tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-          tickFormatter={(v) => `${v}%`}
-        />
-        <Radar
-          dataKey="score"
-          stroke="hsl(var(--primary))"
-          fill="hsl(var(--primary))"
-          fillOpacity={0.2}
-          strokeWidth={2}
-        />
-        <RechartsTooltip
-          contentStyle={{
-            borderRadius: '12px',
-            border: '1px solid hsl(var(--border))',
-            backgroundColor: 'hsl(var(--card))',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-            padding: '10px 14px',
-          }}
-          formatter={(value: number, _: string, props: any) => [
-            `${value}%`,
-            props.payload.fullName,
-          ]}
-        />
-      </RadarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ─── Skill Bar Chart (fallback when < 3 tags or mobile) ───
-
-function SkillBarChart({ tags }: { tags: TagInfoDto[] }) {
-  const data = [...tags]
-    .sort((a, b) => b.correctPercentage - a.correctPercentage)
-    .map((t) => ({
-      name: t.name,
-      score: Math.round(t.correctPercentage),
-    }));
-
-  return (
-    <ResponsiveContainer width="100%" height={Math.max(200, data.length * 44)}>
-      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-        <XAxis
-          type="number"
-          domain={[0, 100]}
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-          tickFormatter={(v) => `${v}%`}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          type="category"
-          dataKey="name"
-          width={100}
-          tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <RechartsTooltip
-          contentStyle={{
-            borderRadius: '12px',
-            border: '1px solid hsl(var(--border))',
-            backgroundColor: 'hsl(var(--card))',
-            padding: '8px 12px',
-          }}
-          formatter={(value: number) => [`${value}%`, 'Đúng']}
-        />
-        <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={20}>
-          {data.map((entry, idx) => (
-            <Cell key={idx} fill={getBarColor(entry.score)} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
 }
 
 // ─── Insight Card ───
@@ -381,31 +71,46 @@ function InsightCard({
   );
 }
 
+// ─── Hero ───
+
+function ProgressHero() {
+  return (
+    <div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-24 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+
+      <div className="relative z-10 max-w-3xl mx-auto space-y-4">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold shadow-sm mb-2">
+          <TrendingUp className="w-4 h-4" /> TIẾN ĐỘ HỌC TẬP
+        </div>
+        <h2 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5">
+          Theo Dõi Tiến Độ
+        </h2>
+        <p className="text-primary-foreground/80 text-lg md:text-xl font-medium">
+          Phân tích chi tiết quá trình luyện tập, điểm mạnh và điểm cần cải thiện của bạn.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───
 
 export function ProgressTracker() {
   const router = useRouter();
   const [stats, setStats] = useState<UserStatsDto | null>(null);
-  const [calendar, setCalendar] = useState<UserCalendarDto | null>(null);
   const [history, setHistory] = useState<AttemptsHistoryDto | null>(null);
   const [loading, setLoading] = useState(true);
 
-  type DateRangeOption = { label: string; days: number };
-  const DATE_RANGES: DateRangeOption[] = [
-    { label: '1 tuần', days: 7 },
-    { label: '1 tháng', days: 30 },
-    { label: '3 tháng', days: 90 },
-    { label: '6 tháng', days: 180 },
-    { label: '1 năm', days: 365 },
-  ];
-
-  const [calendarRangeDays, setCalendarRangeDays] = useState(180);
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
-  const [showCustomPicker, setShowCustomPicker] = useState(false);
-  const [rangeOpen, setRangeOpen] = useState(false);
-
-  const selectedRange = DATE_RANGES.find(r => r.days === calendarRangeDays) || DATE_RANGES[3];
+  const [heatWeeks, setHeatWeeks] = useState(26);
+  // the full year once: switching 3/6/12 months is then client-side (no refetch, no skeleton flash)
+  const activity = usePracticeActivity(MAX_ACTIVITY_DAYS);
+  const skills = useSkillStats();
+  const suggestion = useMemo(
+    () => (skills.data ? practiceSuggestion(skills.data.skills, skills.data.tags) : null),
+    [skills.data],
+  );
 
   // History sort/pagination
   const [historySortKey, setHistorySortKey] = useState<get_users_attempt_history_req_dto_SortOptionsDto.key>(
@@ -438,20 +143,6 @@ export function ProgressTracker() {
     }
   }, [historySortKey, historySortDir]);
 
-  const fetchCalendar = useCallback(async (from: string, to: string) => {
-    try {
-      const res = await ExamPracticeService.examPracticeGatewayControllerGetUsersAttemptSummaryV1({
-        from,
-        to,
-      });
-      if (res.data) {
-        setCalendar(res.data as UserCalendarDto);
-      }
-    } catch (err) {
-      console.error('Failed to fetch calendar:', err);
-    }
-  }, []);
-
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -465,15 +156,8 @@ export function ProgressTracker() {
       setLoading(false);
     };
     fetchStats();
-    fetchHistory();
+    // history: the sort effect below also runs on mount and fetches it (fetching here too doubled it)
   }, []);
-
-  useEffect(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - calendarRangeDays);
-    fetchCalendar(start.toISOString(), end.toISOString());
-  }, [calendarRangeDays, fetchCalendar]);
 
   // Re-fetch history when sort changes
   useEffect(() => {
@@ -502,16 +186,6 @@ export function ProgressTracker() {
     } as UserStatsDto;
   }, [stats, history]);
 
-  const activeDays = useMemo(() => {
-    if (!calendar?.history) return 0;
-    return Object.values(calendar.history).filter(v => v > 0).length;
-  }, [calendar]);
-
-  const streakData = useMemo(() => {
-    if (!calendar?.history) return { current: 0, best: 0 };
-    return computeStreak(calendar.history);
-  }, [calendar]);
-
   const scoreTrend = useMemo(() => {
     if (!history?.attempts) return [];
     return history.attempts
@@ -522,14 +196,6 @@ export function ProgressTracker() {
         score: Math.round((a.score! / a.totalPoints!) * 100),
         name: a.examName,
       }));
-  }, [history]);
-
-  const bestScore = useMemo(() => {
-    if (!history?.attempts) return null;
-    const scores = history.attempts
-      .filter(a => a.endedAt && a.score != null && a.totalPoints)
-      .map(a => Math.round((a.score! / a.totalPoints!) * 100));
-    return scores.length > 0 ? Math.max(...scores) : null;
   }, [history]);
 
   const insights = useMemo(() => {
@@ -558,12 +224,31 @@ export function ProgressTracker() {
 
   // ─── Render states ───
 
-  if (loading) {
+  // Without stats, the empty state depends on the history too: wait for it rather than flash "no data".
+  if (loading || (!stats && !history && historyLoading)) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground text-sm">Đang tải dữ liệu tiến độ...</p>
-      </div>
+      <LoadingRegion label="Đang tải dữ liệu tiến độ…" className="pb-20">
+        <ProgressHero />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-6 -mt-16 relative z-10">
+          <StatTilesSkeleton
+            count={3}
+            className="grid-cols-3 md:grid-cols-3"
+            tileClassName="border-0 shadow-lg bg-white/95 px-6 pt-6 pb-5"
+          />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+            <Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent>
+              <ListRowsSkeleton rows={5} rowClassName="border-0 bg-muted/40" />
+            </CardContent>
+          </Card>
+        </div>
+      </LoadingRegion>
     );
   }
 
@@ -617,23 +302,7 @@ export function ProgressTracker() {
   return (
     <div className="pb-20">
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-primary text-white shadow-xl mb-10 pt-16 pb-24 px-4 md:px-6 lg:px-8 xl:px-10 text-center">
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-
-        <div className="relative z-10 max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold shadow-sm mb-2">
-            <TrendingUp className="w-4 h-4" /> TIẾN ĐỘ HỌC TẬP
-          </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight mb-5">
-            Theo Dõi Tiến Độ
-          </h2>
-          <p className="text-primary-foreground/80 text-lg md:text-xl font-medium">
-            Phân tích chi tiết quá trình luyện tập, điểm mạnh và điểm cần cải thiện của bạn.
-          </p>
-        </div>
-      </div>
+      <ProgressHero />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 space-y-6 -mt-16 relative z-10">
 
@@ -679,7 +348,7 @@ export function ProgressTracker() {
                   <div>
                     <p className="text-xs text-muted-foreground font-medium">Chuỗi hiện tại</p>
                     <div className="flex items-baseline gap-1.5">
-                      <p className="text-2xl font-bold">{streakData.current}</p>
+                      <p className="text-2xl font-bold">{activity.data?.currentStreak ?? '–'}</p>
                       <span className="text-xs text-muted-foreground">ngày</span>
                     </div>
                   </div>
@@ -745,203 +414,34 @@ export function ProgressTracker() {
           </Card>
         )}
 
-        {/* Skill Radar/Bar — full width */}
-        {sortedTags.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Target className="h-5 w-5 text-primary" />
-                Phân tích kỹ năng
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {sortedTags.length >= 3 ? (
-                <>
-                  <div className="hidden md:block">
-                    <SkillRadarChart tags={sortedTags} />
-                  </div>
-                  <div className="md:hidden">
-                    <SkillBarChart tags={sortedTags} />
-                  </div>
-                </>
-              ) : (
-                <SkillBarChart tags={sortedTags} />
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* This week + activity heatmap */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <WeeklyPlanCard
+            className="lg:col-span-2"
+            activity={activity.data}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.reload}
+            suggestion={suggestion}
+          />
+          <ActivityHeatmapCard
+            className="lg:col-span-3 min-w-0"
+            activity={activity.data}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.reload}
+            weeks={heatWeeks}
+            onWeeksChange={setHeatWeeks}
+          />
+        </div>
 
-        {/* Tag Performance Detail (full width) */}
-        {sortedTags.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Award className="h-5 w-5 text-primary" />
-                Chi tiết theo chủ đề
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {sortedTags.map((tag) => (
-                <div key={tag.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium truncate mr-3">{tag.name}</span>
-                    <span className={`font-semibold tabular-nums shrink-0 ${getScoreColor(tag.correctPercentage)}`}>
-                      {Math.round(tag.correctPercentage)}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={tag.correctPercentage}
-                    className={`h-2.5 bg-slate-100 ${getIndicatorClass(tag.correctPercentage)}`}
-                  />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Achievements Row */}
-        {(streakData.best > 0 || activeDays > 0) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Trophy className="h-5 w-5 text-primary" />
-                Thành tích
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200/50">
-                  <Flame className="h-8 w-8 text-orange-500 shrink-0" />
-                  <div>
-                    <p className="text-lg font-bold">{streakData.best}</p>
-                    <p className="text-xs text-muted-foreground">Chuỗi kỷ lục</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200/50">
-                  <CalendarDays className="h-8 w-8 text-green-500 shrink-0" />
-                  <div>
-                    <p className="text-lg font-bold">{activeDays}</p>
-                    <p className="text-xs text-muted-foreground">Ngày đã luyện</p>
-                  </div>
-                </div>
-                {bestScore != null && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/50">
-                    <Star className="h-8 w-8 text-amber-500 shrink-0" />
-                    <div>
-                      <p className="text-lg font-bold">{bestScore}%</p>
-                      <p className="text-xs text-muted-foreground">Điểm cao nhất</p>
-                    </div>
-                  </div>
-                )}
-                {computedStats && computedStats.attemptCounts >= 10 && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200/50">
-                    <CheckCircle2 className="h-8 w-8 text-purple-500 shrink-0" />
-                    <div>
-                      <p className="text-lg font-bold">{computedStats.attemptCounts}</p>
-                      <p className="text-xs text-muted-foreground">Bài hoàn thành</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Activity Calendar */}
-        <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                  Lịch luyện tập
-                </CardTitle>
-                <div className="relative">
-                  {showCustomPicker ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={customFrom}
-                        onChange={(e) => setCustomFrom(e.target.value)}
-                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
-                      />
-                      <span className="text-xs text-muted-foreground">→</span>
-                      <input
-                        type="date"
-                        value={customTo}
-                        onChange={(e) => setCustomTo(e.target.value)}
-                        className="text-sm border border-slate-200 rounded-lg px-2 py-1.5"
-                      />
-                      <Button
-                        size="sm"
-                        variant="default"
-                        disabled={!customFrom || !customTo}
-                        onClick={() => {
-                          if (customFrom && customTo) {
-                            fetchCalendar(new Date(customFrom).toISOString(), new Date(customTo).toISOString());
-                          }
-                        }}
-                      >
-                        Xem
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowCustomPicker(false)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-sm gap-1"
-                        onClick={() => setRangeOpen(!rangeOpen)}
-                      >
-                        {selectedRange.label}
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </Button>
-                      {rangeOpen && (
-                        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[160px]">
-                          {DATE_RANGES.map(range => (
-                            <button
-                              key={range.days}
-                              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${range.days === calendarRangeDays && !showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
-                              onClick={() => {
-                                setCalendarRangeDays(range.days);
-                                setShowCustomPicker(false);
-                                setRangeOpen(false);
-                                const end = new Date();
-                                const start = new Date();
-                                start.setDate(end.getDate() - range.days);
-                                fetchCalendar(start.toISOString(), end.toISOString());
-                              }}
-                            >
-                              {range.label}
-                            </button>
-                          ))}
-                          <hr className="my-1 border-slate-100" />
-                          <button
-                            className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 transition-colors ${showCustomPicker ? 'font-bold text-primary' : 'text-slate-700'}`}
-                            onClick={() => {
-                              setShowCustomPicker(true);
-                              setRangeOpen(false);
-                            }}
-                          >
-                            Tùy chỉnh
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {calendar?.history && Object.keys(calendar.history).length > 0 ? (
-                <ActivityHeatmap data={calendar.history} rangeDays={calendarRangeDays} />
-              ) : (
-                <p className="text-center text-muted-foreground py-8">Chưa có dữ liệu hoạt động trong khoảng thời gian này.</p>
-              )}
-            </CardContent>
-          </Card>
+        {/* Per-skill cards + accuracy by question type */}
+        <SkillAnalysis
+          stats={skills.data}
+          loading={skills.loading}
+          error={skills.error}
+          onRetry={skills.reload}
+        />
 
         {/* Recent Attempts */}
         <Card>
@@ -970,12 +470,14 @@ export function ProgressTracker() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {historyLoading ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    Đang tải...
-                  </div>
+              <div
+                className={`space-y-2 transition-opacity ${historyLoading && history?.attempts?.length ? 'opacity-60' : ''}`}
+                aria-busy={historyLoading}
+              >
+                {historyLoading && !history?.attempts?.length ? (
+                  <LoadingRegion>
+                    <ListRowsSkeleton rows={5} rowClassName="border-0 bg-muted/40" />
+                  </LoadingRegion>
                 ) : !history?.attempts?.length ? (
                   <div className="py-12 text-center text-muted-foreground">
                     <Clock className="h-8 w-8 mx-auto mb-3 opacity-30" />
@@ -998,7 +500,7 @@ export function ProgressTracker() {
                   return (
                     <div
                       key={attempt.id}
-                      onClick={() => router.push(`/results/${attempt.id}/detail`)}
+                      onClick={() => router.push(attemptHref(attempt))}
                       className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">

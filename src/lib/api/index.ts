@@ -44,6 +44,8 @@ export { find_exams_req_dto_SortOptionsDto } from './models/find_exams_req_dto_S
 export type { flag_state_res_dto_FlagStateDto } from './models/flag_state_res_dto_FlagStateDto';
 export type { FoundBadgesDto } from './models/FoundBadgesDto';
 export type { FoundUsersBadgesDto } from './models/FoundUsersBadgesDto';
+export type { GoogleCalendarAccessTokenDto } from './models/GoogleCalendarAccessTokenDto';
+export type { GoogleCalendarConnectionDto } from './models/GoogleCalendarConnectionDto';
 export type { get_presigned_url_req_dto_GetPresignedUrlDto } from './models/get_presigned_url_req_dto_GetPresignedUrlDto';
 export type { get_user_calendar_req_dto_TimeRangeDto } from './models/get_user_calendar_req_dto_TimeRangeDto';
 export { get_users_attempt_history_req_dto_SortOptionsDto } from './models/get_users_attempt_history_req_dto_SortOptionsDto';
@@ -77,7 +79,6 @@ export type { remove_role_from_req_dto_RemoveRoleFromDto } from './models/remove
 export type { ResponseDataDto } from './models/ResponseDataDto';
 export type { ResponseEntity } from './models/ResponseEntity';
 export type { ResponseReviewDto } from './models/ResponseReviewDto';
-export type { ResponseTokensDto } from './models/ResponseTokensDto';
 export type { review_exam_req_dto_ReviewExamDto } from './models/review_exam_req_dto_ReviewExamDto';
 export type { RoleDto } from './models/RoleDto';
 export type { RolesDto } from './models/RolesDto';
@@ -104,12 +105,15 @@ export type { update_section_req_dto_UpdateSectionDto } from './models/update_se
 export type { update_tag_dto_UpdateTagDto } from './models/update_tag_dto_UpdateTagDto';
 export type { UpdateChoiceDto } from './models/UpdateChoiceDto';
 export type { UserBadgeDto } from './models/UserBadgeDto';
+export type { ActivityDayDto, UserActivityDto } from './models/UserActivityDto';
 export type { UserCalendarDto } from './models/UserCalendarDto';
+export type { SkillScorePointDto, SkillStatsDto, TagAccuracyDto, UserSkillStatsDto } from './models/UserSkillStatsDto';
 export type { UserStatsDto } from './models/UserStatsDto';
 
 export { AchievementsService } from './services/AchievementsService';
 export { AuthService } from './services/AuthService';
 export { BlogService } from './services/BlogService';
+export { BlogCommentService } from './services/BlogCommentService';
 export { ChatRoomService } from './services/ChatRoomService';
 export { ChatMessageService } from './services/ChatMessageService';
 export { ExamManagementService } from './services/ExamManagementService';
@@ -117,6 +121,7 @@ export { ExamPracticeService } from './services/ExamPracticeService';
 export { FilesService } from './services/FilesService';
 export { FlashcardService } from './services/FlashcardService';
 export { FlashcardListService } from './services/FlashcardListService';
+export { ForumService } from './services/ForumService';
 export { GoalsService } from './services/GoalsService';
 export { NotificationService } from './services/NotificationService';
 export { ReportService } from './services/ReportService';

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { AppTopBar } from '@/components/AppTopBar';
@@ -9,16 +10,20 @@ import { ProviderErrorContextProvider } from '@/components/ProviderErrorContext'
 import { ProviderErrorBanner } from '@/components/ProviderErrorBanner';
 import { RehydrationGate } from '@/lib/store/RehydrationGate';
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // SidebarProvider saves the collapsed/expanded state in this cookie; read it so a reload keeps it.
+  const sidebarOpen = (await cookies()).get('sidebar_state')?.value !== 'false';
+
   return (
-    <RehydrationGate>
-      <SidebarProvider>
+    <RehydrationGate sidebarOpen={sidebarOpen}>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar />
-        <SidebarInset className="min-w-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(240,253,244,0.9)_26%,_rgba(236,253,245,0.84)_100%)]">
+        {/* app-pattern: the drifting study-themed background (globals.css) */}
+        <SidebarInset className="app-pattern min-w-0">
           <AppTopBar />
           <ProviderErrorContextProvider>
             <NotificationsProvider>

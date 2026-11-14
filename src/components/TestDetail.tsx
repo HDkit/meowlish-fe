@@ -19,11 +19,15 @@ import {
 	get_users_attempt_history_req_dto_SortOptionsDto,
 } from '@/lib/api-client';
 import { extractApiErrorMessage, extractEntityData } from '@/lib/api-response';
+import { flushAttemptSaves } from '@/lib/answer-sync';
+import { attemptHref } from '@/lib/attempt-href';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import { LoadingRegion } from './skeletons';
 import { Badge } from './ui/badge';
 import {
 	Clock,
@@ -291,9 +295,9 @@ export function ExamDetailPage() {
 		setIsSubmittingOld(true);
 		const idToSubmit = ongoingAttempt.id;
 		try {
+			// answers typed just before leaving the test page may still be saving
+			await flushAttemptSaves(idToSubmit);
 			await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(idToSubmit);
-			// Chờ backend cập nhật trạng thái (race condition fix)
-			await new Promise(resolve => setTimeout(resolve, 500));
 			// Chỉ clear ongoingAttempt và bắt đầu bài mới khi nộp THÀNH CÔNG
 			setOngoingAttempt(null);
 			await handleStart();
@@ -313,14 +317,36 @@ export function ExamDetailPage() {
 		setPendingAttemptDialog({ open: false, attemptId: null });
 		if (oldAttemptId) {
 			try {
+				await flushAttemptSaves(oldAttemptId);
 				await ExamPracticeService.examPracticeGatewayControllerEndAttemptV1(oldAttemptId);
-			} catch (e) {
-				console.error('Failed to submit old attempt:', e);
-				const msg = extractApiErrorMessage(e) || 'Không thể nộp bài cũ. Vui lòng thử lại sau.';
-				toast({ title: msg });
+			} catch (e: any) {
+				const status = e?.status ?? e?.body?.statusCode;
+				// 409: already submitted, so a new attempt can start; anything else: keep the old one
+				if (status !== 409) {
+					console.error('Failed to submit old attempt:', e);
+					const msg = extractApiErrorMessage(e) || 'Không thể nộp bài cũ. Vui lòng thử lại sau.';
+					toast({ title: msg, variant: 'destructive' });
+					setStartError(msg);
+					return;
+				}
 			}
 		}
-		handleStart();
+		await handleStart();
+	};
+
+	/**
+	 * Back to where the user came from: the list URL passed as `?from=` (keeps its search and tags),
+	 * else the previous page in this tab, else the exam list.
+	 */
+	const goBack = () => {
+		const from = new URLSearchParams(window.location.search).get('from');
+		// same-site paths only, never an absolute or protocol-relative URL
+		if (from && from.startsWith('/') && !from.startsWith('//')) {
+			router.push(from);
+			return;
+		}
+		if (window.history.length > 1) router.back();
+		else router.push('/test-selection');
 	};
 
 	const getSkillIcon = (skill: Skill) => {
@@ -346,7 +372,38 @@ export function ExamDetailPage() {
 		return `Part ${index + 1}`;
 	};
 
-	if (loading) return <div className='p-6 text-center text-gray-500'>Đang tải đề thi...</div>;
+	if (loading) {
+		return (
+			<LoadingRegion label='Đang tải đề thi…' className='min-h-screen bg-slate-50/50 pb-20'>
+				<div className='relative mb-8 overflow-hidden bg-primary pt-10 pb-12'>
+					<div className='absolute inset-0 bg-black/10 pointer-events-none' />
+					<div className='relative z-10 mx-auto max-w-6xl space-y-6 px-6'>
+						<Skeleton className='mb-8 h-9 w-28 bg-white/20' />
+						<div className='flex gap-3'>
+							<Skeleton className='h-7 w-16 rounded-full bg-white/20' />
+							<Skeleton className='h-7 w-24 rounded-full bg-white/20' />
+						</div>
+						<Skeleton className='h-12 w-3/4 bg-white/25' />
+						<Skeleton className='h-6 w-1/2 bg-white/20' />
+						<div className='flex flex-wrap gap-6 pt-2'>
+							{Array.from({ length: 4 }, (_, i) => (
+								<Skeleton key={i} className='h-10 w-32 rounded-xl bg-black/20' />
+							))}
+						</div>
+					</div>
+				</div>
+				<div className='mx-auto max-w-6xl space-y-6 px-6'>
+					<Skeleton className='h-12 w-80 max-w-full rounded-2xl bg-slate-200/70' />
+					<div className='space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/60'>
+						<Skeleton className='h-6 w-48 bg-slate-100' />
+						{Array.from({ length: 3 }, (_, i) => (
+							<Skeleton key={i} className='h-16 w-full rounded-xl bg-slate-100' />
+						))}
+					</div>
+				</div>
+			</LoadingRegion>
+		);
+	}
 	if (loadError) {
 		return (
 			<div className='min-h-screen bg-slate-50 px-6 py-16'>
@@ -365,7 +422,7 @@ export function ExamDetailPage() {
 								{loadError}
 							</div>
 							<div className='flex flex-wrap gap-3'>
-								<Button variant="outline" onClick={() => router.push('/test-selection')}>
+								<Button variant="outline" onClick={goBack}>
 									<ArrowLeft className='mr-2 h-4 w-4' />
 									Quay lại danh sách đề
 								</Button>
@@ -395,11 +452,11 @@ export function ExamDetailPage() {
 					<div className="flex items-center justify-between mb-8">
 						<Button
 							variant="ghost"
-							onClick={() => router.push('/test-selection')}
+							onClick={goBack}
 							className="flex items-center gap-2 -ml-2 text-primary-foreground/80 hover:text-white hover:bg-white/10 transition-colors font-semibold"
 						>
 							<ArrowLeft className="h-4 w-4" />
-							Trở về danh sách đề thi
+							Quay lại
 						</Button>
 						{currentUser && (
 							<Button
@@ -452,14 +509,6 @@ export function ExamDetailPage() {
 							</div>
 						</div>
 
-						{activeTab === 'fulltest' && (
-							<div className='bg-white/10 border-l-4 border-primary/60 backdrop-blur-md rounded-r-xl p-4 flex gap-3 text-primary-foreground/80 text-sm mt-4 shadow-sm'>
-								<Info className='shrink-0 h-5 w-5 mt-0.5 text-primary/60' />
-								<p className="font-medium text-[15px]">
-									Chế độ <strong>Bài thi đầy đủ</strong> sẽ mô phỏng kỳ thi thực tế. Hệ thống sẽ căn cứ vào đây để tính <strong>Điểm quy đổi</strong> (điểm chuẩn) cho bạn (VD: Band 9.0 IELTS hoặc 990 TOEIC).
-								</p>
-							</div>
-						)}
 					</div>
 				</div>
 			</div>
@@ -659,10 +708,18 @@ export function ExamDetailPage() {
 								</CardHeader>
 								<CardContent className='space-y-3'>
 									{myAttemptsLoading ? (
-										<div className='flex items-center justify-center gap-2 py-12 text-slate-500 text-sm'>
-											<Loader2 className='h-5 w-5 animate-spin' />
-											Đang tải lịch sử...
-										</div>
+										<LoadingRegion label='Đang tải lịch sử…' className='space-y-2'>
+											{Array.from({ length: 3 }, (_, i) => (
+												<div key={i} className='flex items-center gap-3 rounded-xl border border-slate-100 p-3.5'>
+													<Skeleton className='size-10 shrink-0 rounded-lg bg-slate-100' />
+													<div className='flex-1 space-y-2'>
+														<Skeleton className='h-4 w-1/3 bg-slate-100' />
+														<Skeleton className='h-3 w-1/4 bg-slate-100' />
+													</div>
+													<Skeleton className='h-5 w-14 bg-slate-100' />
+												</div>
+											))}
+										</LoadingRegion>
 									) : myAttemptsError ? (
 										<div className='flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>
 											<AlertCircle className='h-4 w-4 shrink-0' />
@@ -736,7 +793,7 @@ export function ExamDetailPage() {
 																			type='button'
 																			size='sm'
 																			className='rounded-lg font-semibold'
-																			onClick={() => router.push(`/test/do/${attempt.id}`)}
+																			onClick={() => router.push(attemptHref(attempt))}
 																		>
 																			<Play className='mr-1.5 h-3.5 w-3.5' />
 																			Tiếp tục
@@ -747,7 +804,7 @@ export function ExamDetailPage() {
 																			variant='outline'
 																			size='sm'
 																			className='rounded-lg font-semibold'
-																			onClick={() => router.push(`/results/${attempt.id}`)}
+																			onClick={() => router.push(attemptHref(attempt))}
 																		>
 																			Xem chi tiết
 																		</Button>
@@ -786,14 +843,14 @@ export function ExamDetailPage() {
 
 					{/* Full Test Mode */}
 					{activeTab === 'fulltest' && (
-						<div className='space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4'>
+						<div className='space-y-6 animate-in fade-in duration-200'>
 							<Card className='border-0 shadow-lg ring-1 ring-primary/20 bg-card rounded-2xl overflow-hidden relative'>
 								<div className="absolute top-0 right-0 w-64 h-64 bg-primary/60 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
 								<div className="h-1.5 w-full bg-primary"></div>
 
 								<CardContent className='p-8 relative z-10'>
 									<div className='flex flex-col md:flex-row items-center md:items-start gap-8'>
-										<div className='bg-white shadow-md border border-primary/20 rounded-3xl p-6 flex-shrink-0 animate-bounce-slow'>
+										<div className='bg-white shadow-md border border-primary/20 rounded-3xl p-6 flex-shrink-0'>
 											<FileText className='h-12 w-12 text-primary' strokeWidth={1.5} />
 										</div>
 										<div className='flex-1 text-center md:text-left'>
@@ -801,6 +858,14 @@ export function ExamDetailPage() {
 											<p className='text-slate-600 mb-8 font-medium text-lg leading-relaxed'>
 												Chuẩn bị tâm lý vững vàng nhất. Hệ thống sẽ khóa trình duyệt và đếm ngược thời gian nghiêm ngặt.
 											</p>
+											{/* lives with the full-test card: in the page header it appeared on this tab only and
+											    pushed everything below it down */}
+											<div className='mb-6 flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left text-sm text-slate-700'>
+												<Info className='mt-0.5 h-5 w-5 shrink-0 text-primary' />
+												<p className='min-w-0 break-words leading-relaxed'>
+													Kết quả bài thi đầy đủ được dùng để tính <strong>điểm quy đổi</strong> (điểm chuẩn) của bạn, ví dụ Band 9.0 IELTS hoặc 990 TOEIC.
+												</p>
+											</div>
 											<div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
 												<div className='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5'>
 													<span className='text-slate-500 font-bold uppercase text-xs tracking-wider'>Tổng số phần thi</span>

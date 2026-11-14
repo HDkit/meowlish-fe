@@ -1,4 +1,15 @@
 /* generated using openapi-typescript-codegen -- do not edit */
+/*
+ * HAND EDITS (no codegen template in this repo; re-apply after regenerating):
+ *  1. import { handleAccountLocked, isAccountLockedResponse, refreshSession, shouldRefreshOn401 } from '../auth-session';
+ *  2. sendRequest: always set `request.credentials` (session JWTs are HttpOnly cookies).
+ *  3. request: on a 401 from a route where shouldRefreshOn401(options.url), call
+ *     refreshSession() once; 'refreshed' -> retry once, 'expired' -> redirect to
+ *     /auth?mode=login, 'unavailable' -> surface the original 401.
+ *  4. No request/response body logging (bodies carry passwords).
+ *  5. request: a 403 "Account locked" from any route -> handleAccountLocked() (log out,
+ *     redirect to /auth?mode=login&reason=locked), then the ApiError is surfaced as usual.
+ */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
@@ -8,10 +19,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
-import { refreshAccessToken } from '../auth-session';
-const tryParseJson = (str: string) => {
-    try { return JSON.parse(str); } catch { return str; }
-};
+import { handleAccountLocked, isAccountLockedResponse, refreshSession, shouldRefreshOn401 } from '../auth-session';
 
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
@@ -214,9 +222,8 @@ export const sendRequest = async (
         signal: controller.signal,
     };
 
-    if (config.WITH_CREDENTIALS) {
-        request.credentials = config.CREDENTIALS;
-    }
+    // Session JWTs live in HttpOnly cookies set by the gateway, so every call must carry them.
+    request.credentials = config.WITH_CREDENTIALS ? config.CREDENTIALS : 'include';
 
     onCancel(() => controller.abort());
 
@@ -302,42 +309,29 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions): C
             const body = getRequestBody(options);
             let headers = await getHeaders(config, options);
             
-            // Debug logging
-            console.log(`[API] ──────────────────────────────────────────────`);
-            console.log(`[API] ${options.method} ${options.url}`);
-            if (options.path && Object.keys(options.path).length) {
-                console.log(`[API] 📍 Path params:`, JSON.stringify(options.path, null, 2));
-            }
-            if (options.query && Object.keys(options.query).length) {
-                console.log(`[API] 🔍 Query params:`, JSON.stringify(options.query, null, 2));
-            }
-            const parsedBody = body ? (typeof body === 'string' ? tryParseJson(body) : body) : undefined;
-            if (parsedBody) {
-                console.log(`[API] 📦 Body:`, JSON.stringify(parsedBody, null, 2));
-            }
-
             if (!onCancel.isCancelled) {
                 let response = await sendRequest(config, options, url, body, formData, headers, onCancel);
                 
-                // Check for 401 Unauthorized and try to refresh context
-                if (response.status === 401) {
-                    const newToken = await refreshAccessToken();
-                    if (newToken) {
+                // On a 401, rotate the session cookies once and retry the request once.
+                if (response.status === 401 && shouldRefreshOn401(options.url)) {
+                    // Only a 401 from /auth/refresh means logged out; 429/5xx/network surface the original 401.
+                    const refreshed = await refreshSession();
+                    if (refreshed === 'refreshed') {
                         headers = await getHeaders(config, options);
                         response = await sendRequest(config, options, url, body, formData, headers, onCancel);
-                    } else if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+                    } else if (refreshed === 'expired' && typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
                         window.location.href = '/auth?mode=login';
                     }
                 }
                 
                 const responseBody = await getResponseBody(response);
                 const responseHeader = getResponseHeader(response, options.responseHeader);
-                
-                // Debug logging
-                console.log(`[API] ✅ ${options.method} ${options.url} → ${response.status}`);
-                if (responseBody !== undefined) {
-                    console.log(`[API] 📥 Response:`, JSON.stringify(responseBody, null, 2));
+
+                // A locked account can't use its session any more: log out everywhere in the app.
+                if (isAccountLockedResponse(response.status, responseBody)) {
+                    await handleAccountLocked();
                 }
+
 
                 const result: ApiResult = {
                     url,
