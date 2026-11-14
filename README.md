@@ -7,7 +7,7 @@
 The web frontend for [meowlish](https://github.com/HDkit/meowlish): real-format mock tests, Speaking & Writing practice with AI feedback, flashcards and progress tracking.
 
 [![Live](https://img.shields.io/badge/live-meowlish--fe.vercel.app-000?logo=vercel&logoColor=white)](https://meowlish-fe.vercel.app)
-![Version](https://img.shields.io/badge/version-0.9.0-58c27d)
+![Version](https://img.shields.io/badge/version-0.10.0-58c27d)
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=black)
@@ -31,18 +31,92 @@ Open **[meowlish-fe.vercel.app](https://meowlish-fe.vercel.app)** and press **"D
 The demo account is shared, so its password, username and sign-in methods can't be changed (the backend refuses with `403`). Anyone can edit its other data, and a backend reseed resets it.
 
 > [!NOTE]
-> AI services are paused for now: Speaking scoring, answer explanations and quick translation are off, and Writing returns random sample scores. Everything else works. Set `NEXT_PUBLIC_AI_SERVICE_OPERATIONAL=true` at build time to remove the notice.
+> AI services are paused for now: Speaking scoring and AI answer explanations are off, and Writing returns random sample scores. Everything else works, including translation in tests and flashcards. Set `NEXT_PUBLIC_AI_SERVICE_OPERATIONAL=true` at build time to remove the notice.
 
 ## Features
 
 | | |
 |---|---|
-| **Mock tests** | IELTS Academic and TOEIC Listening & Reading in the real exam format, with real media |
+| **Mock tests** | IELTS Academic and TOEIC Listening & Reading in the real exam format, with real audio and images |
+| **Study tools in the test** | Highlight, underline, strike through, translate a selection, turn it into a flashcard, flag questions and write notes, all without leaving the exam |
 | **Speaking & Writing** | Practice with AI scoring and feedback on pronunciation, grammar and vocabulary |
-| **Flashcards** | Personal decks with spaced repetition |
-| **Progress** | Score charts, an activity heatmap and per-skill strengths and weaknesses |
-| **Community** | Blog and chat rooms (socket.io) |
-| **Staff tools** | Exam creation, review and approval; blog, user and report management |
+| **Flashcards** | Personal and public decks, a review mode, copies of other people's decks and change proposals |
+| **Gamification** | 17 badges in bronze, silver and gold, learning streaks, a weekly practice goal and an activity heatmap |
+| **Progress** | Score trends, per-skill strengths and weaknesses, and a suggestion of what to practise next |
+| **Community** | Forum, blog with nested comments, and chat rooms (socket.io) |
+| **Staff tools** | Exam creation, review and approval; forum moderation; blog, user and report management |
+
+Screenshots below are from the demo account. The interface is in Vietnamese.
+
+### Study tools while taking a test
+
+Select any text in a reading passage or question and a toolbar appears above it. Nothing in it stops the timer or leaves the page.
+
+<p align="center">
+  <img src="docs/screenshots/test-highlight.webp" alt="Toolbar above a selected phrase in an IELTS Reading passage, with four highlight colours, underline, strikethrough, add-flashcard and translate buttons. Other phrases in the passage are already highlighted yellow, green and underlined." width="860" />
+</p>
+
+- **Highlight** in yellow, green, pink or blue, **underline** or **strike through** a phrase. Click a mark to change its colour or remove it.
+- **Translate** the selection into Vietnamese in place, so an unknown word doesn't cost you the passage.
+- **Create a flashcard** from the selection. The word is filled in, *Dịch nghĩa* adds its translation as the definition, and you pick the deck (or create one) and tags right there.
+- **Flag** a question to come back to it. Flags show as red markers on the question palette.
+- **Notes** per question, saved with the attempt.
+- **Autosave**: every answer is saved as you go ("Đang lưu… / Đã lưu"), the test is only submitted once every answer is saved, and the page warns before you leave with unsaved answers.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/test-translate.webp" alt="Translation popup over the selected words 'watertight compartments', showing the Vietnamese 'ngăn kín nước'." /></td>
+    <td width="50%"><img src="docs/screenshots/test-note.webp" alt="A gap-fill question with an open note editor below the answer box, and the question palette on the right with two flagged questions." /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Translate a selection</sub></td>
+    <td align="center"><sub>Notes and flags</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/test-flashcard.webp" alt="'Tạo flashcard' dialog with the deck picker, the selected word 'watertight compartments', an empty definition with a 'Dịch nghĩa' button, a notes field and tag suggestions." width="420" />
+  <br /><sub>Turn a selection into a flashcard without leaving the test</sub>
+</p>
+
+### Flashcards
+
+Decks can be private or public. The **Khám phá** (Discover) tab lists public decks by name or tag; you can save a copy of someone else's deck, keep it in sync with the original, and send the owner a **change proposal** that they review card by card (added, edited, removed) before accepting or rejecting it.
+
+**Review mode** (`/flashcards/review`) asks across any of your decks in three directions (word → meaning, meaning → word, note → word). You type what you remember and compare it with the saved card. There is no score, so it's safe to just practise.
+
+<p align="center">
+  <img src="docs/screenshots/flashcard-review.webp" alt="Flashcard review setup: a list of the user's decks with card counts, three question directions with checkboxes, and a shuffle toggle." width="860" />
+</p>
+
+### Gamification
+
+- **Badges**: 17 medals in five families (tests completed, good scores, perfect scores, days studied, day streaks), each in bronze, silver and gold. The profile's *Danh hiệu* tab shows the collection, the next badge within reach and progress towards every locked one.
+- **Streaks**: current and longest run of practice days.
+- **Weekly goal**: pick how many days a week you want to practise; the week view ticks off each day and says when the goal is met.
+- **Activity heatmap** over 3, 6 or 12 months, plus a daily suggestion of which question type to practise next.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/badges.webp" alt="Badge collection: 6 of 17 badges earned, the next badge 'Học viên tận tụy' three days away, recently earned medals, and bronze, silver and locked gold medals for completing tests." /></td>
+    <td width="50%"><img src="docs/screenshots/progress-heatmap.webp" alt="Progress page with the weekly plan at 4 of 4 days, a practice suggestion, streak and practice-time stats, a GitHub-style activity heatmap and per-skill cards." /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Badge collection</sub></td>
+    <td align="center"><sub>Weekly goal, streaks and heatmap</sub></td>
+  </tr>
+</table>
+
+### Forum
+
+Seven categories (announcements, IELTS, TOEIC, grammar & vocabulary, Q&A, sharing, off-topic). Threads and replies are written in Markdown, and you can quote another reply when answering. Thread authors get a notification on new replies. Moderators can pin, lock or delete threads, and anyone can report a thread or reply.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/forum.webp" alt="Forum home: seven categories with thread and reply counts and the latest activity in each." /></td>
+    <td width="50%"><img src="docs/screenshots/forum-thread.webp" alt="A pinned forum thread written in Markdown, with view and reply counts, reply and report buttons, and the first reply below." /></td>
+  </tr>
+</table>
 
 ## Getting started
 
@@ -121,6 +195,7 @@ src/
 ├── services/       Browser-side speech, audio and AI service wrappers
 └── middleware.ts   Redirects signed-out visitors away from protected routes
 public/             Logos, fonts and landing photos
+docs/screenshots/   README screenshots
 scripts/            Vercel deploy helpers behind `npm run share`
 ```
 
