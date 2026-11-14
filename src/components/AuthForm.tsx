@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
 import { AuthService, GOOGLE_LOGIN_PATH, googleOAuthUrl, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
+import { usernameError } from '@/lib/username';
 
 export function AuthForm() {
 	const router = useRouter();
@@ -62,7 +63,8 @@ export function AuthForm() {
 		}
 
 		if (!isLogin) {
-			if (!formData.fullName.trim()) errors.fullName = 'Họ tên là bắt buộc';
+			const badUsername = usernameError(formData.fullName);
+			if (badUsername) errors.fullName = badUsername;
 			if (!formData.confirmPassword) errors.confirmPassword = 'Xác nhận mật khẩu là bắt buộc';
 			else if (formData.confirmPassword !== formData.password) errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
 		}
@@ -243,7 +245,7 @@ export function AuthForm() {
 											{...fieldA11y('auth-fullName', validationErrors.fullName)}
 											autoComplete='username'
 											value={formData.fullName}
-											onChange={(e) => setField('fullName', e.target.value)}
+											onChange={(e) => setField('fullName', e.target.value.toLowerCase())}
 											className='pl-10 border-2 focus:border-primary transition-colors h-11'
 											placeholder='Nhập username'
 										/>

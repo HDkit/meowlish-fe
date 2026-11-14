@@ -59,6 +59,7 @@ import type { UserStatsDto } from '@/lib/api/models/UserStatsDto';
 import type { MinimalAttemptInfoDto } from '@/lib/api/models/MinimalAttemptInfoDto';
 import { Skeleton } from './ui/skeleton';
 import { ListRowsSkeleton, LoadingRegion } from './skeletons';
+import { usernameError } from '@/lib/username';
 
 type ProfilePart = 'creds' | 'badges' | 'goal' | 'history';
 
@@ -224,12 +225,19 @@ export function UserPage() {
 	// Handle profile update
 	const handleUpdateProfile = async () => {
 		if (!currUser) return;
+		const changedUsername = !isDemo && profileForm.username !== currUser.username;
+		const badUsername = changedUsername ? usernameError(profileForm.username) : undefined;
+		if (badUsername) {
+			setDialogError({ messages: [], fields: { username: badUsername } });
+			return;
+		}
 		setIsLoading(true);
 		try {
 			invalidateOwnIdentity();
 			await AuthService.authGatewayControllerUpdateIdentityV1({
-				// The demo account's username is read-only (the backend refuses a change).
-				username: isDemo ? undefined : profileForm.username || undefined,
+				// The demo account's username is read-only (the backend refuses a change); an unchanged
+				// one is not sent, so a username from before the charset rule can still be kept.
+				username: changedUsername ? profileForm.username : undefined,
 				fullName: profileForm.fullName || undefined,
 			});
 			dispatch(
@@ -465,7 +473,7 @@ export function UserPage() {
 							className='bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm w-full md:w-auto justify-start'
 							onClick={() => {
 								setProfileForm({
-									username: currUser?.email?.split('@')[0] || '',
+									username: currUser?.username || '',
 									fullName: currUser?.fullName || '',
 								});
 								setIsProfileDialogOpen(true);
@@ -880,7 +888,7 @@ export function UserPage() {
 								{...fieldA11y('username', dialogError.fields.username)}
 								disabled={isDemo}
 								value={profileForm.username}
-								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+								onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value.toLowerCase() })}
 								placeholder='Nhập tên đăng nhập'
 							/>
 							<FieldError id='username' message={dialogError.fields.username} className='-mt-2' />

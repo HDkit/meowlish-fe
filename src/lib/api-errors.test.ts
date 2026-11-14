@@ -1,3 +1,4 @@
+import { USERNAME_RULE } from './username';
 import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_ERROR,
@@ -163,5 +164,10 @@ describe('passwordPolicyError', () => {
 		expect(translateApiMessage('A IELTS target must be between 0 and 9 in steps of 0.5')).toBe(
 			'Điểm IELTS phải từ 0 đến 9 và là bội số của 0.5',
 		);
+	});
+	it('translates the username charset rule', () => {
+		expect(
+			translateApiMessage('username must be 3-30 characters of lowercase letters, digits, ".", "_" or "-"'),
+		).toBe(USERNAME_RULE);
 	});
 });

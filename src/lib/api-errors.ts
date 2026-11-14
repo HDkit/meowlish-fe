@@ -1,3 +1,5 @@
+import { USERNAME_RULE } from './username';
+
 /**
  * Turns whatever an API call threw into messages a form can show.
  *
@@ -212,6 +214,7 @@ const MESSAGES: Array<[RegExp, string | ((...m: string[]) => string)]> = [
 		/^an? (\w+) target must be between ([\d.]+) and ([\d.]+) in steps of ([\d.]+)$/i,
 		(_m, type, min, max, step) => `Điểm ${type} phải từ ${min} đến ${max} và là bội số của ${step}`,
 	],
+	[/^username must be 3-30 characters of lowercase letters, digits/i, USERNAME_RULE],
 	[/^duration must be a positive whole number of seconds$/i, 'Thời lượng phải là số nguyên dương'],
 	[/^this type of question only allows one correct choice$/i, 'Loại câu hỏi này chỉ cho phép một đáp án đúng'],
 	[/^(cross-site request refused|origin not allowed)$/i, 'Yêu cầu bị từ chối vì không xuất phát từ trang hợp lệ'],
