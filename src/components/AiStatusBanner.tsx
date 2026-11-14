@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { TriangleAlert, X } from 'lucide-react';
-import { AI_SERVICE_NOTICE, AI_SERVICE_OPERATIONAL, SHOW_AI_NOTICE } from '@/lib/service-status';
+import { AI_SERVICE_NOTICE, AI_SERVICE_OPERATIONAL, SHOW_AI_BANNER } from '@/lib/service-status';
 import { useAiBannerHidden } from '@/lib/ai-status-banner';
 
 /**
@@ -12,7 +12,7 @@ import { useAiBannerHidden } from '@/lib/ai-status-banner';
  */
 export function AiStatusBanner() {
 	const [hidden, setHidden] = useAiBannerHidden();
-	if (!SHOW_AI_NOTICE || AI_SERVICE_OPERATIONAL || hidden) return null;
+	if (!SHOW_AI_BANNER || AI_SERVICE_OPERATIONAL || hidden) return null;
 
 	return (
 		<div
@@ -52,7 +52,7 @@ export function AiStatusBanner() {
 /** Header button that shows the hidden AI status banner again; renders nothing while it's visible. */
 export function AiStatusToggle({ className = '' }: { className?: string }) {
 	const [hidden, setHidden] = useAiBannerHidden();
-	if (!SHOW_AI_NOTICE || AI_SERVICE_OPERATIONAL || !hidden) return null;
+	if (!SHOW_AI_BANNER || AI_SERVICE_OPERATIONAL || !hidden) return null;
 
 	return (
 		<button

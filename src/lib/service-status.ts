@@ -6,10 +6,10 @@
 export const AI_SERVICE_OPERATIONAL = process.env.NEXT_PUBLIC_AI_SERVICE_OPERATIONAL === 'true';
 
 /**
- * Site-wide AI notice (top banner and the box on /changelog). Off: only Speaking grading is
- * unavailable, and that page explains it itself. Set to true to bring the notice back.
+ * The AI notice bar at the top of every page. Off: only Speaking grading is unavailable, which
+ * /speaking and the box on /changelog explain. Set to true to bring the bar back.
  */
-export const SHOW_AI_NOTICE = false;
+export const SHOW_AI_BANNER = false;
 
 export const AI_SERVICE_NOTICE = {
 	title: 'Chấm điểm Speaking bằng AI đang tạm ngưng',
