@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { normalizeApiError } from '@/lib/api-errors';
 import {
 	REPORT_STATUSES,
+	isFinalReportStatus,
 	REPORT_TARGETS,
 	REPORT_TYPES,
 	formatDate,
@@ -147,8 +148,16 @@ export default function ReportManagementPage() {
 	};
 
 	const update = async (report: ReportResponse, patch: { status: string; adminResponse?: string }) => {
-		await ReportService.updateReport(report.id, patch);
-		const next = { ...report, ...patch, resolvedBy: currUser?.id, updatedAt: new Date().toISOString() };
+		try {
+			await ReportService.updateReport(report.id, patch);
+		} catch (err) {
+			// 409: it was already handled (by someone else, meanwhile); show its real state
+			if ((err as { status?: number })?.status === 409) refresh();
+			throw err;
+		}
+		// resolvedBy names whoever moved the report to a final status; open reports have none
+		const resolvedBy = isFinalReportStatus(patch.status) ? currUser?.id : undefined;
+		const next = { ...report, ...patch, resolvedBy: resolvedBy, updatedAt: new Date().toISOString() };
 		setReports((prev) => prev.map((r) => (r.id === report.id ? next : r)));
 		setDetail((d) => (d?.id === report.id ? next : d));
 		void fetchCounts();
@@ -207,7 +216,7 @@ export default function ReportManagementPage() {
 		},
 	];
 
-	const open = (r: ReportResponse) => r.status === 'pending' || r.status === 'reviewing';
+	const open = (r: ReportResponse) => !isFinalReportStatus(r.status);
 
 	return (
 		<div className="space-y-5">
@@ -355,7 +364,7 @@ function ReportDetailDialog({
 	}, [report?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!report) return <Dialog open={false} />;
-	const isOpen = report.status === 'pending' || report.status === 'reviewing';
+	const isOpen = !isFinalReportStatus(report.status);
 	const targetUrl = reportTargetUrl(report.targetType, report.targetId);
 
 	const run = async (key: string, patch: { status: string; adminResponse?: string }) => {

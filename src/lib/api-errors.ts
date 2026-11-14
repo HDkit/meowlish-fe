@@ -214,6 +214,7 @@ const MESSAGES: Array<[RegExp, string | ((...m: string[]) => string)]> = [
 		/^an? (\w+) target must be between ([\d.]+) and ([\d.]+) in steps of ([\d.]+)$/i,
 		(_m, type, min, max, step) => `Điểm ${type} phải từ ${min} đến ${max} và là bội số của ${step}`,
 	],
+	[/^this report is already \w+ and can no longer be changed$/i, 'Báo cáo này đã được xử lý xong và không thể thay đổi nữa'],
 	[/^username must be 3-30 characters of lowercase letters, digits/i, USERNAME_RULE],
 	[/^duration must be a positive whole number of seconds$/i, 'Thời lượng phải là số nguyên dương'],
 	[/^this type of question only allows one correct choice$/i, 'Loại câu hỏi này chỉ cho phép một đáp án đúng'],

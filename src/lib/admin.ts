@@ -16,6 +16,11 @@ export const EXAM_STATUSES: Record<string, StatusMeta> = {
 export const examStatusMeta = (status?: string): StatusMeta =>
 	(status && EXAM_STATUSES[status.toUpperCase()]) || unknown(status);
 
+/** Final statuses: the report was handled once, by one person, and can no longer be changed. */
+const FINAL_REPORT_STATUSES = ['resolved', 'rejected', 'dismissed', 'closed'];
+export const isFinalReportStatus = (status?: string): boolean =>
+	FINAL_REPORT_STATUSES.includes((status ?? '').toLowerCase());
+
 export const REPORT_STATUSES: Record<string, StatusMeta> = {
 	pending: { label: 'Chờ xử lý', tone: 'warning' },
 	reviewing: { label: 'Đang xem xét', tone: 'info' },

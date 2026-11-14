@@ -13,6 +13,8 @@ export interface FlashCardResponse {
   notes?: string;
   authorId: string;
   tags: string[];
+  /** Order in its list (0-based); absent for cards never ordered (listed first, newest first). */
+  position?: number;
   createdAt: string;
   updatedAt: string;
 }
