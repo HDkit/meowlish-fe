@@ -272,7 +272,12 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 						.catch(() => {});
 				}
 			})
-			.catch(err => console.error('[ChatRoomView] fetch history error:', err));
+			.catch(err => {
+				// 404: the room is gone, or you are banned from it (the history is hidden then)
+				if (err?.status === 404) {
+					toast({ title: 'Không xem được lịch sử trò chuyện', description: 'Phòng không tồn tại hoặc bạn đã bị cấm khỏi phòng này.', variant: 'destructive' });
+				} else console.error('[ChatRoomView] fetch history error:', err);
+			});
 	}, [room.id]);
 
 	useEffect(() => {

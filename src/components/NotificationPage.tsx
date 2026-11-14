@@ -9,7 +9,7 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import {
-	Bell, Trophy, Flag, Info, CheckCheck, Filter, BookOpen, MessageCircle, Reply, MessagesSquare,
+	Bell, Trophy, Flag, Info, CheckCheck, Filter, BookOpen, MessageCircle, Reply, MessagesSquare, Quote,
 } from 'lucide-react';
 import {
 	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -26,6 +26,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
 	blog_comment: { label: 'Bình luận bài viết', icon: MessageCircle, color: 'text-emerald-700 bg-emerald-100' },
 	comment_reply: { label: 'Trả lời bình luận', icon: Reply, color: 'text-violet-600 bg-violet-100' },
 	forum_reply: { label: 'Trả lời chủ đề', icon: MessagesSquare, color: 'text-indigo-600 bg-indigo-100' },
+	forum_quote: { label: 'Trích dẫn trong diễn đàn', icon: Quote, color: 'text-fuchsia-600 bg-fuchsia-100' },
 };
 
 const DEFAULT_TYPE_CONFIG = { label: 'Thông báo', icon: Bell, color: 'text-gray-600 bg-gray-100' };

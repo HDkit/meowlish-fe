@@ -9,10 +9,14 @@ export interface NotificationPreferences {
   systemEnabled: boolean;
   /** Someone commented on my blog post. */
   blogCommentEnabled: boolean;
-  /** Someone replied to my blog comment or quoted my forum reply. */
+  /** Someone replied to my blog comment. */
   commentReplyEnabled: boolean;
   /** Someone replied in my forum thread. */
   forumReplyEnabled: boolean;
+  /** Someone quoted my forum reply. */
+  forumQuoteEnabled: boolean;
+  /** A change proposal for my flash card list, or a decision on my proposal. */
+  flashcardEnabled: boolean;
   /** Stored but unused: the app sends no e-mail or push notifications yet. */
   emailEnabled?: boolean;
   pushEnabled?: boolean;

@@ -192,10 +192,12 @@ export enum NotificationType {
 	Flashcard = 'flashcard',
 	/** Someone commented on your blog post. */
 	BlogComment = 'blog_comment',
-	/** Someone replied to your blog comment or quoted your forum reply. */
+	/** Someone replied to your blog comment (forum quotes before they had their own type, too). */
 	CommentReply = 'comment_reply',
 	/** Someone replied in your forum thread. */
 	ForumReply = 'forum_reply',
+	/** Someone quoted your forum reply. */
+	ForumQuote = 'forum_quote',
 }
 
 export interface Notification extends MockDbType {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Bell, ChevronRight, KeyRound, Loader2, Moon, Palette, Sun, Trophy, Flag, Megaphone, MessageCircle, MessagesSquare, Reply, UserRound } from 'lucide-react';
+import { Bell, BookOpen, ChevronRight, KeyRound, Loader2, Moon, Palette, Sun, Trophy, Flag, Megaphone, MessageCircle, MessagesSquare, Quote, Reply, UserRound } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { Skeleton } from './ui/skeleton';
 import { useToast } from './ui/use-toast';
@@ -17,7 +17,9 @@ type PrefKey =
 	| 'systemEnabled'
 	| 'blogCommentEnabled'
 	| 'commentReplyEnabled'
-	| 'forumReplyEnabled';
+	| 'forumReplyEnabled'
+	| 'forumQuoteEnabled'
+	| 'flashcardEnabled';
 
 const NOTIFICATION_TYPES: { key: PrefKey; title: string; description: string; icon: typeof Bell }[] = [
 	{
@@ -41,7 +43,7 @@ const NOTIFICATION_TYPES: { key: PrefKey; title: string; description: string; ic
 	{
 		key: 'commentReplyEnabled',
 		title: 'Trả lời bình luận',
-		description: 'Khi có người trả lời bình luận của bạn trên blog hoặc trích dẫn bài trả lời của bạn trong diễn đàn.',
+		description: 'Khi có người trả lời bình luận của bạn trên blog.',
 		icon: Reply,
 	},
 	{
@@ -49,6 +51,18 @@ const NOTIFICATION_TYPES: { key: PrefKey; title: string; description: string; ic
 		title: 'Trả lời chủ đề diễn đàn',
 		description: 'Khi có người trả lời chủ đề bạn đã mở trong diễn đàn.',
 		icon: MessagesSquare,
+	},
+	{
+		key: 'forumQuoteEnabled',
+		title: 'Trích dẫn trong diễn đàn',
+		description: 'Khi có người trích dẫn bài trả lời của bạn trong diễn đàn.',
+		icon: Quote,
+	},
+	{
+		key: 'flashcardEnabled',
+		title: 'Đề xuất bộ thẻ',
+		description: 'Khi có đề xuất thay đổi bộ thẻ của bạn, hoặc đề xuất của bạn được chấp nhận hay từ chối.',
+		icon: BookOpen,
 	},
 	{
 		key: 'systemEnabled',
@@ -65,6 +79,8 @@ const DEFAULT_PREFS: Record<PrefKey, boolean> = {
 	blogCommentEnabled: true,
 	commentReplyEnabled: true,
 	forumReplyEnabled: true,
+	forumQuoteEnabled: true,
+	flashcardEnabled: true,
 };
 
 function Section({ icon: Icon, title, description, children }: {
@@ -122,6 +138,8 @@ export function SettingsPage() {
 					blogCommentEnabled: data.blogCommentEnabled ?? true,
 					commentReplyEnabled: data.commentReplyEnabled ?? true,
 					forumReplyEnabled: data.forumReplyEnabled ?? true,
+					forumQuoteEnabled: data.forumQuoteEnabled ?? true,
+					flashcardEnabled: data.flashcardEnabled ?? true,
 				});
 			})
 			.catch((err) => !cancelled && setLoadError(extractApiErrorMessage(err, 'Không tải được cài đặt thông báo.')))
