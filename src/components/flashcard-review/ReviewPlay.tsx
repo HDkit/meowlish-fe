@@ -143,75 +143,36 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 	);
 }
 
-function Reveal({
-	session,
+/**
+ * The saved card, shown on the right once the player has answered: the value to compare with,
+ * the card's other fields, and editing for the owner.
+ */
+function SavedCard({
 	question,
 	card,
-	userId,
-	dispatch,
-	isLast,
+	owns,
+	editing,
+	setEditing,
+	onSaved,
+	editRef,
 }: {
-	session: ReviewSession;
 	question: Question;
 	card: ReviewCard;
-	userId: string;
-	dispatch: (a: ReviewAction) => void;
-	isLast: boolean;
+	owns: boolean;
+	editing: boolean;
+	setEditing: (v: boolean) => void;
+	onSaved: (card: ReviewCard) => void;
+	editRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-	const record = session.answers[question.key];
-	const [editing, setEditing] = useState(false);
 	const [savedNote, setSavedNote] = useState(false);
-	const nextRef = useRef<HTMLButtonElement>(null);
-	const editRef = useRef<HTMLButtonElement>(null);
-	const owns = card.authorId === userId;
-	const expected = cardField(card, answerField(question.mode));
-	const answer = record?.answer ?? '';
-
-	useEffect(() => {
-		nextRef.current?.focus();
-	}, [question.key]);
-
-	useEffect(() => {
-		if (editing) return;
-		const onKey = (e: KeyboardEvent) => {
-			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
-			const key = e.key.toLowerCase();
-			if (key === 'e' && owns) {
-				e.preventDefault();
-				setEditing(true);
-			} else if (key === 'enter' && !isInteractive(e.target)) {
-				e.preventDefault();
-				dispatch({ type: 'next' });
-			} else return;
-		};
-		window.addEventListener('keydown', onKey);
-		return () => window.removeEventListener('keydown', onKey);
-	}, [editing, owns, dispatch]);
-
+	const asked = answerField(question.mode);
 	return (
-		<div className="space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-			{/* no scoring: the player compares what they wrote with what they saved */}
-			<p className="text-sm text-slate-500" role="status" aria-live="polite">
-				So sánh điều bạn nhớ với nội dung đã lưu.
-			</p>
-
-			<div className="grid gap-3 md:grid-cols-2">
-				<div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-					<p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Bạn trả lời</p>
-					{record?.skipped || !answer.trim() ? (
-						<p className="italic text-slate-400">(không có câu trả lời)</p>
-					) : (
-						<p className="whitespace-pre-wrap break-words text-lg font-medium text-slate-800">{answer}</p>
-					)}
-				</div>
-				<div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-					<p className="mb-1 text-xs font-bold uppercase tracking-wider text-primary/70">Đã lưu · {FIELD_LABELS[answerField(question.mode)]}</p>
-					<p className="whitespace-pre-wrap break-words text-lg font-semibold text-slate-900">
-						{expected}
-					</p>
-				</div>
+		<div className="flex h-full flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4 sm:p-5">
+			<div>
+				<p className="mb-1 text-xs font-bold uppercase tracking-wider text-primary/70">Đã lưu · {FIELD_LABELS[asked]}</p>
+				<p className="whitespace-pre-wrap break-words text-xl font-bold text-slate-900">{cardField(card, asked)}</p>
 			</div>
-			{editing ? (
+			{editing ?
 				<CardEditor
 					card={card}
 					onCancel={() => {
@@ -219,15 +180,13 @@ function Reveal({
 						requestAnimationFrame(() => editRef.current?.focus());
 					}}
 					onSaved={updated => {
-						dispatch({ type: 'updateCard', card: updated });
+						onSaved(updated);
 						setEditing(false);
 						setSavedNote(true);
-						requestAnimationFrame(() => nextRef.current?.focus());
 					}}
 				/>
-			) : (
-				<div className="rounded-xl border border-slate-200 p-4">
-					<dl className="space-y-3">
+			:	<>
+					<dl className="space-y-3 border-t border-primary/15 pt-3">
 						<DetailRow label={FIELD_LABELS.word}>
 							<span className="font-semibold">{card.word}</span>
 							{card.partOfSpeech && <span className="ml-2 text-sm italic text-slate-500">({card.partOfSpeech})</span>}
@@ -244,54 +203,82 @@ function Reveal({
 								</ul>
 							</DetailRow>
 						)}
-						<DetailRow label="Bộ thẻ">{card.listName}</DetailRow>
 					</dl>
-					<div className="mt-4 border-t border-slate-100 pt-3">
-						{owns ? (
-							<div className="flex flex-wrap items-center gap-3">
-								<Button ref={editRef} variant="outline" size="sm" onClick={() => setEditing(true)} className="rounded-lg">
-									<Pencil className="h-4 w-4" aria-hidden /> Sửa thẻ
-									<kbd className="ml-1 hidden rounded border border-slate-200 px-1 text-[10px] text-slate-400 sm:inline">E</kbd>
-								</Button>
-								{savedNote && (
-									<span role="status" className="text-sm font-medium text-emerald-700">
-										Đã lưu thay đổi.
-									</span>
-								)}
-							</div>
-						) : null}
-					</div>
-				</div>
-			)}
-
-			<div className="flex justify-end">
-				<Button
-					ref={nextRef}
-					onClick={() => dispatch({ type: 'next' })}
-					// a held Enter (from submitting) must not skip past the reveal
-					onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
-					disabled={editing} className="h-11 rounded-xl px-6 font-bold">
-					{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
-					<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
-				</Button>
-			</div>
+					{owns && (
+						<div className="mt-auto flex flex-wrap items-center gap-3">
+							<Button ref={editRef} variant="outline" size="sm" onClick={() => setEditing(true)} className="rounded-lg bg-white">
+								<Pencil className="h-4 w-4" aria-hidden /> Sửa thẻ
+								<kbd className="ml-1 hidden rounded border border-slate-200 px-1 text-[10px] text-slate-400 sm:inline">E</kbd>
+							</Button>
+							{savedNote && (
+								<span role="status" className="text-sm font-medium text-emerald-700">
+									Đã lưu thay đổi.
+								</span>
+							)}
+						</div>
+					)}
+				</>
+			}
 		</div>
 	);
 }
 
-function AnswerForm({ question, dispatch }: { question: Question; dispatch: (a: ReviewAction) => void }) {
+/**
+ * One card, mounted fresh per question (keyed by the parent). While playing, the answer box takes the
+ * whole width; on submit it slides to the left half and the saved card animates in on the right
+ * (below on phones), so what you wrote and what you saved sit side by side.
+ */
+function CardStage({
+	session,
+	question,
+	card,
+	userId,
+	dispatch,
+	isLast,
+}: {
+	session: ReviewSession;
+	question: Question;
+	card: ReviewCard;
+	userId: string;
+	dispatch: (a: ReviewAction) => void;
+	isLast: boolean;
+}) {
+	const revealed = session.phase === 'reveal';
+	const record = session.answers[question.key];
 	const [answer, setAnswer] = useState('');
-	const ref = useRef<HTMLTextAreaElement>(null);
+	const [editing, setEditing] = useState(false);
+	const answerRef = useRef<HTMLTextAreaElement>(null);
+	const nextRef = useRef<HTMLButtonElement>(null);
+	const editRef = useRef<HTMLButtonElement | null>(null);
+	const owns = card.authorId === userId;
+	const shownField = promptField(question.mode);
 	const field = answerField(question.mode);
 
 	useEffect(() => {
-		setAnswer('');
-		ref.current?.focus();
-	}, [question.key]);
+		(revealed ? nextRef.current : answerRef.current)?.focus();
+	}, [revealed]);
+
+	// reveal: Enter = next card, E = edit (when the focus isn't in a field or on a control)
+	useEffect(() => {
+		if (!revealed || editing) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
+			const key = e.key.toLowerCase();
+			if (key === 'e' && owns) {
+				e.preventDefault();
+				setEditing(true);
+			} else if (key === 'enter' && !isInteractive(e.target)) {
+				e.preventDefault();
+				dispatch({ type: 'next' });
+			}
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [revealed, editing, owns, dispatch]);
 
 	const submit = () => {
 		if (!answer.trim()) {
-			ref.current?.focus();
+			answerRef.current?.focus();
 			return;
 		}
 		dispatch({ type: 'submit', answer: answer });
@@ -299,51 +286,120 @@ function AnswerForm({ question, dispatch }: { question: Question; dispatch: (a: 
 
 	const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
 		// Vietnamese IMEs use Enter while composing
-		if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+		if (!revealed && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
 			e.preventDefault();
 			submit();
 		}
 	};
 
+	const shown = revealed ? (record?.skipped ? '' : (record?.answer ?? answer)) : answer;
+
 	return (
-		<form
-			className="space-y-3"
-			onSubmit={e => {
-				e.preventDefault();
-				submit();
-			}}
-		>
-			<Label htmlFor="review-answer" className="font-semibold text-slate-700">
-				Nhập {field === 'word' ? 'từ tiếng Anh' : 'nghĩa'}
-			</Label>
-			<textarea
-				ref={ref}
-				id="review-answer"
-				value={answer}
-				onChange={e => setAnswer(e.target.value)}
-				onKeyDown={onKeyDown}
-				rows={field === 'word' ? 1 : 3}
-				autoComplete="off"
-				autoCorrect="off"
-				autoCapitalize="off"
-				spellCheck={false}
-				enterKeyHint="done"
-				aria-describedby="review-answer-hint"
-				className={cn(FIELD_CLASS, 'min-h-12 resize-y text-lg')}
-				placeholder={field === 'word' ? 'Gõ từ tiếng Anh…' : 'Gõ nghĩa…'}
-			/>
-			<p id="review-answer-hint" className="hidden text-xs text-slate-400 sm:block">
-				Enter để kiểm tra · Shift+Enter xuống dòng
-			</p>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button type="button" variant="outline" onClick={() => dispatch({ type: 'skip' })} className="h-11 rounded-xl font-semibold">
-					<SkipForward className="h-4 w-4" aria-hidden /> Bỏ qua
-				</Button>
-				<Button type="submit" disabled={!answer.trim()} className="h-11 rounded-xl px-6 font-bold">
-					Kiểm tra
-				</Button>
+		<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{MODE_LABELS[question.mode]}</span>
+				<span className="truncate text-xs font-medium text-slate-400">{card.listName}</span>
 			</div>
-		</form>
+			<section aria-labelledby="review-prompt-label" className="mb-6">
+				<p id="review-prompt-label" className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">
+					{FIELD_LABELS[shownField]}
+				</p>
+				<p className={cn('whitespace-pre-wrap break-words font-bold text-slate-900', shownField === 'word' ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl')}>
+					{cardField(card, shownField)}
+				</p>
+				{shownField === 'word' && card.pronunciation && <p className="mt-1 italic text-slate-500">{card.pronunciation}</p>}
+			</section>
+
+			<div
+				className={cn(
+					'grid gap-4 md:transition-[grid-template-columns] md:duration-500 md:ease-out motion-reduce:transition-none',
+					revealed ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]',
+				)}
+			>
+				<form
+					className="flex min-w-0 flex-col gap-3"
+					onSubmit={e => {
+						e.preventDefault();
+						submit();
+					}}
+				>
+					<Label htmlFor="review-answer" className="font-semibold text-slate-700">
+						{revealed ? 'Bạn trả lời' : `Nhập ${field === 'word' ? 'từ tiếng Anh' : 'nghĩa'}`}
+					</Label>
+					<textarea
+						ref={answerRef}
+						id="review-answer"
+						value={shown}
+						readOnly={revealed}
+						onChange={e => setAnswer(e.target.value)}
+						onKeyDown={onKeyDown}
+						rows={field === 'word' ? 2 : 4}
+						autoComplete="off"
+						autoCorrect="off"
+						autoCapitalize="off"
+						spellCheck={false}
+						enterKeyHint="done"
+						aria-describedby="review-answer-hint"
+						className={cn(FIELD_CLASS, 'min-h-12 flex-1 resize-y text-lg', revealed && 'bg-slate-50 text-slate-800')}
+						placeholder={revealed ? '(không có câu trả lời)' : field === 'word' ? 'Gõ từ tiếng Anh…' : 'Gõ nghĩa…'}
+					/>
+					{!revealed && (
+						<>
+							<p id="review-answer-hint" className="hidden text-xs text-slate-400 sm:block">
+								Enter để xem thẻ đã lưu · Shift+Enter xuống dòng
+							</p>
+							<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+								<Button type="button" variant="outline" onClick={() => dispatch({ type: 'skip' })} className="h-11 rounded-xl font-semibold">
+									<SkipForward className="h-4 w-4" aria-hidden /> Bỏ qua
+								</Button>
+								<Button type="submit" disabled={!answer.trim()} className="h-11 rounded-xl px-6 font-bold">
+									Xem thẻ đã lưu
+								</Button>
+							</div>
+						</>
+					)}
+				</form>
+
+				{/* the column grows from 0 on reveal (md+); the card slides in from the right, from below on phones */}
+				<div className="min-w-0 overflow-hidden">
+					{revealed && (
+						<div className="h-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 md:motion-safe:slide-in-from-bottom-0 md:motion-safe:slide-in-from-right-10 motion-safe:duration-500 motion-safe:fill-mode-both md:motion-safe:delay-150">
+							<SavedCard
+								question={question}
+								card={card}
+								owns={owns}
+								editing={editing}
+								setEditing={setEditing}
+								onSaved={updated => {
+									dispatch({ type: 'updateCard', card: updated });
+									requestAnimationFrame(() => nextRef.current?.focus());
+								}}
+								editRef={editRef}
+							/>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{revealed && (
+				<div className="mt-5 flex items-center justify-between gap-3">
+					<p className="text-sm text-slate-500" role="status" aria-live="polite">
+						So sánh điều bạn nhớ với nội dung đã lưu.
+					</p>
+					<Button
+						ref={nextRef}
+						onClick={() => dispatch({ type: 'next' })}
+						// a held Enter (from submitting) must not skip past the reveal
+						onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
+						disabled={editing}
+						className="h-11 shrink-0 rounded-xl px-6 font-bold"
+					>
+						{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
+						<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
+					</Button>
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -362,12 +418,11 @@ export function ReviewPlay({
 	const card = question ? session.cards[question.cardId] : undefined;
 	if (!question || !card) return null;
 
-	const shownField = promptField(question.mode);
 	const total = session.queue.length;
 	const done = session.index + (session.phase === 'reveal' ? 1 : 0);
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-5 px-4 sm:px-6">
+		<div className="mx-auto max-w-5xl space-y-5 px-4 sm:px-6">
 			<div className="space-y-2">
 				<div className="flex items-center justify-between gap-3 text-sm">
 					<span className="font-semibold text-slate-600">
@@ -381,36 +436,16 @@ export function ReviewPlay({
 				<ProgressBar value={done} max={total} />
 			</div>
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-				<div className="mb-4 flex flex-wrap items-center gap-2">
-					<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{MODE_LABELS[question.mode]}</span>
-					<span className="truncate text-xs font-medium text-slate-400">{card.listName}</span>
-				</div>
-				<section aria-labelledby="review-prompt-label" key={question.key} className="mb-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-					<p id="review-prompt-label" className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">
-						{FIELD_LABELS[shownField]}
-					</p>
-					<p className={cn('whitespace-pre-wrap break-words font-bold text-slate-900', shownField === 'word' ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl')}>
-						{cardField(card, shownField)}
-					</p>
-					{shownField === 'word' && card.pronunciation && <p className="mt-1 italic text-slate-500">{card.pronunciation}</p>}
-					{card.partOfSpeech && <p className="mt-1 text-sm text-slate-400">Loại từ: {card.partOfSpeech}</p>}
-				</section>
-
-				{session.phase === 'playing' ? (
-					<AnswerForm question={question} dispatch={dispatch} />
-				) : (
-					<Reveal
-						key={question.key}
-						session={session}
-						question={question}
-						card={card}
-						userId={userId}
-						dispatch={dispatch}
-						isLast={session.index === total - 1}
-					/>
-				)}
-			</div>
+			{/* one key per card (and round): every card starts from a clean slate */}
+			<CardStage
+				key={`card-${session.round}-${session.index}-${question.key}`}
+				session={session}
+				question={question}
+				card={card}
+				userId={userId}
+				dispatch={dispatch}
+				isLast={session.index === total - 1}
+			/>
 		</div>
 	);
 }
