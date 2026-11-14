@@ -9,7 +9,7 @@ import {
 	Popover, PopoverContent, PopoverTrigger,
 } from './ui/popover';
 import {
-	Bell, Trophy, Flag, Info, CheckCheck, ExternalLink, BookOpen,
+	Bell, Trophy, Flag, Info, CheckCheck, ExternalLink, BookOpen, MessageCircle, Reply, MessagesSquare,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +18,9 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
 	[NotificationType.Achievement]: { icon: Trophy, color: 'text-amber-600 bg-amber-100' },
 	[NotificationType.System]: { icon: Info, color: 'text-gray-600 bg-gray-100' },
 	[NotificationType.Flashcard]: { icon: BookOpen, color: 'text-sky-600 bg-sky-100' },
+	[NotificationType.BlogComment]: { icon: MessageCircle, color: 'text-emerald-700 bg-emerald-100' },
+	[NotificationType.CommentReply]: { icon: Reply, color: 'text-violet-600 bg-violet-100' },
+	[NotificationType.ForumReply]: { icon: MessagesSquare, color: 'text-indigo-600 bg-indigo-100' },
 };
 
 const DEFAULT_TYPE_CONFIG = { icon: Bell, color: 'text-gray-600 bg-gray-100' };

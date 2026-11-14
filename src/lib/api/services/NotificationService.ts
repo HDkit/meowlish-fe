@@ -7,6 +7,12 @@ export interface NotificationPreferences {
   achievementEnabled: boolean;
   reportEnabled: boolean;
   systemEnabled: boolean;
+  /** Someone commented on my blog post. */
+  blogCommentEnabled: boolean;
+  /** Someone replied to my blog comment or quoted my forum reply. */
+  commentReplyEnabled: boolean;
+  /** Someone replied in my forum thread. */
+  forumReplyEnabled: boolean;
   /** Stored but unused: the app sends no e-mail or push notifications yet. */
   emailEnabled?: boolean;
   pushEnabled?: boolean;

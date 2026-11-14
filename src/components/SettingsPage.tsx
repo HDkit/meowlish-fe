@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Bell, ChevronRight, KeyRound, Loader2, Moon, Palette, Sun, Trophy, Flag, Megaphone, UserRound } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, Loader2, Moon, Palette, Sun, Trophy, Flag, Megaphone, MessageCircle, MessagesSquare, Reply, UserRound } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { Skeleton } from './ui/skeleton';
 import { useToast } from './ui/use-toast';
@@ -11,7 +11,13 @@ import { useAppSelector, useIsStoreHydrated } from '@/lib/store/hooks';
 import { NotificationService, type NotificationPreferences } from '@/lib/api/services/NotificationService';
 import { extractApiErrorMessage } from '@/lib/api-response';
 
-type PrefKey = 'achievementEnabled' | 'reportEnabled' | 'systemEnabled';
+type PrefKey =
+	| 'achievementEnabled'
+	| 'reportEnabled'
+	| 'systemEnabled'
+	| 'blogCommentEnabled'
+	| 'commentReplyEnabled'
+	| 'forumReplyEnabled';
 
 const NOTIFICATION_TYPES: { key: PrefKey; title: string; description: string; icon: typeof Bell }[] = [
 	{
@@ -27,6 +33,24 @@ const NOTIFICATION_TYPES: { key: PrefKey; title: string; description: string; ic
 		icon: Flag,
 	},
 	{
+		key: 'blogCommentEnabled',
+		title: 'Bình luận bài viết',
+		description: 'Khi có người bình luận bài blog của bạn.',
+		icon: MessageCircle,
+	},
+	{
+		key: 'commentReplyEnabled',
+		title: 'Trả lời bình luận',
+		description: 'Khi có người trả lời bình luận của bạn trên blog hoặc trích dẫn bài trả lời của bạn trong diễn đàn.',
+		icon: Reply,
+	},
+	{
+		key: 'forumReplyEnabled',
+		title: 'Trả lời chủ đề diễn đàn',
+		description: 'Khi có người trả lời chủ đề bạn đã mở trong diễn đàn.',
+		icon: MessagesSquare,
+	},
+	{
 		key: 'systemEnabled',
 		title: 'Hệ thống',
 		description: 'Thông báo chung về nền tảng, bảo trì và tính năng mới.',
@@ -38,6 +62,9 @@ const DEFAULT_PREFS: Record<PrefKey, boolean> = {
 	achievementEnabled: true,
 	reportEnabled: true,
 	systemEnabled: true,
+	blogCommentEnabled: true,
+	commentReplyEnabled: true,
+	forumReplyEnabled: true,
 };
 
 function Section({ icon: Icon, title, description, children }: {
@@ -92,6 +119,9 @@ export function SettingsPage() {
 					achievementEnabled: data.achievementEnabled ?? true,
 					reportEnabled: data.reportEnabled ?? true,
 					systemEnabled: data.systemEnabled ?? true,
+					blogCommentEnabled: data.blogCommentEnabled ?? true,
+					commentReplyEnabled: data.commentReplyEnabled ?? true,
+					forumReplyEnabled: data.forumReplyEnabled ?? true,
 				});
 			})
 			.catch((err) => !cancelled && setLoadError(extractApiErrorMessage(err, 'Không tải được cài đặt thông báo.')))

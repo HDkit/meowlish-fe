@@ -190,6 +190,12 @@ export enum NotificationType {
 	System = 'system',
 	/** Flash card list proposals (received, accepted, rejected). */
 	Flashcard = 'flashcard',
+	/** Someone commented on your blog post. */
+	BlogComment = 'blog_comment',
+	/** Someone replied to your blog comment or quoted your forum reply. */
+	CommentReply = 'comment_reply',
+	/** Someone replied in your forum thread. */
+	ForumReply = 'forum_reply',
 }
 
 export interface Notification extends MockDbType {
