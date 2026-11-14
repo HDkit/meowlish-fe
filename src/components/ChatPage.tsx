@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { updateChatRoom, removeChatRoom, setChatRooms } from '@/components/store/chatRoomSlice';
-import { addChatMessage } from '@/components/store/chatMessageSlice';
+import { addChatMessage, removeChatMessage } from '@/components/store/chatMessageSlice';
+import { LOCAL_ID_PREFIX, roomMessages } from '@/lib/chat-messages';
 import { addUser } from '@/components/store/userSlice';
 import { ChatRoomService } from '@/lib/api/services/ChatRoomService';
 import { ChatMessageService } from '@/lib/api/services/ChatMessageService';
@@ -233,12 +234,7 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const [banTarget, setBanTarget] = useState<{ uid: string; name: string } | null>(null);
 	const [banReason, setBanReason] = useState('');
 
-	const messages = useMemo(() => {
-		const seen = new Set<string>();
-		return allMessages
-			.filter((m) => m.roomId === room.id && !seen.has(m.id) && seen.add(m.id))
-			.sort((a, b) => a.createdAt - b.createdAt);
-	}, [allMessages, room.id]);
+	const messages = useMemo(() => roomMessages(allMessages, room.id), [allMessages, room.id]);
 
 	useEffect(() => {
 		ChatMessageService.getChatLog(room.id, undefined, undefined, 50)
@@ -362,11 +358,25 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 	const handleSend = () => {
 		if (!input.trim() || !socketRef.current || !joinedRef.current) return;
 		const text = input.trim();
-		socketRef.current.emit('chat', { roomId: room.id, message: text });
+		const localId = `${LOCAL_ID_PREFIX}${Date.now()}`;
+		const uid = currUser?.id ?? '';
+		// shown at once; the server's acknowledgement swaps in the stored message (its real id), so
+		// the chat history doesn't add it a second time
+		socketRef.current.emit('chat', { roomId: room.id, message: text }, (ack?: { id?: string; createdAt?: string }) => {
+			if (!ack?.id) return;
+			dispatch(removeChatMessage(localId));
+			dispatch(addChatMessage({
+				id: ack.id,
+				roomId: room.id,
+				uid: uid,
+				message: text,
+				createdAt: ack.createdAt ? new Date(ack.createdAt).getTime() : Date.now(),
+			}));
+		});
 		dispatch(addChatMessage({
-			id: `local-${Date.now()}`,
+			id: localId,
 			roomId: room.id,
-			uid: currUser?.id ?? '',
+			uid: uid,
 			message: text,
 			createdAt: Date.now(),
 		}));
