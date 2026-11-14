@@ -25,8 +25,8 @@ export const HEATMAP_RANGES = [
 
 const LEVEL_CLASS: Record<ActivityLevel, string> = {
 	// neutral grey, not the green-tinted `muted`: a day without practice must read as empty
-	// a light grey that recedes; the first green step is already clearly visible
-	0: 'bg-slate-100 ring-1 ring-inset ring-slate-200/70 dark:bg-slate-800 dark:ring-slate-700',
+	// a faint grey with no outline so empty days recede; the first green step is already clearly visible
+	0: 'bg-slate-100/70 dark:bg-slate-800/60',
 	1: 'bg-primary/45',
 	2: 'bg-primary/65',
 	3: 'bg-primary/85',
