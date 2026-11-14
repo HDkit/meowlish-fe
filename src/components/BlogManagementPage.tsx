@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, ExternalLink, Loader2, Newspaper, Plus, RefreshCw, Save, Search, Trash2, X } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { BlogService, type BlogResponse } from '@/lib/api/services/BlogService';
+import { invalidateBlogTags, useBlogTags } from '@/lib/blog-tags';
 import { useToast } from '@/components/ui/use-toast';
 import { normalizeApiError } from '@/lib/api-errors';
 import { formatDate, matchesSearch } from '@/lib/admin';
@@ -58,7 +59,8 @@ export default function BlogManagementPage() {
 	const [page, setPage] = useState(1);
 	const [search, setSearch] = useState('');
 	const [tagFilter, setTagFilter] = useState('all');
-	const [knownTags, setKnownTags] = useState<string[]>([]);
+	const serverTags = useBlogTags();
+	const knownTags = useMemo(() => [...(serverTags ?? [])].sort((a, b) => a.localeCompare(b)), [serverTags]);
 	// Only admins may edit other people's posts, so everyone else manages their own; admins can
 	// narrow the list to one author (server-side, across all pages).
 	const [author, setAuthor] = useState<AuthorSelection>(null);
@@ -84,7 +86,6 @@ export default function BlogManagementPage() {
 			const list = data.blogs ?? [];
 			setBlogs(list);
 			setTotalCount(data.totalCount ?? list.length);
-			setKnownTags((prev) => [...new Set([...prev, ...list.flatMap((b) => b.tags ?? [])])].sort((a, b) => a.localeCompare(b)));
 		} catch (err) {
 			setBlogs([]);
 			setLoadError(normalizeApiError(err, { fallback: 'Không thể tải danh sách bài viết' }).messages);
@@ -118,6 +119,7 @@ export default function BlogManagementPage() {
 
 	const remove = async (blog: BlogResponse) => {
 		await BlogService.deleteBlog(blog.id);
+		invalidateBlogTags();
 		toast({ title: 'Đã xóa bài viết', description: blog.title });
 		void fetchBlogs();
 	};
@@ -316,6 +318,7 @@ function BlogEditor({
 					tags: form.tags.length > 0 ? form.tags : undefined,
 				});
 			}
+			invalidateBlogTags();
 			toast({ title: isEdit ? 'Đã lưu bài viết' : 'Đã đăng bài viết' });
 			onSaved();
 		} catch (err) {

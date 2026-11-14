@@ -30,7 +30,21 @@ export interface UpdateBlogPayload {
   tags?: string[];
 }
 
+export interface BlogTagCount {
+  name: string;
+  /** Number of posts using the tag. */
+  count: number;
+}
+
 export class BlogService {
+  /** Every tag used by blog posts, most used first. */
+  public static listBlogTags(): CancelablePromise<{ tags?: BlogTagCount[] }> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/api/v1/resources/blogs/tags',
+    });
+  }
+
   public static listBlogs(
     authorId?: string,
     page?: number,

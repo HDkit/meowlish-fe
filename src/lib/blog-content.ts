@@ -91,6 +91,7 @@ const TAG_LABELS: Record<string, string> = {
   'ngu-phap': 'Ngữ pháp',
   'phat-am': 'Phát âm',
   nghe: 'Luyện nghe',
+  noi: 'Luyện nói',
   'viet-lach': 'Viết',
   'phuong-phap': 'Phương pháp',
   'tieng-anh': 'Tiếng Anh',

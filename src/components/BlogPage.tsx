@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Check, Search } from 'lucide-react';
 import { BlogService, type BlogResponse } from '@/lib/api/services/BlogService';
+import { useBlogTags } from '@/lib/blog-tags';
 import { formatTag } from '@/lib/blog-content';
 import { communityErrorMessage, parsePageParam, totalPages } from '@/lib/forum';
 import { useIdentities } from '@/hooks/useIdentities';
@@ -42,7 +43,9 @@ export function BlogPage() {
   const [blogs, setBlogs] = useState<BlogResponse[] | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [knownTags, setKnownTags] = useState<string[]>(BASE_TAGS);
+  const serverTags = useBlogTags(BASE_TAGS);
+  // tags picked from the address stay visible even if no post uses them any more
+  const knownTags = useMemo(() => [...new Set([...(serverTags ?? []), ...selectedTags])], [serverTags, selectedTags]);
 
   const setQuery = useCallback(
     (next: { page?: number; tags?: string[] }) => {
@@ -69,7 +72,6 @@ export function BlogPage() {
         const list = data?.blogs ?? [];
         setBlogs(list);
         setTotalCount(data?.totalCount ?? list.length);
-        setKnownTags(prev => [...new Set([...prev, ...list.flatMap(b => b.tags ?? [])])]);
       })
       .catch(err => setError(communityErrorMessage(err, 'Không tải được danh sách bài viết.')))
       .finally(() => setReloading(false));
