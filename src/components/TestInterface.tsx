@@ -1195,16 +1195,34 @@ export function TestInterface() {
       </div>
     </div>
 
-    {/* Floating toggle button (always visible, fixed position) */}
+    {/* Floating toggle (always visible, fixed position). Solid colour in both states so it is easy
+        to find; collapsed, it also shows the time left and the progress, so hiding the panel never
+        hides the clock. Red under 5 minutes, like the big timer. */}
     <button
+      type="button"
       onClick={() => setShowTracker(!showTracker)}
-      className="fixed right-0 top-1/2 z-50 flex h-12 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-slate-200 bg-white shadow-md hover:bg-slate-50 transition-all"
+      aria-expanded={showTracker}
+      aria-label={showTracker ? 'Thu gọn bảng điều khiển' : `Hiện bảng điều khiển (còn ${timeLeft === Infinity ? 'không giới hạn' : formatTime(timeLeft)})`}
       title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
+      className={`fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
+        timeLeft < 300 && timeLeft !== Infinity ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-primary/90'
+      } ${showTracker ? 'h-16 w-8 justify-center' : 'gap-1 px-2 py-3'}`}
     >
       {showTracker ? (
-        <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+        <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
       ) : (
-        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+        <>
+          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          <Clock className="h-4 w-4 opacity-90" />
+          <span
+            className={`font-mono text-xs font-bold tabular-nums ${timeLeft < 300 && timeLeft !== Infinity ? 'animate-pulse' : ''}`}
+          >
+            {timeLeft === Infinity ? '∞' : formatTime(timeLeft)}
+          </span>
+          <span className="text-[10px] font-semibold tabular-nums opacity-90">
+            {answeredCount}/{allQuestions.length}
+          </span>
+        </>
       )}
     </button>
   </div>
