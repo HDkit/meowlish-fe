@@ -47,16 +47,21 @@ export class BlogService {
     });
   }
 
+  /**
+   * `filters.title`: title contains (case-insensitive); `createdFrom`/`createdTo`: ISO date-times,
+   * either end may be left open.
+   */
   public static listBlogs(
     authorId?: string,
     page?: number,
     limit?: number,
     tags?: string[],
+    filters?: { title?: string; createdFrom?: string; createdTo?: string },
   ): CancelablePromise<ListBlogsResponse> {
     return __request(OpenAPI, {
       method: 'GET',
       url: '/api/v1/resources/blogs',
-      query: { authorId, page, limit, tags },
+      query: { authorId, page, limit, tags, ...filters },
     });
   }
 

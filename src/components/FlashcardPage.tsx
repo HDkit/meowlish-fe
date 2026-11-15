@@ -234,21 +234,28 @@ export function FlashcardPage() {
 	const discoverTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
 	const discoverAuthor = searchParams.get('author') || undefined;
 	const updateQuery = (patch: Record<string, string | string[] | number | null>) => {
-		const next = new URLSearchParams(searchParams.toString());
+		// the address as it is now, not as it was when this render's closure was made: a debounced
+		// name search must not undo an author or tag picked during its 350 ms wait
+		const next = new URLSearchParams(typeof window === 'undefined' ? searchParams.toString() : window.location.search);
 		for (const [key, value] of Object.entries(patch)) {
 			next.delete(key);
 			if (Array.isArray(value)) value.forEach((v) => next.append(key, v));
 			else if (value !== null && value !== '' && !(typeof value === 'number' && value <= 1)) next.set(key, String(value));
 		}
 		const qs = next.toString();
-		router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+		// History API, not router.replace: Next 15 syncs it into useSearchParams at once, with no
+		// server round trip, so the next update (e.g. the debounced name search) starts from this
+		// address. With router.replace the address changed only after the RSC fetch, and a search
+		// firing in between dropped an author or tag picked meanwhile.
+		window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname);
 	};
 	const setActiveTab = (tab: 'mine' | 'discover') => updateQuery({ tab: tab === 'discover' ? 'discover' : null });
 	const setMinePage = (page: number) => updateQuery({ page: page });
 	const setDiscoverPage = (page: number) => updateQuery({ dpage: page });
 	// a new search or tag filter starts at the first page
 	const setDiscoverQuery = (q: string) => {
-		if (q !== discoverQuery) updateQuery({ q: q || null, dpage: null });
+		const current = typeof window === 'undefined' ? discoverQuery : (new URLSearchParams(window.location.search).get('q') ?? '');
+		if (q !== current) updateQuery({ q: q || null, dpage: null });
 	};
 	const setDiscoverTags = (tags: string[]) => updateQuery({ tag: tags, dpage: null });
 	const setDiscoverAuthor = (id: string | undefined) => updateQuery({ author: id ?? null, dpage: null });
@@ -305,6 +312,8 @@ export function FlashcardPage() {
 
 	useEffect(() => {
 		if (activeTab !== 'discover' || !currentUser) return;
+		// a newer filter supersedes this request: its late answer must not replace newer results
+		let stale = false;
 		setDiscoverLoading(true);
 		// every public list, the user's own included (they are marked "Của bạn")
 		FlashcardListService.listFlashCardLists(
@@ -328,11 +337,15 @@ export function FlashcardPage() {
 						createdAt: new Date(l.createdAt).getTime(),
 						forkCount: l.forkCount ?? 0,
 					}));
+				if (stale) return;
 				setDiscoverLists(publicLists);
 				setDiscoverTotalCount(data.totalCount ?? 0);
 			})
-			.catch((err) => console.error('[FlashcardPage] fetch discover lists error:', err))
-			.finally(() => setDiscoverLoading(false));
+			.catch((err) => !stale && console.error('[FlashcardPage] fetch discover lists error:', err))
+			.finally(() => !stale && setDiscoverLoading(false));
+		return () => {
+			stale = true;
+		};
 	}, [activeTab, currentUser, discoverPage, discoverQuery, discoverTags, discoverAuthor]);
 
 	// authors' display names for the Discover cards and the author filter's button

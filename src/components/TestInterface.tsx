@@ -1202,11 +1202,20 @@ export function TestInterface() {
       type="button"
       onClick={() => setShowTracker(!showTracker)}
       aria-expanded={showTracker}
-      aria-label={showTracker ? 'Thu gọn bảng điều khiển' : `Hiện bảng điều khiển (còn ${timeLeft === Infinity ? 'không giới hạn' : formatTime(timeLeft)})`}
+      aria-label={
+        showTracker ? 'Thu gọn bảng điều khiển'
+        : `Hiện bảng điều khiển (còn ${timeLeft === Infinity ? 'không giới hạn' : formatTime(timeLeft)}, ${
+            saveStatus.state === 'error' ? `chưa lưu được ${saveStatus.failed.length} câu`
+            : saveStatus.state === 'saving' ? 'đang lưu'
+            : 'đã lưu mọi câu trả lời'
+          })`
+      }
       title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
       className={`fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
         timeLeft < 300 && timeLeft !== Infinity ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-primary/90'
-      } ${showTracker ? 'h-16 w-8 justify-center' : 'gap-1 px-2 py-3'}`}
+      } ${showTracker ? 'h-16 w-8 justify-center' : 'gap-1 px-2 py-3'} ${
+        !showTracker && saveStatus.state === 'error' ? 'ring-amber-400' : ''
+      }`}
     >
       {showTracker ? (
         <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
@@ -1221,6 +1230,29 @@ export function TestInterface() {
           </span>
           <span className="text-[10px] font-semibold tabular-nums opacity-90">
             {answeredCount}/{allQuestions.length}
+          </span>
+          {/* the save state, as in the open panel: answers are saved as you go */}
+          <span
+            className={`mt-0.5 flex flex-col items-center gap-0.5 border-t border-white/30 pt-1 text-[9px] font-bold leading-none ${
+              saveStatus.state === 'error' ? 'text-amber-200' : ''
+            }`}
+          >
+            {saveStatus.state === 'error' ?
+              <>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Chưa lưu
+                <span className="tabular-nums">{saveStatus.failed.length} câu</span>
+              </>
+            : saveStatus.state === 'saving' ?
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Đang lưu
+              </>
+            : <>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Đã lưu
+              </>
+            }
           </span>
         </>
       )}

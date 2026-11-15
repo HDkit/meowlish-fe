@@ -54,6 +54,7 @@ export function AuthorFilter({
 		if (!open || q.length === 0) {
 			setMatches([]);
 			setError(null);
+			setSearching(false);
 			return;
 		}
 		const controller = new AbortController();
@@ -70,7 +71,9 @@ export function AuthorFilter({
 		}, 300);
 		return () => {
 			clearTimeout(t);
+			// a cancelled search never reaches its finally: don't leave the spinner on
 			controller.abort();
+			setSearching(false);
 		};
 	}, [query, open]);
 
