@@ -59,6 +59,8 @@ import {
 	Loader2,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import { useIdentityNames } from './admin/useIdentityNames';
 
 function mapFlashCard(fc: any, listId: string): FlashCard {
 	return {
@@ -679,6 +681,7 @@ export function FlashcardListDetail() {
 	}, [lists, listId]);
 
 	const isOwnList = currentList?.authorId === currentUser?.id;
+	const authorNames = useIdentityNames([currentList?.authorId]);
 
 	const filteredFlashcards = useMemo(() => {
 		let filtered = cards;
@@ -827,10 +830,23 @@ export function FlashcardListDetail() {
 							<div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner">
 								<Folder className="h-8 w-8" strokeWidth={2.5} />
 							</div>
-							<div>
-								<h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight mb-2">
+							<div className="min-w-0">
+								<h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight mb-2 break-words [overflow-wrap:anywhere]">
 									{currentList.name}
 								</h1>
+								<p className="mb-2 text-sm text-slate-500">
+									bởi{' '}
+									{isOwnList ?
+										<span className="font-semibold text-slate-700">bạn</span>
+									:	<Link
+											href={`/flashcards?tab=discover&author=${encodeURIComponent(currentList.authorId)}`}
+											className="font-semibold text-slate-700 underline-offset-2 hover:text-primary hover:underline [overflow-wrap:anywhere]"
+											title="Xem các bộ công khai của tác giả này"
+										>
+											{authorNames[currentList.authorId]?.name ?? 'Người dùng'}
+										</Link>
+									}
+								</p>
 								<div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
 									<div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
 										<BookOpen className="h-4 w-4 text-primary/80" />

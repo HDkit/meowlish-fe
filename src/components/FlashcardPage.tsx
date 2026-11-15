@@ -38,6 +38,8 @@ import { ForkListButton } from './flashcards/ForkListButton';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { LoadingRegion } from './skeletons';
+import { AuthorFilter } from './admin/AuthorFilter';
+import { useIdentityNames } from './admin/useIdentityNames';
 
 // Placeholder grid shaped like the list cards below, shown until the first fetch lands
 function ListCardsSkeleton({ count = 6, label }: { count?: number; label: string }) {
@@ -230,6 +232,7 @@ export function FlashcardPage() {
 	const discoverPage = readPage('dpage');
 	const discoverQuery = searchParams.get('q') ?? '';
 	const discoverTags = useMemo(() => searchParams.getAll('tag'), [searchParams]);
+	const discoverAuthor = searchParams.get('author') || undefined;
 	const updateQuery = (patch: Record<string, string | string[] | number | null>) => {
 		const next = new URLSearchParams(searchParams.toString());
 		for (const [key, value] of Object.entries(patch)) {
@@ -248,6 +251,7 @@ export function FlashcardPage() {
 		if (q !== discoverQuery) updateQuery({ q: q || null, dpage: null });
 	};
 	const setDiscoverTags = (tags: string[]) => updateQuery({ tag: tags, dpage: null });
+	const setDiscoverAuthor = (id: string | undefined) => updateQuery({ author: id ?? null, dpage: null });
 	const [discoverLists, setDiscoverLists] = useState<FlashcardList[]>([]);
 	const [discoverLoading, setDiscoverLoading] = useState(false);
 	// false until the first fetch of my lists settles, so a new user doesn't see the empty state flash first
@@ -304,7 +308,7 @@ export function FlashcardPage() {
 		setDiscoverLoading(true);
 		// every public list, the user's own included (they are marked "Của bạn")
 		FlashcardListService.listFlashCardLists(
-			undefined,
+			discoverAuthor,
 			true,
 			discoverPage,
 			limit,
@@ -329,7 +333,10 @@ export function FlashcardPage() {
 			})
 			.catch((err) => console.error('[FlashcardPage] fetch discover lists error:', err))
 			.finally(() => setDiscoverLoading(false));
-	}, [activeTab, currentUser, discoverPage, discoverQuery, discoverTags]);
+	}, [activeTab, currentUser, discoverPage, discoverQuery, discoverTags, discoverAuthor]);
+
+	// authors' display names for the Discover cards and the author filter's button
+	const authorNames = useIdentityNames(useMemo(() => [...discoverLists.map((l) => l.authorId), discoverAuthor], [discoverLists, discoverAuthor]));
 
 	/** Tags seen on the user's and the visible public lists: suggestions for forms and search. */
 	const knownListTags = useMemo(
@@ -516,12 +523,12 @@ export function FlashcardPage() {
 
 											<CardContent className="p-6 flex-1 flex flex-col relative z-10">
 												<div className="flex items-start justify-between mb-5">
-													<div className="flex items-start gap-4 flex-1">
+													<div className="flex items-start gap-4 flex-1 min-w-0">
 														<div className="w-12 h-12 bg-primary/10 border border-primary/20 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
 															<Folder className="h-6 w-6" strokeWidth={2} />
 														</div>
 														<div className="flex-1 min-w-0 pt-0.5">
-															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-primary transition-colors">
+															<h3 className="font-bold text-slate-800 text-lg mb-1 break-words [overflow-wrap:anywhere] group-hover:text-primary transition-colors">
 																{list.name}
 															</h3>
 															<div className="flex items-center gap-1.5 flex-wrap mb-3">
@@ -542,7 +549,7 @@ export function FlashcardPage() {
 															</div>
 														</div>
 													</div>
-													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
+													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
 														<Button
 															variant="outline"
 															size="icon"
@@ -614,7 +621,7 @@ export function FlashcardPage() {
 
 				{activeTab === 'discover' && (
 					<>
-						<div className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr]">
+						<div className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_auto]">
 							<div className="relative">
 								<Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 								<Input
@@ -631,6 +638,14 @@ export function FlashcardPage() {
 								suggestions={knownListTags}
 								placeholder="Lọc theo tag…"
 							/>
+							{currentUser && (
+								<AuthorFilter
+									value={discoverAuthor ? { id: discoverAuthor, name: authorNames[discoverAuthor]?.name ?? 'Tác giả' } : null}
+									onChange={(v) => setDiscoverAuthor(v?.id)}
+									currentUser={{ id: currentUser.id, name: currentUser.fullName || 'Bạn' }}
+									mineLabel="Bộ của tôi"
+								/>
+							)}
 						</div>
 						{/* only the first load shows a loading text; later searches keep the cards (dimmed) */}
 						{discoverLoading && discoverLists.length === 0 ? (
@@ -641,11 +656,11 @@ export function FlashcardPage() {
 									<Folder className="h-10 w-10 text-primary/60" strokeWidth={1.5} />
 								</div>
 								<h3 className="text-xl font-bold text-slate-800 mb-2">
-									{discoverQuery || discoverTags.length > 0 ? 'Không tìm thấy bộ flashcard phù hợp' : 'Chưa Có Bộ Sưu Tập Công Khai Nào'}
+									{discoverQuery || discoverTags.length > 0 || discoverAuthor ? 'Không tìm thấy bộ flashcard phù hợp' : 'Chưa Có Bộ Sưu Tập Công Khai Nào'}
 								</h3>
 								<p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">
-									{discoverQuery || discoverTags.length > 0 ?
-										'Thử từ khóa hoặc tag khác.'
+									{discoverQuery || discoverTags.length > 0 || discoverAuthor ?
+										'Thử từ khóa, tag hoặc tác giả khác.'
 									:	'Hãy là người đầu tiên chia sẻ một bộ flashcard công khai!'}
 								</p>
 							</div>
@@ -665,14 +680,28 @@ export function FlashcardPage() {
 
 											<CardContent className="p-6 flex-1 flex flex-col relative z-10">
 												<div className="flex items-start justify-between mb-5">
-													<div className="flex items-start gap-4 flex-1">
+													<div className="flex items-start gap-4 flex-1 min-w-0">
 														<div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
 															<Folder className="h-6 w-6" strokeWidth={2} />
 														</div>
 														<div className="flex-1 min-w-0 pt-0.5">
-															<h3 className="font-bold text-slate-800 text-lg mb-1 truncate group-hover:text-emerald-600 transition-colors">
+															<h3 className="font-bold text-slate-800 text-lg mb-1 break-words [overflow-wrap:anywhere] group-hover:text-emerald-600 transition-colors">
 																{list.name}
 															</h3>
+															<p className="mb-2 text-sm text-slate-500">
+																bởi{' '}
+																{list.authorId === currentUser?.id ?
+																	<span className="font-semibold text-slate-700">bạn</span>
+																:	<button
+																		type="button"
+																		className="font-semibold text-slate-700 underline-offset-2 hover:text-emerald-700 hover:underline [overflow-wrap:anywhere]"
+																		title="Xem các bộ công khai của tác giả này"
+																		onClick={(e) => { e.stopPropagation(); setDiscoverAuthor(list.authorId); }}
+																	>
+																		{authorNames[list.authorId]?.name ?? 'Người dùng'}
+																	</button>
+																}
+															</p>
 															<div className="flex flex-wrap items-center gap-1.5">
 																<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200/60">
 																	<BookOpen className="w-3.5 h-3.5 text-primary/80" />
@@ -691,7 +720,7 @@ export function FlashcardPage() {
 															</div>
 														</div>
 													</div>
-													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
+													<div className="flex flex-col gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
 														<Button
 															variant="outline"
 															size="icon"

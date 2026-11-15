@@ -26,17 +26,22 @@ const searchAuthors = async (query: string, signal: AbortSignal): Promise<Match[
 };
 
 /**
- * "Tác giả" filter for admin lists: every author, yourself, or anyone found by username.
+ * "Tác giả" filter: every author, yourself, or anyone found by username (admin lists, public flash card lists).
  * Searches as you type (300 ms debounce); the parent filters on the server by author id.
  */
 export function AuthorFilter({
 	value,
 	onChange,
 	currentUser,
+	allLabel = 'Mọi tác giả',
+	mineLabel = 'Bài của tôi',
 }: {
 	value: AuthorSelection;
 	onChange: (v: AuthorSelection) => void;
 	currentUser: { id: string; name: string };
+	/** Button/option text for "no author filter" and for "only mine". */
+	allLabel?: string;
+	mineLabel?: string;
 }) {
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState('');
@@ -74,7 +79,7 @@ export function AuthorFilter({
 		setOpen(false);
 		setQuery('');
 	};
-	const label = !value ? 'Mọi tác giả' : value.id === currentUser.id ? 'Bài của tôi' : value.name;
+	const label = !value ? allLabel : value.id === currentUser.id ? mineLabel : value.name;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -92,10 +97,10 @@ export function AuthorFilter({
 					<CommandList>
 						<CommandGroup>
 							<CommandItem value="__all__" onSelect={() => pick(null)} className="gap-2">
-								<Check className={`h-4 w-4 ${!value ? 'opacity-100' : 'opacity-0'}`} /> Mọi tác giả
+								<Check className={`h-4 w-4 ${!value ? 'opacity-100' : 'opacity-0'}`} /> {allLabel}
 							</CommandItem>
 							<CommandItem value="__me__" onSelect={() => pick(currentUser)} className="gap-2">
-								<Check className={`h-4 w-4 ${value?.id === currentUser.id ? 'opacity-100' : 'opacity-0'}`} /> Bài của tôi
+								<Check className={`h-4 w-4 ${value?.id === currentUser.id ? 'opacity-100' : 'opacity-0'}`} /> {mineLabel}
 							</CommandItem>
 						</CommandGroup>
 						{query.trim() && (
