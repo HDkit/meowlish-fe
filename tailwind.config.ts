@@ -45,6 +45,8 @@ const config: Config = {
 			},
 			colors: {
 				background: 'hsl(var(--background))',
+				// the switch's off track; a full color value (not hsl channels) in globals.css
+				'switch-background': 'var(--switch-background)',
 				foreground: 'hsl(var(--foreground))',
 				card: {
 					DEFAULT: 'hsl(var(--card))',
