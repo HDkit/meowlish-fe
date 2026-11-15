@@ -1,7 +1,15 @@
 'use client';
 
-import { parseExamples, partOfSpeechOptions } from '@/lib/flashcard-fields';
-import React, { useState, useMemo, useEffect } from 'react';
+import {
+	type CardImageState,
+	cardImageStateOf,
+	imageFileIdForUpdate,
+	isShowableImageUrl,
+	parseExamples,
+	partOfSpeechOptions,
+} from '@/lib/flashcard-fields';
+import { imageFileProblem, uploadPublicFile } from '@/lib/file-upload';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { FlashCard } from '../types/client';
 import { TagInput } from './TagInput';
@@ -58,6 +66,7 @@ function mapFlashCard(fc: any, listId: string): FlashCard {
 		word: fc.word,
 		definition: fc.definition,
 		image: fc.image,
+		imageFileId: fc.imageFileId,
 		partOfSpeech: fc.partOfSpeech,
 		pronunciation: fc.pronunciation,
 		examples: fc.examples ?? [],
@@ -222,7 +231,7 @@ function FlashcardCard({
 										{flashcard.pronunciation && <span className="italic">{flashcard.pronunciation}</span>}
 									</p>
 								)}
-								{flashcard.image && /^https?:\/\//.test(flashcard.image) && (
+								{isShowableImageUrl(flashcard.image) && (
 									// eslint-disable-next-line @next/next/no-img-element
 									<img src={flashcard.image} alt="" className="mx-auto mt-3 max-h-24 rounded-lg object-contain" />
 								)}
@@ -248,7 +257,7 @@ interface FlashcardFormData {
 	pronunciation: string;
 	partOfSpeech: string;
 	examples: string[];
-	image: string;
+	image: CardImageState;
 	tags: string[];
 }
 
@@ -275,7 +284,9 @@ function FlashcardDialog({
 	const [partOfSpeech, setPartOfSpeech] = useState('');
 	/** One example per line. */
 	const [examples, setExamples] = useState('');
-	const [image, setImage] = useState('');
+	const [image, setImage] = useState<CardImageState>(() => cardImageStateOf());
+	const [uploadingImage, setUploadingImage] = useState(false);
+	const imageInputRef = useRef<HTMLInputElement>(null);
 	const [saving, setSaving] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [formErrors, setFormErrors] = useState<string[]>([]);
@@ -290,7 +301,7 @@ function FlashcardDialog({
 			setPronunciation(flashcard.pronunciation || '');
 			setPartOfSpeech(flashcard.partOfSpeech || '');
 			setExamples((flashcard.examples ?? []).join('\n'));
-			setImage(flashcard.image || '');
+			setImage(cardImageStateOf(flashcard));
 			setSelectedTagIds(flashcard.tags ?? []);
 		} else {
 			setWord('');
@@ -299,12 +310,51 @@ function FlashcardDialog({
 			setPronunciation('');
 			setPartOfSpeech('');
 			setExamples('');
-			setImage('');
+			setImage(cardImageStateOf());
 			setSelectedTagIds([]);
 		}
 		setFieldErrors({});
 		setFormErrors([]);
 	}, [flashcard, open]);
+
+	// A new upload is previewed from a local object URL: free it once it is no longer shown.
+	useEffect(() => {
+		const url = image.previewUrl;
+		return () => {
+			if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+		};
+	}, [image.previewUrl]);
+
+	/** Uploads the picked image right away; saving then only sends its id. */
+	const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (imageInputRef.current) imageInputRef.current.value = '';
+		if (!file) return;
+		const problem = imageFileProblem(file);
+		if (problem) {
+			setFieldErrors((prev) => ({ ...prev, image: problem }));
+			return;
+		}
+		clearFieldError('image');
+		setUploadingImage(true);
+		try {
+			const fileId = await uploadPublicFile(file);
+			setImage({ fileId: fileId, previewUrl: URL.createObjectURL(file), changed: true });
+		} catch (err) {
+			console.error('[FlashcardDialog] image upload failed:', err);
+			setFieldErrors((prev) => ({
+				...prev,
+				image: extractApiErrorMessage(err, 'Không thể tải ảnh lên, vui lòng thử lại'),
+			}));
+		} finally {
+			setUploadingImage(false);
+		}
+	};
+
+	const handleImageRemove = () => {
+		setImage({ fileId: null, previewUrl: '', changed: true });
+		clearFieldError('image');
+	};
 
 	const clearFieldError = (field: string) =>
 		setFieldErrors((prev) => {
@@ -342,7 +392,7 @@ Lưu ý: ...`);
 				pronunciation: pronunciation.trim(),
 				partOfSpeech: partOfSpeech.trim(),
 				examples: parseExamples(examples),
-				image: image.trim(),
+				image: image,
 				tags: selectedTagIds,
 			});
 			onOpenChange(false);
@@ -473,19 +523,61 @@ Lưu ý: ...`);
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="image" className="text-slate-700 font-bold">Ảnh minh hoạ (đường dẫn)</Label>
-						<Input
-							id="image"
-							type="url"
-							placeholder="https://…"
-							value={image}
-							onChange={(e) => setImage(e.target.value)}
-							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11"
+						<Label htmlFor="image" className="text-slate-700 font-bold">Ảnh minh hoạ</Label>
+						<input
+							ref={imageInputRef}
+							type="file"
+							accept="image/png,image/jpeg"
+							className="sr-only"
+							tabIndex={-1}
+							onChange={handleImagePick}
 						/>
-						{/^https?:\/\//.test(image.trim()) && (
-							// eslint-disable-next-line @next/next/no-img-element
-							<img src={image.trim()} alt="" className="h-24 rounded-lg border border-slate-200 object-contain" />
+						{image.previewUrl ? (
+							<div className="flex items-end gap-3">
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img src={image.previewUrl} alt="Ảnh minh hoạ của thẻ" className="h-24 max-w-[60%] rounded-lg border border-slate-200 object-contain" />
+								<div className="flex flex-col gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										id="image"
+										disabled={uploadingImage || saving}
+										onClick={() => imageInputRef.current?.click()}
+										className="rounded-xl"
+									>
+										{uploadingImage && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+										Đổi ảnh
+									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										disabled={uploadingImage || saving}
+										onClick={handleImageRemove}
+										className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+									>
+										<X className="h-4 w-4 mr-1" />
+										Xoá ảnh
+									</Button>
+								</div>
+							</div>
+						) : (
+							<Button
+								type="button"
+								variant="outline"
+								id="image"
+								disabled={uploadingImage || saving}
+								onClick={() => imageInputRef.current?.click()}
+								aria-invalid={!!fieldErrors.image}
+								aria-describedby={fieldErrors.image ? 'image-error' : undefined}
+								className="w-full h-11 rounded-xl border-dashed border-slate-300 bg-slate-50 text-slate-600"
+							>
+								{uploadingImage ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+								{uploadingImage ? 'Đang tải ảnh lên…' : 'Tải ảnh lên (JPG, PNG, tối đa 10 MB)'}
+							</Button>
 						)}
+						<FieldError id="image" message={fieldErrors.image} />
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="card-tags" className="text-slate-700 font-bold">Tags</Label>
@@ -503,7 +595,7 @@ Lưu ý: ...`);
 					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="rounded-xl border-slate-200 hover:bg-slate-100 font-bold text-slate-600">
 						Hủy
 					</Button>
-					<Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
+					<Button onClick={handleSave} disabled={saving || uploadingImage} className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all font-bold px-6">
 						{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{flashcard ? 'Lưu Thay Đổi' : 'Tạo Mới'}
 					</Button>
@@ -623,7 +715,7 @@ export function FlashcardListDetail() {
 					pronunciation: data.pronunciation,
 					partOfSpeech: data.partOfSpeech,
 					examples: data.examples,
-					image: data.image,
+					imageFileId: imageFileIdForUpdate(data.image),
 					tags: data.tags,
 				});
 				const fc = (res as any)?.data ?? res;
@@ -636,7 +728,7 @@ export function FlashcardListDetail() {
 					pronunciation: data.pronunciation || undefined,
 					partOfSpeech: data.partOfSpeech || undefined,
 					examples: data.examples,
-					image: data.image || undefined,
+					imageFileId: data.image.fileId ?? undefined,
 					listId,
 					tags: data.tags,
 				});

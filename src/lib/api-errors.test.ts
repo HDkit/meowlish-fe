@@ -60,6 +60,12 @@ describe('translateApiMessage', () => {
 		expect(translateApiMessage('FlashCardList not found')).toBe('Không tìm thấy bộ thẻ');
 		expect(translateApiMessage('Something odd not found')).toBe('Không tìm thấy dữ liệu');
 		expect(translateApiMessage('Tag already exists')).toBe('Nhãn đã tồn tại');
+		expect(translateApiMessage('You can only attach files you uploaded: f1')).toBe(
+			'Bạn chỉ có thể dùng tệp do chính bạn tải lên',
+		);
+		expect(translateApiMessage('The card changed while saving; please try again')).toBe(
+			'Thẻ vừa bị thay đổi ở nơi khác, vui lòng lưu lại',
+		);
 		expect(translateApiMessage("The demo account can't change its password")).toBe(
 			'Tài khoản demo không được phép thực hiện thao tác này',
 		);

@@ -6,7 +6,10 @@ export interface FlashCardResponse {
   id: string;
   word: string;
   definition: string;
+  /** URL to show: the uploaded image's URL, or the image URL of a card from before uploads. */
   image?: string;
+  /** The uploaded image (file-service id), if the card has one. */
+  imageFileId?: string;
   partOfSpeech?: string;
   pronunciation?: string;
   examples: string[];
@@ -27,7 +30,8 @@ export interface ListFlashCardsResponse {
 export interface CreateFlashCardPayload {
   word: string;
   definition: string;
-  image?: string;
+  /** An image you uploaded (`uploadPublicFile`); image URLs are no longer accepted. */
+  imageFileId?: string;
   partOfSpeech?: string;
   pronunciation?: string;
   examples?: string[];
@@ -39,7 +43,8 @@ export interface CreateFlashCardPayload {
 export interface UpdateFlashCardPayload {
   word?: string;
   definition?: string;
-  image?: string;
+  /** Absent: keep the image; '': remove it; else an image you uploaded (or the current one). */
+  imageFileId?: string;
   partOfSpeech?: string;
   pronunciation?: string;
   examples?: string[];

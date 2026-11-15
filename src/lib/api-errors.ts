@@ -196,6 +196,8 @@ const MESSAGES: Array<[RegExp, string | ((...m: string[]) => string)]> = [
 	[/^this google account is linked to another account$/i, 'Tài khoản Google này đã được liên kết với tài khoản khác'],
 	[/^identity already has a (\w+) credential$/i, 'Tài khoản đã có phương thức đăng nhập này'],
 	[/^cards can only be added to your own lists$/i, 'Bạn chỉ có thể thêm thẻ vào bộ thẻ của mình'],
+	[/^you can only attach files you uploaded\b/i, 'Bạn chỉ có thể dùng tệp do chính bạn tải lên'],
+	[/^the card changed while saving; please try again$/i, 'Thẻ vừa bị thay đổi ở nơi khác, vui lòng lưu lại'],
 	[/^you do not own this flash card list$/i, 'Bạn không sở hữu bộ thẻ này'],
 	[/^only cards by the list author can be moved into it$/i, 'Chỉ thẻ của tác giả bộ thẻ mới được chuyển vào đây'],
 	[/^you cannot save a copy of your own list$/i, 'Đây là bộ thẻ của bạn nên không cần lưu bản sao'],

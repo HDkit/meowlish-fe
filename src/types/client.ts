@@ -262,7 +262,10 @@ export interface FlashcardList extends MockDbType {
 export interface FlashCard extends MockDbType {
 	word: string;
 	definition: string;
+	/** URL to show: the uploaded image's URL, or an old image URL. */
 	image?: string;
+	/** The uploaded image (file-service id). */
+	imageFileId?: string;
 	partOfSpeech?: string;
 	pronunciation?: string;
 	examples: string[];

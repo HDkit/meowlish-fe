@@ -12,7 +12,9 @@ export interface FlashCardContent {
   examples: string[];
   notes?: string;
   tags: string[];
+  /** URL to show (uploaded image, or an old image URL). */
   image?: string;
+  imageFileId?: string;
 }
 
 export type CardDiffField =
