@@ -35,9 +35,13 @@ export type UserActivityDto = {
     from: string;
     longestStreak: number;
     /**
-     * Today (UTC)
+     * Last day of the range (UTC): today unless `from`/`to` were sent
      */
     to: string;
+    /**
+     * Today (UTC); streaks are counted up to it. Absent from older backends: use `to`
+     */
+    today?: string;
     /**
      * All-time finished attempts
      */

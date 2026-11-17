@@ -71,6 +71,23 @@ export function usePracticeActivity(days: number, enabled = true): AsyncState<Us
 	);
 }
 
+/** Finished attempts per UTC day from `from` to `to` (both included), or nothing for null. */
+export function usePracticeActivityRange(
+	range: { from: string; to: string } | null,
+): AsyncState<UserActivityDto> {
+	return useApiData<UserActivityDto>(
+		() =>
+			range
+				? ExamPracticeService.examPracticeGatewayControllerGetUserActivityV1(
+						undefined,
+						range.from,
+						range.to,
+					)
+				: Promise.resolve(null),
+		range ? `${range.from}:${range.to}` : 'none',
+	);
+}
+
 /** Per-skill scores and per-tag accuracy over the latest attempts. */
 export function useSkillStats(enabled = true): AsyncState<UserSkillStatsDto> {
 	return useApiData<UserSkillStatsDto>(

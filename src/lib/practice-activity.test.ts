@@ -3,7 +3,10 @@ import {
 	activityLevel,
 	addDays,
 	buildHeatmap,
+	buildRangeHeatmap,
 	currentWeek,
+	monthRange,
+	rangeError,
 	formatDayLabel,
 	formatMinutes,
 	summarizeRange,
@@ -115,5 +118,59 @@ describe('currentWeek', () => {
 	it('shows today as done once practised', () => {
 		const week = currentWeek([{ date: '2026-11-15', attempts: 1, minutes: 5 }], '2026-11-15');
 		expect(week[6].state).toBe('done');
+	});
+});
+
+describe('buildRangeHeatmap', () => {
+	const today = '2026-11-13';
+
+	it('covers a month in whole weeks, flagging the days outside it', () => {
+		const { weeks, months } = buildRangeHeatmap(
+			[
+				{ date: '2026-09-30', attempts: 4, minutes: 10 },
+				{ date: '2026-10-15', attempts: 1, minutes: 5 },
+			],
+			'2026-10-01',
+			'2026-10-31',
+			today,
+		);
+		// Thursday 1 Oct to Saturday 31 Oct: the weeks of 28 Sep to 26 Oct
+		expect(weeks).toHaveLength(5);
+		expect(weeks[0][0]).toMatchObject({ date: '2026-09-28', inRange: false });
+		expect(weeks[0][2]).toMatchObject({ date: '2026-09-30', inRange: false });
+		expect(weeks[0][3]).toMatchObject({ date: '2026-10-01', inRange: true });
+		expect(weeks[4][6]).toMatchObject({ date: '2026-11-01', inRange: false });
+		expect(weeks.flat().find(c => c.date === '2026-10-15')?.attempts).toBe(1);
+		expect(weeks.flat().some(c => c.isFuture)).toBe(false);
+		expect(months).toEqual([{ column: 0, label: 'Th10' }]);
+	});
+
+	it('flags days after today in a range reaching into the future', () => {
+		const { weeks } = buildRangeHeatmap([], '2026-11-01', '2026-11-30', today);
+		const cells = weeks.flat();
+		expect(cells.find(c => c.date === '2026-11-14')).toMatchObject({ isFuture: true, inRange: true });
+		expect(cells.find(c => c.date === today)?.isToday).toBe(true);
+	});
+
+	it('is a single week for a one-day range', () => {
+		const { weeks } = buildRangeHeatmap([], today, today, today);
+		expect(weeks).toHaveLength(1);
+		expect(weeks[0].filter(c => c.inRange).map(c => c.date)).toEqual([today]);
+	});
+});
+
+describe('ranges', () => {
+	it('gives the first and last day of a month, leap years included', () => {
+		expect(monthRange('2026-10')).toEqual({ from: '2026-10-01', to: '2026-10-31' });
+		expect(monthRange('2028-02')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+		expect(monthRange('2026-12')).toEqual({ from: '2026-12-01', to: '2026-12-31' });
+	});
+
+	it('explains a range that cannot be shown', () => {
+		expect(rangeError('2026-01-01', '2026-01-31')).toBeNull();
+		expect(rangeError('', '2026-01-31')).toContain('Chọn');
+		expect(rangeError('2026-02-01', '2026-01-01')).toContain('trước');
+		expect(rangeError('2025-01-01', '2026-01-07')).toContain('371');
+		expect(rangeError('2025-01-02', '2026-01-07')).toBeNull();
 	});
 });

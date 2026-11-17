@@ -2,18 +2,36 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CalendarDays, Clock, Flame, PlayCircle, RotateCw, Trophy } from 'lucide-react';
+import {
+	AlertCircle,
+	CalendarDays,
+	ChevronLeft,
+	ChevronRight,
+	Clock,
+	Flame,
+	PlayCircle,
+	RotateCw,
+	Trophy,
+} from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '../ui/utils';
 import type { UserActivityDto } from '@/lib/api/models/UserActivityDto';
+import { usePracticeActivityRange } from '@/lib/hooks/usePracticeStats';
 import {
 	type ActivityLevel,
 	type HeatCell,
+	addDays,
 	buildHeatmap,
+	buildRangeHeatmap,
 	formatDayLabel,
 	formatMinutes,
+	formatShortDay,
+	monthOf,
+	monthRange,
+	rangeError,
 	summarizeRange,
 } from '@/lib/practice-activity';
 
@@ -42,6 +60,69 @@ const LEVEL_HINT: Record<ActivityLevel, string> = {
 };
 
 const ROW_LABELS = ['T2', '', 'T4', '', 'T6', '', 'CN'];
+
+/** Presets (the parent's last-year data), one calendar month, or any from-to range. */
+type RangeMode = 'preset' | 'month' | 'custom';
+
+const utcToday = (): string => new Date().toISOString().slice(0, 10);
+
+/** "2026-11" moved by `n` months. */
+function shiftMonth(month: string, n: number): string {
+	const [y, m] = month.split('-').map(Number);
+	const d = new Date(Date.UTC(y, m - 1 + n, 1));
+	return d.toISOString().slice(0, 7);
+}
+
+const selectClass =
+	'h-9 rounded-xl border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+function MonthPicker({ month, max, onChange }: { month: string; max: string; onChange: (m: string) => void }) {
+	const [year, m] = month.split('-');
+	const maxYear = Number(max.slice(0, 4));
+	const years = Array.from({ length: 6 }, (_, i) => maxYear - 5 + i);
+	if (!years.includes(Number(year))) years.unshift(Number(year));
+	const set = (y: string, mm: string) => {
+		const next = `${y}-${mm}`;
+		onChange(next > max ? max : next);
+	};
+	return (
+		<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Chọn tháng">
+			<Button
+				variant="outline"
+				size="icon"
+				className="h-9 w-9 rounded-xl"
+				aria-label="Tháng trước"
+				onClick={() => onChange(shiftMonth(month, -1))}
+			>
+				<ChevronLeft className="h-4 w-4" />
+			</Button>
+			<select aria-label="Tháng" className={selectClass} value={m} onChange={e => set(year, e.target.value)}>
+				{Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(mm => (
+					<option key={mm} value={mm} disabled={`${year}-${mm}` > max}>
+						Tháng {Number(mm)}
+					</option>
+				))}
+			</select>
+			<select aria-label="Năm" className={selectClass} value={year} onChange={e => set(e.target.value, m)}>
+				{years.map(y => (
+					<option key={y} value={String(y)}>
+						{y}
+					</option>
+				))}
+			</select>
+			<Button
+				variant="outline"
+				size="icon"
+				className="h-9 w-9 rounded-xl"
+				aria-label="Tháng sau"
+				disabled={month >= max}
+				onClick={() => onChange(shiftMonth(month, 1))}
+			>
+				<ChevronRight className="h-4 w-4" />
+			</Button>
+		</div>
+	);
+}
 
 function MiniStat({
 	icon: Icon,
@@ -97,15 +178,41 @@ export function ActivityHeatmapCard({
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const [selected, setSelected] = useState<string | null>(null);
 
-	const heatmap = useMemo(
-		() => (activity ? buildHeatmap(activity.days, activity.to, weeks) : null),
-		[activity, weeks],
-	);
+	const todayKey = activity?.today ?? activity?.to ?? utcToday();
+	const [mode, setMode] = useState<RangeMode>('preset');
+	const [month, setMonth] = useState(() => monthOf(utcToday()));
+	const [customFrom, setCustomFrom] = useState(() => addDays(utcToday(), -29));
+	const [customTo, setCustomTo] = useState(() => utcToday());
+	const customError = mode === 'custom' ? rangeError(customFrom, customTo) : null;
+	// while the typed range is invalid, keep showing the last valid one under the message
+	const lastValidCustom = useRef({ from: customFrom, to: customTo });
+	if (mode === 'custom' && !customError) lastValidCustom.current = { from: customFrom, to: customTo };
+	const customRange = customError ? lastValidCustom.current : { from: customFrom, to: customTo };
+	const requested = useMemo(() => {
+		if (mode === 'month') return monthRange(month);
+		if (mode === 'custom') return { from: customRange.from, to: customRange.to };
+		return null;
+	}, [mode, month, customRange.from, customRange.to]);
+	// A month or a custom range has its own request; the presets use the parent's last-year data.
+	const ranged = usePracticeActivityRange(requested);
+	const shown = mode === 'preset' ? activity : ranged.data;
+	const shownLoading = mode === 'preset' ? loading : ranged.loading || !ranged.data;
+	const shownError = mode === 'preset' ? error : ranged.error;
+	const retry = mode === 'preset' ? onRetry : ranged.reload;
+
+	const heatmap = useMemo(() => {
+		if (!shown) return null;
+		const today = shown.today ?? shown.to;
+		return mode === 'preset'
+			? buildHeatmap(shown.days, today, weeks)
+			: buildRangeHeatmap(shown.days, shown.from, shown.to, today);
+	}, [shown, mode, weeks]);
 	const summary = useMemo(() => {
-		if (!activity || !heatmap) return null;
-		const from = heatmap.weeks[0][0].date;
-		return summarizeRange(activity.days, from, activity.to);
-	}, [activity, heatmap]);
+		if (!shown || !heatmap) return null;
+		const today = shown.today ?? shown.to;
+		const from = mode === 'preset' ? heatmap.weeks[0][0].date : shown.from;
+		return summarizeRange(shown.days, from, shown.to < today ? shown.to : today);
+	}, [shown, heatmap, mode]);
 
 	// newest weeks are on the right: show them first on narrow screens
 	useEffect(() => {
@@ -118,14 +225,34 @@ export function ActivityHeatmapCard({
 		heatmap?.weeks.flat().forEach(c => map.set(c.date, c));
 		return map;
 	}, [heatmap]);
-	const focused = (selected && cellsByDate.get(selected)) || (activity && cellsByDate.get(activity.to)) || null;
+	// the day shown under the grid: the hovered one, else today, else the range's last day
+	const lastShownDay = shown ? (shown.to < todayKey ? shown.to : todayKey) : null;
+	const focused =
+		(selected && cellsByDate.get(selected)) || (lastShownDay && cellsByDate.get(lastShownDay)) || null;
 
-	const rangeLabel = HEATMAP_RANGES.find(r => r.weeks === weeks)?.label ?? `${weeks} tuần`;
+	const rangeLabel =
+		mode === 'month'
+			? `Th${Number(month.slice(5, 7))}/${month.slice(0, 4)}`
+			: mode === 'custom' && shown
+				? `${formatShortDay(shown.from)} – ${formatShortDay(shown.to)}`
+				: (HEATMAP_RANGES.find(r => r.weeks === weeks)?.label ?? `${weeks} tuần`);
+	// short ranges (a month) get big cells with the day of the month in them
+	const big = !!heatmap && heatmap.weeks.length <= 8;
+	const cellSize = big ? 'h-7 w-7 sm:h-8 sm:w-8' : 'h-3 w-3 sm:h-3.5 sm:w-3.5';
+	const columnWidth = big ? 'w-7 sm:w-8' : 'w-3 sm:w-3.5';
+	const rowHeight = big ? 'h-7 sm:h-8' : 'h-3 sm:h-3.5';
+	const gap = big ? 'gap-1' : 'gap-[3px]';
+
+	const pickMode = (next: RangeMode) => {
+		setSelected(null);
+		setMode(next);
+	};
 
 	return (
 		<Card className={cn('rounded-2xl', className)}>
 			<CardContent className="pt-6 pb-6 space-y-5">
-				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+				{/* the range buttons get their own row: five of them don't fit beside the title */}
+				<div className="flex flex-col gap-3">
 					<h2 className="text-lg font-bold flex items-center gap-2">
 						<CalendarDays className="h-5 w-5 text-primary" />
 						{title}
@@ -133,37 +260,95 @@ export function ActivityHeatmapCard({
 					<div
 						role="radiogroup"
 						aria-label="Khoảng thời gian"
-						className="inline-flex self-start rounded-xl bg-muted p-1 text-sm"
+						className="inline-flex flex-wrap self-start rounded-xl bg-muted p-1 text-sm"
 					>
-						{HEATMAP_RANGES.map(r => (
+						{[
+							...HEATMAP_RANGES.map(r => ({
+								key: `w${r.weeks}`,
+								label: r.label,
+								checked: mode === 'preset' && r.weeks === weeks,
+								pick: () => {
+									pickMode('preset');
+									onWeeksChange(r.weeks);
+								},
+							})),
+							{ key: 'month', label: 'Tháng', checked: mode === 'month', pick: () => pickMode('month') },
+							{ key: 'custom', label: 'Tùy chọn', checked: mode === 'custom', pick: () => pickMode('custom') },
+						].map(o => (
 							<button
-								key={r.weeks}
+								key={o.key}
 								role="radio"
-								aria-checked={r.weeks === weeks}
-								onClick={() => onWeeksChange(r.weeks)}
+								aria-checked={o.checked}
+								onClick={o.pick}
 								className={cn(
 									'px-3 py-1 rounded-lg font-medium transition-colors',
-									r.weeks === weeks
+									o.checked
 										? 'bg-background text-foreground shadow-sm'
 										: 'text-muted-foreground hover:text-foreground',
 								)}
 							>
-								{r.label}
+								{o.label}
 							</button>
 						))}
 					</div>
 				</div>
 
-				{error ? (
+				{mode === 'month' && (
+					<MonthPicker
+						month={month}
+						max={monthOf(todayKey)}
+						onChange={m => {
+							setSelected(null);
+							setMonth(m);
+						}}
+					/>
+				)}
+				{mode === 'custom' && (
+					<div className="space-y-1.5">
+						<div className="flex flex-wrap items-center gap-2" role="group" aria-label="Khoảng ngày">
+							<Input
+								type="date"
+								value={customFrom}
+								max={customTo || todayKey}
+								onChange={e => {
+									setSelected(null);
+									setCustomFrom(e.target.value);
+								}}
+								aria-label="Từ ngày"
+								className="h-9 w-[9.5rem] rounded-xl"
+							/>
+							<span className="text-sm text-muted-foreground">–</span>
+							<Input
+								type="date"
+								value={customTo}
+								min={customFrom || undefined}
+								max={todayKey}
+								onChange={e => {
+									setSelected(null);
+									setCustomTo(e.target.value);
+								}}
+								aria-label="Đến ngày"
+								className="h-9 w-[9.5rem] rounded-xl"
+							/>
+						</div>
+						{customError && (
+							<p className="text-xs text-destructive" role="alert">
+								{customError}
+							</p>
+						)}
+					</div>
+				)}
+
+				{shownError ? (
 					<div className="flex flex-col items-center text-center gap-3 py-10">
 						<AlertCircle className="h-8 w-8 text-destructive/70" />
-						<p className="text-sm text-muted-foreground">{error}</p>
-						<Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={onRetry}>
+						<p className="text-sm text-muted-foreground">{shownError}</p>
+						<Button variant="outline" size="sm" className="rounded-xl gap-1.5" onClick={retry}>
 							<RotateCw className="h-4 w-4" />
 							Thử lại
 						</Button>
 					</div>
-				) : loading || !activity || !heatmap || !summary ? (
+				) : shownLoading || !shown || !heatmap || !summary ? (
 					<div className="space-y-4" role="status" aria-busy="true">
 						<span className="sr-only">Đang tải…</span>
 						<div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
@@ -179,13 +364,13 @@ export function ActivityHeatmapCard({
 							<MiniStat
 								icon={Flame}
 								iconClass="bg-secondary/15 text-secondary"
-								value={`${activity.currentStreak} ngày`}
+								value={`${shown.currentStreak} ngày`}
 								label="Chuỗi hiện tại"
 							/>
 							<MiniStat
 								icon={Trophy}
 								iconClass="bg-amber-100 text-amber-600"
-								value={`${activity.longestStreak} ngày`}
+								value={`${shown.longestStreak} ngày`}
 								label="Chuỗi dài nhất"
 							/>
 							<MiniStat
@@ -202,14 +387,22 @@ export function ActivityHeatmapCard({
 							/>
 						</div>
 
-						<div ref={scrollRef} className="overflow-x-auto pb-1 -mx-1 px-1">
+						{/* a newly picked month or range is loading: the grid still shows the previous one */}
+						<div
+							ref={scrollRef}
+							aria-busy={mode !== 'preset' && ranged.refreshing}
+							className={cn(
+								'overflow-x-auto pb-1 -mx-1 px-1 transition-opacity',
+								mode !== 'preset' && ranged.refreshing && 'opacity-50',
+							)}
+						>
 							<div className="inline-flex flex-col gap-1 min-w-max">
 								{/* month labels */}
-								<div className="flex gap-[3px] pl-7 h-4 relative">
+								<div className={cn('flex pl-7 h-4 relative', gap)}>
 									{heatmap.weeks.map((_, w) => {
 										const m = heatmap.months.find(x => x.column === w);
 										return (
-											<div key={w} className="w-3 sm:w-3.5 relative">
+											<div key={w} className={cn(columnWidth, 'relative')}>
 												{m && (
 													<span className="absolute left-0 top-0 text-[10px] text-muted-foreground whitespace-nowrap">
 														{m.label}
@@ -219,22 +412,23 @@ export function ActivityHeatmapCard({
 										);
 									})}
 								</div>
-								<div className="flex gap-[3px]">
-									<div className="flex flex-col gap-[3px] w-6 mr-1 shrink-0">
-										{ROW_LABELS.map((d, i) => (
+								<div className={cn('flex', gap)}>
+									<div className={cn('flex flex-col w-6 mr-1 shrink-0', gap)}>
+										{/* every weekday when the cells are big enough to label */}
+										{(big ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ROW_LABELS).map((d, i) => (
 											<div
 												key={i}
-												className="h-3 sm:h-3.5 text-[10px] text-muted-foreground flex items-center leading-none"
+												className={cn(rowHeight, 'text-[10px] text-muted-foreground flex items-center leading-none')}
 											>
 												{d}
 											</div>
 										))}
 									</div>
 									{heatmap.weeks.map((week, w) => (
-										<div key={w} className="flex flex-col gap-[3px]">
+										<div key={w} className={cn('flex flex-col', gap)}>
 											{week.map(cell =>
-												cell.isFuture ? (
-													<div key={cell.date} className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden />
+												cell.isFuture || !cell.inRange ? (
+													<div key={cell.date} className={cellSize} aria-hidden />
 												) : (
 													<button
 														key={cell.date}
@@ -245,12 +439,17 @@ export function ActivityHeatmapCard({
 														onFocus={() => setSelected(cell.date)}
 														onClick={() => setSelected(cell.date)}
 														className={cn(
-															'h-3 w-3 sm:h-3.5 sm:w-3.5 rounded-[3px] transition-transform hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+															cellSize,
+															big ? 'rounded-md text-[10px] font-medium leading-none' : 'rounded-[3px]',
+															big && (cell.level >= 3 ? 'text-white' : 'text-foreground/70'),
+															'transition-transform hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
 															LEVEL_CLASS[cell.level],
 															cell.isToday && 'ring-2 ring-secondary ring-offset-1 ring-offset-card',
 															selected === cell.date && !cell.isToday && 'ring-2 ring-foreground/40',
 														)}
-													/>
+													>
+														{big ? Number(cell.date.slice(8, 10)) : null}
+													</button>
 												),
 											)}
 										</div>
@@ -288,7 +487,9 @@ export function ActivityHeatmapCard({
 						{summary.attempts === 0 && (
 							<div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4">
 								<p className="text-sm text-muted-foreground text-center sm:text-left">
-									Chưa có bài nào trong {rangeLabel.toLowerCase()} qua. Nộp một bài hôm nay để bắt đầu chuỗi!
+									{mode === 'preset'
+										? `Chưa có bài nào trong ${rangeLabel.toLowerCase()} qua. Nộp một bài hôm nay để bắt đầu chuỗi!`
+										: `Chưa có bài nào trong ${mode === 'month' ? `tháng ${rangeLabel.slice(2)}` : 'khoảng thời gian này'}.`}
 								</p>
 								<Button size="sm" className="rounded-xl gap-1.5" onClick={() => router.push('/test-selection')}>
 									<PlayCircle className="h-4 w-4" />

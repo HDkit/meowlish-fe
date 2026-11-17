@@ -315,18 +315,24 @@ export class ExamPracticeService {
     }
     /**
      * Get the authenticated user daily practice activity and streaks (UTC days)
-     * @param days How many UTC days back from today (inclusive) to return
+     * @param days How many UTC days back from today (inclusive) to return. Not with `from`/`to`
+     * @param from First UTC day of an explicit range (inclusive), YYYY-MM-DD. Send with `to`
+     * @param to Last UTC day of an explicit range (inclusive), YYYY-MM-DD; at most 371 days in all
      * @returns any
      * @throws ApiError
      */
     public static examPracticeGatewayControllerGetUserActivityV1(
         days?: number,
+        from?: string,
+        to?: string,
     ): CancelablePromise<ResponseEntity> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/exams/practice/my/activity',
             query: {
                 'days': days,
+                'from': from,
+                'to': to,
             },
         });
     }

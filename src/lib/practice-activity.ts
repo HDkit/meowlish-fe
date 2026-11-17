@@ -12,6 +12,8 @@ export type HeatCell = DayActivity & {
 	level: ActivityLevel;
 	isToday: boolean;
 	isFuture: boolean;
+	/** false for the days of the first and last week outside the requested range */
+	inRange: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -59,8 +61,24 @@ export function buildHeatmap(
 	today: string,
 	weeks: number,
 ): { weeks: HeatCell[][]; months: { column: number; label: string }[] } {
-	const byDate = indexDays(days);
 	const start = addDays(today, -weekdayIndex(today) - (weeks - 1) * 7);
+	return buildRangeHeatmap(days, start, today, today);
+}
+
+/**
+ * Monday-first week columns covering `from` to `to` (both included). Days of the first and last
+ * week that fall outside the range have `inRange: false`, days after `today` `isFuture: true`;
+ * both are drawn empty. `months` marks the column where each month starts.
+ */
+export function buildRangeHeatmap(
+	days: DayActivity[],
+	from: string,
+	to: string,
+	today: string,
+): { weeks: HeatCell[][]; months: { column: number; label: string }[] } {
+	const byDate = indexDays(days);
+	const start = addDays(from, -weekdayIndex(from));
+	const weeks = Math.floor((toMs(to) - toMs(start)) / DAY_MS / 7) + 1;
 	const columns: HeatCell[][] = [];
 	const months: { column: number; label: string }[] = [];
 	let lastMonth = -1;
@@ -77,10 +95,12 @@ export function buildHeatmap(
 				level: activityLevel(attempts),
 				isToday: date === today,
 				isFuture: date > today,
+				inRange: date >= from && date <= to,
 			});
 		}
-		const month = new Date(toMs(column[0].date)).getUTCMonth();
-		const firstOfMonthInColumn = column.find(c => c.date.endsWith('-01'));
+		const firstInRange = column.find(c => c.inRange) ?? column[0];
+		const month = new Date(toMs(firstInRange.date)).getUTCMonth();
+		const firstOfMonthInColumn = column.find(c => c.inRange && c.date.endsWith('-01'));
 		const labelMonth = firstOfMonthInColumn
 			? new Date(toMs(firstOfMonthInColumn.date)).getUTCMonth()
 			: w === 0
@@ -95,6 +115,38 @@ export function buildHeatmap(
 	// a label on the first column right before the next month's label would overlap it
 	if (months.length > 1 && months[1].column - months[0].column < 3) months.shift();
 	return { weeks: columns, months: months };
+}
+
+/** The longest range the activity endpoint serves for `from`/`to`, both days included. */
+export const MAX_RANGE_DAYS = 371;
+
+/** "2026-10" -> its first and last UTC day. */
+export function monthRange(month: string): { from: string; to: string } {
+	const [y, m] = month.split('-').map(Number);
+	const from = `${month}-01`;
+	const to = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+	return { from: from, to: to };
+}
+
+/** "2026-11" for a UTC day key. */
+export const monthOf = (key: string): string => key.slice(0, 7);
+
+/** Days from `from` to `to`, both included. */
+export function rangeDays(from: string, to: string): number {
+	return Math.round((toMs(to) - toMs(from)) / DAY_MS) + 1;
+}
+
+/** Why a custom range can't be shown, or null when it can. */
+export function rangeError(from: string, to: string): string | null {
+	if (!from || !to) return 'Chọn ngày bắt đầu và ngày kết thúc.';
+	if (from > to) return 'Ngày bắt đầu phải trước ngày kết thúc.';
+	if (rangeDays(from, to) > MAX_RANGE_DAYS) return `Khoảng thời gian tối đa ${MAX_RANGE_DAYS} ngày.`;
+	return null;
+}
+
+/** "13/11/2026" for a UTC day key. */
+export function formatShortDay(key: string): string {
+	return `${key.slice(8, 10)}/${key.slice(5, 7)}/${key.slice(0, 4)}`;
 }
 
 /** Totals over the days from `from` to `to`, both included. */
