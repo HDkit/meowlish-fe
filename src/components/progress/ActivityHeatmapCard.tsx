@@ -136,17 +136,22 @@ function MiniStat({
 	label: string;
 }) {
 	return (
-		<div className="flex h-full items-center gap-3 rounded-2xl bg-muted/40 border border-border/50 p-3">
-			<div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', iconClass)}>
-				<Icon className="h-[18px] w-[18px]" />
-			</div>
-			<div className="min-w-0">
-				<p className="text-lg font-bold leading-tight tabular-nums break-words">{value}</p>
-				{/* wraps instead of truncating: the tiles get narrow next to the weekly plan */}
-				<p className="text-xs leading-snug text-muted-foreground break-words">{label}</p>
-			</div>
+		<div className="min-w-0 rounded-xl border border-border/50 bg-muted/40 px-3 py-2.5">
+			<p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+				<Icon className={cn('h-3.5 w-3.5 shrink-0', iconClass)} aria-hidden />
+				<span className="truncate" title={label}>
+					{label}
+				</span>
+			</p>
+			<p className="mt-1 text-lg font-bold leading-tight tabular-nums">{value}</p>
 		</div>
 	);
+}
+
+/** Practice time short enough for a stat tile: "45 phút", "18,6 giờ". */
+function formatHoursShort(minutes: number): string {
+	if (minutes < 60) return `${minutes} phút`;
+	return `${(minutes / 60).toFixed(1).replace(/\.0$/, '').replace('.', ',')} giờ`;
 }
 
 function describeDay(cell: HeatCell): string {
@@ -176,6 +181,17 @@ export function ActivityHeatmapCard({
 }) {
 	const router = useRouter();
 	const scrollRef = useRef<HTMLDivElement>(null);
+	// four stat tiles in a row only when the card itself is wide enough (it sits in grids of
+	// different widths, so the viewport says little)
+	const bodyRef = useRef<HTMLDivElement>(null);
+	const [wide, setWide] = useState(false);
+	useEffect(() => {
+		const el = bodyRef.current;
+		if (!el || typeof ResizeObserver === 'undefined') return;
+		const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 520));
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
 	const [selected, setSelected] = useState<string | null>(null);
 
 	const todayKey = activity?.today ?? activity?.to ?? utcToday();
@@ -236,12 +252,28 @@ export function ActivityHeatmapCard({
 			: mode === 'custom' && shown
 				? `${formatShortDay(shown.from)} – ${formatShortDay(shown.to)}`
 				: (HEATMAP_RANGES.find(r => r.weeks === weeks)?.label ?? `${weeks} tuần`);
-	// short ranges (a month) get big cells with the day of the month in them
-	const big = !!heatmap && heatmap.weeks.length <= 8;
-	const cellSize = big ? 'h-7 w-7 sm:h-8 sm:w-8' : 'h-3 w-3 sm:h-3.5 sm:w-3.5';
-	const columnWidth = big ? 'w-7 sm:w-8' : 'w-3 sm:w-3.5';
-	const rowHeight = big ? 'h-7 sm:h-8' : 'h-3 sm:h-3.5';
-	const gap = big ? 'gap-1' : 'gap-[3px]';
+	const rangeCaption =
+		mode === 'month'
+			? `Tháng ${Number(month.slice(5, 7))}/${month.slice(0, 4)}`
+			: mode === 'custom'
+				? rangeLabel
+				: `${rangeLabel} gần nhất`;
+
+	// The week columns stretch to the card's width; cells stay square, between minCell and maxCell
+	// pixels. Short ranges (a month) get big cells with the day of the month in them; a year can
+	// still be wider than the card and scrolls.
+	const columns = heatmap?.weeks.length ?? 0;
+	const big = columns > 0 && columns <= 8;
+	const minCell = big ? 28 : 10;
+	const maxCell = big ? 44 : columns <= 16 ? 26 : 20;
+	const gapPx = big ? 4 : 3;
+	const labelColumn = 26;
+	const gridStyle = {
+		gridTemplateColumns: `${labelColumn}px repeat(${columns}, minmax(${minCell}px, 1fr))`,
+		gap: gapPx,
+		minWidth: labelColumn + columns * (minCell + gapPx),
+		maxWidth: labelColumn + columns * (maxCell + gapPx),
+	};
 
 	const pickMode = (next: RangeMode) => {
 		setSelected(null);
@@ -250,17 +282,19 @@ export function ActivityHeatmapCard({
 
 	return (
 		<Card className={cn('rounded-2xl', className)}>
-			<CardContent className="pt-6 pb-6 space-y-5">
+			<CardContent className="pt-6 pb-6">
+				<div ref={bodyRef} className="space-y-5">
 				{/* the range buttons get their own row: five of them don't fit beside the title */}
 				<div className="flex flex-col gap-3">
 					<h2 className="text-lg font-bold flex items-center gap-2">
 						<CalendarDays className="h-5 w-5 text-primary" />
 						{title}
 					</h2>
+					{/* scrolls sideways on a phone instead of wrapping onto a second line */}
 					<div
 						role="radiogroup"
 						aria-label="Khoảng thời gian"
-						className="inline-flex flex-wrap self-start rounded-xl bg-muted p-1 text-sm"
+						className="flex max-w-full self-start overflow-x-auto rounded-xl bg-muted p-1 text-sm"
 					>
 						{[
 							...HEATMAP_RANGES.map(r => ({
@@ -281,7 +315,7 @@ export function ActivityHeatmapCard({
 								aria-checked={o.checked}
 								onClick={o.pick}
 								className={cn(
-									'px-3 py-1 rounded-lg font-medium transition-colors',
+									'shrink-0 whitespace-nowrap px-3 py-1 rounded-lg font-medium transition-colors',
 									o.checked
 										? 'bg-background text-foreground shadow-sm'
 										: 'text-muted-foreground hover:text-foreground',
@@ -351,40 +385,45 @@ export function ActivityHeatmapCard({
 				) : shownLoading || !shown || !heatmap || !summary ? (
 					<div className="space-y-4" role="status" aria-busy="true">
 						<span className="sr-only">Đang tải…</span>
-						<div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
+						<div className={cn('grid gap-2', wide ? 'grid-cols-4' : 'grid-cols-2')}>
 							{[0, 1, 2, 3].map(i => (
-								<Skeleton key={i} className="h-[62px] rounded-2xl" />
+								<Skeleton key={i} className="h-[60px] rounded-xl" />
 							))}
 						</div>
-						<Skeleton className="h-[120px] rounded-xl" />
+						<Skeleton className="h-[150px] rounded-xl" />
 					</div>
 				) : (
 					<>
-						<div className="grid grid-cols-2 2xl:grid-cols-4 gap-3">
-							<MiniStat
-								icon={Flame}
-								iconClass="bg-secondary/15 text-secondary"
-								value={`${shown.currentStreak} ngày`}
-								label="Chuỗi hiện tại"
-							/>
-							<MiniStat
-								icon={Trophy}
-								iconClass="bg-amber-100 text-amber-600"
-								value={`${shown.longestStreak} ngày`}
-								label="Chuỗi dài nhất"
-							/>
-							<MiniStat
-								icon={CalendarDays}
-								iconClass="bg-primary/10 text-primary"
-								value={`${summary.activeDays}`}
-								label={`Ngày luyện tập (${rangeLabel})`}
-							/>
-							<MiniStat
-								icon={Clock}
-								iconClass="bg-primary/10 text-primary"
-								value={summary.minutes > 0 ? formatMinutes(summary.minutes) : `${summary.attempts} bài`}
-								label={summary.minutes > 0 ? `${summary.attempts} bài đã nộp` : 'Bài đã nộp'}
-							/>
+						<div className="space-y-2">
+							<p className="text-xs text-muted-foreground">
+								{rangeCaption} · {summary.attempts} bài đã nộp
+							</p>
+							<div className={cn('grid gap-2', wide ? 'grid-cols-4' : 'grid-cols-2')}>
+								<MiniStat
+									icon={Flame}
+									iconClass="text-secondary"
+									value={`${shown.currentStreak} ngày`}
+									label="Chuỗi hiện tại"
+								/>
+								<MiniStat
+									icon={Trophy}
+									iconClass="text-amber-500"
+									value={`${shown.longestStreak} ngày`}
+									label="Chuỗi dài nhất"
+								/>
+								<MiniStat
+									icon={CalendarDays}
+									iconClass="text-primary"
+									value={`${summary.activeDays} ngày`}
+									label="Ngày luyện"
+								/>
+								<MiniStat
+									icon={Clock}
+									iconClass="text-primary"
+									value={summary.minutes > 0 ? formatHoursShort(summary.minutes) : `${summary.attempts} bài`}
+									label={summary.minutes > 0 ? 'Thời gian' : 'Bài đã nộp'}
+								/>
+							</div>
 						</div>
 
 						{/* a newly picked month or range is loading: the grid still shows the previous one */}
@@ -396,65 +435,57 @@ export function ActivityHeatmapCard({
 								mode !== 'preset' && ranged.refreshing && 'opacity-50',
 							)}
 						>
-							<div className="inline-flex flex-col gap-1 min-w-max">
-								{/* month labels */}
-								<div className={cn('flex pl-7 h-4 relative', gap)}>
-									{heatmap.weeks.map((_, w) => {
-										const m = heatmap.months.find(x => x.column === w);
-										return (
-											<div key={w} className={cn(columnWidth, 'relative')}>
-												{m && (
-													<span className="absolute left-0 top-0 text-[10px] text-muted-foreground whitespace-nowrap">
-														{m.label}
-													</span>
+							<div className={cn('grid', big && 'mx-auto')} style={gridStyle}>
+								{heatmap.months.map(m => (
+									<span
+										key={m.column}
+										style={{ gridColumn: m.column + 2, gridRow: 1 }}
+										className="whitespace-nowrap text-[10px] leading-4 text-muted-foreground"
+									>
+										{m.label}
+									</span>
+								))}
+								{/* every weekday when the cells are big enough to label */}
+								{(big ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ROW_LABELS).map((d, i) => (
+									<span
+										key={i}
+										style={{ gridColumn: 1, gridRow: i + 2 }}
+										className="flex items-center text-[10px] leading-none text-muted-foreground"
+									>
+										{d}
+									</span>
+								))}
+								{heatmap.weeks.map((week, w) =>
+									week.map((cell, d) => {
+										const place = { gridColumn: w + 2, gridRow: d + 2 };
+										return cell.isFuture || !cell.inRange ? (
+											<div key={cell.date} style={place} className="aspect-square" aria-hidden />
+										) : (
+											<button
+												key={cell.date}
+												type="button"
+												style={place}
+												aria-label={describeDay(cell)}
+												title={describeDay(cell)}
+												onMouseEnter={() => setSelected(cell.date)}
+												onFocus={() => setSelected(cell.date)}
+												onClick={() => setSelected(cell.date)}
+												className={cn(
+													'aspect-square w-full transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+													big
+														? 'rounded-lg text-[11px] font-medium leading-none'
+														: 'rounded-[3px]',
+													big && (cell.level >= 3 ? 'text-white' : 'text-foreground/70'),
+													LEVEL_CLASS[cell.level],
+													cell.isToday && 'ring-2 ring-secondary ring-offset-1 ring-offset-card',
+													selected === cell.date && !cell.isToday && 'ring-2 ring-foreground/40',
 												)}
-											</div>
-										);
-									})}
-								</div>
-								<div className={cn('flex', gap)}>
-									<div className={cn('flex flex-col w-6 mr-1 shrink-0', gap)}>
-										{/* every weekday when the cells are big enough to label */}
-										{(big ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ROW_LABELS).map((d, i) => (
-											<div
-												key={i}
-												className={cn(rowHeight, 'text-[10px] text-muted-foreground flex items-center leading-none')}
 											>
-												{d}
-											</div>
-										))}
-									</div>
-									{heatmap.weeks.map((week, w) => (
-										<div key={w} className={cn('flex flex-col', gap)}>
-											{week.map(cell =>
-												cell.isFuture || !cell.inRange ? (
-													<div key={cell.date} className={cellSize} aria-hidden />
-												) : (
-													<button
-														key={cell.date}
-														type="button"
-														aria-label={describeDay(cell)}
-														title={describeDay(cell)}
-														onMouseEnter={() => setSelected(cell.date)}
-														onFocus={() => setSelected(cell.date)}
-														onClick={() => setSelected(cell.date)}
-														className={cn(
-															cellSize,
-															big ? 'rounded-md text-[10px] font-medium leading-none' : 'rounded-[3px]',
-															big && (cell.level >= 3 ? 'text-white' : 'text-foreground/70'),
-															'transition-transform hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-															LEVEL_CLASS[cell.level],
-															cell.isToday && 'ring-2 ring-secondary ring-offset-1 ring-offset-card',
-															selected === cell.date && !cell.isToday && 'ring-2 ring-foreground/40',
-														)}
-													>
-														{big ? Number(cell.date.slice(8, 10)) : null}
-													</button>
-												),
-											)}
-										</div>
-									))}
-								</div>
+												{big ? Number(cell.date.slice(8, 10)) : null}
+											</button>
+										);
+									}),
+								)}
 							</div>
 						</div>
 
@@ -503,6 +534,7 @@ export function ActivityHeatmapCard({
 						</p>
 					</>
 				)}
+				</div>
 			</CardContent>
 		</Card>
 	);

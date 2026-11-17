@@ -235,9 +235,9 @@ export function ProgressTracker() {
             className="grid-cols-3 md:grid-cols-3"
             tileClassName="border-0 shadow-lg bg-white/95 px-6 pt-6 pb-5"
           />
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <Skeleton className="lg:col-span-2 h-80 rounded-xl" />
-            <Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+          <div className="grid grid-cols-1 min-[1400px]:grid-cols-5 gap-6">
+            <Skeleton className="min-[1400px]:col-span-2 h-80 rounded-xl" />
+            <Skeleton className="min-[1400px]:col-span-3 h-80 rounded-xl" />
           </div>
           <Card>
             <CardHeader>
@@ -415,9 +415,9 @@ export function ProgressTracker() {
         )}
 
         {/* This week + activity heatmap */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 min-[1400px]:grid-cols-5 gap-6">
           <WeeklyPlanCard
-            className="lg:col-span-2"
+            className="min-[1400px]:col-span-2"
             activity={activity.data}
             loading={activity.loading}
             error={activity.error}
@@ -425,7 +425,7 @@ export function ProgressTracker() {
             suggestion={suggestion}
           />
           <ActivityHeatmapCard
-            className="lg:col-span-3 min-w-0"
+            className="min-[1400px]:col-span-3 min-w-0"
             activity={activity.data}
             loading={activity.loading}
             error={activity.error}

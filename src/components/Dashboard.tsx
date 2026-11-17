@@ -54,9 +54,9 @@ export function Dashboard() {
 						<StatTilesSkeleton className="mt-8" tileClassName="bg-white/20 border-white/20 [&_[data-slot=skeleton]]:bg-white/25" />
 					</div>
 				</div>
-				<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
-					<Skeleton className="lg:col-span-2 h-80 rounded-xl" />
-					<Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+				<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 min-[1400px]:grid-cols-5 gap-6">
+					<Skeleton className="min-[1400px]:col-span-2 h-80 rounded-xl" />
+					<Skeleton className="min-[1400px]:col-span-3 h-80 rounded-xl" />
 				</div>
 			</LoadingRegion>
 		);
@@ -154,9 +154,9 @@ export function Dashboard() {
 
 			<div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 				{/* This week + activity heatmap */}
-				<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+				<div className="grid grid-cols-1 min-[1400px]:grid-cols-5 gap-6">
 					<WeeklyPlanCard
-						className="lg:col-span-2"
+						className="min-[1400px]:col-span-2"
 						activity={activity.data}
 						loading={activity.loading}
 						error={activity.error}
@@ -164,7 +164,7 @@ export function Dashboard() {
 						suggestion={suggestion}
 					/>
 					<ActivityHeatmapCard
-						className="lg:col-span-3 min-w-0"
+						className="min-[1400px]:col-span-3 min-w-0"
 						activity={activity.data}
 						loading={activity.loading}
 						error={activity.error}
