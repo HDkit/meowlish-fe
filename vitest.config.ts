@@ -8,5 +8,7 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.test.ts'],
 		environment: 'node',
+		// Tests can run on the host that serves the app: don't take every core (default is one per core).
+		maxWorkers: process.env.VITEST_MAX_WORKERS || '25%',
 	},
 });
