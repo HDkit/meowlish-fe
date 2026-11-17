@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { NotificationService } from '@/lib/api/services/NotificationService';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { setNotifications } from '@/components/store/notificationSlice';
+import { addNotification, setNotifications } from '@/components/store/notificationSlice';
 import { useBackoffPolling } from '@/hooks/useBackoffPolling';
 import { useProviderErrorRegister } from './ProviderErrorContext';
 import type { Notification } from '@/types/client';
 import type { NotificationResponse } from '@/lib/api/services/NotificationService';
+import { openNotificationStream } from '@/lib/notification-stream';
 
-const POLL_INTERVAL = 30_000;
+// New notifications arrive over SSE (lib/notification-stream.ts). This slow poll is only a safety net
+// for a stream that is silently stuck (e.g. a proxy that buffers it).
+const POLL_INTERVAL = 5 * 60_000;
 
 function mapToNotification(n: NotificationResponse): Notification {
   let linkType: Notification['linkType'] = undefined;
@@ -58,6 +61,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, [userId, dispatch]);
 
   const { error, isRetrying, manualRetry } = useBackoffPolling(fetchNotifications, POLL_INTERVAL, !!userId);
+
+  // Live pushes while signed in; closed on logout or when the user changes.
+  const resyncRef = useRef(fetchNotifications);
+  resyncRef.current = fetchNotifications;
+  useEffect(() => {
+    if (!userId || typeof EventSource === 'undefined') return;
+    return openNotificationStream({
+      recipientId: userId,
+      onNotification: n => dispatch(addNotification(mapToNotification(n))),
+      // Pushes made while the stream was down can't be replayed to a new stream: reload the list.
+      onResync: () => void resyncRef.current().catch(() => undefined),
+    });
+  }, [userId, dispatch]);
 
   useEffect(() => {
     register('notifications', { label: 'Thông báo', error, isRetrying, manualRetry });
