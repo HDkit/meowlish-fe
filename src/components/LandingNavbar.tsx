@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Newspaper } from 'lucide-react';
 import { Button } from './ui/button';
 import { AiStatusBanner, AiStatusToggle } from './AiStatusBanner';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -31,6 +31,14 @@ export function LandingNavbar() {
 
         <div className="flex items-center gap-3 ml-auto">
           <AiStatusToggle />
+          {/* The blog is public: anyone can read it without an account. */}
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Newspaper className="h-4 w-4" aria-hidden="true" />
+            Blog
+          </Link>
           <Link
             href="/changelog"
             className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"

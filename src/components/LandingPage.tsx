@@ -243,6 +243,11 @@ export function LandingPage() {
                 <p>Luyện thi IELTS</p>
                 <p>Luyện thi TOEIC</p>
                 <p>AI Speaking</p>
+                <p>
+                  <Link href="/blog" className="hover:text-background transition-colors">
+                    Blog
+                  </Link>
+                </p>
               </div>
               <div className="space-y-2">
                 <p className="text-background font-medium">Liên hệ</p>
