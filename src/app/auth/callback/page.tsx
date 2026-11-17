@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { exchangeGoogleLoginToken, isAdminRoleId } from '@/lib/api-client';
 import { googleErrorMessage, googleFlowReturnPath } from '@/lib/google-oauth-result';
+import { postLoginPath, takeReturnPath } from '@/lib/login-redirect';
 import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from '@/components/store/currUserSlice';
 import { Loader2 } from 'lucide-react';
@@ -54,7 +55,7 @@ export default function AuthCallbackPage() {
 					setTimeout(() => router.push(next), 1500);
 					return;
 				}
-				router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
+				router.push(postLoginPath(takeReturnPath(), isAdminRoleId(user.roleId)));
 			} catch (err: any) {
 				console.error('Auth callback error:', err);
 				fail('Xác thực thất bại: ' + (err.message || 'Unknown error'));

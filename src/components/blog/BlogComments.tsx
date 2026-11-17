@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight, CornerDownRight, Flag, MessageSquare, Pencil, Reply, Trash2 } from 'lucide-react';
 import { BlogCommentService, type BlogComment } from '@/lib/api/services/BlogCommentService';
 import {
@@ -14,6 +16,7 @@ import {
 } from '@/lib/comment-tree';
 import { canModerate, communityErrorMessage } from '@/lib/forum';
 import { type Identity, displayName } from '@/lib/identity-cache';
+import { loginUrl } from '@/lib/login-redirect';
 import { blogCommentTargetId } from '@/lib/report-targets';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useIdentities } from '@/hooks/useIdentities';
@@ -90,6 +93,8 @@ function Composer({ initial = '', placeholder, submitLabel, autoFocus, onCancel,
 interface ItemContext {
   identities: Record<string, Identity>;
   currentUserId?: string;
+  /** Login page returning to this post, for anonymous visitors who want to reply. */
+  loginHref: string;
   moderator: boolean;
   replyingTo: string | null;
   editing: string | null;
@@ -175,6 +180,13 @@ function CommentItem({ comment, parent, ctx }: { comment: BlogComment; parent?: 
           }
 
           <div className="mt-1 flex flex-wrap items-center gap-0.5">
+            {!comment.deleted && !ctx.currentUserId && (
+              <Button asChild variant="ghost" className={actionClass}>
+                <Link href={ctx.loginHref}>
+                  <Reply className="size-3.5" aria-hidden="true" /> Trả lời
+                </Link>
+              </Button>
+            )}
             {!comment.deleted && ctx.currentUserId && ctx.editing !== comment.id && (
               <>
                 <Button variant="ghost" className={actionClass} onClick={() => ctx.setReplyingTo(ctx.replyingTo === comment.id ? null : comment.id)}>
@@ -246,6 +258,9 @@ export function BlogComments({ blogId }: { blogId: string }) {
   const { toast } = useToast();
   const { currUser } = useAuth();
   const moderator = canModerate(currUser?.roleId);
+  const pathname = usePathname();
+  // Back to this post's comments once signed in.
+  const loginHref = loginUrl(`${pathname ?? `/blog/${encodeURIComponent(blogId)}`}#comments-heading`);
 
   const [comments, setComments] = useState<BlogComment[]>([]);
   const [totalThreads, setTotalThreads] = useState(0);
@@ -320,6 +335,7 @@ export function BlogComments({ blogId }: { blogId: string }) {
   const ctx: ItemContext = {
     identities: identities,
     currentUserId: currUser?.id,
+    loginHref: loginHref,
     moderator: moderator,
     replyingTo: replyingTo,
     editing: editing,
@@ -410,7 +426,13 @@ export function BlogComments({ blogId }: { blogId: string }) {
             <Composer placeholder="Viết bình luận của bạn…" submitLabel="Bình luận" onSubmit={createTopLevel} />
           </div>
         </div>
-      : <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">Đăng nhập để bình luận.</p>}
+      : <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+          <p className="text-sm text-slate-600">Đăng nhập để tham gia bình luận.</p>
+          <Button asChild size="sm" className="rounded-lg">
+            <Link href={loginHref}>Đăng nhập để bình luận</Link>
+          </Button>
+        </div>
+      }
 
       {error && comments.length === 0 ?
         <ErrorState message={error} onRetry={() => void loadPage(1)} />

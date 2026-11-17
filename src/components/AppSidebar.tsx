@@ -26,11 +26,13 @@ import {
   Sparkles,
   PanelLeftClose,
   PanelLeftOpen,
+  LogIn,
   type LucideIcon,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useAppSelector, useAppDispatch } from '@/lib/store/hooks';
 import { clearUser } from './store/currUserSlice';
+import { loginUrl } from '@/lib/login-redirect';
 import { logoutSession } from '@/lib/api-client';
 import {
   Sidebar,
@@ -221,28 +223,45 @@ export function AppSidebar() {
       <SidebarFooter className="px-2 pb-2 pt-0">
         <div className="rounded-3xl border border-slate-200 bg-white/92 p-2 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
           <SidebarMenu className="gap-1">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => router.push('/user')}
-                tooltip="Tài khoản"
-                size="lg"
-                className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50"
-              >
-                <CircleUserRound className="h-5 w-5" />
-                <span suppressHydrationWarning>{userDisplayName}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={handleLogout}
-                tooltip="Đăng xuất"
-                size="lg"
-                className="rounded-2xl px-3 text-[15px] font-medium text-destructive hover:bg-red-50 hover:text-destructive"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Đăng xuất</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {/* Anonymous visitors reach the public pages (blog): offer login, back to this page. */}
+            {mounted && !user ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push(loginUrl(pathname))}
+                  tooltip="Đăng nhập"
+                  size="lg"
+                  className="rounded-2xl px-3 text-[15px] font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span>Đăng nhập</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ) : (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push('/user')}
+                    tooltip="Tài khoản"
+                    size="lg"
+                    className="rounded-2xl px-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <CircleUserRound className="h-5 w-5" />
+                    <span suppressHydrationWarning>{userDisplayName}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={handleLogout}
+                    tooltip="Đăng xuất"
+                    size="lg"
+                    className="rounded-2xl px-3 text-[15px] font-medium text-destructive hover:bg-red-50 hover:text-destructive"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>Đăng xuất</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
           </SidebarMenu>
         </div>
       </SidebarFooter>

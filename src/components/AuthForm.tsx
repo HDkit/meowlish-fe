@@ -17,12 +17,15 @@ import { useAppDispatch } from '@/lib/store/hooks';
 import { setUser } from './store/currUserSlice';
 import { AuthService, GOOGLE_LOGIN_PATH, googleOAuthUrl, isAdminRoleId, loadSessionUser } from '@/lib/api-client';
 import { usernameError } from '@/lib/username';
+import { postLoginPath, rememberReturnPath } from '@/lib/login-redirect';
 
 export function AuthForm() {
 	const router = useRouter();
 	const params = useSearchParams();
 	const mode = params.get('mode') === 'register' ? 'register' : 'login';
 	const isLogin = mode === 'login';
+	// Page to return to afterwards (e.g. the blog post where "log in to comment" was clicked).
+	const next = params.get('next');
 	const dispatch = useAppDispatch();
 
 	const [formData, setFormData] = useState({
@@ -100,7 +103,7 @@ export function AuthForm() {
 			await AuthService.authGatewayControllerLoginMailV1({ mail: credentials.email, password: credentials.password });
 			const user = await loadSessionUser({ email: credentials.email, fullName: credentials.email.split('@')[0] });
 			dispatch(setUser(user));
-			router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
+			router.push(postLoginPath(next, isAdminRoleId(user.roleId)));
 		} catch (err: any) {
 			console.error(err);
 			showApiError(err, 'Đăng nhập thất bại');
@@ -117,7 +120,7 @@ export function AuthForm() {
 			await AuthService.authGatewayControllerRegisterMailV1({ mail: formData.email, password: formData.password, username: formData.fullName });
 			const newUser = await loadSessionUser({ email: formData.email, fullName: formData.fullName });
 			dispatch(setUser(newUser));
-			router.push('/test-selection');
+			router.push(postLoginPath(next, false));
 		} catch (err: any) {
 			console.error(err);
 			showApiError(err, 'Đăng ký thất bại');
@@ -137,13 +140,14 @@ export function AuthForm() {
 	// Social login (Google) - Direct redirect to avoid CORS
 	const handleGoogleLogin = () => {
 		// Top-level navigation (not fetch): the gateway redirects to Google. `frontend` tells it to
-		// bring the user back to this frontend.
+		// bring the user back to this frontend. The return page can't ride along, so keep it here.
+		rememberReturnPath(next);
 		window.location.href = googleOAuthUrl(GOOGLE_LOGIN_PATH);
 	};
 
 	const toggleMode = () => {
 		const newMode = isLogin ? 'register' : 'login';
-		router.push(`/auth?mode=${newMode}`);
+		router.push(`/auth?mode=${newMode}${next ? `&next=${encodeURIComponent(next)}` : ''}`);
 	};
 
 	return (

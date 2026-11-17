@@ -9,6 +9,7 @@ import { useAppDispatch } from '@/lib/store/hooks';
 import { clearUser, setUser } from '@/components/store/currUserSlice';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { postLoginPath, takeReturnPath } from '@/lib/login-redirect';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function AuthPage() {
         dispatch(setUser(user));
         toast({ title: 'Đăng nhập thành công' });
 
-        router.push(isAdminRoleId(user.roleId) ? '/dashboard' : '/test-selection');
+        router.push(postLoginPath(takeReturnPath(), isAdminRoleId(user.roleId)));
       } catch (err: any) {
         console.error('Login token error:', err);
         toast({

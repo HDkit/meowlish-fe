@@ -11,7 +11,6 @@ const protectedRoutes = [
 	'/user',
 	'/user-management',
 	'/flashcards',
-	'/blog',
 	'/forum',
 	'/speaking-writing',
 	'/speaking',
@@ -23,20 +22,21 @@ const protectedRoutes = [
 	'/report-management',
 ];
 
-// Define public routes
-const publicRoutes = [
-	'/',
-	'/landing',
-	'/auth',
-];
+// Pages anyone can read, signed in or not. Writing (posting, commenting) still needs a session:
+// the page sends anonymous visitors to the login page for that.
+const publicSections = ['/blog'];
+
+const inSection = (pathname: string, section: string) =>
+	pathname === section || pathname.startsWith(`${section}/`);
 
 export function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	// Check if the route is protected
-	const isProtectedRoute = protectedRoutes.some(route =>
-		pathname.startsWith(route)
-	);
+	// `/blog-management` starts with `/blog` but is not public: sections match whole segments.
+	const isPublicSection = publicSections.some(section => inSection(pathname, section));
+	const isProtectedRoute =
+		!isPublicSection && protectedRoutes.some(route => pathname.startsWith(route));
 
 	// Routing hint only: `user_authenticated` is a non-secret cookie set by the client once
 	// GET /auth/my/identity succeeds and cleared on logout or a failed refresh. The real
