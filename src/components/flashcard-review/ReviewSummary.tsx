@@ -1,26 +1,48 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { CheckCircle2, ListChecks, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, History, ListChecks, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/button';
-import { summarize, type ReviewSession } from '@/lib/flashcard-review/session';
+import { PastCardsViewer } from './ReviewPlay';
+import { summarize, type ReviewAction, type ReviewSession } from '@/lib/flashcard-review/session';
 
 /** End of a round: no score, just how many cards were gone through and what to do next. */
 export function ReviewSummary({
 	session,
+	userId,
+	dispatch,
 	onRestart,
 	onChooseOther,
 }: {
 	session: ReviewSession;
+	userId: string;
+	dispatch: (a: ReviewAction) => void;
 	onRestart: () => void;
 	onChooseOther: () => void;
 }) {
 	const { total, skipped } = summarize(session);
 	const headingRef = useRef<HTMLHeadingElement>(null);
+	// the round's cards, read-only, opened from here
+	const [reviewing, setReviewing] = useState(false);
 
 	useEffect(() => {
-		headingRef.current?.focus();
-	}, []);
+		if (!reviewing) headingRef.current?.focus();
+	}, [reviewing]);
+
+	if (reviewing) {
+		return (
+			<div className="mx-auto max-w-5xl px-4 sm:px-6">
+				<PastCardsViewer
+					session={session}
+					userId={userId}
+					dispatch={dispatch}
+					start={0}
+					onClose={() => setReviewing(false)}
+					closeLabel="Quay lại"
+				/>
+			</div>
+		);
+	}
 
 	return (
 		<div className="mx-auto max-w-3xl px-4 sm:px-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
@@ -35,6 +57,9 @@ export function ReviewSummary({
 				<div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
 					<Button onClick={onRestart} className="h-11 rounded-xl px-5 font-bold">
 						<RotateCcw className="h-4 w-4" aria-hidden /> Ôn lại từ đầu
+					</Button>
+					<Button onClick={() => setReviewing(true)} variant="outline" className="h-11 rounded-xl px-5 font-semibold">
+						<History className="h-4 w-4" aria-hidden /> Xem lại các thẻ
 					</Button>
 					<Button onClick={onChooseOther} variant="outline" className="h-11 rounded-xl px-5 font-semibold">
 						<ListChecks className="h-4 w-4" aria-hidden /> Chọn bộ khác

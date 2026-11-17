@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowRight, Loader2, Pencil, SkipForward } from 'lucide-react';
+import { ArrowLeft, ArrowRight, History, Loader2, Pencil, SkipForward, Undo2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { cn } from '../ui/utils';
 import { extractApiErrorMessage } from '@/lib/api-response';
 import { FlashcardService, type FlashCardResponse } from '@/lib/api/services/FlashcardService';
 import { FIELD_LABELS, MODE_LABELS, answerField, cardField, promptField } from '@/lib/flashcard-review/deck';
-import type { ReviewAction, ReviewSession } from '@/lib/flashcard-review/session';
+import { pastQuestions, type ReviewAction, type ReviewSession } from '@/lib/flashcard-review/session';
 import type { Question, ReviewCard } from '@/lib/flashcard-review/types';
 import { toReviewCard, unwrap } from './useReviewLists';
 
@@ -235,6 +235,7 @@ function CardStage({
 	userId,
 	dispatch,
 	isLast,
+	active,
 }: {
 	session: ReviewSession;
 	question: Question;
@@ -242,6 +243,8 @@ function CardStage({
 	userId: string;
 	dispatch: (a: ReviewAction) => void;
 	isLast: boolean;
+	/** false while past cards are open: the stage stays mounted (keeping a half-typed answer) but idle */
+	active: boolean;
 }) {
 	const revealed = session.phase === 'reveal';
 	const record = session.answers[question.key];
@@ -255,12 +258,12 @@ function CardStage({
 	const field = answerField(question.mode);
 
 	useEffect(() => {
-		(revealed ? nextRef.current : answerRef.current)?.focus();
-	}, [revealed]);
+		if (active) (revealed ? nextRef.current : answerRef.current)?.focus();
+	}, [revealed, active]);
 
 	// reveal: Enter = next card, E = edit (when the focus isn't in a field or on a control)
 	useEffect(() => {
-		if (!revealed || editing) return;
+		if (!revealed || editing || !active) return;
 		const onKey = (e: KeyboardEvent) => {
 			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
 			const key = e.key.toLowerCase();
@@ -274,7 +277,7 @@ function CardStage({
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
-	}, [revealed, editing, owns, dispatch]);
+	}, [revealed, editing, owns, dispatch, active]);
 
 	const submit = () => {
 		if (!answer.trim()) {
@@ -406,6 +409,118 @@ function CardStage({
 	);
 }
 
+/**
+ * Cards of this round already gone through, read-only: what was asked, what the player wrote, and
+ * the saved card (owners can still edit it). ← / → step through them, Esc closes.
+ */
+export function PastCardsViewer({
+	session,
+	userId,
+	dispatch,
+	start,
+	onClose,
+	closeLabel,
+}: {
+	session: ReviewSession;
+	userId: string;
+	dispatch: (a: ReviewAction) => void;
+	/** position in the past cards to open at */
+	start: number;
+	onClose: () => void;
+	closeLabel: string;
+}) {
+	const past = pastQuestions(session);
+	const [pos, setPos] = useState(() => Math.min(Math.max(start, 0), Math.max(past.length - 1, 0)));
+	const [editing, setEditing] = useState(false);
+	const editRef = useRef<HTMLButtonElement | null>(null);
+	const closeRef = useRef<HTMLButtonElement>(null);
+	const question = past[pos];
+	const card = question ? session.cards[question.cardId] : undefined;
+
+	useEffect(() => {
+		closeRef.current?.focus();
+	}, []);
+
+	useEffect(() => {
+		if (editing) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
+			if (e.key === 'ArrowLeft' && pos > 0) {
+				e.preventDefault();
+				setPos(pos - 1);
+			} else if (e.key === 'ArrowRight' && pos < past.length - 1) {
+				e.preventDefault();
+				setPos(pos + 1);
+			} else if (e.key === 'Escape') {
+				e.preventDefault();
+				onClose();
+			}
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [editing, pos, past.length, onClose]);
+
+	if (!question || !card) return null;
+	const record = session.answers[question.key];
+	const shownField = promptField(question.mode);
+
+	return (
+		<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+				<p className="flex items-center gap-2 text-sm font-semibold text-slate-600" aria-live="polite">
+					<History className="h-4 w-4 text-primary" aria-hidden />
+					Xem lại · thẻ {pos + 1} / {past.length}
+				</p>
+				<div className="flex flex-wrap gap-2">
+					<Button variant="outline" size="sm" onClick={() => setPos(pos - 1)} disabled={pos === 0 || editing} className="rounded-lg">
+						<ArrowLeft className="h-4 w-4" aria-hidden /> Trước
+					</Button>
+					<Button variant="outline" size="sm" onClick={() => setPos(pos + 1)} disabled={pos >= past.length - 1 || editing} className="rounded-lg">
+						Sau <ArrowRight className="h-4 w-4" aria-hidden />
+					</Button>
+					<Button ref={closeRef} size="sm" onClick={onClose} disabled={editing} className="rounded-lg font-semibold">
+						<Undo2 className="h-4 w-4" aria-hidden /> {closeLabel}
+						<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Esc</kbd>
+					</Button>
+				</div>
+			</div>
+
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{MODE_LABELS[question.mode]}</span>
+				<span className="truncate text-xs font-medium text-slate-400">{card.listName}</span>
+			</div>
+			<section className="mb-6">
+				<p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">{FIELD_LABELS[shownField]}</p>
+				<p className={cn('whitespace-pre-wrap break-words font-bold text-slate-900', shownField === 'word' ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl')}>
+					{cardField(card, shownField)}
+				</p>
+				{shownField === 'word' && card.pronunciation && <p className="mt-1 italic text-slate-500">{card.pronunciation}</p>}
+			</section>
+
+			<div className="grid gap-4 md:grid-cols-2">
+				<div className="flex min-w-0 flex-col gap-3">
+					<p className="font-semibold text-slate-700">Bạn trả lời</p>
+					<div className="min-h-24 flex-1 whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-lg text-slate-800">
+						{record?.skipped || !record ? <span className="text-base italic text-slate-400">(đã bỏ qua)</span> : record.answer}
+					</div>
+				</div>
+				<div className="min-w-0">
+					<SavedCard
+						key={question.key}
+						question={question}
+						card={card}
+						owns={card.authorId === userId}
+						editing={editing}
+						setEditing={setEditing}
+						onSaved={updated => dispatch({ type: 'updateCard', card: updated })}
+						editRef={editRef}
+					/>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 export function ReviewPlay({
 	session,
 	userId,
@@ -419,6 +534,24 @@ export function ReviewPlay({
 }) {
 	const question = session.queue[session.index];
 	const card = question ? session.cards[question.cardId] : undefined;
+	// past cards open over the current one (null: the current card is shown)
+	const [peek, setPeek] = useState<number | null>(null);
+	const canPeek = session.index > 0;
+
+	// ← on the current card (outside a field) opens the card before it
+	useEffect(() => {
+		if (peek !== null || !canPeek) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return;
+			if (e.key === 'ArrowLeft') {
+				e.preventDefault();
+				setPeek(session.index - 1);
+			}
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [peek, canPeek, session.index]);
+
 	if (!question || !card) return null;
 
 	const total = session.queue.length;
@@ -432,23 +565,49 @@ export function ReviewPlay({
 						Thẻ {session.index + 1} / {total}
 						{session.round > 1 && <span className="ml-2 text-slate-400">· Lượt {session.round}</span>}
 					</span>
-					<button type="button" onClick={onExit} className="font-semibold text-slate-500 hover:text-slate-800">
-						Kết thúc
-					</button>
+					<div className="flex items-center gap-4">
+						{canPeek && peek === null && (
+							<button
+								type="button"
+								onClick={() => setPeek(session.index - 1)}
+								className="inline-flex items-center gap-1 font-semibold text-slate-500 hover:text-primary"
+							>
+								<History className="h-4 w-4" aria-hidden /> Thẻ trước
+								<kbd className="ml-0.5 hidden rounded border border-slate-200 px-1 text-[10px] text-slate-400 sm:inline">←</kbd>
+							</button>
+						)}
+						<button type="button" onClick={onExit} className="font-semibold text-slate-500 hover:text-slate-800">
+							Kết thúc
+						</button>
+					</div>
 				</div>
 				<ProgressBar value={done} max={total} />
 			</div>
 
-			{/* one key per card (and round): every card starts from a clean slate */}
-			<CardStage
-				key={`card-${session.round}-${session.index}-${question.key}`}
-				session={session}
-				question={question}
-				card={card}
-				userId={userId}
-				dispatch={dispatch}
-				isLast={session.index === total - 1}
-			/>
+			{peek !== null && (
+				<PastCardsViewer
+					session={session}
+					userId={userId}
+					dispatch={dispatch}
+					start={peek}
+					onClose={() => setPeek(null)}
+					closeLabel="Về thẻ hiện tại"
+				/>
+			)}
+			{/* one key per card (and round): every card starts from a clean slate. Kept mounted while
+			    past cards are open, so a half-typed answer survives the detour. */}
+			<div className={cn(peek !== null && 'hidden')}>
+				<CardStage
+					key={`card-${session.round}-${session.index}-${question.key}`}
+					session={session}
+					question={question}
+					card={card}
+					userId={userId}
+					dispatch={dispatch}
+					isLast={session.index === total - 1}
+					active={peek === null}
+				/>
+			</div>
 		</div>
 	);
 }

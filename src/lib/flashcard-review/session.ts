@@ -104,6 +104,15 @@ export function reviewReducer(s: ReviewSession, action: ReviewAction): ReviewSes
 	}
 }
 
+/**
+ * The questions of this round already gone through, in order: everything before the current card
+ * (the current one too once its saved card is shown), or the whole round at the summary.
+ */
+export function pastQuestions(s: ReviewSession): Question[] {
+	if (s.phase === 'summary') return s.queue;
+	return s.queue.slice(0, s.index + (s.phase === 'reveal' ? 1 : 0));
+}
+
 /** How the round went: how many cards were gone through, and how many were skipped. */
 export function summarize(s: ReviewSession): { total: number; skipped: number } {
 	return { total: s.queue.length, skipped: s.queue.filter(q => s.answers[q.key]?.skipped).length };

@@ -165,6 +165,8 @@ export function FlashcardReview() {
 			{view === 'session' && session && session.phase === 'summary' && (
 				<ReviewSummary
 					session={session}
+					userId={userId}
+					dispatch={dispatch}
 					onRestart={restart}
 					onChooseOther={backToSetup}
 				/>

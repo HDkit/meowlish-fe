@@ -5,6 +5,7 @@ import {
 	createSession,
 	expectedAnswer,
 	isReviewSession,
+	pastQuestions,
 	reviewReducer,
 	summarize,
 	type ReviewSession,
@@ -144,5 +145,31 @@ describe('storage', () => {
 		expect(() => saveSession(session, broken)).not.toThrow();
 		expect(() => clearSession(broken)).not.toThrow();
 		expect(loadSession('u1', null)).toBeNull();
+	});
+});
+
+describe('pastQuestions', () => {
+	const start = (): ReviewSession =>
+		createSession('u1', [card('1'), card('2'), card('3')], settings({ modes: ['word-to-definition'] }), seededRng(1))!;
+
+	it('is empty before the first answer', () => {
+		expect(pastQuestions(start())).toEqual([]);
+	});
+
+	it('includes the current card once its saved card is shown', () => {
+		let s = start();
+		s = reviewReducer(s, { type: 'submit', answer: 'a' });
+		expect(pastQuestions(s).map(q => q.key)).toEqual([s.queue[0].key]);
+		s = reviewReducer(s, { type: 'next' });
+		expect(pastQuestions(s).map(q => q.key)).toEqual([s.queue[0].key]);
+		s = reviewReducer(s, { type: 'skip' });
+		expect(pastQuestions(s)).toHaveLength(2);
+	});
+
+	it('is the whole round at the summary', () => {
+		let s = start();
+		for (let i = 0; i < 3; i++) s = reviewReducer(reviewReducer(s, { type: 'skip' }), { type: 'next' });
+		expect(s.phase).toBe('summary');
+		expect(pastQuestions(s)).toEqual(s.queue);
 	});
 });
