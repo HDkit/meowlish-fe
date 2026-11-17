@@ -236,6 +236,7 @@ function CardStage({
 	dispatch,
 	isLast,
 	active,
+	onPeek,
 }: {
 	session: ReviewSession;
 	question: Question;
@@ -245,6 +246,8 @@ function CardStage({
 	isLast: boolean;
 	/** false while past cards are open: the stage stays mounted (keeping a half-typed answer) but idle */
 	active: boolean;
+	/** opens the cards already done; absent on the first card */
+	onPeek?: () => void;
 }) {
 	const revealed = session.phase === 'reveal';
 	const record = session.answers[question.key];
@@ -383,19 +386,33 @@ function CardStage({
 						<p className="text-sm text-slate-500 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300" role="status" aria-live="polite">
 							So sánh điều bạn nhớ với nội dung đã lưu.
 						</p>
-						<Button
-							ref={nextRef}
-							onClick={() => dispatch({ type: 'next' })}
-							// a held Enter (from submitting) must not skip past the reveal
-							onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
-							disabled={editing}
-							className="h-11 shrink-0 rounded-xl px-6 font-bold motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
-						>
-							{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
-							<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
-						</Button>
+						<div className="flex flex-col-reverse gap-2 sm:flex-row">
+							{onPeek && (
+								<Button type="button" variant="outline" onClick={onPeek} disabled={editing} className="h-11 rounded-xl font-semibold">
+									<History className="h-4 w-4" aria-hidden /> Thẻ trước
+									<kbd className="ml-1 hidden rounded border border-slate-200 px-1 text-[10px] text-slate-400 sm:inline">←</kbd>
+								</Button>
+							)}
+							<Button
+								ref={nextRef}
+								onClick={() => dispatch({ type: 'next' })}
+								// a held Enter (from submitting) must not skip past the reveal
+								onKeyDown={e => e.repeat && e.key === 'Enter' && e.preventDefault()}
+								disabled={editing}
+								className="h-11 shrink-0 rounded-xl px-6 font-bold motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+							>
+								{isLast ? 'Hoàn thành' : 'Tiếp'} <ArrowRight className="h-4 w-4" aria-hidden />
+								<kbd className="ml-1 hidden rounded border border-white/40 px-1 text-[10px] opacity-80 sm:inline">Enter</kbd>
+							</Button>
+						</div>
 					</>
 				:	<div className="flex flex-col-reverse gap-2 sm:ml-auto sm:flex-row">
+						{/* no ← hint here: the answer box has the focus, where ← moves the cursor */}
+						{onPeek && (
+							<Button type="button" variant="outline" onClick={onPeek} className="h-11 rounded-xl font-semibold">
+								<History className="h-4 w-4" aria-hidden /> Thẻ trước
+							</Button>
+						)}
 						<Button type="button" variant="outline" onClick={() => dispatch({ type: 'skip' })} className="h-11 rounded-xl font-semibold">
 							<SkipForward className="h-4 w-4" aria-hidden /> Bỏ qua
 						</Button>
@@ -565,21 +582,9 @@ export function ReviewPlay({
 						Thẻ {session.index + 1} / {total}
 						{session.round > 1 && <span className="ml-2 text-slate-400">· Lượt {session.round}</span>}
 					</span>
-					<div className="flex items-center gap-4">
-						{canPeek && peek === null && (
-							<button
-								type="button"
-								onClick={() => setPeek(session.index - 1)}
-								className="inline-flex items-center gap-1 font-semibold text-slate-500 hover:text-primary"
-							>
-								<History className="h-4 w-4" aria-hidden /> Thẻ trước
-								<kbd className="ml-0.5 hidden rounded border border-slate-200 px-1 text-[10px] text-slate-400 sm:inline">←</kbd>
-							</button>
-						)}
-						<button type="button" onClick={onExit} className="font-semibold text-slate-500 hover:text-slate-800">
-							Kết thúc
-						</button>
-					</div>
+					<button type="button" onClick={onExit} className="font-semibold text-slate-500 hover:text-slate-800">
+						Kết thúc
+					</button>
 				</div>
 				<ProgressBar value={done} max={total} />
 			</div>
@@ -606,6 +611,7 @@ export function ReviewPlay({
 					dispatch={dispatch}
 					isLast={session.index === total - 1}
 					active={peek === null}
+					onPeek={canPeek ? () => setPeek(session.index - 1) : undefined}
 				/>
 			</div>
 		</div>
