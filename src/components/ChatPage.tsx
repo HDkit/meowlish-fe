@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/hooks';
 import { updateChatRoom, removeChatRoom, setChatRooms } from '@/components/store/chatRoomSlice';
+import { type RoomScheduleEvent, applyRoomSchedule, savedRoomSchedule } from '@/lib/room-schedule';
 import { addChatMessage, removeChatMessage } from '@/components/store/chatMessageSlice';
 import { LOCAL_ID_PREFIX, roomMessages } from '@/lib/chat-messages';
 import { addUser } from '@/components/store/userSlice';
@@ -219,8 +220,15 @@ function getEmbedUrl(url: string): string | null {
 	return null;
 }
 
-function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) {
+function ChatRoomView({ room: openedRoom, onBack }: { room: ChatRoom; onBack: () => void }) {
 	const dispatch = useAppDispatch();
+	// The open room's own copy, so a schedule change shows at once: this user's save, or the
+	// `room-schedule` the live service pushes to everyone in the room. The room list follows it.
+	const [room, setRoom] = useState(openedRoom);
+	useEffect(() => setRoom(openedRoom), [openedRoom]);
+	useEffect(() => {
+		dispatch(updateChatRoom(room));
+	}, [room, dispatch]);
 	const { currUser, isMod, isAdmin } = useAuth();
 	// schedule edits follow the same owner-or-admin rule as deleting (gateway ResourceAccess)
 	const canEditRoom = canManageRoom({ isMod: isMod, isAdmin: isAdmin, userId: currUser?.id }, room);
@@ -313,6 +321,10 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 		socket.on('connect', () => {
 			socket.emit('join-room', room.id);
 			joinedRef.current = true;
+		});
+
+		socket.on('room-schedule', (event: RoomScheduleEvent) => {
+			setRoom((current) => applyRoomSchedule(current, event));
 		});
 
 		socket.on('message', (data: { id: string; fromId: string; message: string; createdAt: string }) => {
@@ -443,11 +455,10 @@ function ChatRoomView({ room, onBack }: { room: ChatRoom; onBack: () => void }) 
 							setUrlNull: clearUrl,
 							setTimeNull: clearTime,
 						});
-						dispatch(updateChatRoom({
-							...room,
-							scheduledLiveUrl: clearUrl ? undefined : (url || room.scheduledLiveUrl),
-							scheduledDate: clearTime ? undefined : (time || room.scheduledDate),
-						}));
+						// the pushed `room-schedule` follows; this shows the change even if the socket is down
+						setRoom((current) =>
+							savedRoomSchedule(current, { url: url, time: time, clearUrl: clearUrl, clearTime: clearTime }),
+						);
 					} catch (err) {
 						console.error('Failed to update room schedule:', err);
 					}
