@@ -530,7 +530,8 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedColor, setSelectedColor] = useState<string>('yellow');
   const [showToolbar, setShowToolbar] = useState(false);
-  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  // x: centre of the selection; y: its top (the toolbar goes above); bottom: where the translation goes
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0, bottom: 0 });
   const [selectedRange, setSelectedRange] = useState<Range | null>(null);
   
   // State for editing existing highlights
@@ -543,7 +544,12 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
 
   // Translate State
   const [translationText, setTranslationText] = useState<string | null>(null);
+  const [translationFailed, setTranslationFailed] = useState(false);
   const [translatingSelection, setTranslatingSelection] = useState(false);
+  const clearTranslation = () => {
+    setTranslationText(null);
+    setTranslationFailed(false);
+  };
   
   const textRef = useRef<HTMLDivElement>(null);
   // the page's dictionary panel (in a test); without one, the toolbar has no dictionary button
@@ -558,7 +564,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
 
   // --- HIGHLIGHT HANDLERS ---
   const handleMouseUp = () => {
-    setTranslationText(null);
+    clearTranslation();
     if (highlightEnabled === false) {
       return;
     }
@@ -572,7 +578,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
     const selection = window.getSelection();
     const inside = !!selection && selection.toString().trim() !== '' && !!textRef.current?.contains(selection.anchorNode);
     if (!inside && !selectWordAt(e.clientX, e.clientY)) return;
-    setTranslationText(null);
+    clearTranslation();
     showToolbarForSelection();
   };
 
@@ -594,6 +600,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
     setToolbarPosition({
       x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY - 10,
+      bottom: rect.bottom + window.scrollY + 8,
     });
     
     setSelectedRange(range);
@@ -616,6 +623,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
     setToolbarPosition({
       x: rect.left + window.scrollX + rect.width / 2,
       y: rect.top + window.scrollY - 10,
+      bottom: rect.bottom + window.scrollY + 8,
     });
     
     setEditingHighlight(highlight);
@@ -722,24 +730,37 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
   };
 
   // --- TRANSLATE HANDLER ---
-  const handleTranslateSelection = async () => {
-    if (!onTranslate) return;
-    const selection = window.getSelection();
-    const selectedText = selection?.toString().trim() || '';
-    if (!selectedText) return;
+  /** Translates `text` into the popup under the selection; says so when it fails. */
+  const translate = async (text: string) => {
+    if (!onTranslate || !text.trim()) return;
+    clearTranslation();
     setTranslatingSelection(true);
+    let result: string | null = null;
     try {
-      const result = await onTranslate(selectedText);
-      if (result) {
-        setTranslationText(result);
-      }
+      result = await onTranslate(text.trim());
     } catch (err) {
       console.error('Translate error:', err);
     } finally {
       setTranslatingSelection(false);
     }
+    if (result) setTranslationText(result);
+    else setTranslationFailed(true);
     setShowToolbar(false);
+    setIsEditMode(false);
+    setEditingHighlight(null);
   };
+
+  // Close the translation when the user presses anywhere else (e.g. selects text in another block)
+  const translationRef = useRef<HTMLDivElement>(null);
+  const translationShown = !!translationText || translationFailed;
+  useEffect(() => {
+    if (!translationShown) return;
+    const onDown = (e: MouseEvent) => {
+      if (!translationRef.current?.contains(e.target as Node)) clearTranslation();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [translationShown]);
 
   // Close toolbar on outside click
   useEffect(() => {
@@ -832,8 +853,8 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
         }}
       />
 
-      {/* Toolbar */}
-      {showToolbar && (
+      {/* Toolbar (in document.body: inside an answer's <label>, a click on it would pick that answer) */}
+      {showToolbar && createPortal(
         <div
           className="fixed z-50 flex items-center gap-1 bg-white rounded-lg shadow-xl border border-gray-200 p-1.5 animate-in fade-in zoom-in duration-200 highlight-toolbar"
           style={{
@@ -958,6 +979,29 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
             <Plus size={18} />
           </Button>
 
+          {/* look-up tools together: translate, dictionary */}
+          {(onTranslate || dictionary) && <div className="w-px h-5 bg-gray-200 mx-1" />}
+
+          {onTranslate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              onClick={() =>
+                void translate(isEditMode && editingHighlight ? editingHighlight.text : window.getSelection()?.toString() ?? '')
+              }
+              disabled={translatingSelection}
+              title="Dịch"
+              aria-label="Dịch sang tiếng Việt"
+            >
+              {translatingSelection ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              ) : (
+                <Languages size={16} />
+              )}
+            </Button>
+          )}
+
           {dictionary && (
             <Button
               variant="ghost"
@@ -977,46 +1021,19 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
               <BookOpen size={16} />
             </Button>
           )}
-
-          {onTranslate && (
-            <>
-              <div className="w-px h-5 bg-gray-200 mx-1" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                onClick={() => {
-                  if (isEditMode && editingHighlight) {
-                    setTranslationText(null);
-                    setWordForForm(editingHighlight.text);
-                    if (onTranslate) onTranslate(editingHighlight.text).then(r => { if (r) setTranslationText(r); });
-                    setShowToolbar(false);
-                    setIsEditMode(false);
-                    setEditingHighlight(null);
-                  } else {
-                    handleTranslateSelection();
-                  }
-                }}
-                title="Dịch"
-              >
-                {translatingSelection ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                ) : (
-                  <Languages size={16} />
-                )}
-              </Button>
-            </>
-          )}
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Translation result popup */}
-      {translationText && (
+      {/* Translation result popup (in document.body too) */}
+      {translationShown && createPortal(
         <div
+          ref={translationRef}
+          role="status"
           className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-3 text-sm animate-in fade-in duration-200 max-w-xs"
           style={{
             left: toolbarPosition.x,
-            top: toolbarPosition.y + 10,
+            top: toolbarPosition.bottom,
             transform: 'translateX(-50%)',
           }}
         >
@@ -1026,14 +1043,20 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
               <span className="font-bold text-xs uppercase tracking-wider text-blue-500">Dịch</span>
             </div>
             <button
-              onClick={() => setTranslationText(null)}
+              onClick={clearTranslation}
+              aria-label="Đóng bản dịch"
               className="flex h-5 w-5 items-center justify-center rounded hover:bg-slate-100 transition-colors"
             >
               <X size={12} className="text-slate-400" />
             </button>
           </div>
-          <div className="text-slate-700 text-sm leading-relaxed">{translationText}</div>
-        </div>
+          {translationText ? (
+            <div className="text-slate-700 text-sm leading-relaxed">{translationText}</div>
+          ) : (
+            <div className="text-sm text-red-600">Không dịch được, vui lòng thử lại.</div>
+          )}
+        </div>,
+        document.body,
       )}
 
       {/* Modal - Render riêng biệt */}

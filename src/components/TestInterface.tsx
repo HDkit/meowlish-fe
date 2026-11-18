@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { AnswerSync, registerAttemptSync, type AnswerKind, type SyncStatus } from '@/lib/answer-sync';
 import { TextHighlighter } from './TextHighlighter';
+import { translateToVietnamese } from '@/lib/translate';
 import { DictionaryLauncherButton, DictionaryProvider } from './dictionary/DictionaryProvider';
 
 
@@ -698,16 +699,11 @@ export function TestInterface() {
   }, [attemptId]);
 
   // ── Translate ──────────────────────────────────────────────────────────────
+  // from the browser (see translateToVietnamese): the server route is rate-limited by Google
   const handleTextTranslate = useCallback(async (text: string): Promise<string | null> => {
     if (!text) return null;
     try {
-      const res = await fetch('/api/gemini/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      return data.translation || null;
+      return (await translateToVietnamese(text)) || null;
     } catch (err) {
       console.error('Translate error:', err);
       return null;
