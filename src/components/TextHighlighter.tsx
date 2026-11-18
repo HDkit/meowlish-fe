@@ -1,4 +1,6 @@
 import { TranslateButton } from './flashcards/TranslateButton';
+import { DictionaryAutofill } from './flashcards/DictionaryAutofill';
+import { useDictionary } from './dictionary/DictionaryProvider';
 import { parseExamples, partOfSpeechOptions } from '@/lib/flashcard-fields';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -7,7 +9,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Trash2, Underline, Strikethrough, Plus, X, Languages } from 'lucide-react';
+import { Trash2, Underline, Strikethrough, Plus, X, Languages, BookOpen } from 'lucide-react';
 import { RootState } from './store/main/store';
 import { TagType } from '../types/client';
 import type { FlashcardList } from '../types/client';
@@ -62,6 +64,40 @@ function mapFlashcardList(list: any): FlashcardList {
 
 function normalizeTagName(tag: string) {
   return tag.trim().toLowerCase();
+}
+
+/**
+ * Selects the word under the pointer (for a right click with nothing selected). Returns false when
+ * the pointer is not over a word.
+ */
+function selectWordAt(x: number, y: number): boolean {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  };
+  let node: Node | null = null;
+  let offset = 0;
+  if (doc.caretPositionFromPoint) {
+    const pos = doc.caretPositionFromPoint(x, y);
+    if (pos) { node = pos.offsetNode; offset = pos.offset; }
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (r) { node = r.startContainer; offset = r.startOffset; }
+  }
+  if (!node || node.nodeType !== Node.TEXT_NODE) return false;
+  const text = node.nodeValue ?? '';
+  const isWordChar = (c: string | undefined) => !!c && /[\p{L}\p{M}\p{N}'’-]/u.test(c);
+  let start = offset;
+  let end = offset;
+  while (start > 0 && isWordChar(text[start - 1])) start--;
+  while (end < text.length && isWordChar(text[end])) end++;
+  if (start === end) return false;
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, end);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  return true;
 }
 
 // --- CONSTANTS ---
@@ -320,6 +356,12 @@ const FlashcardFormModal = ({
               className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none text-gray-900 shadow-sm"
               placeholder="Nhập từ mới"
             />
+            {/* fills pronunciation, part of speech, definition and examples from a dictionary */}
+            <DictionaryAutofill
+              word={formData.word}
+              fields={formData}
+              onFill={(next) => setFormData(prev => ({ ...prev, ...next }))}
+            />
           </div>
 
           {/* Phát âm, từ loại */}
@@ -504,6 +546,8 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
   const [translatingSelection, setTranslatingSelection] = useState(false);
   
   const textRef = useRef<HTMLDivElement>(null);
+  // the page's dictionary panel (in a test); without one, the toolbar has no dictionary button
+  const dictionary = useDictionary();
 
   // Redux Data
   const currentUser = useSelector((state: RootState) => state.currUser.current);
@@ -518,7 +562,21 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
     if (highlightEnabled === false) {
       return;
     }
+    showToolbarForSelection();
+  };
 
+  // Right click: the toolbar for the selection, or for the word under the pointer
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (highlightEnabled === false) return;
+    const selection = window.getSelection();
+    const inside = !!selection && selection.toString().trim() !== '' && !!textRef.current?.contains(selection.anchorNode);
+    if (!inside && !selectWordAt(e.clientX, e.clientY)) return;
+    setTranslationText(null);
+    showToolbarForSelection();
+  };
+
+  const showToolbarForSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.toString().trim() === '') {
       setShowToolbar(false);
@@ -759,7 +817,7 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
         ref={textRef}
         className="whitespace-pre-wrap text-justify selection:bg-primary/20 selection:text-primary"
         onMouseUp={handleMouseUp}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={handleContextMenu}
         onClick={(e) => {
           // Only close toolbar if no text is selected and not clicking on highlight or toolbar
           const selection = window.getSelection();
@@ -899,6 +957,26 @@ export function TextHighlighter({ text, onNewWord, highlightEnabled, onTranslate
           >
             <Plus size={18} />
           </Button>
+
+          {dictionary && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary hover:bg-primary/10"
+              onClick={() => {
+                const word = isEditMode && editingHighlight ? editingHighlight.text : window.getSelection()?.toString() ?? '';
+                if (!word.trim()) return;
+                dictionary.lookUp(word);
+                setShowToolbar(false);
+                setIsEditMode(false);
+                setEditingHighlight(null);
+              }}
+              title="Tra từ điển"
+              aria-label="Tra từ điển"
+            >
+              <BookOpen size={16} />
+            </Button>
+          )}
 
           {onTranslate && (
             <>

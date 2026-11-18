@@ -14,6 +14,7 @@ import { useAppSelector, useAppDispatch, useIsStoreHydrated } from '@/lib/store/
 import { FlashCard } from '../types/client';
 import { TagInput } from './TagInput';
 import { TranslateButton } from './flashcards/TranslateButton';
+import { DictionaryAutofill } from './flashcards/DictionaryAutofill';
 import { FlashcardService } from '@/lib/api/services/FlashcardService';
 import { FlashcardListService, type FlashCardListDetailResponse } from '@/lib/api/services/FlashcardListService';
 import { FlashcardForkPanel } from './flashcards/FlashcardForkPanel';
@@ -438,6 +439,18 @@ Lưu ý: ...`);
 							className="bg-slate-50 border-slate-200 focus:ring-primary focus:border-primary rounded-xl h-11 aria-[invalid=true]:border-destructive"
 						/>
 						<FieldError id="word" message={fieldErrors.word} className="-mt-2" />
+						{/* fills pronunciation, part of speech, definition and examples from a dictionary */}
+						<DictionaryAutofill
+							word={word}
+							fields={{ pronunciation, partOfSpeech, definition, examples }}
+							onFill={(next) => {
+								setPronunciation(next.pronunciation);
+								setPartOfSpeech(next.partOfSpeech);
+								setDefinition(next.definition);
+								setExamples(next.examples);
+								if (next.definition.trim()) clearFieldError('definition');
+							}}
+						/>
 					</div>
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="space-y-2">

@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Clock, Send, Volume2, ChevronRight, ChevronLeft, Flag, MessageSquare, Save, X, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { AnswerSync, registerAttemptSync, type AnswerKind, type SyncStatus } from '@/lib/answer-sync';
 import { TextHighlighter } from './TextHighlighter';
+import { DictionaryLauncherButton, DictionaryProvider } from './dictionary/DictionaryProvider';
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -802,6 +803,7 @@ export function TestInterface() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
+    <DictionaryProvider>
     <div
       className="flex flex-row gap-4 bg-slate-50 p-4 font-sans h-dvh overflow-hidden"
       ref={containerRef}
@@ -1197,7 +1199,9 @@ export function TestInterface() {
 
     {/* Floating toggle (always visible, fixed position). Solid colour in both states so it is easy
         to find; collapsed, it also shows the time left and the progress, so hiding the panel never
-        hides the clock. Red under 5 minutes, like the big timer. */}
+        hides the clock. Red under 5 minutes, like the big timer. The dictionary button sits right
+        under it. */}
+    <div className="fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-end gap-2">
     <button
       type="button"
       onClick={() => setShowTracker(!showTracker)}
@@ -1211,7 +1215,7 @@ export function TestInterface() {
           })`
       }
       title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
-      className={`fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
+      className={`flex flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
         timeLeft < 300 && timeLeft !== Infinity ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-primary/90'
       } ${showTracker ? 'h-16 w-8 justify-center' : 'gap-1 px-2 py-3'} ${
         !showTracker && saveStatus.state === 'error' ? 'ring-amber-400' : ''
@@ -1257,7 +1261,10 @@ export function TestInterface() {
         </>
       )}
     </button>
+    <DictionaryLauncherButton />
+    </div>
   </div>
     </div>
+    </DictionaryProvider>
   );
 }
