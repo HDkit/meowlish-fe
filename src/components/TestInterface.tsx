@@ -1200,8 +1200,8 @@ export function TestInterface() {
     {/* Floating toggle (always visible, fixed position). Solid colour in both states so it is easy
         to find; collapsed, it also shows the time left and the progress, so hiding the panel never
         hides the clock. Red under 5 minutes, like the big timer. The dictionary button sits right
-        under it. */}
-    <div className="fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-end gap-2">
+        under it; the column stretches both to the wider one so they share a width. */}
+    <div className="fixed right-0 top-1/2 z-50 flex -translate-y-1/2 flex-col items-stretch gap-2">
     <button
       type="button"
       onClick={() => setShowTracker(!showTracker)}
@@ -1217,7 +1217,7 @@ export function TestInterface() {
       title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
       className={`flex flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
         timeLeft < 300 && timeLeft !== Infinity ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-primary/90'
-      } ${showTracker ? 'h-16 w-8 justify-center' : 'gap-1 px-2 py-3'} ${
+      } ${showTracker ? 'h-16 justify-center px-1' : 'gap-1 px-2 py-3'} ${
         !showTracker && saveStatus.state === 'error' ? 'ring-amber-400' : ''
       }`}
     >
