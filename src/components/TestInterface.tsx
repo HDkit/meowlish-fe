@@ -458,6 +458,24 @@ export function TestInterface() {
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [editingNoteFor, setEditingNoteFor] = useState<string | null>(null);
   const [showTracker, setShowTracker] = useState(true);
+  // The panel toggle's size, measured from its content: an explicit width and height (not auto) is
+  // what lets it animate both when the panel opens and when it closes. Never narrower than the
+  // dictionary button under it (min-w-[48px] there), so the two always share a width.
+  const [toggleSize, setToggleSize] = useState<{ w: number; h: number } | null>(null);
+  const toggleObserver = useRef<ResizeObserver | null>(null);
+  const toggleContentRef = useCallback((el: HTMLSpanElement | null) => {
+    toggleObserver.current?.disconnect();
+    toggleObserver.current = null;
+    if (!el) return;
+    const measure = () => {
+      const w = Math.max(el.offsetWidth, 48);
+      const h = el.offsetHeight;
+      setToggleSize((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    measure();
+    toggleObserver.current = new ResizeObserver(measure);
+    toggleObserver.current.observe(el);
+  }, []);
 
 
   // Layout
@@ -1215,12 +1233,16 @@ export function TestInterface() {
           })`
       }
       title={showTracker ? 'Thu gọn bảng điều khiển' : 'Hiện bảng điều khiển'}
-      className={`flex flex-col items-center rounded-l-xl text-white shadow-lg ring-2 ring-white transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
+      style={toggleSize ? { width: toggleSize.w, height: toggleSize.h } : undefined}
+      className={`flex items-center justify-center overflow-hidden rounded-l-xl text-white shadow-lg ring-2 ring-white transition-[width,height,background-color] duration-300 ease-in-out motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
         timeLeft < 300 && timeLeft !== Infinity ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-primary/90'
-      } ${showTracker ? 'h-16 justify-center px-1' : 'gap-1 px-2 py-3'} ${
-        !showTracker && saveStatus.state === 'error' ? 'ring-amber-400' : ''
-      }`}
+      } ${!showTracker && saveStatus.state === 'error' ? 'ring-amber-400' : ''}`}
     >
+      {/* sized by its content (w-max, so the button's animated width never squeezes it) */}
+      <span
+        ref={toggleContentRef}
+        className={`flex w-max shrink-0 flex-col items-center ${showTracker ? 'px-1 py-[22px]' : 'gap-1 px-2 py-3'}`}
+      >
       {showTracker ? (
         <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
       ) : (
@@ -1260,6 +1282,7 @@ export function TestInterface() {
           </span>
         </>
       )}
+      </span>
     </button>
     <DictionaryLauncherButton />
     </div>

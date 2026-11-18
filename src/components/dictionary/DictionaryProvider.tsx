@@ -129,7 +129,7 @@ export function DictionaryLauncherButton() {
 			aria-pressed={dictionary.isOpen}
 			aria-label={dictionary.isOpen ? 'Đóng từ điển' : 'Mở từ điển'}
 			title="Từ điển (bôi đen hoặc nhấp chuột phải vào một từ để tra nhanh)"
-			className={`flex flex-col items-center gap-0.5 rounded-l-xl px-1 py-2 text-white shadow-lg ring-2 ring-white transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
+			className={`flex min-w-[48px] flex-col items-center gap-0.5 rounded-l-xl px-1 py-2 text-white shadow-lg ring-2 ring-white transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 ${
 				dictionary.isOpen ? 'bg-slate-700 hover:bg-slate-800' : 'bg-primary hover:bg-primary/90'
 			}`}
 		>
